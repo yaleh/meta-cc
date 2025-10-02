@@ -10,7 +10,7 @@ This repository contains the **meta-cc** (Meta-Cognition for Claude Code) projec
 
 The system follows a **two-layer architecture**:
 
-1. **cc-meta CLI Tool** (Pure data processing, no LLM)
+1. **meta-cc CLI Tool** (Pure data processing, no LLM)
    - Parses Claude Code session history (JSONL files from `~/.claude/projects/`)
    - Detects patterns using rule-based analysis
    - Outputs structured JSON for consumption by Claude
@@ -74,7 +74,7 @@ Claude Code stores session history as JSONL files in `~/.claude/projects/{projec
 ### Data Processing Flow
 
 ```
-JSONL File → cc-meta parse → Structured JSON → Claude Analysis → Recommendations
+JSONL File → meta-cc parse → Structured JSON → Claude Analysis → Recommendations
 ```
 
 The CLI outputs high-density structured data (tool usage stats, error patterns, timelines) which Claude then interprets semantically to generate insights.
@@ -105,7 +105,7 @@ When development begins, follow this phased approach:
 
 ### Phase 1: Core Parser (1-2 weeks)
 - JSONL parser for session history
-- Basic commands: `cc-meta parse extract`, `cc-meta parse stats`, `cc-meta analyze errors`
+- Basic commands: `meta-cc parse extract`, `meta-cc parse stats`, `meta-cc analyze errors`
 - Slash Commands: `/meta-stats`, `/meta-errors`
 
 ### Phase 2: Index Optimization (1 week, optional)

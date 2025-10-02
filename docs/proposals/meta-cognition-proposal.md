@@ -25,14 +25,14 @@ package "Claude Code 生态" {
   }
 }
 
-package "cc-meta 工具" {
+package "meta-cc 工具" {
   component "CLI 核心" as CLI {
     [会话定位器] as Locator
     [JSONL 解析器] as Parser
     [模式分析器] as Analyzer
   }
 
-  database "索引（可选）\n~/.cc-meta/index.db" as Index
+  database "索引（可选）\n~/.meta-cc/index.db" as Index
 }
 
 CC --> History : 写入 JSONL
@@ -66,7 +66,7 @@ end note
 
 ---
 
-## 二、核心工具：cc-meta CLI
+## 二、核心工具：meta-cc CLI
 
 ### 2.1 设计原则
 
@@ -75,7 +75,7 @@ end note
 @startuml
 !theme plain
 
-rectangle "cc-meta CLI\n（无 LLM）" as CLI {
+rectangle "meta-cc CLI\n（无 LLM）" as CLI {
   rectangle "JSONL 解析" as Parse
   rectangle "规则分析" as Rule
   rectangle "JSON 输出" as Output
@@ -117,7 +117,7 @@ end note
 
 start
 
-:cc-meta 命令启动;
+:meta-cc 命令启动;
 
 if (环境变量 $CC_SESSION_ID 存在?) then (yes)
   :使用 $CC_SESSION_ID;
@@ -164,7 +164,7 @@ endif
 ### 2.2 命令结构
 
 ```bash
-cc-meta - Claude Code Meta-Cognition Tool
+meta-cc - Claude Code Meta-Cognition Tool
 
 全局选项:
   --session <id>          会话ID（或读取 $CC_SESSION_ID）
@@ -193,25 +193,25 @@ COMMANDS:
 **阶段1: 无索引，纯解析**
 ```bash
 # 导出当前会话的所有 turns（供 Claude 分析）
-cc-meta parse extract --type turns --format json
+meta-cc parse extract --type turns --format json
 
 # 提取所有工具调用
-cc-meta parse extract --type tools --filter "status=error"
+meta-cc parse extract --type tools --filter "status=error"
 
 # 生成会话统计摘要
-cc-meta parse stats --metrics "tools,errors,duration"
+meta-cc parse stats --metrics "tools,errors,duration"
 ```
 
 **阶段2: 有索引，高级查询**
 ```bash
 # 查询最近的 Bash 工具使用
-cc-meta query tools --name Bash --limit 10
+meta-cc query tools --name Bash --limit 10
 
 # 分析错误重复模式
-cc-meta analyze errors --window 20 --threshold 3
+meta-cc analyze errors --window 20 --threshold 3
 
 # 生成时间线视图
-cc-meta analyze timeline --group-by tool --format md
+meta-cc analyze timeline --group-by tool --format md
 ```
 
 ---
@@ -224,7 +224,7 @@ cc-meta analyze timeline --group-by tool --format md
 ```
 JSONL 文件
     ↓
-cc-meta parse extract
+meta-cc parse extract
     ↓
 结构化 JSON 输出
     ↓
@@ -237,11 +237,11 @@ Slash Command/Subagent 调用 Claude
 ```
 JSONL 文件
     ↓
-cc-meta index build
+meta-cc index build
     ↓
 SQLite 索引
     ↓
-cc-meta query/analyze（基于规则）
+meta-cc query/analyze（基于规则）
     ↓
 高密度分析结果
     ↓
@@ -250,7 +250,7 @@ Claude 语义理解
 
 ### 3.2 输出格式规范
 
-**`cc-meta parse extract --type turns`**
+**`meta-cc parse extract --type turns`**
 ```json
 {
   "session_id": "5b57148c-89dc-4eb5-bc37-8122e194d90d",
@@ -281,7 +281,7 @@ Claude 语义理解
 }
 ```
 
-**`cc-meta parse extract --type tools --filter "status=error"`**
+**`meta-cc parse extract --type tools --filter "status=error"`**
 ```json
 {
   "total_tools": 87,
@@ -300,7 +300,7 @@ Claude 语义理解
 }
 ```
 
-**`cc-meta analyze errors --window 20`**
+**`meta-cc analyze errors --window 20`**
 ```json
 {
   "analysis_type": "error_repetition",
@@ -331,7 +331,7 @@ Claude 语义理解
 
 ### 3.3 索引结构（可选，阶段2）
 
-**SQLite 数据库 (~/.cc-meta/index.db)**
+**SQLite 数据库 (~/.meta-cc/index.db)**
 
 ```sql
 -- 最小化索引表（仅加速查询）
@@ -373,14 +373,14 @@ export CC_PROJECT_PATH="/home/user/work/myproject"
 export CC_PROJECT_HASH="-home-user-work-myproject"
 
 # Slash command 脚本中直接使用
-cc-meta parse extract --type tools
+meta-cc parse extract --type tools
 # → 自动从 $CC_SESSION_ID 和 $CC_PROJECT_HASH 定位文件
 ```
 
 **备选方案（如果 Claude Code 不提供环境变量）**
 ```bash
 # 在 slash command 中手动传递
-cc-meta parse extract \
+meta-cc parse extract \
   --project "$(pwd)" \
   --session-hint "latest"  # 使用最新会话
 ```
@@ -395,7 +395,7 @@ cc-meta parse extract \
 actor User
 participant "Claude Code" as CC
 participant "Slash Command\n/meta-errors" as Cmd
-participant "cc-meta CLI" as CLI
+participant "meta-cc CLI" as CLI
 participant "Claude (LLM)" as LLM
 
 User -> CC : 输入 /meta-errors
@@ -404,12 +404,12 @@ activate CC
 CC -> Cmd : 加载命令定义\n(.claude/commands/meta-errors.md)
 activate Cmd
 
-Cmd -> CLI : 调用 Bash 执行\ncc-meta parse extract --type tools --filter "status=error"
+Cmd -> CLI : 调用 Bash 执行\nmeta-cc parse extract --type tools --filter "status=error"
 activate CLI
 CLI --> Cmd : 返回 JSON\n(错误工具列表)
 deactivate CLI
 
-Cmd -> CLI : 调用 Bash 执行\ncc-meta analyze errors --window 20
+Cmd -> CLI : 调用 Bash 执行\nmeta-cc analyze errors --window 20
 activate CLI
 CLI --> Cmd : 返回 JSON\n(错误模式)
 deactivate CLI
@@ -443,7 +443,7 @@ allowed_tools: [Bash]
 
 运行以下命令获取会话统计：
 \`\`\`bash
-cc-meta parse stats --metrics tools,errors,duration --output md
+meta-cc parse stats --metrics tools,errors,duration --output md
 \`\`\`
 将结果格式化后显示给用户。
 ```
@@ -459,8 +459,8 @@ argument-hint: [window-size]
 
 执行错误分析（窗口大小：${1:-20}）：
 \`\`\`bash
-error_data=$(cc-meta parse extract --type tools --filter "status=error" --output json)
-pattern_data=$(cc-meta analyze errors --window ${1:-20} --output json)
+error_data=$(meta-cc parse extract --type tools --filter "status=error" --output json)
+pattern_data=$(meta-cc analyze errors --window ${1:-20} --output json)
 \`\`\`
 
 基于以上数据分析：
@@ -482,13 +482,13 @@ pattern_data=$(cc-meta analyze errors --window ${1:-20} --output json)
 
 actor Developer
 participant "@meta-coach\nSubagent" as Coach
-participant "cc-meta CLI" as CLI
+participant "meta-cc CLI" as CLI
 database "会话历史" as History
 
 Developer -> Coach : "我感觉在重复做某件事..."
 activate Coach
 
-Coach -> CLI : cc-meta parse extract --type tools
+Coach -> CLI : meta-cc parse extract --type tools
 activate CLI
 CLI -> History : 读取 JSONL
 CLI --> Coach : 返回工具使用列表（JSON）
@@ -500,7 +500,7 @@ Coach --> Developer : "发现你在过去 15 轮中\n运行了 6 次 `npm test`�
 
 Developer -> Coach : "没意识到..."
 
-Coach -> CLI : cc-meta analyze errors --window 15
+Coach -> CLI : meta-cc analyze errors --window 15
 activate CLI
 CLI --> Coach : 返回错误模式（JSON）
 deactivate CLI
@@ -537,17 +537,17 @@ allowed_tools: [Bash, Read, Edit, Write]
 
 ## 分析工具
 
-使用 `cc-meta` CLI 获取会话数据：
+使用 `meta-cc` CLI 获取会话数据：
 
 \`\`\`bash
 # 提取工具调用
-cc-meta parse extract --type tools
+meta-cc parse extract --type tools
 
 # 分析错误模式
-cc-meta analyze errors --window 30
+meta-cc analyze errors --window 30
 
 # 查询历史（如果有索引）
-cc-meta query sessions --limit 10
+meta-cc query sessions --limit 10
 \`\`\`
 
 ## 对话原则
@@ -559,7 +559,7 @@ cc-meta query sessions --limit 10
 ## 工作流
 
 1. 倾听开发者的困惑
-2. 调用 cc-meta 获取数据
+2. 调用 meta-cc 获取数据
 3. 分析模式并引导思考
 4. 提供分层建议（立即/可选/长期）
 5. 协助实施优化（修改配置、创建命令等）
@@ -579,7 +579,7 @@ cc-meta query sessions --limit 10
 actor User
 participant "Claude Code" as CC
 participant "meta-insight\nMCP Server" as MCP
-participant "cc-meta CLI" as CLI
+participant "meta-cc CLI" as CLI
 database "会话历史" as History
 
 User -> CC : "Use meta-insight MCP to\ncheck similar errors"
@@ -588,7 +588,7 @@ activate CC
 CC -> MCP : MCP Tool Call:\nextract_session_data(\n  type="tools",\n  filter="status=error"\n)
 activate MCP
 
-MCP -> CLI : 执行命令:\ncc-meta parse extract\n  --type tools\n  --filter "status=error"
+MCP -> CLI : 执行命令:\nmeta-cc parse extract\n  --type tools\n  --filter "status=error"
 activate CLI
 
 CLI -> History : 读取 JSONL
@@ -875,9 +875,9 @@ stop
   - `extract_errors()`: 识别错误工具调用
 
 - [ ] 核心命令实现
-  - `cc-meta parse extract --type turns/tools/errors`
-  - `cc-meta parse stats --metrics tools,errors,duration`
-  - `cc-meta analyze errors --window N`
+  - `meta-cc parse extract --type turns/tools/errors`
+  - `meta-cc parse stats --metrics tools,errors,duration`
+  - `meta-cc analyze errors --window N`
 
 - [ ] 输出格式化
   - JSON 输出（默认）
@@ -889,7 +889,7 @@ stop
   - Slash Command: `/meta-errors`
 
 **交付物：**
-- 可运行的 `cc-meta` CLI 工具
+- 可运行的 `meta-cc` CLI 工具
 - 2 个可用的 Slash Commands
 - 基础文档
 
@@ -898,13 +898,13 @@ stop
 **目标：加速重复查询**
 
 - [ ] SQLite 索引构建
-  - `cc-meta index build`: 全量索引
-  - `cc-meta index update`: 增量索引
+  - `meta-cc index build`: 全量索引
+  - `meta-cc index update`: 增量索引
   - 索引状态管理
 
 - [ ] 高级查询命令
-  - `cc-meta query sessions --project <path> --limit N`
-  - `cc-meta query tools --name <tool> --since <date>`
+  - `meta-cc query sessions --project <path> --limit N`
+  - `meta-cc query tools --name <tool> --since <date>`
 
 - [ ] Slash Command: `/meta-timeline`
 
@@ -999,8 +999,8 @@ stop
 **步骤2：Slash Command 执行 CLI**
 ```bash
 # .claude/commands/meta-errors.md 中的脚本
-error_data=$(cc-meta parse extract --type tools --filter "status=error" --output json)
-pattern_data=$(cc-meta analyze errors --window 20 --output json)
+error_data=$(meta-cc parse extract --type tools --filter "status=error" --output json)
+pattern_data=$(meta-cc analyze errors --window 20 --output json)
 ```
 
 **步骤3：CLI 返回结构化数据**
@@ -1049,7 +1049,7 @@ pattern_data=$(cc-meta analyze errors --window 20 --output json)
 **步骤2：@meta-coach 分析**
 ```bash
 # Subagent 调用 CLI
-cc-meta query tools \
+meta-cc query tools \
   --filter "tool=Bash AND status=error AND command LIKE '%auth%'" \
   --limit 5 \
   --output json
@@ -1103,7 +1103,7 @@ cc-meta query tools \
 ### 9.2 项目结构
 
 ```
-cc-meta/
+meta-cc/
 ├── go.mod                  # Go 模块定义
 ├── go.sum                  # 依赖锁定
 ├── main.go                 # 程序入口
@@ -1229,9 +1229,9 @@ card "技术选型" {
 **MVP 开发（1-2周）**
 1. 搭建 Go CLI 项目骨架（Cobra + Viper）
 2. 实现核心功能：
-   - `cc-meta parse extract`
-   - `cc-meta parse stats`
-   - `cc-meta analyze errors`
+   - `meta-cc parse extract`
+   - `meta-cc parse stats`
+   - `meta-cc analyze errors`
 3. 创建 Slash Commands：
    - `/meta-stats`
    - `/meta-errors`
