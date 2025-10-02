@@ -4,21 +4,65 @@
 
 ### 1.1 核心定位
 
-基于 `~/.claude/projects/` 会话历史的命令行分析工具，通过多维度索引、智能查询和模式识别，为 Claude Code 提供元认知能力。
+基于 `~/.claude/projects/` 会话历史的命令行分析工具，通过多维度索引、智能查询和模式识别，为 [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) 提供元认知能力。
 
-### 1.2 核心组件
+### 1.2 系统架构
 
+```plantuml
+@startuml
+!theme plain
+skinparam componentStyle rectangle
+
+package "Claude Code 生态" {
+  [Claude Code CLI] as CC
+  [会话历史\n~/.claude/projects/] as History
+
+  package "扩展机制" {
+    [Slash Commands\n.claude/commands/] as Slash
+    [Subagents\n.claude/agents/] as Agent
+    [MCP Servers] as MCP
+    [Hooks] as Hooks
+  }
+}
+
+package "cc-meta 工具" {
+  component "CLI 核心" as CLI {
+    [会话定位器] as Locator
+    [JSONL 解析器] as Parser
+    [模式分析器] as Analyzer
+  }
+
+  database "索引（可选）\n~/.cc-meta/index.db" as Index
+}
+
+CC --> History : 写入 JSONL
+Slash --> CLI : 调用命令
+Agent --> CLI : 调用命令
+MCP --> CLI : 调用命令
+
+CLI --> History : 读取 JSONL
+CLI --> Index : 读写索引
+
+note right of CLI
+  纯数据处理
+  无 LLM 调用
+  输出结构化 JSON
+end note
+
+note right of Slash
+  Claude 语义分析
+  建议生成
+end note
+
+@enduml
 ```
-cc-meta CLI 工具
-  ├─ 索引引擎：会话历史快速检索
-  ├─ 查询引擎：多维度数据查询
-  └─ 分析引擎：模式识别和建议生成
 
-Claude Code 集成
-  ├─ Slash Commands：快速操作
-  ├─ Subagent：对话式分析
-  └─ MCP Server：程序化访问
-```
+**参考文档：**
+- [Claude Code 概述](https://docs.claude.com/en/docs/claude-code/overview)
+- [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands)
+- [Subagents](https://docs.claude.com/en/docs/claude-code/subagents)
+- [MCP 集成](https://docs.claude.com/en/docs/claude-code/mcp)
+- [Hooks 系统](https://docs.claude.com/en/docs/claude-code/hooks)
 
 ---
 
@@ -27,33 +71,95 @@ Claude Code 集成
 ### 2.1 设计原则
 
 **职责边界**
-- CLI 工具：纯数据处理，无 LLM 调用
-- 输出：结构化、高密度的分析结果
-- 语义理解：由调用方（Slash Command/Subagent/MCP）中的 Claude 完成
+```plantuml
+@startuml
+!theme plain
 
-**会话定位**
-```bash
-# 方式1: 通过环境变量（Claude Code 自动设置）
-export CC_SESSION_ID="5b57148c-89dc-4eb5-bc37-8122e194d90d"
-export CC_PROJECT_HASH="-home-yale-work-myproject"
-cc-meta query turns
+rectangle "cc-meta CLI\n（无 LLM）" as CLI {
+  rectangle "JSONL 解析" as Parse
+  rectangle "规则分析" as Rule
+  rectangle "JSON 输出" as Output
+}
 
-# 方式2: 通过命令行参数
-cc-meta query turns --session 5b57148c-89dc-4eb5-bc37-8122e194d90d
+rectangle "Claude Code 集成\n（有 LLM）" as CC {
+  rectangle "语义理解" as Semantic
+  rectangle "建议生成" as Suggest
+  rectangle "对话交互" as Dialog
+}
 
-# 方式3: 通过项目路径自动推断
-cc-meta query turns --project /home/yale/work/myproject
-# → 自动查找 ~/.claude/projects/-home-yale-work-myproject/
+Parse --> Rule
+Rule --> Output
+Output --> Semantic
+Semantic --> Suggest
+Suggest --> Dialog
+
+note right of CLI
+  职责：
+  - 提取会话数据
+  - 检测重复模式
+  - 输出结构化信息
+end note
+
+note right of CC
+  职责：
+  - 理解用户意图
+  - 关联上下文
+  - 生成可操作建议
+end note
+
+@enduml
+```
+
+**会话定位机制**
+```plantuml
+@startuml
+!theme plain
+
+start
+
+:cc-meta 命令启动;
+
+if (环境变量 $CC_SESSION_ID 存在?) then (yes)
+  :使用 $CC_SESSION_ID;
+  :查找 ~/.claude/projects/$CC_PROJECT_HASH/$CC_SESSION_ID.jsonl;
+elseif (命令行参数 --session?) then (yes)
+  :使用 --session 参数;
+  :遍历 ~/.claude/projects/*/;
+  :查找匹配的 session.jsonl;
+elseif (命令行参数 --project?) then (yes)
+  :将路径转换为哈希;
+  :定位 ~/.claude/projects/-path-hash/;
+  :使用最新的 .jsonl 文件;
+else (no)
+  :使用当前工作目录;
+  :推断项目路径;
+  :使用最新会话;
+endif
+
+if (找到会话文件?) then (yes)
+  :解析 JSONL;
+  :执行分析;
+  :输出结果;
+  stop
+else (no)
+  :报错：会话文件未找到;
+  stop
+endif
+
+@enduml
 ```
 
 **会话文件结构**
 ```
-~/.claude/projects/
-  └─ -home-yale-work-myproject/     # 项目哈希目录
-      ├─ 5b57148c-...-8122e194d90d.jsonl  # 会话1
-      ├─ f1547628-...-9935-79c27ca6cc7e.jsonl  # 会话2
-      └─ ...
+~/.claude/projects/              # Claude Code 会话存储根目录
+  └─ -home-yale-work-myproject/  # 项目路径哈希（/ 替换为 -）
+      ├─ 5b57148c-...d90d.jsonl # 会话1（UUID 命名）
+      ├─ f1547628-...c7e.jsonl  # 会话2
+      └─ 193e3ca7-...050.jsonl  # 会话3
 ```
+
+**参考文档：**
+- [设置和配置](https://docs.claude.com/en/docs/claude-code/settings)
 
 ### 2.2 命令结构
 
@@ -281,7 +387,51 @@ cc-meta parse extract \
 
 ### 4.2 Slash Commands
 
-**`/meta-stats`** - 会话统计（阶段1 MVP）
+**执行流程**
+```plantuml
+@startuml
+!theme plain
+
+actor User
+participant "Claude Code" as CC
+participant "Slash Command\n/meta-errors" as Cmd
+participant "cc-meta CLI" as CLI
+participant "Claude (LLM)" as LLM
+
+User -> CC : 输入 /meta-errors
+activate CC
+
+CC -> Cmd : 加载命令定义\n(.claude/commands/meta-errors.md)
+activate Cmd
+
+Cmd -> CLI : 调用 Bash 执行\ncc-meta parse extract --type tools --filter "status=error"
+activate CLI
+CLI --> Cmd : 返回 JSON\n(错误工具列表)
+deactivate CLI
+
+Cmd -> CLI : 调用 Bash 执行\ncc-meta analyze errors --window 20
+activate CLI
+CLI --> Cmd : 返回 JSON\n(错误模式)
+deactivate CLI
+
+Cmd -> LLM : 将数据传递给 Claude\n"基于以上数据分析..."
+activate LLM
+
+LLM -> LLM : 语义理解\n建议生成
+
+LLM --> Cmd : 返回分析结果\n+ 建议
+deactivate LLM
+
+Cmd --> CC : 格式化输出
+deactivate Cmd
+
+CC --> User : 显示分析和建议
+deactivate CC
+
+@enduml
+```
+
+**命令定义示例**
 
 ```markdown
 # .claude/commands/meta-stats.md
@@ -292,17 +442,11 @@ allowed_tools: [Bash]
 ---
 
 运行以下命令获取会话统计：
-
-```bash
-cc-meta parse stats \
-  --metrics tools,errors,duration \
-  --output md
-```
-
+\`\`\`bash
+cc-meta parse stats --metrics tools,errors,duration --output md
+\`\`\`
 将结果格式化后显示给用户。
 ```
-
-**`/meta-errors`** - 错误模式分析（阶段1 MVP）
 
 ```markdown
 # .claude/commands/meta-errors.md
@@ -310,345 +454,406 @@ cc-meta parse stats \
 name: meta-errors
 description: 分析当前会话中的错误模式
 allowed_tools: [Bash]
+argument-hint: [window-size]
 ---
 
-执行错误分析：
-
-```bash
+执行错误分析（窗口大小：${1:-20}）：
+\`\`\`bash
 error_data=$(cc-meta parse extract --type tools --filter "status=error" --output json)
-pattern_data=$(cc-meta analyze errors --window 20 --output json)
-```
+pattern_data=$(cc-meta analyze errors --window ${1:-20} --output json)
+\`\`\`
 
-基于以上数据（$error_data 和 $pattern_data），分析：
+基于以上数据分析：
 1. 是否存在重复错误？
-2. 错误是否集中在某个工具/命令？
-3. 给出优化建议（如添加 hook、修改工作流）
+2. 错误集中在哪些工具/命令？
+3. 给出优化建议（hook、工作流等）
 ```
 
-**`/meta-timeline`** - 会话时间线（阶段2）
-
-```markdown
-# .claude/commands/meta-timeline.md
----
-name: meta-timeline
-description: 生成当前会话的工具使用时间线
-allowed_tools: [Bash]
----
-
-```bash
-cc-meta analyze timeline \
-  --group-by tool \
-  --format md
-```
-
-以可视化方式显示工具调用序列。
-```
+**参考文档：**
+- [Slash Commands 指南](https://docs.claude.com/en/docs/claude-code/slash-commands)
+- [自定义命令示例](https://docs.claude.com/en/docs/claude-code/slash-commands#custom-commands)
 
 ### 4.3 Subagent: @meta-coach（阶段2）
 
-**agent 配置文件**
+**对话式分析流程**
+```plantuml
+@startuml
+!theme plain
+
+actor Developer
+participant "@meta-coach\nSubagent" as Coach
+participant "cc-meta CLI" as CLI
+database "会话历史" as History
+
+Developer -> Coach : "我感觉在重复做某件事..."
+activate Coach
+
+Coach -> CLI : cc-meta parse extract --type tools
+activate CLI
+CLI -> History : 读取 JSONL
+CLI --> Coach : 返回工具使用列表（JSON）
+deactivate CLI
+
+Coach -> Coach : 分析工具使用频率\n识别重复模式
+
+Coach --> Developer : "发现你在过去 15 轮中\n运行了 6 次 `npm test`，\n每次都失败在同一个测试。\n\n你觉得为什么会一直重复运行？"
+
+Developer -> Coach : "没意识到..."
+
+Coach -> CLI : cc-meta analyze errors --window 15
+activate CLI
+CLI --> Coach : 返回错误模式（JSON）
+deactivate CLI
+
+Coach -> Coach : 生成建议：\n1. 创建 /test-focus 命令\n2. 添加 Hook 提醒\n3. 优化工作流
+
+Coach --> Developer : "建议：\n1. 【立即】专注修复这一个测试\n2. 【可选】添加 Hook...\n3. 【长期】创建专用命令..."
+
+Developer -> Coach : "好的，帮我添加 Hook"
+
+Coach -> Developer : [使用 Edit 工具修改 settings.json]\n[添加 PreToolUse Hook]
+
+deactivate Coach
+
+@enduml
+```
+
+**Subagent 配置文件**
 ```markdown
 # .claude/agents/meta-coach.md
 ---
 name: meta-coach
-description: 元认知教练，帮助开发者反思工作流程
+description: 元认知教练，通过分析会话历史帮助开发者优化工作流程
 model: claude-sonnet-4
-allowed_tools: [Bash]
+allowed_tools: [Bash, Read, Edit, Write]
 ---
 
 # 系统提示
 
-你是开发者的元认知教练。通过分析会话历史，帮助开发者：
+你是开发者的元认知教练。职责：
 1. 识别重复性低效操作
 2. 发现问题解决模式
-3. 优化工作流程
+3. 引导反思和优化
 
-## 可用的分析工具
+## 分析工具
 
-使用 `cc-meta` CLI 获取结构化数据：
+使用 `cc-meta` CLI 获取会话数据：
 
-```bash
-# 提取工具调用数据
-cc-meta parse extract --type tools --output json
+\`\`\`bash
+# 提取工具调用
+cc-meta parse extract --type tools
 
 # 分析错误模式
-cc-meta analyze errors --window 30 --output json
+cc-meta analyze errors --window 30
 
-# 查询历史会话（如果已建索引）
-cc-meta query sessions --project $CC_PROJECT_PATH --limit 10
+# 查询历史（如果有索引）
+cc-meta query sessions --limit 10
+\`\`\`
+
+## 对话原则
+
+- **引导式提问**：帮助开发者自己发现问题
+- **数据驱动**：基于具体数据，而非猜测
+- **可操作建议**：提供具体的优化方案
+
+## 工作流
+
+1. 倾听开发者的困惑
+2. 调用 cc-meta 获取数据
+3. 分析模式并引导思考
+4. 提供分层建议（立即/可选/长期）
+5. 协助实施优化（修改配置、创建命令等）
 ```
 
-## 对话风格
-
-- 引导式提问，而非直接给答案
-- 基于数据，而非猜测
-- 帮助用户建立元认知意识
-
-## 示例交互
-
-User: 我感觉在重复做某件事...
-
-Coach: 让我看看你最近的操作模式...
-[调用 cc-meta parse extract --type tools]
-发现你在过去 15 轮中运行了 6 次 `npm test`，每次都失败在同一个测试。
-你觉得为什么会一直重复运行而不是专注修复？
-```
+**参考文档：**
+- [Subagents 指南](https://docs.claude.com/en/docs/claude-code/subagents)
+- [创建自定义 Subagent](https://docs.claude.com/en/docs/claude-code/subagents#creating-subagents)
 
 ### 4.4 MCP Server（阶段3，可选）
 
-**服务器实现**
-```typescript
-// meta-insight-mcp/index.ts
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { exec } from "child_process";
-import { promisify } from "util";
+**MCP 工具调用流程**
+```plantuml
+@startuml
+!theme plain
 
-const execAsync = promisify(exec);
+actor User
+participant "Claude Code" as CC
+participant "meta-insight\nMCP Server" as MCP
+participant "cc-meta CLI" as CLI
+database "会话历史" as History
 
-const server = new Server({
-  name: "meta-insight",
-  version: "1.0.0"
-}, {
-  capabilities: {
-    tools: {}
-  }
-});
+User -> CC : "Use meta-insight MCP to\ncheck similar errors"
+activate CC
 
-// 工具：提取会话数据
-server.setRequestHandler("tools/call", async (request) => {
-  if (request.params.name === "extract_session_data") {
-    const { type, filter } = request.params.arguments;
-    const cmd = `cc-meta parse extract --type ${type} ${filter ? `--filter "${filter}"` : ""} --output json`;
-    const { stdout } = await execAsync(cmd);
+CC -> MCP : MCP Tool Call:\nextract_session_data(\n  type="tools",\n  filter="status=error"\n)
+activate MCP
 
-    return {
-      content: [{ type: "text", text: stdout }]
-    };
-  }
-});
+MCP -> CLI : 执行命令:\ncc-meta parse extract\n  --type tools\n  --filter "status=error"
+activate CLI
 
-// 启动服务器
-const transport = new StdioServerTransport();
-await server.connect(transport);
+CLI -> History : 读取 JSONL
+CLI --> MCP : 返回 JSON 数据
+deactivate CLI
+
+MCP --> CC : 返回 Tool Result:\n{\n  "content": [\n    {"type": "text", "text": "..."}\n  ]\n}
+deactivate MCP
+
+CC -> CC : Claude 分析数据\n生成语义化回答
+
+CC --> User : 显示分析结果
+deactivate CC
+
+@enduml
 ```
 
-**Claude Code 配置**
+**MCP Server 配置**
+
+添加 MCP Server：
 ```bash
-# 添加 MCP server
+# 使用 npm 包
 claude mcp add meta-insight npx -y meta-insight-mcp
+
+# 或配置在 settings.json
 ```
 
-**使用示例**
+`.claude/settings.json`:
+```json
+{
+  "mcpServers": {
+    "meta-insight": {
+      "command": "npx",
+      "args": ["-y", "meta-insight-mcp"],
+      "transport": "stdio"
+    }
+  }
+}
 ```
-User: Use meta-insight MCP to check if I had similar
-      errors in past sessions
 
-Claude: [调用 MCP tool: extract_session_data]
-        [分析返回的 JSON 数据]
-        [给出语义化的回答]
+**工具定义示例**
+```json
+{
+  "tools": [
+    {
+      "name": "extract_session_data",
+      "description": "从会话历史中提取结构化数据",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["turns", "tools", "errors"],
+            "description": "数据类型"
+          },
+          "filter": {
+            "type": "string",
+            "description": "过滤条件（可选）"
+          }
+        },
+        "required": ["type"]
+      }
+    },
+    {
+      "name": "analyze_patterns",
+      "description": "分析会话中的错误或工具使用模式",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "analysis_type": {
+            "type": "string",
+            "enum": ["errors", "tools", "timeline"]
+          },
+          "window": {
+            "type": "number",
+            "description": "分析窗口大小"
+          }
+        }
+      }
+    }
+  ]
+}
 ```
+
+**参考文档：**
+- [MCP 集成指南](https://docs.claude.com/en/docs/claude-code/mcp)
+- [Model Context Protocol 规范](https://modelcontextprotocol.io/)
 
 ---
 
 ## 五、核心功能实现
 
-### 5.1 JSONL 解析（阶段1 核心）
+### 5.1 JSONL 解析流程（阶段1 核心）
 
-**会话文件定位**
-```python
-import os
-from pathlib import Path
+```plantuml
+@startuml
+!theme plain
 
-def locate_session_file(session_id=None, project_path=None):
-    """根据 session_id 或 project_path 定位会话文件"""
+package "会话文件定位" {
+  :读取环境变量\nCC_SESSION_ID\nCC_PROJECT_PATH;
 
-    # 方式1: 从环境变量获取
-    if session_id is None:
-        session_id = os.getenv("CC_SESSION_ID")
-    if project_path is None:
-        project_path = os.getenv("CC_PROJECT_PATH")
+  if (环境变量存在?) then (yes)
+    :构造文件路径\n~/.claude/projects/\n{PROJECT_HASH}/\n{SESSION_ID}.jsonl;
+  else (no)
+    if (命令行参数\n--session?) then (yes)
+      :遍历 ~/.claude/projects/\n查找匹配的 .jsonl;
+    else (no)
+      :使用当前目录\n推断项目路径;
+      :使用最新会话文件;
+    endif
+  endif
 
-    # 转换项目路径为哈希目录名
-    if project_path:
-        project_hash = project_path.replace("/", "-")
-        project_dir = Path.home() / ".claude" / "projects" / project_hash
-    else:
-        # 如果没有项目路径，需要遍历查找
-        project_dir = find_project_dir_by_session(session_id)
+  :打开会话文件;
+}
 
-    # 定位会话文件
-    session_file = project_dir / f"{session_id}.jsonl"
-    if not session_file.exists():
-        raise FileNotFoundError(f"Session file not found: {session_file}")
+package "JSONL 解析" {
+  :逐行读取 JSONL;
 
-    return session_file
+  repeat
+    :解析 JSON 行;
+    :提取 turn 数据:\n- sequence\n- role\n- timestamp\n- content;
+
+    :遍历 content blocks;
+
+    repeat
+      if (block.type?) then (tool_use)
+        :记录工具调用:\n- tool name\n- input\n- tool_use_id;
+      elseif (tool_result)
+        :匹配 tool_use_id\n添加结果:\n- output\n- status\n- error;
+      else (text)
+        :提取文本预览;
+      endif
+    repeat while (更多 blocks?)
+
+    :生成结构化 turn;
+  repeat while (更多行?)
+}
+
+:输出 JSON 数组;
+
+@enduml
 ```
 
-**Turn 提取**
-```python
-import json
-from typing import Iterator, Dict
+### 5.2 错误模式检测（阶段1）
 
-def parse_turns(session_file: Path) -> Iterator[Dict]:
-    """逐行解析 JSONL 文件，生成 turn 数据"""
-    with open(session_file, 'r') as f:
-        for line_no, line in enumerate(f):
-            try:
-                event = json.loads(line.strip())
+```plantuml
+@startuml
+!theme plain
 
-                # 提取关键信息
-                turn = {
-                    "sequence": line_no,
-                    "role": event.get("role"),
-                    "timestamp": event.get("timestamp"),
-                    "content_preview": extract_preview(event.get("content", [])),
-                    "tools_used": extract_tools(event.get("content", []))
-                }
+start
 
-                yield turn
-            except json.JSONDecodeError:
-                # 跳过损坏的行
-                continue
+:输入: turns 列表;
+:输入: window 大小（默认20）;
 
-def extract_tools(content_blocks):
-    """从 content blocks 中提取工具调用"""
-    tools = []
-    for block in content_blocks:
-        if block.get("type") == "tool_use":
-            tools.append({
-                "tool": block.get("name"),
-                "input": block.get("input"),
-                "id": block.get("id")
-            })
-        elif block.get("type") == "tool_result":
-            # 查找对应的 tool_use，添加结果
-            tool_id = block.get("tool_use_id")
-            # ... 处理 tool_result
-    return tools
+:取最近 N 个 turns;
+
+partition "错误分组" {
+  :初始化 error_groups = {};
+
+  repeat
+    :遍历 turn 的 tools_used;
+
+    if (tool.status == "error"?) then (yes)
+      :提取错误签名\n= hash(tool_name + error_output[:100]);
+      :error_groups[signature].append(turn_info);
+    endif
+  repeat while (更多 tools?)
+}
+
+partition "模式识别" {
+  :初始化 patterns = [];
+
+  repeat
+    if (occurrences >= 3?) then (yes)
+      :创建 Pattern 对象:\n- pattern_id\n- type: "identical_error"\n- occurrences count\n- signature\n- context (turns, time_span);
+      :patterns.append(pattern);
+    endif
+  repeat while (更多 error_groups?)
+}
+
+:输出 patterns JSON;
+
+stop
+
+@enduml
 ```
 
-### 5.2 基于规则的模式检测（阶段1）
+### 5.3 工具使用分析（阶段1）
 
-**错误重复检测**
-```python
-from collections import defaultdict
-from hashlib import sha256
+```plantuml
+@startuml
+!theme plain
 
-def detect_error_repetition(turns, window=20):
-    """检测重复错误模式（无 LLM）"""
-    error_groups = defaultdict(list)
+start
 
-    # 只看最近 window 个 turns
-    recent_turns = turns[-window:] if len(turns) > window else turns
+:输入: turns 列表;
 
-    for turn in recent_turns:
-        for tool in turn.get("tools_used", []):
-            if tool.get("status") == "error":
-                # 生成错误签名（基于工具名 + 错误输出前100字符）
-                error_sig = sha256(
-                    f"{tool['tool']}:{tool.get('error_output', '')[:100]}"
-                    .encode()
-                ).hexdigest()[:16]
+partition "频率统计" {
+  :初始化 tool_frequency = {};
 
-                error_groups[error_sig].append({
-                    "turn_sequence": turn["sequence"],
-                    "tool": tool["tool"],
-                    "error": tool.get("error_output")
-                })
+  repeat
+    :提取 turn 的所有工具;
+    repeat
+      :tool_frequency[tool_name]++;
+    repeat while (更多工具?)
+  repeat while (更多 turns?)
+}
 
-    # 输出重复 >= 3 次的错误
-    patterns = []
-    for sig, occurrences in error_groups.items():
-        if len(occurrences) >= 3:
-            patterns.append({
-                "pattern_id": f"err-{sig}",
-                "type": "identical_error",
-                "occurrences": len(occurrences),
-                "signature": occurrences[0]["error"][:200],
-                "context": {
-                    "turns": [o["turn_sequence"] for o in occurrences]
-                }
-            })
+partition "序列检测" {
+  :初始化 sequence_frequency = {};
 
-    return patterns
+  repeat
+    if (turn 包含多个工具?) then (yes)
+      :构造序列字符串\n"Tool1 -> Tool2 -> ...";
+      :sequence_frequency[seq]++;
+    endif
+  repeat while (更多 turns?)
+
+  :过滤频率 >= 3 的序列;
+}
+
+:输出 JSON:\n{\n  "tool_frequency": {...},\n  "common_sequences": {...}\n};
+
+stop
+
+@enduml
 ```
 
-**工具使用模式**
-```python
-def analyze_tool_patterns(turns):
-    """分析工具使用频率和顺序模式"""
-    tool_freq = defaultdict(int)
-    tool_sequences = []
+### 5.4 索引构建流程（阶段2，可选）
 
-    for turn in turns:
-        tools = [t["tool"] for t in turn.get("tools_used", [])]
-        for tool in tools:
-            tool_freq[tool] += 1
+```plantuml
+@startuml
+!theme plain
 
-        if len(tools) > 1:
-            # 记录工具调用序列
-            tool_sequences.append(" -> ".join(tools))
+start
 
-    # 检测高频序列
-    seq_freq = defaultdict(int)
-    for seq in tool_sequences:
-        seq_freq[seq] += 1
+:输入: session_file 路径;
+:输入: index.db 路径;
 
-    return {
-        "tool_frequency": dict(tool_freq),
-        "common_sequences": {
-            seq: count
-            for seq, count in seq_freq.items()
-            if count >= 3
-        }
-    }
-```
+:连接 SQLite 数据库;
 
-### 5.3 索引构建（阶段2，可选）
+:创建表（如果不存在）:\n- sessions\n- tool_calls;
 
-**增量索引**
-```python
-import sqlite3
+:提取 session_id\n从文件名;
 
-def build_index(session_file: Path, db_path: Path):
-    """构建会话索引（仅用于加速查询）"""
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+partition "解析并索引" {
+  repeat
+    :解析 turn;
 
-    # 创建表
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tool_calls (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT,
-            turn_sequence INTEGER,
-            tool_name TEXT,
-            status TEXT,
-            error_hash TEXT,
-            timestamp INTEGER
-        )
-    """)
+    repeat
+      :提取工具调用信息;
+      :INSERT INTO tool_calls\n(session_id, turn_sequence,\n tool_name, status,\n error_hash, timestamp);
+    repeat while (更多工具?)
 
-    session_id = session_file.stem
+  repeat while (更多 turns?)
+}
 
-    # 解析并索引
-    for turn in parse_turns(session_file):
-        for tool in turn.get("tools_used", []):
-            cursor.execute("""
-                INSERT INTO tool_calls
-                (session_id, turn_sequence, tool_name, status, error_hash, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (
-                session_id,
-                turn["sequence"],
-                tool["tool"],
-                tool.get("status", "success"),
-                hash_error(tool.get("error_output")),
-                turn["timestamp"]
-            ))
+:更新 sessions 表\n统计信息;
 
-    conn.commit()
-    conn.close()
+:提交事务;
+:关闭数据库;
+
+stop
+
+@enduml
 ```
 
 ---
@@ -925,27 +1130,92 @@ cc-meta/
 3. **低耦合**：通过环境变量/参数传递会话 ID，适配多种集成方式
 4. **实用性**：基于真实会话数据，输出高密度结构化信息
 
+### 架构决策总结
+
+```plantuml
+@startuml
+!theme plain
+
+card "设计原则" {
+  card "职责分离" as P1 {
+    - CLI: 纯数据处理
+    - Claude: 语义理解
+  }
+
+  card "渐进实现" as P2 {
+    - 阶段1: 无索引解析
+    - 阶段2: 索引优化
+    - 阶段3: 高级集成
+  }
+
+  card "多集成方式" as P3 {
+    - Slash Commands
+    - Subagents
+    - MCP Servers
+  }
+}
+
+card "技术选型" {
+  card "语言" as T1 {
+    Python
+    (快速开发)
+  }
+
+  card "数据库" as T2 {
+    SQLite
+    (可选)
+  }
+
+  card "CLI 框架" as T3 {
+    Click
+  }
+}
+
+@enduml
+```
+
 ### 与原提案的改进
 
 **相比提案1**
 - ✅ 明确了会话文件定位机制（环境变量/参数）
 - ✅ 强调 CLI 无 LLM，语义分析由 Claude 完成
-- ✅ 提供了完整的 Python 代码实现示例
+- ✅ 用 PlantUML 替代了伪代码，更清晰
 
 **相比提案2**
 - ✅ 简化了架构，去除冗余组件
 - ✅ 索引改为可选，降低 MVP 复杂度
 - ✅ 聚焦可操作性，而非理论设计
 
+### 参考文档汇总
+
+**Claude Code 核心文档**
+- [概述](https://docs.claude.com/en/docs/claude-code/overview)
+- [设置和配置](https://docs.claude.com/en/docs/claude-code/settings)
+
+**扩展机制**
+- [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands)
+- [Subagents](https://docs.claude.com/en/docs/claude-code/subagents)
+- [MCP 集成](https://docs.claude.com/en/docs/claude-code/mcp)
+- [Hooks 系统](https://docs.claude.com/en/docs/claude-code/hooks)
+
+**外部资源**
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+
 ### 下一步行动
 
 **验证阶段（1-2天）**
-1. 确认 Claude Code 是否提供 `CC_SESSION_ID` 环境变量
-2. 解析真实 JSONL 文件，确认数据结构
-3. 验证 Slash Command 中调用外部 CLI 的方式
+1. ✅ 确认会话文件结构（已通过 `ls ~/.claude/projects/` 验证）
+2. 📋 解析真实 JSONL 文件，确认数据结构
+3. 📋 测试 Slash Command 中调用外部 CLI 的方式
+4. 📋 验证环境变量传递机制
 
 **MVP 开发（1-2周）**
-1. 搭建 Python CLI 项目骨架
-2. 实现核心解析和分析功能
-3. 创建 2 个 Slash Commands 进行集成测试
-4. 编写使用文档
+1. 搭建 Python CLI 项目骨架（Click）
+2. 实现核心功能：
+   - `cc-meta parse extract`
+   - `cc-meta parse stats`
+   - `cc-meta analyze errors`
+3. 创建 Slash Commands：
+   - `/meta-stats`
+   - `/meta-errors`
+4. 编写集成文档和使用指南
