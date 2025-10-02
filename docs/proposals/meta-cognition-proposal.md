@@ -584,7 +584,9 @@ meta-cc query sessions --limit 10
 - [Subagents 指南](https://docs.claude.com/en/docs/claude-code/subagents)
 - [创建自定义 Subagent](https://docs.claude.com/en/docs/claude-code/subagents#creating-subagents)
 
-### 4.4 MCP Server（阶段3，可选）
+### 4.4 MCP Server（已实现，Phase 7）
+
+**实现状态**: ✅ 已完成（原生 Go 实现，无需包装器）
 
 **MCP 工具调用流程**
 ```plantuml
@@ -621,28 +623,26 @@ deactivate CC
 @enduml
 ```
 
-**MCP Server 配置**
+**MCP Server 配置**（实际实现）
 
 添加 MCP Server：
 ```bash
-# 使用 npm 包
-claude mcp add meta-insight npx -y meta-insight-mcp
+# 直接使用 meta-cc 二进制（无需 Node.js）
+claude mcp add meta-insight /path/to/meta-cc mcp
 
-# 或配置在 settings.json
+# 验证连接
+claude mcp list
+# 输出：meta-insight: /path/to/meta-cc mcp - ✓ Connected
 ```
 
-`.claude/settings.json`:
-```json
-{
-  "mcpServers": {
-    "meta-insight": {
-      "command": "npx",
-      "args": ["-y", "meta-insight-mcp"],
-      "transport": "stdio"
-    }
-  }
-}
-```
+**实现文件**: `cmd/mcp.go` (~250 行)
+
+**关键特性**:
+- ✅ 原生 Go 实现（零外部依赖）
+- ✅ JSON-RPC 2.0 协议
+- ✅ stdio 传输层
+- ✅ 内部命令复用（通过 os.Stdout 重定向）
+- ✅ MCP 协议版本：2024-11-05
 
 **工具定义示例**
 ```json
@@ -932,23 +932,38 @@ stop
 - 可选的索引功能
 - 更快的查询性能（跨会话）
 
-### 6.3 阶段3：语义理解（1-2周，可选）
+### 6.3 阶段3：MCP Server 实现（已完成，Phase 7）
 
-**目标：由 Claude 进行语义分析**
+**目标：原生 MCP 协议实现**
 
-- [ ] Subagent: @meta-coach
-  - agent 配置文件
-  - 系统提示优化
-  - 对话式分析逻辑
+- [x] MCP 协议实现（cmd/mcp.go）
+  - JSON-RPC 2.0 请求/响应处理
+  - stdio 传输层
+  - 工具路由逻辑
 
-- [ ] MCP Server（可选）
-  - MCP 协议实现
-  - 工具定义（extract_session_data, analyze_patterns）
-  - Claude Code 集成测试
+- [x] 工具定义
+  - `get_session_stats`: 会话统计
+  - `analyze_errors`: 错误分析
+  - `extract_tools`: 工具提取
+
+- [x] Claude Code 集成测试
+  - `claude mcp add` 注册
+  - 连接验证
+  - 3 个工具功能验证
 
 **交付物：**
-- @meta-coach subagent
-- （可选）MCP server
+- ✅ cmd/mcp.go (~250 行)
+- ✅ MCP 工具在 Claude Code 中可用
+- ✅ 文档更新（README.md MCP 部分）
+
+### 6.4 阶段4：语义理解增强（未来可选）
+
+**目标：高级 Subagent 功能**
+
+- [ ] @meta-coach 增强
+  - 自动化建议实施
+  - 工作流模式学习
+  - 多会话关联分析
 
 ---
 

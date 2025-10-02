@@ -17,10 +17,11 @@
 - 集成测试：`tests/integration/slash_commands_test.sh`
 
 **项目状态**：
-- ✅ **Phase 0-6 已完成**（MVP 里程碑达成）
+- ✅ **Phase 0-7 已完成**（完整集成里程碑达成）
 - ✅ 66 个单元测试全部通过
 - ✅ 3 个真实项目验证通过（0% 错误率）
 - ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`）
+- ✅ MCP Server 原生实现（`meta-cc mcp`，3 个工具）
 
 ---
 
@@ -983,27 +984,142 @@ claude -p "Run /meta-errors 30 and check if error patterns are detected"
 
 ---
 
+## Phase 7: MCP Server 实现
+
+**目标**：实现原生 MCP (Model Context Protocol) 服务器，无需外部包装器
+
+**代码量**：~250 行
+
+**状态**：✅ 已完成
+
+**背景**：
+- Phase 6 后发现需要通过 MCP 直接暴露 meta-cc 功能
+- 初期尝试使用 Node.js/Shell 包装器，但增加了不必要的依赖
+- 最终在 meta-cc 中直接实现 MCP 协议（`meta-cc mcp` 命令）
+
+**架构变更**：
+```
+之前: Claude Code → MCP Client → Node.js Wrapper → meta-cc CLI
+现在: Claude Code → MCP Client → meta-cc mcp (原生实现)
+```
+
+### Stage 7.1: MCP 协议实现
+
+**任务**：
+- 实现 JSON-RPC 2.0 协议处理
+- 支持 `initialize`, `tools/list`, `tools/call` 方法
+- stdio 传输层实现
+
+**交付物**：
+- `cmd/mcp.go` (~250 行)
+- MCP 请求/响应结构体
+- 工具调用路由逻辑
+
+**测试**：
+```bash
+# 手动测试 MCP 初始化
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./meta-cc mcp
+
+# 测试工具列表
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ./meta-cc mcp
+```
+
+### Stage 7.2: MCP 工具定义
+
+**任务**：
+- 定义 3 个 MCP 工具：`get_session_stats`, `analyze_errors`, `extract_tools`
+- 实现工具调用到 meta-cc 命令的映射
+- 内部命令执行（复用现有 CLI 逻辑）
+
+**关键实现**：
+```go
+func executeTool(name string, args map[string]interface{}) (string, error) {
+    switch name {
+    case "get_session_stats":
+        cmdArgs = []string{"parse", "stats", "--output", outputFormat}
+    case "analyze_errors":
+        cmdArgs = []string{"analyze", "errors", "--output", outputFormat}
+    case "extract_tools":
+        cmdArgs = []string{"parse", "extract", "--type", "tools", "--output", outputFormat}
+    }
+    return executeMetaCCCommand(cmdArgs)
+}
+```
+
+**交付物**：
+- 工具 schema 定义
+- 参数验证逻辑
+- 命令执行函数
+
+### Stage 7.3: Claude Code 集成测试
+
+**任务**：
+- 使用 `claude mcp add` 注册 meta-cc MCP 服务器
+- 验证 MCP 工具在 Claude Code 中可用
+- 测试所有 3 个工具的功能
+
+**验证步骤**：
+```bash
+# 添加 MCP 服务器
+claude mcp add meta-insight /home/yale/work/meta-cc/meta-cc mcp
+
+# 验证连接
+claude mcp list
+# 预期输出：
+# meta-insight: /path/to/meta-cc mcp - ✓ Connected
+
+# 在 Claude Code 中测试
+# 使用 mcp__meta-insight__get_session_stats 工具
+# 使用 mcp__meta-insight__analyze_errors 工具
+# 使用 mcp__meta-insight__extract_tools 工具
+```
+
+**交付物**：
+- MCP 集成验证脚本
+- 文档更新（README.md 添加 MCP 使用说明）
+
+**Phase 7 完成标准**：
+- ✅ `meta-cc mcp` 命令正确处理 JSON-RPC 请求
+- ✅ 3 个 MCP 工具全部可用
+- ✅ `claude mcp list` 显示连接成功
+- ✅ 在 Claude Code 会话中可以调用 MCP 工具
+- ✅ 文档更新完整
+
+**关键技术点**：
+- JSON-RPC 2.0 协议实现
+- stdio 输入输出处理
+- 内部命令调用（通过修改 os.Stdout 捕获输出）
+- MCP 协议版本：2024-11-05
+
+**验证结果**（当前会话）：
+```bash
+$ claude mcp list
+meta-insight: /home/yale/work/meta-cc/meta-cc mcp - ✓ Connected
+
+$ # 在 Claude Code 中成功使用
+mcp__meta-insight__get_session_stats → 返回会话统计
+mcp__meta-insight__analyze_errors → 返回错误分析（空数组）
+mcp__meta-insight__extract_tools → 返回工具使用列表
+```
+
+---
+
 ## 未来 Phase（可选扩展）
 
-### Phase 7: 索引功能（可选）
+### Phase 8: 索引功能（可选）
 - SQLite 索引构建
 - 跨会话查询
 - `meta-cc query` 命令组
 
-### Phase 8: 工具使用分析（可选）
+### Phase 9: 工具使用分析（可选）
 - `meta-cc analyze tools`
 - 工具序列检测
 - 频率统计
 
-### Phase 9: Subagent 集成（可选）
-- `@meta-coach` subagent
-- 对话式分析
-- 工作流优化建议
-
-### Phase 10: MCP Server（可选）
-- MCP 协议实现
-- 工具定义
-- Claude Code MCP 集成
+### Phase 10: Subagent 高级功能（可选）
+- `@meta-coach` 增强
+- 自动化建议实施
+- 工作流模式学习
 
 ---
 
@@ -1148,9 +1264,9 @@ gantt
 
 ---
 
-## 实施总结（Phase 0-6）
+## 实施总结（Phase 0-7）
 
-### MVP 完成情况
+### 完整集成完成情况
 
 **✅ 已完成的 Phases**：
 - Phase 0: 项目初始化（Go 模块、测试框架、构建脚本）
@@ -1160,12 +1276,14 @@ gantt
 - Phase 4: 统计分析（parse stats、会话指标、工具频率）
 - Phase 5: 错误模式分析（analyze errors、签名检测、模式识别）
 - Phase 6: Claude Code 集成（Slash Commands、集成测试、文档）
+- Phase 7: MCP Server 实现（原生 JSON-RPC 2.0 协议，3 个工具）
 
 **📊 项目统计**：
-- 总代码行数：~2,500 行（Go 源码 + 测试）
+- 总代码行数：~2,750 行（Go 源码 + 测试）
 - 单元测试：66 个（100% 通过）
 - 测试覆盖率：96-97%（核心模块）
 - Slash Commands：2 个（`/meta-stats`, `/meta-errors`）
+- MCP Tools：3 个（`get_session_stats`, `analyze_errors`, `extract_tools`）
 - 文档：README.md + troubleshooting.md + 集成测试脚本
 
 **🎯 真实项目验证**：
@@ -1195,6 +1313,13 @@ gantt
 - 执行环境：Bash 工具的 cwd = 项目根目录
 - 无需参数：meta-cc 自动检测机制完美适配
 - 错误处理：检查 meta-cc 是否安装，提供友好提示
+
+**5. MCP Server 实现** (Phase 7)
+- 协议：JSON-RPC 2.0（MCP 规范 2024-11-05）
+- 传输：stdio（标准输入/输出）
+- 架构：直接在 Go 中实现，无需 Node.js/Shell 包装器
+- 工具数量：3 个（stats, errors, tools）
+- 命令调用：内部复用 CLI 逻辑（通过 os.Stdout 重定向）
 
 ### 架构优势验证
 
