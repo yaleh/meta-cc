@@ -126,3 +126,116 @@ func TestParseExtractCommand_InvalidType(t *testing.T) {
 		t.Errorf("Expected error message about invalid type, got: %s", errOutput)
 	}
 }
+
+func TestParseStatsCommand_JSON(t *testing.T) {
+	// Prepare test environment: create temporary session file
+	homeDir, _ := os.UserHomeDir()
+	projectHash := "-home-yale-work-test-stats"
+	sessionID := "test-session-stats"
+
+	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	os.MkdirAll(sessionDir, 0755)
+	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+
+	// Create test fixture with tool calls
+	fixtureContent := `{"type":"user","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"Hello"}]}}
+{"type":"assistant","timestamp":"2025-10-02T10:01:00.000Z","uuid":"uuid-2","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Grep","input":{"pattern":"test"}}]}}
+{"type":"user","timestamp":"2025-10-02T10:02:00.000Z","uuid":"uuid-3","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"match found"}]}}
+{"type":"assistant","timestamp":"2025-10-02T10:03:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Read","input":{"file_path":"/test.txt"}}]}}
+{"type":"user","timestamp":"2025-10-02T10:04:00.000Z","uuid":"uuid-5","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","is_error":true,"content":"file not found"}]}}
+`
+	os.WriteFile(sessionFile, []byte(fixtureContent), 0644)
+	defer os.RemoveAll(sessionDir)
+
+	// Set environment variables
+	os.Setenv("CC_SESSION_ID", sessionID)
+	os.Setenv("CC_PROJECT_HASH", projectHash)
+	defer os.Unsetenv("CC_SESSION_ID")
+	defer os.Unsetenv("CC_PROJECT_HASH")
+
+	// Capture output
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"parse", "stats", "--output", "json"})
+
+	// Execute command
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("Command execution failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Verify output contains statistics
+	expectedFields := []string{
+		"TurnCount",
+		"ToolCallCount",
+		"ErrorCount",
+		"DurationSeconds",
+		"ErrorRate",
+		"ToolFrequency",
+	}
+
+	for _, field := range expectedFields {
+		if !strings.Contains(output, field) {
+			t.Errorf("Expected output to contain '%s', got: %s", field, output)
+		}
+	}
+}
+
+func TestParseStatsCommand_Markdown(t *testing.T) {
+	// Prepare test environment
+	homeDir, _ := os.UserHomeDir()
+	projectHash := "-home-yale-work-test-stats-md"
+	sessionID := "test-session-stats-md"
+
+	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	os.MkdirAll(sessionDir, 0755)
+	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+
+	fixtureContent := `{"type":"user","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"Hello"}]}}
+{"type":"assistant","timestamp":"2025-10-02T10:05:30.000Z","uuid":"uuid-2","sessionId":"test","message":{"role":"assistant","content":[{"type":"text","text":"Hi"}]}}
+`
+	os.WriteFile(sessionFile, []byte(fixtureContent), 0644)
+	defer os.RemoveAll(sessionDir)
+
+	os.Setenv("CC_SESSION_ID", sessionID)
+	os.Setenv("CC_PROJECT_HASH", projectHash)
+	defer os.Unsetenv("CC_SESSION_ID")
+	defer os.Unsetenv("CC_PROJECT_HASH")
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"parse", "stats", "--output", "md"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("Command execution failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Verify Markdown format
+	if !strings.Contains(output, "# Session Statistics") {
+		t.Errorf("Expected Markdown header, got: %s", output)
+	}
+
+	if !strings.Contains(output, "## Overview") || !strings.Contains(output, "## Tool Usage") {
+		t.Errorf("Expected Markdown sections, got: %s", output)
+	}
+}
+
+func TestParseStatsCommand_MissingSession(t *testing.T) {
+	// Clear environment variables
+	os.Unsetenv("CC_SESSION_ID")
+	os.Unsetenv("CC_PROJECT_HASH")
+
+	var buf bytes.Buffer
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"parse", "stats"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Error("Expected error when session file not found")
+	}
+}
