@@ -20,21 +20,28 @@ func NewSessionParser(filePath string) *SessionParser {
 	}
 }
 
-// ParseTurns 解析 JSONL 文件，返回 Turn 数组
+// ParseEntries 解析 JSONL 文件，返回 SessionEntry 数组
 // JSONL 格式：每行一个 JSON 对象
 // 处理规则：
 //   - 跳过空行和空白行
 //   - 非法 JSON 行返回错误
-//   - 返回所有成功解析的 Turn
-func (p *SessionParser) ParseTurns() ([]Turn, error) {
+//   - 仅返回消息类型（type == "user" 或 "assistant"）
+//   - 过滤掉 file-history-snapshot 等非消息类型
+func (p *SessionParser) ParseEntries() ([]SessionEntry, error) {
 	file, err := os.Open(p.filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open session file: %w", err)
 	}
 	defer file.Close()
 
-	var turns []Turn
+	var entries []SessionEntry
 	scanner := bufio.NewScanner(file)
+
+	// Increase buffer size for large lines (Claude Code sessions can have very long lines)
+	const maxCapacity = 1024 * 1024 // 1MB
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
+
 	lineNum := 0
 
 	for scanner.Scan() {
@@ -46,25 +53,28 @@ func (p *SessionParser) ParseTurns() ([]Turn, error) {
 			continue
 		}
 
-		// 解析 JSON 为 Turn
-		var turn Turn
-		if err := json.Unmarshal([]byte(line), &turn); err != nil {
+		// 解析 JSON 为 SessionEntry
+		var entry SessionEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			return nil, fmt.Errorf("failed to parse line %d: %w", lineNum, err)
 		}
 
-		turns = append(turns, turn)
+		// 仅保留消息类型
+		if entry.IsMessage() {
+			entries = append(entries, entry)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading session file: %w", err)
 	}
 
-	return turns, nil
+	return entries, nil
 }
 
-// ParseTurnsFromContent 从字符串内容解析 JSONL（用于测试）
-func ParseTurnsFromContent(content string) ([]Turn, error) {
-	var turns []Turn
+// ParseEntriesFromContent 从字符串内容解析 JSONL（用于测试）
+func ParseEntriesFromContent(content string) ([]SessionEntry, error) {
+	var entries []SessionEntry
 	lines := strings.Split(content, "\n")
 
 	for lineNum, line := range lines {
@@ -73,13 +83,16 @@ func ParseTurnsFromContent(content string) ([]Turn, error) {
 			continue
 		}
 
-		var turn Turn
-		if err := json.Unmarshal([]byte(line), &turn); err != nil {
+		var entry SessionEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			return nil, fmt.Errorf("failed to parse line %d: %w", lineNum+1, err)
 		}
 
-		turns = append(turns, turn)
+		// 仅保留消息类型
+		if entry.IsMessage() {
+			entries = append(entries, entry)
+		}
 	}
 
-	return turns, nil
+	return entries, nil
 }

@@ -5,40 +5,46 @@ import (
 )
 
 func TestExtractToolCalls_SingleCall(t *testing.T) {
-	turns := []Turn{
+	entries := []SessionEntry{
 		{
-			Sequence: 1,
-			Role:     "assistant",
-			Content: []ContentBlock{
-				{Type: "text", Text: "检查代码"},
-				{
-					Type: "tool_use",
-					ToolUse: &ToolUse{
-						ID:   "toolu_01",
-						Name: "Grep",
-						Input: map[string]interface{}{
-							"pattern": "auth.*error",
+			Type: "assistant",
+			UUID: "entry1",
+			Message: &Message{
+				Role: "assistant",
+				Content: []ContentBlock{
+					{Type: "text", Text: "检查代码"},
+					{
+						Type: "tool_use",
+						ToolUse: &ToolUse{
+							ID:   "toolu_01",
+							Name: "Grep",
+							Input: map[string]interface{}{
+								"pattern": "auth.*error",
+							},
 						},
 					},
 				},
 			},
 		},
 		{
-			Sequence: 2,
-			Role:     "user",
-			Content: []ContentBlock{
-				{
-					Type: "tool_result",
-					ToolResult: &ToolResult{
-						ToolUseID: "toolu_01",
-						Content:   "auth.js:15: authError",
+			Type: "user",
+			UUID: "entry2",
+			Message: &Message{
+				Role: "user",
+				Content: []ContentBlock{
+					{
+						Type: "tool_result",
+						ToolResult: &ToolResult{
+							ToolUseID: "toolu_01",
+							Content:   "auth.js:15: authError",
+						},
 					},
 				},
 			},
 		},
 	}
 
-	toolCalls := ExtractToolCalls(turns)
+	toolCalls := ExtractToolCalls(entries)
 
 	if len(toolCalls) != 1 {
 		t.Fatalf("Expected 1 tool call, got %d", len(toolCalls))
@@ -49,8 +55,8 @@ func TestExtractToolCalls_SingleCall(t *testing.T) {
 		t.Errorf("Expected tool name 'Grep', got '%s'", tc.ToolName)
 	}
 
-	if tc.TurnSequence != 1 {
-		t.Errorf("Expected turn sequence 1, got %d", tc.TurnSequence)
+	if tc.UUID != "entry1" {
+		t.Errorf("Expected UUID 'entry1', got '%s'", tc.UUID)
 	}
 
 	if tc.Output != "auth.js:15: authError" {
@@ -63,53 +69,59 @@ func TestExtractToolCalls_SingleCall(t *testing.T) {
 	}
 }
 
-func TestExtractToolCalls_MultipleCallsSameTurn(t *testing.T) {
-	turns := []Turn{
+func TestExtractToolCalls_MultipleCallsSameEntry(t *testing.T) {
+	entries := []SessionEntry{
 		{
-			Sequence: 1,
-			Role:     "assistant",
-			Content: []ContentBlock{
-				{
-					Type: "tool_use",
-					ToolUse: &ToolUse{
-						ID:   "tool_1",
-						Name: "Read",
-						Input: map[string]interface{}{"file": "a.txt"},
+			Type: "assistant",
+			UUID: "entry1",
+			Message: &Message{
+				Role: "assistant",
+				Content: []ContentBlock{
+					{
+						Type: "tool_use",
+						ToolUse: &ToolUse{
+							ID:   "tool_1",
+							Name: "Read",
+							Input: map[string]interface{}{"file": "a.txt"},
+						},
 					},
-				},
-				{
-					Type: "tool_use",
-					ToolUse: &ToolUse{
-						ID:   "tool_2",
-						Name: "Grep",
-						Input: map[string]interface{}{"pattern": "error"},
+					{
+						Type: "tool_use",
+						ToolUse: &ToolUse{
+							ID:   "tool_2",
+							Name: "Grep",
+							Input: map[string]interface{}{"pattern": "error"},
+						},
 					},
 				},
 			},
 		},
 		{
-			Sequence: 2,
-			Role:     "user",
-			Content: []ContentBlock{
-				{
-					Type: "tool_result",
-					ToolResult: &ToolResult{
-						ToolUseID: "tool_1",
-						Content:   "file content",
+			Type: "user",
+			UUID: "entry2",
+			Message: &Message{
+				Role: "user",
+				Content: []ContentBlock{
+					{
+						Type: "tool_result",
+						ToolResult: &ToolResult{
+							ToolUseID: "tool_1",
+							Content:   "file content",
+						},
 					},
-				},
-				{
-					Type: "tool_result",
-					ToolResult: &ToolResult{
-						ToolUseID: "tool_2",
-						Content:   "match found",
+					{
+						Type: "tool_result",
+						ToolResult: &ToolResult{
+							ToolUseID: "tool_2",
+							Content:   "match found",
+						},
 					},
 				},
 			},
 		},
 	}
 
-	toolCalls := ExtractToolCalls(turns)
+	toolCalls := ExtractToolCalls(entries)
 
 	if len(toolCalls) != 2 {
 		t.Fatalf("Expected 2 tool calls, got %d", len(toolCalls))
@@ -124,17 +136,20 @@ func TestExtractToolCalls_MultipleCallsSameTurn(t *testing.T) {
 }
 
 func TestExtractToolCalls_UnmatchedToolUse(t *testing.T) {
-	turns := []Turn{
+	entries := []SessionEntry{
 		{
-			Sequence: 1,
-			Role:     "assistant",
-			Content: []ContentBlock{
-				{
-					Type: "tool_use",
-					ToolUse: &ToolUse{
-						ID:   "orphan_tool",
-						Name: "Bash",
-						Input: map[string]interface{}{},
+			Type: "assistant",
+			UUID: "entry1",
+			Message: &Message{
+				Role: "assistant",
+				Content: []ContentBlock{
+					{
+						Type: "tool_use",
+						ToolUse: &ToolUse{
+							ID:   "orphan_tool",
+							Name: "Bash",
+							Input: map[string]interface{}{},
+						},
 					},
 				},
 			},
@@ -142,7 +157,7 @@ func TestExtractToolCalls_UnmatchedToolUse(t *testing.T) {
 		// 没有对应的 tool_result
 	}
 
-	toolCalls := ExtractToolCalls(turns)
+	toolCalls := ExtractToolCalls(entries)
 
 	if len(toolCalls) != 1 {
 		t.Fatalf("Expected 1 tool call (unmatched), got %d", len(toolCalls))
@@ -159,24 +174,30 @@ func TestExtractToolCalls_UnmatchedToolUse(t *testing.T) {
 }
 
 func TestExtractToolCalls_NoToolCalls(t *testing.T) {
-	turns := []Turn{
+	entries := []SessionEntry{
 		{
-			Sequence: 0,
-			Role:     "user",
-			Content: []ContentBlock{
-				{Type: "text", Text: "Hello"},
+			Type: "user",
+			UUID: "entry1",
+			Message: &Message{
+				Role: "user",
+				Content: []ContentBlock{
+					{Type: "text", Text: "Hello"},
+				},
 			},
 		},
 		{
-			Sequence: 1,
-			Role:     "assistant",
-			Content: []ContentBlock{
-				{Type: "text", Text: "Hi there"},
+			Type: "assistant",
+			UUID: "entry2",
+			Message: &Message{
+				Role: "assistant",
+				Content: []ContentBlock{
+					{Type: "text", Text: "Hi there"},
+				},
 			},
 		},
 	}
 
-	toolCalls := ExtractToolCalls(turns)
+	toolCalls := ExtractToolCalls(entries)
 
 	if len(toolCalls) != 0 {
 		t.Errorf("Expected 0 tool calls, got %d", len(toolCalls))

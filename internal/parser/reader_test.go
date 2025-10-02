@@ -7,42 +7,52 @@ import (
 )
 
 func TestParseSession_ValidFile(t *testing.T) {
-	// 使用测试 fixture
+	// 使用测试 fixture（包含 4 行：1 个 file-history-snapshot + 3 个消息）
 	filePath := testutil.FixtureDir() + "/sample-session.jsonl"
 
 	parser := NewSessionParser(filePath)
-	turns, err := parser.ParseTurns()
+	entries, err := parser.ParseEntries()
 
 	if err != nil {
 		t.Fatalf("Failed to parse session: %v", err)
 	}
 
-	expectedTurns := 3
-	if len(turns) != expectedTurns {
-		t.Errorf("Expected %d turns, got %d", expectedTurns, len(turns))
+	// 应该只返回消息类型（过滤掉 file-history-snapshot）
+	expectedEntries := 3
+	if len(entries) != expectedEntries {
+		t.Errorf("Expected %d message entries, got %d", expectedEntries, len(entries))
 	}
 
-	// 验证第一个 turn（user）
-	turn0 := turns[0]
-	if turn0.Role != "user" {
-		t.Errorf("Expected turn 0 role 'user', got '%s'", turn0.Role)
+	// 验证第一个条目（user）
+	entry0 := entries[0]
+	if entry0.Type != "user" {
+		t.Errorf("Expected type 'user', got '%s'", entry0.Type)
 	}
-	if turn0.Sequence != 0 {
-		t.Errorf("Expected turn 0 sequence 0, got %d", turn0.Sequence)
+	if entry0.UUID != "cfef2966-a593-4169-9956-ee24c804b717" {
+		t.Errorf("Unexpected UUID: %s", entry0.UUID)
+	}
+	if entry0.Message == nil {
+		t.Fatal("Expected Message to be non-nil")
+	}
+	if entry0.Message.Role != "user" {
+		t.Errorf("Expected role 'user', got '%s'", entry0.Message.Role)
 	}
 
-	// 验证第二个 turn（assistant with tool）
-	turn1 := turns[1]
-	if turn1.Role != "assistant" {
-		t.Errorf("Expected turn 1 role 'assistant', got '%s'", turn1.Role)
+	// 验证第二个条目（assistant with tool）
+	entry1 := entries[1]
+	if entry1.Type != "assistant" {
+		t.Errorf("Expected type 'assistant', got '%s'", entry1.Type)
 	}
-	if len(turn1.Content) != 2 {
-		t.Errorf("Expected 2 content blocks in turn 1, got %d", len(turn1.Content))
+	if entry1.Message == nil {
+		t.Fatal("Expected Message to be non-nil")
+	}
+	if len(entry1.Message.Content) != 2 {
+		t.Errorf("Expected 2 content blocks, got %d", len(entry1.Message.Content))
 	}
 
 	// 验证工具调用
 	hasToolUse := false
-	for _, block := range turn1.Content {
+	for _, block := range entry1.Message.Content {
 		if block.Type == "tool_use" && block.ToolUse != nil {
 			hasToolUse = true
 			if block.ToolUse.Name != "Grep" {
@@ -51,19 +61,22 @@ func TestParseSession_ValidFile(t *testing.T) {
 		}
 	}
 	if !hasToolUse {
-		t.Error("Expected tool_use in turn 1")
+		t.Error("Expected tool_use in entry 1")
 	}
 
-	// 验证第三个 turn（tool result）
-	turn2 := turns[2]
-	if turn2.Role != "user" {
-		t.Errorf("Expected turn 2 role 'user', got '%s'", turn2.Role)
+	// 验证第三个条目（tool result）
+	entry2 := entries[2]
+	if entry2.Type != "user" {
+		t.Errorf("Expected type 'user', got '%s'", entry2.Type)
 	}
-	if len(turn2.Content) < 1 {
-		t.Fatal("Expected at least 1 content block in turn 2")
+	if entry2.Message == nil {
+		t.Fatal("Expected Message to be non-nil")
 	}
-	if turn2.Content[0].Type != "tool_result" {
-		t.Errorf("Expected type 'tool_result', got '%s'", turn2.Content[0].Type)
+	if len(entry2.Message.Content) < 1 {
+		t.Fatal("Expected at least 1 content block")
+	}
+	if entry2.Message.Content[0].Type != "tool_result" {
+		t.Errorf("Expected type 'tool_result', got '%s'", entry2.Message.Content[0].Type)
 	}
 }
 
@@ -71,26 +84,26 @@ func TestParseSession_EmptyFile(t *testing.T) {
 	tempFile := testutil.TempSessionFile(t, "")
 
 	parser := NewSessionParser(tempFile)
-	turns, err := parser.ParseTurns()
+	entries, err := parser.ParseEntries()
 
 	if err != nil {
 		t.Fatalf("Expected no error for empty file, got: %v", err)
 	}
 
-	if len(turns) != 0 {
-		t.Errorf("Expected 0 turns for empty file, got %d", len(turns))
+	if len(entries) != 0 {
+		t.Errorf("Expected 0 entries for empty file, got %d", len(entries))
 	}
 }
 
 func TestParseSession_InvalidJSON(t *testing.T) {
-	content := `{"sequence":0,"role":"user","timestamp":1735689600,"content":[]}
+	content := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":[]},"uuid":"abc"}
 invalid json line
-{"sequence":1,"role":"assistant","timestamp":1735689605,"content":[]}`
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"role":"assistant","content":[]},"uuid":"def"}`
 
 	tempFile := testutil.TempSessionFile(t, content)
 
 	parser := NewSessionParser(tempFile)
-	_, err := parser.ParseTurns()
+	_, err := parser.ParseEntries()
 
 	if err == nil {
 		t.Error("Expected error for invalid JSON line")
@@ -98,54 +111,60 @@ invalid json line
 }
 
 func TestParseSession_SkipEmptyLines(t *testing.T) {
-	content := `{"sequence":0,"role":"user","timestamp":1735689600,"content":[]}
+	content := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":[]},"uuid":"abc"}
 
-{"sequence":1,"role":"assistant","timestamp":1735689605,"content":[]}
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"role":"assistant","content":[]},"uuid":"def"}
 
 `
 
 	tempFile := testutil.TempSessionFile(t, content)
 
 	parser := NewSessionParser(tempFile)
-	turns, err := parser.ParseTurns()
+	entries, err := parser.ParseEntries()
 
 	if err != nil {
 		t.Fatalf("Failed to parse session with empty lines: %v", err)
 	}
 
-	if len(turns) != 2 {
-		t.Errorf("Expected 2 turns (empty lines skipped), got %d", len(turns))
+	if len(entries) != 2 {
+		t.Errorf("Expected 2 entries (empty lines skipped), got %d", len(entries))
 	}
 }
 
 func TestParseSession_FileNotFound(t *testing.T) {
 	parser := NewSessionParser("/nonexistent/file.jsonl")
-	_, err := parser.ParseTurns()
+	_, err := parser.ParseEntries()
 
 	if err == nil {
 		t.Error("Expected error for nonexistent file")
 	}
 }
 
-func TestParseSession_MissingRequiredFields(t *testing.T) {
-	// 测试缺少必需字段的 JSON（如缺少 sequence）
-	content := `{"role":"user","timestamp":1735689600,"content":[]}`
+func TestParseSession_FilterNonMessageTypes(t *testing.T) {
+	// 测试过滤非消息类型（如 file-history-snapshot）
+	content := `{"type":"file-history-snapshot","messageId":"abc","snapshot":{}}
+{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":[]},"uuid":"user1"}
+{"type":"some-other-type","data":"ignored"}
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"role":"assistant","content":[]},"uuid":"asst1"}`
 
 	tempFile := testutil.TempSessionFile(t, content)
 
 	parser := NewSessionParser(tempFile)
-	turns, err := parser.ParseTurns()
+	entries, err := parser.ParseEntries()
 
-	// 应该能解析，但 sequence 会是零值
+	// 应该只返回 user 和 assistant 类型
 	if err != nil {
-		t.Fatalf("Expected no error (zero value for missing field), got: %v", err)
+		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	if len(turns) != 1 {
-		t.Fatalf("Expected 1 turn, got %d", len(turns))
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 message entries (non-message types filtered), got %d", len(entries))
 	}
 
-	if turns[0].Sequence != 0 {
-		t.Errorf("Expected sequence 0 (zero value), got %d", turns[0].Sequence)
+	// 验证都是消息类型
+	for _, entry := range entries {
+		if !entry.IsMessage() {
+			t.Errorf("Expected only message types, got '%s'", entry.Type)
+		}
 	}
 }

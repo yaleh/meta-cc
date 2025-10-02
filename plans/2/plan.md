@@ -34,12 +34,24 @@
 
 ## JSONL 数据结构
 
-### Claude Code 会话文件格式
+### Claude Code 会话文件格式（真实格式）
+
+**注意**: 真实的 Claude Code 会话文件格式与简化格式不同。主要差异：
+
+1. 顶层使用 `type` 字段（而非 `role`）
+2. `timestamp` 是 ISO 8601 字符串（而非 Unix 时间戳）
+3. `role` 和 `content` 嵌套在 `message` 对象中
+4. 使用 `uuid` 和 `parentUuid` 建立消息链（而非 `sequence`）
+5. 包含额外元数据：`sessionId`, `cwd`, `gitBranch`, `version` 等
+6. 包含 `file-history-snapshot` 等非消息条目（需过滤）
+
+**真实格式示例**:
 
 ```jsonl
-{"sequence":0,"role":"user","timestamp":1735689600,"content":[{"type":"text","text":"帮我修复这个认证 bug"}]}
-{"sequence":1,"role":"assistant","timestamp":1735689605,"content":[{"type":"text","text":"我来帮你检查代码"},{"type":"tool_use","id":"toolu_01","name":"Grep","input":{"pattern":"auth.*error","path":"."}}]}
-{"sequence":2,"role":"user","timestamp":1735689610,"content":[{"type":"tool_result","tool_use_id":"toolu_01","content":"src/auth.js:15: authError: token invalid"}]}
+{"type":"file-history-snapshot","messageId":"...","snapshot":{...},"isSnapshotUpdate":false}
+{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":[{"type":"text","text":"帮我修复这个认证 bug"}]},"uuid":"cfef2966-a593-4169-9956-ee24c804b717","parentUuid":null,"sessionId":"6a32f273-191a-49c8-a5fc-a5dcba08531a","cwd":"/home/yale/work/meta-cc","version":"2.0.1","gitBranch":"develop"}
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"id":"msg_01J73XtFeXqDHHQZhYXBiVSr","type":"message","role":"assistant","model":"claude-sonnet-4-5-20250929","content":[{"type":"text","text":"我来帮你检查代码"},{"type":"tool_use","id":"toolu_01","name":"Grep","input":{"pattern":"auth.*error","path":"."}}],"stop_reason":"tool_use","usage":{...}},"uuid":"0606832a-4c37-494b-a7c4-a10693086b86","parentUuid":"cfef2966-a593-4169-9956-ee24c804b717","sessionId":"6a32f273-191a-49c8-a5fc-a5dcba08531a","cwd":"/home/yale/work/meta-cc","gitBranch":"develop"}
+{"type":"user","timestamp":"2025-10-02T06:09:10.123Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01","content":"src/auth.js:15: authError: token invalid"}]},"uuid":"abc123","parentUuid":"0606832a-4c37-494b-a7c4-a10693086b86","sessionId":"6a32f273-191a-49c8-a5fc-a5dcba08531a","cwd":"/home/yale/work/meta-cc"}
 ```
 
 ### 数据结构关系图
@@ -62,11 +74,25 @@ package "解析流程" {
 }
 
 package "数据结构" {
-  class Turn {
-    Sequence int
+  class SessionEntry {
+    Type string
+    Timestamp string
+    UUID string
+    ParentUUID string
+    SessionID string
+    CWD string
+    Version string
+    GitBranch string
+    Message *Message
+  }
+
+  class Message {
+    ID string
     Role string
-    Timestamp int64
+    Model string
     Content []ContentBlock
+    StopReason string
+    Usage map[string]interface{}
   }
 
   class ContentBlock {
@@ -90,7 +116,7 @@ package "数据结构" {
   }
 
   class ToolCall {
-    TurnSequence int
+    UUID string
     ToolName string
     Input map[string]interface{}
     Output string
@@ -99,7 +125,8 @@ package "数据结构" {
   }
 }
 
-Turn --> ContentBlock
+SessionEntry --> Message
+Message --> ContentBlock
 ContentBlock --> ToolUse
 ContentBlock --> ToolResult
 
@@ -112,7 +139,14 @@ ContentBlock --> ToolResult
 
 ### 目标
 
-定义 Turn、ContentBlock、ToolUse、ToolResult 数据结构，支持 JSON 序列化和反序列化。
+定义 SessionEntry、Message、ContentBlock、ToolUse、ToolResult 数据结构，支持真实 Claude Code 会话格式的 JSON 序列化和反序列化。
+
+**关键变更**:
+- SessionEntry 替代简化的 Turn 结构
+- Timestamp 使用字符串类型（ISO 8601）而非 int64
+- Message 嵌套结构包含 Role 和 Content
+- 使用 UUID 而非 Sequence 进行排序
+- 过滤 type != "user" 且 type != "assistant" 的条目
 
 ### TDD 工作流
 
@@ -125,7 +159,7 @@ mkdir -p internal/parser
 
 **2. 测试先行 - 编写测试**
 
-#### `internal/parser/types_test.go` (~90 行)
+#### `internal/parser/types_test.go` (~120 行)
 
 ```go
 package parser
@@ -135,65 +169,116 @@ import (
 	"testing"
 )
 
-func TestTurnUnmarshal_UserTurn(t *testing.T) {
-	jsonData := `{"sequence":0,"role":"user","timestamp":1735689600,"content":[{"type":"text","text":"帮我修复这个认证 bug"}]}`
+func TestSessionEntryUnmarshal_UserEntry(t *testing.T) {
+	jsonData := `{
+		"type":"user",
+		"timestamp":"2025-10-02T06:07:13.673Z",
+		"message":{
+			"role":"user",
+			"content":[{"type":"text","text":"帮我修复这个认证 bug"}]
+		},
+		"uuid":"cfef2966-a593-4169-9956-ee24c804b717",
+		"parentUuid":null,
+		"sessionId":"6a32f273-191a-49c8-a5fc-a5dcba08531a",
+		"cwd":"/home/yale/work/meta-cc",
+		"version":"2.0.1",
+		"gitBranch":"develop"
+	}`
 
-	var turn Turn
-	err := json.Unmarshal([]byte(jsonData), &turn)
+	var entry SessionEntry
+	err := json.Unmarshal([]byte(jsonData), &entry)
 
 	if err != nil {
-		t.Fatalf("Failed to unmarshal Turn: %v", err)
+		t.Fatalf("Failed to unmarshal SessionEntry: %v", err)
 	}
 
-	if turn.Sequence != 0 {
-		t.Errorf("Expected sequence 0, got %d", turn.Sequence)
+	if entry.Type != "user" {
+		t.Errorf("Expected type 'user', got '%s'", entry.Type)
 	}
 
-	if turn.Role != "user" {
-		t.Errorf("Expected role 'user', got '%s'", turn.Role)
+	if entry.Timestamp != "2025-10-02T06:07:13.673Z" {
+		t.Errorf("Expected timestamp '2025-10-02T06:07:13.673Z', got '%s'", entry.Timestamp)
 	}
 
-	if turn.Timestamp != 1735689600 {
-		t.Errorf("Expected timestamp 1735689600, got %d", turn.Timestamp)
+	if entry.UUID != "cfef2966-a593-4169-9956-ee24c804b717" {
+		t.Errorf("Unexpected UUID: %s", entry.UUID)
 	}
 
-	if len(turn.Content) != 1 {
-		t.Fatalf("Expected 1 content block, got %d", len(turn.Content))
+	if entry.SessionID != "6a32f273-191a-49c8-a5fc-a5dcba08531a" {
+		t.Errorf("Unexpected SessionID: %s", entry.SessionID)
 	}
 
-	if turn.Content[0].Type != "text" {
-		t.Errorf("Expected content type 'text', got '%s'", turn.Content[0].Type)
+	if entry.Message == nil {
+		t.Fatal("Expected Message to be non-nil")
 	}
 
-	if turn.Content[0].Text != "帮我修复这个认证 bug" {
-		t.Errorf("Unexpected text content: %s", turn.Content[0].Text)
+	if entry.Message.Role != "user" {
+		t.Errorf("Expected message role 'user', got '%s'", entry.Message.Role)
+	}
+
+	if len(entry.Message.Content) != 1 {
+		t.Fatalf("Expected 1 content block, got %d", len(entry.Message.Content))
+	}
+
+	if entry.Message.Content[0].Type != "text" {
+		t.Errorf("Expected content type 'text', got '%s'", entry.Message.Content[0].Type)
+	}
+
+	if entry.Message.Content[0].Text != "帮我修复这个认证 bug" {
+		t.Errorf("Unexpected text content: %s", entry.Message.Content[0].Text)
 	}
 }
 
-func TestTurnUnmarshal_AssistantWithToolUse(t *testing.T) {
-	jsonData := `{"sequence":1,"role":"assistant","timestamp":1735689605,"content":[{"type":"text","text":"我来帮你检查代码"},{"type":"tool_use","id":"toolu_01","name":"Grep","input":{"pattern":"auth.*error","path":"."}}]}`
+func TestSessionEntryUnmarshal_AssistantWithToolUse(t *testing.T) {
+	jsonData := `{
+		"type":"assistant",
+		"timestamp":"2025-10-02T06:08:57.769Z",
+		"message":{
+			"id":"msg_01J73XtFeXqDHHQZhYXBiVSr",
+			"type":"message",
+			"role":"assistant",
+			"model":"claude-sonnet-4-5-20250929",
+			"content":[
+				{"type":"text","text":"我来帮你检查代码"},
+				{"type":"tool_use","id":"toolu_01","name":"Grep","input":{"pattern":"auth.*error","path":"."}}
+			],
+			"stop_reason":"tool_use",
+			"usage":{"input_tokens":100,"output_tokens":50}
+		},
+		"uuid":"0606832a-4c37-494b-a7c4-a10693086b86",
+		"parentUuid":"cfef2966-a593-4169-9956-ee24c804b717",
+		"sessionId":"6a32f273-191a-49c8-a5fc-a5dcba08531a"
+	}`
 
-	var turn Turn
-	err := json.Unmarshal([]byte(jsonData), &turn)
+	var entry SessionEntry
+	err := json.Unmarshal([]byte(jsonData), &entry)
 
 	if err != nil {
-		t.Fatalf("Failed to unmarshal Turn: %v", err)
+		t.Fatalf("Failed to unmarshal SessionEntry: %v", err)
 	}
 
-	if turn.Sequence != 1 {
-		t.Errorf("Expected sequence 1, got %d", turn.Sequence)
+	if entry.Type != "assistant" {
+		t.Errorf("Expected type 'assistant', got '%s'", entry.Type)
 	}
 
-	if turn.Role != "assistant" {
-		t.Errorf("Expected role 'assistant', got '%s'", turn.Role)
+	if entry.Message == nil {
+		t.Fatal("Expected Message to be non-nil")
 	}
 
-	if len(turn.Content) != 2 {
-		t.Fatalf("Expected 2 content blocks, got %d", len(turn.Content))
+	if entry.Message.Role != "assistant" {
+		t.Errorf("Expected role 'assistant', got '%s'", entry.Message.Role)
+	}
+
+	if entry.Message.Model != "claude-sonnet-4-5-20250929" {
+		t.Errorf("Expected model 'claude-sonnet-4-5-20250929', got '%s'", entry.Message.Model)
+	}
+
+	if len(entry.Message.Content) != 2 {
+		t.Fatalf("Expected 2 content blocks, got %d", len(entry.Message.Content))
 	}
 
 	// 验证第二个 block 是 tool_use
-	toolBlock := turn.Content[1]
+	toolBlock := entry.Message.Content[1]
 	if toolBlock.Type != "tool_use" {
 		t.Errorf("Expected type 'tool_use', got '%s'", toolBlock.Type)
 	}
@@ -217,21 +302,35 @@ func TestTurnUnmarshal_AssistantWithToolUse(t *testing.T) {
 	}
 }
 
-func TestTurnUnmarshal_ToolResult(t *testing.T) {
-	jsonData := `{"sequence":2,"role":"user","timestamp":1735689610,"content":[{"type":"tool_result","tool_use_id":"toolu_01","content":"src/auth.js:15: authError: token invalid"}]}`
+func TestSessionEntryUnmarshal_ToolResult(t *testing.T) {
+	jsonData := `{
+		"type":"user",
+		"timestamp":"2025-10-02T06:09:10.123Z",
+		"message":{
+			"role":"user",
+			"content":[{"type":"tool_result","tool_use_id":"toolu_01","content":"src/auth.js:15: authError: token invalid"}]
+		},
+		"uuid":"abc123",
+		"parentUuid":"0606832a-4c37-494b-a7c4-a10693086b86",
+		"sessionId":"6a32f273-191a-49c8-a5fc-a5dcba08531a"
+	}`
 
-	var turn Turn
-	err := json.Unmarshal([]byte(jsonData), &turn)
+	var entry SessionEntry
+	err := json.Unmarshal([]byte(jsonData), &entry)
 
 	if err != nil {
-		t.Fatalf("Failed to unmarshal Turn: %v", err)
+		t.Fatalf("Failed to unmarshal SessionEntry: %v", err)
 	}
 
-	if len(turn.Content) != 1 {
-		t.Fatalf("Expected 1 content block, got %d", len(turn.Content))
+	if entry.Message == nil {
+		t.Fatal("Expected Message to be non-nil")
 	}
 
-	resultBlock := turn.Content[0]
+	if len(entry.Message.Content) != 1 {
+		t.Fatalf("Expected 1 content block, got %d", len(entry.Message.Content))
+	}
+
+	resultBlock := entry.Message.Content[0]
 	if resultBlock.Type != "tool_result" {
 		t.Errorf("Expected type 'tool_result', got '%s'", resultBlock.Type)
 	}
@@ -247,6 +346,32 @@ func TestTurnUnmarshal_ToolResult(t *testing.T) {
 	expectedContent := "src/auth.js:15: authError: token invalid"
 	if resultBlock.ToolResult.Content != expectedContent {
 		t.Errorf("Unexpected content: %s", resultBlock.ToolResult.Content)
+	}
+}
+
+func TestSessionEntryUnmarshal_SkipNonMessageTypes(t *testing.T) {
+	// 测试 file-history-snapshot 类型（应被忽略或标记）
+	jsonData := `{
+		"type":"file-history-snapshot",
+		"messageId":"80d4a4d7-01c9-466f-83ea-f1f1498f1a6a",
+		"snapshot":{"trackedFileBackups":{},"timestamp":"2025-10-02T06:07:13.675Z"},
+		"isSnapshotUpdate":false
+	}`
+
+	var entry SessionEntry
+	err := json.Unmarshal([]byte(jsonData), &entry)
+
+	if err != nil {
+		t.Fatalf("Failed to unmarshal SessionEntry: %v", err)
+	}
+
+	if entry.Type != "file-history-snapshot" {
+		t.Errorf("Expected type 'file-history-snapshot', got '%s'", entry.Type)
+	}
+
+	// Message 应该为 nil，因为这不是消息类型
+	if entry.Message != nil {
+		t.Error("Expected Message to be nil for non-message type")
 	}
 }
 
@@ -309,7 +434,7 @@ func TestContentBlockUnmarshal_CustomUnmarshaler(t *testing.T) {
 
 **3. 实现代码**
 
-#### `internal/parser/types.go` (~100 行)
+#### `internal/parser/types.go` (~140 行)
 
 ```go
 package parser
@@ -319,15 +444,36 @@ import (
 	"fmt"
 )
 
-// Turn 表示一个会话轮次
-type Turn struct {
-	Sequence  int            `json:"sequence"`
-	Role      string         `json:"role"`
-	Timestamp int64          `json:"timestamp"`
-	Content   []ContentBlock `json:"content"`
+// SessionEntry 表示 Claude Code 会话文件中的一个条目
+// 可以是 user 消息、assistant 消息或其他类型（如 file-history-snapshot）
+type SessionEntry struct {
+	Type       string   `json:"type"`        // "user", "assistant", "file-history-snapshot", etc.
+	Timestamp  string   `json:"timestamp"`   // ISO 8601 格式: "2025-10-02T06:07:13.673Z"
+	UUID       string   `json:"uuid"`        // 条目唯一标识
+	ParentUUID string   `json:"parentUuid"`  // 父条目 UUID（构建消息链）
+	SessionID  string   `json:"sessionId"`   // 会话 ID
+	CWD        string   `json:"cwd"`         // 工作目录
+	Version    string   `json:"version"`     // Claude Code 版本
+	GitBranch  string   `json:"gitBranch"`   // Git 分支
+	Message    *Message `json:"message"`     // 消息内容（仅 user/assistant 类型有值）
 }
 
-// ContentBlock 表示 Turn 中的一个内容块
+// IsMessage 判断条目是否为消息类型（user 或 assistant）
+func (e *SessionEntry) IsMessage() bool {
+	return e.Type == "user" || e.Type == "assistant"
+}
+
+// Message 表示消息的详细内容
+type Message struct {
+	ID         string                 `json:"id"`         // 消息 ID（assistant 消息有值）
+	Role       string                 `json:"role"`       // "user" 或 "assistant"
+	Model      string                 `json:"model"`      // 模型名称（assistant 消息有值）
+	Content    []ContentBlock         `json:"content"`    // 内容块数组
+	StopReason string                 `json:"stop_reason"` // 停止原因
+	Usage      map[string]interface{} `json:"usage"`      // Token 使用统计
+}
+
+// ContentBlock 表示消息中的一个内容块
 // 可以是文本、工具调用或工具结果
 type ContentBlock struct {
 	Type       string      `json:"type"`
@@ -446,17 +592,18 @@ go test ./internal/parser -v
 meta-cc/
 ├── internal/
 │   └── parser/
-│       ├── types.go          # 数据结构定义 (~100 行)
-│       └── types_test.go     # 单元测试 (~90 行)
+│       ├── types.go          # 数据结构定义 (~140 行)
+│       └── types_test.go     # 单元测试 (~120 行)
 ```
 
-**代码量**: ~190 行
+**代码量**: ~260 行
 
 ### 验收标准
 
-- ✅ `TestTurnUnmarshal_UserTurn` 测试通过（用户 Turn）
-- ✅ `TestTurnUnmarshal_AssistantWithToolUse` 测试通过（助手 Turn + 工具调用）
-- ✅ `TestTurnUnmarshal_ToolResult` 测试通过（工具结果）
+- ✅ `TestSessionEntryUnmarshal_UserEntry` 测试通过（用户消息）
+- ✅ `TestSessionEntryUnmarshal_AssistantWithToolUse` 测试通过（助手消息 + 工具调用）
+- ✅ `TestSessionEntryUnmarshal_ToolResult` 测试通过（工具结果）
+- ✅ `TestSessionEntryUnmarshal_SkipNonMessageTypes` 测试通过（非消息类型）
 - ✅ `TestContentBlockUnmarshal_CustomUnmarshaler` 测试通过（自定义反序列化）
 - ✅ 所有测试无警告或失败
 - ✅ 代码符合 Go 命名规范（导出类型有注释）
@@ -467,7 +614,12 @@ meta-cc/
 
 ### 目标
 
-实现 JSONL 文件逐行读取，解析为 Turn 数组，处理空行和非法 JSON。
+实现 JSONL 文件逐行读取，解析为 SessionEntry 数组，过滤非消息类型条目，处理空行和非法 JSON。
+
+**关键变更**:
+- 解析为 SessionEntry 而非 Turn
+- 过滤 type != "user" 且 type != "assistant" 的条目
+- 提供辅助方法将 SessionEntry 转换为简化的 Turn 结构（向后兼容）
 
 ### TDD 工作流
 
@@ -485,42 +637,52 @@ import (
 )
 
 func TestParseSession_ValidFile(t *testing.T) {
-	// 使用测试 fixture
+	// 使用测试 fixture（包含 4 行：1 个 file-history-snapshot + 3 个消息）
 	filePath := testutil.FixtureDir() + "/sample-session.jsonl"
 
 	parser := NewSessionParser(filePath)
-	turns, err := parser.ParseTurns()
+	entries, err := parser.ParseEntries()
 
 	if err != nil {
 		t.Fatalf("Failed to parse session: %v", err)
 	}
 
-	expectedTurns := 3
-	if len(turns) != expectedTurns {
-		t.Errorf("Expected %d turns, got %d", expectedTurns, len(turns))
+	// 应该只返回消息类型（过滤掉 file-history-snapshot）
+	expectedEntries := 3
+	if len(entries) != expectedEntries {
+		t.Errorf("Expected %d message entries, got %d", expectedEntries, len(entries))
 	}
 
-	// 验证第一个 turn（user）
-	turn0 := turns[0]
-	if turn0.Role != "user" {
-		t.Errorf("Expected turn 0 role 'user', got '%s'", turn0.Role)
+	// 验证第一个条目（user）
+	entry0 := entries[0]
+	if entry0.Type != "user" {
+		t.Errorf("Expected type 'user', got '%s'", entry0.Type)
 	}
-	if turn0.Sequence != 0 {
-		t.Errorf("Expected turn 0 sequence 0, got %d", turn0.Sequence)
+	if entry0.UUID != "cfef2966-a593-4169-9956-ee24c804b717" {
+		t.Errorf("Unexpected UUID: %s", entry0.UUID)
+	}
+	if entry0.Message == nil {
+		t.Fatal("Expected Message to be non-nil")
+	}
+	if entry0.Message.Role != "user" {
+		t.Errorf("Expected role 'user', got '%s'", entry0.Message.Role)
 	}
 
-	// 验证第二个 turn（assistant with tool）
-	turn1 := turns[1]
-	if turn1.Role != "assistant" {
-		t.Errorf("Expected turn 1 role 'assistant', got '%s'", turn1.Role)
+	// 验证第二个条目（assistant with tool）
+	entry1 := entries[1]
+	if entry1.Type != "assistant" {
+		t.Errorf("Expected type 'assistant', got '%s'", entry1.Type)
 	}
-	if len(turn1.Content) != 2 {
-		t.Errorf("Expected 2 content blocks in turn 1, got %d", len(turn1.Content))
+	if entry1.Message == nil {
+		t.Fatal("Expected Message to be non-nil")
+	}
+	if len(entry1.Message.Content) != 2 {
+		t.Errorf("Expected 2 content blocks, got %d", len(entry1.Message.Content))
 	}
 
 	// 验证工具调用
 	hasToolUse := false
-	for _, block := range turn1.Content {
+	for _, block := range entry1.Message.Content {
 		if block.Type == "tool_use" && block.ToolUse != nil {
 			hasToolUse = true
 			if block.ToolUse.Name != "Grep" {
@@ -529,19 +691,22 @@ func TestParseSession_ValidFile(t *testing.T) {
 		}
 	}
 	if !hasToolUse {
-		t.Error("Expected tool_use in turn 1")
+		t.Error("Expected tool_use in entry 1")
 	}
 
-	// 验证第三个 turn（tool result）
-	turn2 := turns[2]
-	if turn2.Role != "user" {
-		t.Errorf("Expected turn 2 role 'user', got '%s'", turn2.Role)
+	// 验证第三个条目（tool result）
+	entry2 := entries[2]
+	if entry2.Type != "user" {
+		t.Errorf("Expected type 'user', got '%s'", entry2.Type)
 	}
-	if len(turn2.Content) < 1 {
-		t.Fatal("Expected at least 1 content block in turn 2")
+	if entry2.Message == nil {
+		t.Fatal("Expected Message to be non-nil")
 	}
-	if turn2.Content[0].Type != "tool_result" {
-		t.Errorf("Expected type 'tool_result', got '%s'", turn2.Content[0].Type)
+	if len(entry2.Message.Content) < 1 {
+		t.Fatal("Expected at least 1 content block")
+	}
+	if entry2.Message.Content[0].Type != "tool_result" {
+		t.Errorf("Expected type 'tool_result', got '%s'", entry2.Message.Content[0].Type)
 	}
 }
 
@@ -549,26 +714,26 @@ func TestParseSession_EmptyFile(t *testing.T) {
 	tempFile := testutil.TempSessionFile(t, "")
 
 	parser := NewSessionParser(tempFile)
-	turns, err := parser.ParseTurns()
+	entries, err := parser.ParseEntries()
 
 	if err != nil {
 		t.Fatalf("Expected no error for empty file, got: %v", err)
 	}
 
-	if len(turns) != 0 {
-		t.Errorf("Expected 0 turns for empty file, got %d", len(turns))
+	if len(entries) != 0 {
+		t.Errorf("Expected 0 entries for empty file, got %d", len(entries))
 	}
 }
 
 func TestParseSession_InvalidJSON(t *testing.T) {
-	content := `{"sequence":0,"role":"user","timestamp":1735689600,"content":[]}
+	content := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":[]},"uuid":"abc"}
 invalid json line
-{"sequence":1,"role":"assistant","timestamp":1735689605,"content":[]}`
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"role":"assistant","content":[]},"uuid":"def"}`
 
 	tempFile := testutil.TempSessionFile(t, content)
 
 	parser := NewSessionParser(tempFile)
-	_, err := parser.ParseTurns()
+	_, err := parser.ParseEntries()
 
 	if err == nil {
 		t.Error("Expected error for invalid JSON line")
@@ -576,62 +741,68 @@ invalid json line
 }
 
 func TestParseSession_SkipEmptyLines(t *testing.T) {
-	content := `{"sequence":0,"role":"user","timestamp":1735689600,"content":[]}
+	content := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":[]},"uuid":"abc"}
 
-{"sequence":1,"role":"assistant","timestamp":1735689605,"content":[]}
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"role":"assistant","content":[]},"uuid":"def"}
 
 `
 
 	tempFile := testutil.TempSessionFile(t, content)
 
 	parser := NewSessionParser(tempFile)
-	turns, err := parser.ParseTurns()
+	entries, err := parser.ParseEntries()
 
 	if err != nil {
 		t.Fatalf("Failed to parse session with empty lines: %v", err)
 	}
 
-	if len(turns) != 2 {
-		t.Errorf("Expected 2 turns (empty lines skipped), got %d", len(turns))
+	if len(entries) != 2 {
+		t.Errorf("Expected 2 entries (empty lines skipped), got %d", len(entries))
 	}
 }
 
 func TestParseSession_FileNotFound(t *testing.T) {
 	parser := NewSessionParser("/nonexistent/file.jsonl")
-	_, err := parser.ParseTurns()
+	_, err := parser.ParseEntries()
 
 	if err == nil {
 		t.Error("Expected error for nonexistent file")
 	}
 }
 
-func TestParseSession_MissingRequiredFields(t *testing.T) {
-	// 测试缺少必需字段的 JSON（如缺少 sequence）
-	content := `{"role":"user","timestamp":1735689600,"content":[]}`
+func TestParseSession_FilterNonMessageTypes(t *testing.T) {
+	// 测试过滤非消息类型（如 file-history-snapshot）
+	content := `{"type":"file-history-snapshot","messageId":"abc","snapshot":{}}
+{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":[]},"uuid":"user1"}
+{"type":"some-other-type","data":"ignored"}
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"role":"assistant","content":[]},"uuid":"asst1"}`
 
 	tempFile := testutil.TempSessionFile(t, content)
 
 	parser := NewSessionParser(tempFile)
-	turns, err := parser.ParseTurns()
+	entries, err := parser.ParseEntries()
 
-	// 应该能解析，但 sequence 会是零值
+	// 应该只返回 user 和 assistant 类型
 	if err != nil {
-		t.Fatalf("Expected no error (zero value for missing field), got: %v", err)
+		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	if len(turns) != 1 {
-		t.Fatalf("Expected 1 turn, got %d", len(turns))
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 message entries (non-message types filtered), got %d", len(entries))
 	}
 
-	if turns[0].Sequence != 0 {
-		t.Errorf("Expected sequence 0 (zero value), got %d", turns[0].Sequence)
+	// 验证都是消息类型
+	for _, entry := range entries {
+		if !entry.IsMessage() {
+			t.Errorf("Expected only message types, got '%s'", entry.Type)
+		}
 	}
 }
 ```
 
 **2. 实现代码**
 
-#### `internal/parser/reader.go` (~80 行)
+#### `internal/parser/reader.go` (~90 行)
 
 ```go
 package parser
@@ -656,20 +827,21 @@ func NewSessionParser(filePath string) *SessionParser {
 	}
 }
 
-// ParseTurns 解析 JSONL 文件，返回 Turn 数组
+// ParseEntries 解析 JSONL 文件，返回 SessionEntry 数组
 // JSONL 格式：每行一个 JSON 对象
 // 处理规则：
 //   - 跳过空行和空白行
 //   - 非法 JSON 行返回错误
-//   - 返回所有成功解析的 Turn
-func (p *SessionParser) ParseTurns() ([]Turn, error) {
+//   - 仅返回消息类型（type == "user" 或 "assistant"）
+//   - 过滤掉 file-history-snapshot 等非消息类型
+func (p *SessionParser) ParseEntries() ([]SessionEntry, error) {
 	file, err := os.Open(p.filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open session file: %w", err)
 	}
 	defer file.Close()
 
-	var turns []Turn
+	var entries []SessionEntry
 	scanner := bufio.NewScanner(file)
 	lineNum := 0
 
@@ -682,25 +854,28 @@ func (p *SessionParser) ParseTurns() ([]Turn, error) {
 			continue
 		}
 
-		// 解析 JSON 为 Turn
-		var turn Turn
-		if err := json.Unmarshal([]byte(line), &turn); err != nil {
+		// 解析 JSON 为 SessionEntry
+		var entry SessionEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			return nil, fmt.Errorf("failed to parse line %d: %w", lineNum, err)
 		}
 
-		turns = append(turns, turn)
+		// 仅保留消息类型
+		if entry.IsMessage() {
+			entries = append(entries, entry)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading session file: %w", err)
 	}
 
-	return turns, nil
+	return entries, nil
 }
 
-// ParseTurnsFromContent 从字符串内容解析 JSONL（用于测试）
-func ParseTurnsFromContent(content string) ([]Turn, error) {
-	var turns []Turn
+// ParseEntriesFromContent 从字符串内容解析 JSONL（用于测试）
+func ParseEntriesFromContent(content string) ([]SessionEntry, error) {
+	var entries []SessionEntry
 	lines := strings.Split(content, "\n")
 
 	for lineNum, line := range lines {
@@ -709,15 +884,18 @@ func ParseTurnsFromContent(content string) ([]Turn, error) {
 			continue
 		}
 
-		var turn Turn
-		if err := json.Unmarshal([]byte(line), &turn); err != nil {
+		var entry SessionEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			return nil, fmt.Errorf("failed to parse line %d: %w", lineNum+1, err)
 		}
 
-		turns = append(turns, turn)
+		// 仅保留消息类型
+		if entry.IsMessage() {
+			entries = append(entries, entry)
+		}
 	}
 
-	return turns, nil
+	return entries, nil
 }
 ```
 
@@ -761,7 +939,12 @@ meta-cc/
 
 ### 目标
 
-从 Turn 数组中提取工具调用，匹配 ToolUse 和 ToolResult，生成 ToolCall 结构。
+从 SessionEntry 数组中提取工具调用，匹配 ToolUse 和 ToolResult，生成 ToolCall 结构。
+
+**关键变更**:
+- 使用 SessionEntry 而非 Turn
+- ToolCall 使用 UUID 而非 TurnSequence
+- 从 entry.Message.Content 提取工具调用
 
 ### TDD 工作流
 
@@ -777,40 +960,46 @@ import (
 )
 
 func TestExtractToolCalls_SingleCall(t *testing.T) {
-	turns := []Turn{
+	entries := []SessionEntry{
 		{
-			Sequence: 1,
-			Role:     "assistant",
-			Content: []ContentBlock{
-				{Type: "text", Text: "检查代码"},
-				{
-					Type: "tool_use",
-					ToolUse: &ToolUse{
-						ID:   "toolu_01",
-						Name: "Grep",
-						Input: map[string]interface{}{
-							"pattern": "auth.*error",
+			Type: "assistant",
+			UUID: "entry1",
+			Message: &Message{
+				Role: "assistant",
+				Content: []ContentBlock{
+					{Type: "text", Text: "检查代码"},
+					{
+						Type: "tool_use",
+						ToolUse: &ToolUse{
+							ID:   "toolu_01",
+							Name: "Grep",
+							Input: map[string]interface{}{
+								"pattern": "auth.*error",
+							},
 						},
 					},
 				},
 			},
 		},
 		{
-			Sequence: 2,
-			Role:     "user",
-			Content: []ContentBlock{
-				{
-					Type: "tool_result",
-					ToolResult: &ToolResult{
-						ToolUseID: "toolu_01",
-						Content:   "auth.js:15: authError",
+			Type: "user",
+			UUID: "entry2",
+			Message: &Message{
+				Role: "user",
+				Content: []ContentBlock{
+					{
+						Type: "tool_result",
+						ToolResult: &ToolResult{
+							ToolUseID: "toolu_01",
+							Content:   "auth.js:15: authError",
+						},
 					},
 				},
 			},
 		},
 	}
 
-	toolCalls := ExtractToolCalls(turns)
+	toolCalls := ExtractToolCalls(entries)
 
 	if len(toolCalls) != 1 {
 		t.Fatalf("Expected 1 tool call, got %d", len(toolCalls))
@@ -821,8 +1010,8 @@ func TestExtractToolCalls_SingleCall(t *testing.T) {
 		t.Errorf("Expected tool name 'Grep', got '%s'", tc.ToolName)
 	}
 
-	if tc.TurnSequence != 1 {
-		t.Errorf("Expected turn sequence 1, got %d", tc.TurnSequence)
+	if tc.UUID != "entry1" {
+		t.Errorf("Expected UUID 'entry1', got '%s'", tc.UUID)
 	}
 
 	if tc.Output != "auth.js:15: authError" {
@@ -835,53 +1024,59 @@ func TestExtractToolCalls_SingleCall(t *testing.T) {
 	}
 }
 
-func TestExtractToolCalls_MultipleCallsSameTurn(t *testing.T) {
-	turns := []Turn{
+func TestExtractToolCalls_MultipleCallsSameEntry(t *testing.T) {
+	entries := []SessionEntry{
 		{
-			Sequence: 1,
-			Role:     "assistant",
-			Content: []ContentBlock{
-				{
-					Type: "tool_use",
-					ToolUse: &ToolUse{
-						ID:   "tool_1",
-						Name: "Read",
-						Input: map[string]interface{}{"file": "a.txt"},
+			Type: "assistant",
+			UUID: "entry1",
+			Message: &Message{
+				Role: "assistant",
+				Content: []ContentBlock{
+					{
+						Type: "tool_use",
+						ToolUse: &ToolUse{
+							ID:   "tool_1",
+							Name: "Read",
+							Input: map[string]interface{}{"file": "a.txt"},
+						},
 					},
-				},
-				{
-					Type: "tool_use",
-					ToolUse: &ToolUse{
-						ID:   "tool_2",
-						Name: "Grep",
-						Input: map[string]interface{}{"pattern": "error"},
+					{
+						Type: "tool_use",
+						ToolUse: &ToolUse{
+							ID:   "tool_2",
+							Name: "Grep",
+							Input: map[string]interface{}{"pattern": "error"},
+						},
 					},
 				},
 			},
 		},
 		{
-			Sequence: 2,
-			Role:     "user",
-			Content: []ContentBlock{
-				{
-					Type: "tool_result",
-					ToolResult: &ToolResult{
-						ToolUseID: "tool_1",
-						Content:   "file content",
+			Type: "user",
+			UUID: "entry2",
+			Message: &Message{
+				Role: "user",
+				Content: []ContentBlock{
+					{
+						Type: "tool_result",
+						ToolResult: &ToolResult{
+							ToolUseID: "tool_1",
+							Content:   "file content",
+						},
 					},
-				},
-				{
-					Type: "tool_result",
-					ToolResult: &ToolResult{
-						ToolUseID: "tool_2",
-						Content:   "match found",
+					{
+						Type: "tool_result",
+						ToolResult: &ToolResult{
+							ToolUseID: "tool_2",
+							Content:   "match found",
+						},
 					},
 				},
 			},
 		},
 	}
 
-	toolCalls := ExtractToolCalls(turns)
+	toolCalls := ExtractToolCalls(entries)
 
 	if len(toolCalls) != 2 {
 		t.Fatalf("Expected 2 tool calls, got %d", len(toolCalls))
@@ -896,17 +1091,20 @@ func TestExtractToolCalls_MultipleCallsSameTurn(t *testing.T) {
 }
 
 func TestExtractToolCalls_UnmatchedToolUse(t *testing.T) {
-	turns := []Turn{
+	entries := []SessionEntry{
 		{
-			Sequence: 1,
-			Role:     "assistant",
-			Content: []ContentBlock{
-				{
-					Type: "tool_use",
-					ToolUse: &ToolUse{
-						ID:   "orphan_tool",
-						Name: "Bash",
-						Input: map[string]interface{}{},
+			Type: "assistant",
+			UUID: "entry1",
+			Message: &Message{
+				Role: "assistant",
+				Content: []ContentBlock{
+					{
+						Type: "tool_use",
+						ToolUse: &ToolUse{
+							ID:   "orphan_tool",
+							Name: "Bash",
+							Input: map[string]interface{}{},
+						},
 					},
 				},
 			},
@@ -914,7 +1112,7 @@ func TestExtractToolCalls_UnmatchedToolUse(t *testing.T) {
 		// 没有对应的 tool_result
 	}
 
-	toolCalls := ExtractToolCalls(turns)
+	toolCalls := ExtractToolCalls(entries)
 
 	if len(toolCalls) != 1 {
 		t.Fatalf("Expected 1 tool call (unmatched), got %d", len(toolCalls))
@@ -931,24 +1129,30 @@ func TestExtractToolCalls_UnmatchedToolUse(t *testing.T) {
 }
 
 func TestExtractToolCalls_NoToolCalls(t *testing.T) {
-	turns := []Turn{
+	entries := []SessionEntry{
 		{
-			Sequence: 0,
-			Role:     "user",
-			Content: []ContentBlock{
-				{Type: "text", Text: "Hello"},
+			Type: "user",
+			UUID: "entry1",
+			Message: &Message{
+				Role: "user",
+				Content: []ContentBlock{
+					{Type: "text", Text: "Hello"},
+				},
 			},
 		},
 		{
-			Sequence: 1,
-			Role:     "assistant",
-			Content: []ContentBlock{
-				{Type: "text", Text: "Hi there"},
+			Type: "assistant",
+			UUID: "entry2",
+			Message: &Message{
+				Role: "assistant",
+				Content: []ContentBlock{
+					{Type: "text", Text: "Hi there"},
+				},
 			},
 		},
 	}
 
-	toolCalls := ExtractToolCalls(turns)
+	toolCalls := ExtractToolCalls(entries)
 
 	if len(toolCalls) != 0 {
 		t.Errorf("Expected 0 tool calls, got %d", len(toolCalls))
@@ -958,41 +1162,46 @@ func TestExtractToolCalls_NoToolCalls(t *testing.T) {
 
 **2. 实现代码**
 
-#### `internal/parser/tools.go` (~70 行)
+#### `internal/parser/tools.go` (~75 行)
 
 ```go
 package parser
 
 // ToolCall 表示一个完整的工具调用（ToolUse + ToolResult）
 type ToolCall struct {
-	TurnSequence int                    // 工具调用所在的 Turn 序号
-	ToolName     string                 // 工具名称
-	Input        map[string]interface{} // 工具输入参数
-	Output       string                 // 工具输出（ToolResult.Content）
-	Status       string                 // 执行状态（success/error）
-	Error        string                 // 错误信息（如果有）
+	UUID     string                 // 工具调用所在的 SessionEntry UUID
+	ToolName string                 // 工具名称
+	Input    map[string]interface{} // 工具输入参数
+	Output   string                 // 工具输出（ToolResult.Content）
+	Status   string                 // 执行状态（success/error）
+	Error    string                 // 错误信息（如果有）
 }
 
-// ExtractToolCalls 从 Turn 数组中提取所有工具调用
+// ExtractToolCalls 从 SessionEntry 数组中提取所有工具调用
 // 流程：
-//  1. 遍历所有 Turn，收集 ToolUse（按 ID 索引）
-//  2. 遍历所有 Turn，查找 ToolResult，匹配 tool_use_id
+//  1. 遍历所有 SessionEntry，收集 ToolUse（按 ID 索引）
+//  2. 遍历所有 SessionEntry，查找 ToolResult，匹配 tool_use_id
 //  3. 生成 ToolCall 数组
-func ExtractToolCalls(turns []Turn) []ToolCall {
+func ExtractToolCalls(entries []SessionEntry) []ToolCall {
 	// Step 1: 收集所有 ToolUse（按 ID 索引）
 	toolUseMap := make(map[string]struct {
-		turnSeq int
+		uuid    string
 		toolUse *ToolUse
 	})
 
-	for _, turn := range turns {
-		for _, block := range turn.Content {
+	for _, entry := range entries {
+		// 跳过没有 Message 的条目
+		if entry.Message == nil {
+			continue
+		}
+
+		for _, block := range entry.Message.Content {
 			if block.Type == "tool_use" && block.ToolUse != nil {
 				toolUseMap[block.ToolUse.ID] = struct {
-					turnSeq int
+					uuid    string
 					toolUse *ToolUse
 				}{
-					turnSeq: turn.Sequence,
+					uuid:    entry.UUID,
 					toolUse: block.ToolUse,
 				}
 			}
@@ -1002,8 +1211,13 @@ func ExtractToolCalls(turns []Turn) []ToolCall {
 	// Step 2: 收集所有 ToolResult（按 tool_use_id 索引）
 	toolResultMap := make(map[string]*ToolResult)
 
-	for _, turn := range turns {
-		for _, block := range turn.Content {
+	for _, entry := range entries {
+		// 跳过没有 Message 的条目
+		if entry.Message == nil {
+			continue
+		}
+
+		for _, block := range entry.Message.Content {
 			if block.Type == "tool_result" && block.ToolResult != nil {
 				toolResultMap[block.ToolResult.ToolUseID] = block.ToolResult
 			}
@@ -1015,9 +1229,9 @@ func ExtractToolCalls(turns []Turn) []ToolCall {
 
 	for toolUseID, tu := range toolUseMap {
 		toolCall := ToolCall{
-			TurnSequence: tu.turnSeq,
-			ToolName:     tu.toolUse.Name,
-			Input:        tu.toolUse.Input,
+			UUID:     tu.uuid,
+			ToolName: tu.toolUse.Name,
+			Input:    tu.toolUse.Input,
 		}
 
 		// 查找匹配的 ToolResult
