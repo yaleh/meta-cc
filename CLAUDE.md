@@ -117,10 +117,16 @@ When development begins, follow this phased approach:
 - MCP server implementation
 
 ### Technology Stack (Planned)
-- **Language**: Python (rapid development, good CLI libraries)
-- **CLI Framework**: Click
-- **Database**: SQLite (optional, for indexing)
+- **Language**: Go (zero-dependency deployment, high performance)
+- **CLI Framework**: Cobra + Viper (standard in Go ecosystem)
+- **Database**: SQLite (optional, for indexing via mattn/go-sqlite3)
 - **Output Formats**: JSON, Markdown, CSV
+
+**Why Go?**
+- **Single binary deployment**: No runtime dependencies (Python/Node.js) required
+- **Fast execution**: Efficient JSONL parsing for large session histories
+- **Cross-platform**: Simple cross-compilation for Linux/macOS/Windows
+- **Strong concurrency**: Native goroutines for parallel processing when needed
 
 ## Reference Documentation
 

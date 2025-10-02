@@ -1077,46 +1077,63 @@ cc-meta query tools \
 
 ### 9.1 推荐方案
 
-**语言：Python**
-- ✅ 快速开发，丰富的 JSON/CLI 库
-- ✅ 易于集成 SQLite（内置 sqlite3）
-- ✅ 未来可扩展嵌入 LLM（如 Anthropic SDK）
-- ❌ 性能略低于 Rust（但对本场景足够）
+**语言：Go**
+- ✅ 单二进制部署，零运行时依赖
+- ✅ 快速启动和执行，性能优异
+- ✅ 优秀的 JSON 处理和 CLI 库生态
+- ✅ 内置并发支持，适合批量解析
+- ✅ 交叉编译简单，支持多平台分发
 
-**CLI 框架：Click**
-- ✅ 简洁的命令/参数定义
-- ✅ 自动生成帮助文档
-- ✅ 广泛使用，成熟稳定
+**CLI 框架：cobra + viper**
+- ✅ 标准的 Go CLI 框架（kubectl、docker 等使用）
+- ✅ 子命令、参数、配置管理完善
+- ✅ 自动生成帮助和补全脚本
+- ✅ 与 viper 集成，支持环境变量读取
 
 **数据库：SQLite（阶段2）**
 - ✅ 零配置，单文件
-- ✅ Python 内置支持
+- ✅ mattn/go-sqlite3 成熟稳定
 - ✅ 足够的查询能力
 
-**替代方案：TypeScript + Bun**
-- ✅ 与 Claude Code 技术栈一致
-- ✅ 性能更好（Bun 的 SQLite 绑定）
-- ❌ 生态略小于 Python
+**核心优势**
+- **部署简单**：`go build` 产出单个可执行文件，无需安装 Python/Node.js 环境
+- **性能优异**：解析大型 JSONL 文件速度快，适合处理长会话历史
+- **跨平台**：一次构建，支持 Linux/macOS/Windows
 
 ### 9.2 项目结构
 
 ```
 cc-meta/
-├── pyproject.toml          # 项目配置
-├── src/
-│   ├── cc_meta/
-│   │   ├── __init__.py
-│   │   ├── cli.py          # Click 命令定义
-│   │   ├── parser.py       # JSONL 解析
-│   │   ├── analyzer.py     # 模式检测
-│   │   ├── indexer.py      # 索引构建（可选）
-│   │   └── locator.py      # 会话文件定位
+├── go.mod                  # Go 模块定义
+├── go.sum                  # 依赖锁定
+├── main.go                 # 程序入口
+├── cmd/
+│   ├── root.go            # Cobra 根命令
+│   ├── parse.go           # parse 子命令组
+│   ├── query.go           # query 子命令组
+│   └── analyze.go         # analyze 子命令组
+├── internal/
+│   ├── parser/
+│   │   ├── jsonl.go       # JSONL 解析逻辑
+│   │   └── session.go     # 会话数据结构
+│   ├── analyzer/
+│   │   ├── errors.go      # 错误模式检测
+│   │   └── tools.go       # 工具使用分析
+│   ├── indexer/
+│   │   └── sqlite.go      # 索引构建（阶段2）
+│   └── locator/
+│       └── session.go     # 会话文件定位
+├── pkg/
+│   └── output/
+│       ├── json.go        # JSON 输出格式化
+│       ├── markdown.go    # Markdown 表格输出
+│       └── csv.go         # CSV 输出
 ├── tests/
-│   ├── test_parser.py
-│   ├── test_analyzer.py
-│   └── fixtures/           # 测试用 JSONL 样本
+│   ├── parser_test.go
+│   ├── analyzer_test.go
+│   └── fixtures/          # 测试用 JSONL 样本
 └── docs/
-    └── integration.md      # 集成文档
+    └── integration.md     # 集成文档
 ```
 
 ---
@@ -1157,8 +1174,8 @@ card "设计原则" {
 
 card "技术选型" {
   card "语言" as T1 {
-    Python
-    (快速开发)
+    Go
+    (零依赖部署)
   }
 
   card "数据库" as T2 {
@@ -1167,7 +1184,7 @@ card "技术选型" {
   }
 
   card "CLI 框架" as T3 {
-    Click
+    Cobra + Viper
   }
 }
 
@@ -1210,7 +1227,7 @@ card "技术选型" {
 4. 📋 验证环境变量传递机制
 
 **MVP 开发（1-2周）**
-1. 搭建 Python CLI 项目骨架（Click）
+1. 搭建 Go CLI 项目骨架（Cobra + Viper）
 2. 实现核心功能：
    - `cc-meta parse extract`
    - `cc-meta parse stats`
@@ -1219,3 +1236,4 @@ card "技术选型" {
    - `/meta-stats`
    - `/meta-errors`
 4. 编写集成文档和使用指南
+5. 提供跨平台构建脚本（Linux/macOS/Windows）
