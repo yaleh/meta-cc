@@ -32,7 +32,11 @@ meta-cc/
 │       └── candidates/                  # Original proposal drafts
 │           ├── proposal_1.md
 │           └── proposal_2.md
-└── (Future: src/cc_meta/ - CLI implementation)
+├── plans/
+│   ├── 1/                               # Phase 1 planning documents
+│   ├── 2/                               # Phase 2 planning documents
+│   └── 3/                               # Phase 3 planning documents
+└── (Future: CLI implementation)
 ```
 
 ## Documentation Organization
@@ -84,6 +88,45 @@ The CLI outputs high-density structured data (tool usage stats, error patterns, 
 ### Current Phase: Planning & Design
 
 The project is currently in the **specification phase**. No code has been implemented yet.
+
+### Phase Planning and Organization
+
+The project follows a **structured phased development approach** with plans organized in the `plans/` directory:
+
+```
+meta-cc/
+├── plans/
+│   ├── 1/           # Phase 1 planning documents
+│   ├── 2/           # Phase 2 planning documents
+│   └── 3/           # Phase 3 planning documents
+└── ...
+```
+
+**Phase Structure and Testing Protocol**:
+
+1. **Stage Organization**
+   - Each Phase is divided into multiple Stages
+   - Each Stage represents a cohesive unit of functionality
+
+2. **Stage-Level Testing** (after each Stage)
+   - Run all unit tests immediately after completing a Stage
+   - Fix any errors until all unit tests pass
+   - **CRITICAL**: If unit tests fail after multiple fix attempts, **HALT Phase development** and output a warning
+
+3. **Phase-Level Testing** (after each Phase)
+   - Run all unit tests AND end-to-end (e2e) tests
+   - Fix any errors until all tests pass
+   - **CRITICAL**: If tests fail after multiple fix attempts, **HALT Phase development** and output a warning
+
+4. **Iterative and Incremental Development**
+   - Each Phase MUST prioritize **usability** and deliver a **working build**
+   - At Phase completion, provide clear **usage instructions** for the deliverable
+   - Focus on shipping functional increments rather than complete features
+
+**Testing Failure Protocol**:
+- If tests repeatedly fail → Stop development immediately
+- Document the failure state and blockers
+- Do NOT proceed to the next Stage/Phase until resolved
 
 ### Commit Conventions
 
