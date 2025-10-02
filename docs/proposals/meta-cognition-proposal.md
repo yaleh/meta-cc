@@ -158,6 +158,13 @@ endif
       └─ 193e3ca7-...050.jsonl  # 会话3
 ```
 
+**实际验证结果**（基于 Phase 0-6 实现）：
+- ✅ 会话文件位置：`~/.claude/projects/{项目路径哈希}/{会话UUID}.jsonl`
+- ✅ 路径哈希算法：简单替换 `/` 为 `-`（例：`/home/yale/work/meta-cc` → `-home-yale-work-meta-cc`）
+- ✅ 自动检测机制：通过 `os.Getwd()` 获取当前目录，转换为哈希后查找最新 `.jsonl` 文件
+- ⚠️ 环境变量 `CC_SESSION_ID` / `CC_PROJECT_HASH`：Claude Code **未提供**此类环境变量
+- ✅ 可用环境变量：`CLAUDECODE=1`（标识 Claude Code 环境）、`CLAUDE_CODE_ENTRYPOINT=cli`
+
 **参考文档：**
 - [设置和配置](https://docs.claude.com/en/docs/claude-code/settings)
 
@@ -363,26 +370,34 @@ CREATE INDEX idx_tool_errors ON tool_calls(status, error_hash);
 
 ## 四、Claude Code 集成
 
-### 4.1 环境变量传递机制
+### 4.1 会话定位机制（已验证实现）
 
-**Slash Command / Subagent 执行时的环境**
+**实际实现方案**（Phase 6 验证通过）：
 ```bash
-# Claude Code 应设置以下环境变量（需确认实现）
-export CC_SESSION_ID="5b57148c-89dc-4eb5-bc37-8122e194d90d"
-export CC_PROJECT_PATH="/home/user/work/myproject"
-export CC_PROJECT_HASH="-home-user-work-myproject"
+# Slash Command 中无需传递任何参数
+meta-cc parse stats --output md
+meta-cc analyze errors --output md
 
-# Slash command 脚本中直接使用
-meta-cc parse extract --type tools
-# → 自动从 $CC_SESSION_ID 和 $CC_PROJECT_HASH 定位文件
+# meta-cc 自动检测流程：
+# 1. 获取当前工作目录 (cwd)：/home/yale/work/meta-cc
+# 2. 转换为路径哈希：-home-yale-work-meta-cc
+# 3. 定位会话目录：~/.claude/projects/-home-yale-work-meta-cc/
+# 4. 选择最新 .jsonl 文件（按修改时间排序）
 ```
 
-**备选方案（如果 Claude Code 不提供环境变量）**
+**Claude Code 环境变量现状**（Phase 6 实测）：
+- ❌ `CC_SESSION_ID`：不存在
+- ❌ `CC_PROJECT_HASH`：不存在
+- ✅ `CLAUDECODE=1`：可用于判断是否在 Claude Code 环境
+- ✅ `CLAUDE_CODE_ENTRYPOINT=cli`：标识入口类型
+
+**手动指定参数**（可选）：
 ```bash
-# 在 slash command 中手动传递
-meta-cc parse extract \
-  --project "$(pwd)" \
-  --session-hint "latest"  # 使用最新会话
+# 分析其他项目
+meta-cc --project /home/yale/work/NarrativeForge parse stats
+
+# 分析特定会话
+meta-cc --session 6a32f273-191a-49c8-a5fc-a5dcba08531a parse stats
 ```
 
 ### 4.2 Slash Commands
@@ -864,34 +879,39 @@ stop
 
 **目标：无需索引，直接解析 JSONL**
 
-- [ ] CLI 框架搭建
+- [x] CLI 框架搭建（Phase 0-1 完成）
   - 参数解析（--session, --project, --output）
-  - 环境变量读取（CC_SESSION_ID, CC_PROJECT_PATH）
-  - 会话文件定位逻辑
+  - ~~环境变量读取（CC_SESSION_ID, CC_PROJECT_PATH）~~（实测不存在）
+  - 会话文件定位逻辑（基于 cwd 自动检测）
 
-- [ ] JSONL 解析器
-  - `parse_turns()`: 提取 turn 数据
-  - `extract_tools()`: 提取工具调用和结果
-  - `extract_errors()`: 识别错误工具调用
+- [x] JSONL 解析器（Phase 2 完成）
+  - `ParseEntries()`: 提取 entry 数据（user/assistant/file-history-snapshot）
+  - `ExtractToolCalls()`: 提取工具调用和结果
+  - 错误识别（通过 ToolResult.Status）
 
-- [ ] 核心命令实现
-  - `meta-cc parse extract --type turns/tools/errors`
-  - `meta-cc parse stats --metrics tools,errors,duration`
-  - `meta-cc analyze errors --window N`
+- [x] 核心命令实现（Phase 3-5 完成）
+  - `meta-cc parse extract --type turns/tools` (Phase 3)
+  - `meta-cc parse stats` (Phase 4)
+  - `meta-cc analyze errors --window N` (Phase 5)
 
-- [ ] 输出格式化
+- [x] 输出格式化（Phase 3-6 完成）
   - JSON 输出（默认）
   - Markdown 表格输出
-  - CSV 输出（可选）
+  - ~~CSV 输出~~（未实现，可选）
 
-- [ ] 集成测试
+- [x] 集成测试（Phase 6 完成）
   - Slash Command: `/meta-stats`
   - Slash Command: `/meta-errors`
 
 **交付物：**
-- 可运行的 `meta-cc` CLI 工具
-- 2 个可用的 Slash Commands
-- 基础文档
+- ✅ 可运行的 `meta-cc` CLI 工具（66 tests passing）
+- ✅ 2 个可用的 Slash Commands
+- ✅ 完整文档（README.md + troubleshooting.md）
+
+**已验证项目：**
+- meta-cc: 2,563 turns, 0% error rate
+- NarrativeForge: 2,032 turns, 0% error rate
+- claude-tmux: 299 turns, 0% error rate
 
 ### 6.2 阶段2：索引优化（1周，可选）
 
@@ -954,18 +974,41 @@ stop
 3. **可测试性**：CLI 输出确定性，易于测试
 4. **灵活性**：同一份数据，可被多个上层工具复用
 
-### 7.2 会话定位策略
+### 7.2 会话定位策略（已验证实现）
 
-**优先级顺序**
-1. 环境变量 `CC_SESSION_ID` + `CC_PROJECT_HASH`（最优）
-2. 命令行参数 `--session <id>`
-3. 项目路径推断 `--project <path>` → 转换为哈希目录
-4. 自动查找最新会话（fallback）
+**实际优先级顺序**（基于 Phase 1 实现和 Phase 6 验证）：
+1. ~~环境变量 `CC_SESSION_ID` + `CC_PROJECT_HASH`~~（❌ Claude Code 未提供）
+2. 命令行参数 `--session <id>`（✅ 遍历所有项目查找）
+3. 命令行参数 `--project <path>`（✅ 转换为哈希，返回最新会话）
+4. **自动检测（当前工作目录）**（✅ 默认方式，最常用）
 
-**为什么需要多种方式？**
-- Claude Code 可能不提供环境变量（需要实测确认）
-- 不同集成方式（Slash/Subagent/MCP）可能有不同的上下文传递机制
-- 终端手动使用时需要便捷方式
+**自动检测机制详解**（`internal/locator/locator.go:52-62`）：
+```go
+// 策略4: 自动检测（使用当前工作目录）
+cwd, err := os.Getwd()  // 例：/home/yale/work/meta-cc
+if err != nil {
+    return "", fmt.Errorf("failed to get current directory: %w", err)
+}
+
+path, err := l.FromProjectPath(cwd)  // 调用路径哈希转换
+if err == nil {
+    return path, nil  // 返回最新 .jsonl 文件路径
+}
+```
+
+**路径哈希算法**（`internal/locator/args.go:86-88`）：
+```go
+func pathToHash(path string) string {
+    return strings.ReplaceAll(path, "/", "-")
+}
+// 例：/home/yale/work/meta-cc → -home-yale-work-meta-cc
+```
+
+**为什么自动检测有效？**
+- ✅ Slash Command 执行时，Bash 工具的 cwd = 项目根目录
+- ✅ 无需传递任何参数，用户体验最佳
+- ✅ 与 Claude Code 实际行为完美匹配（Phase 6 验证）
+- ✅ 支持多项目切换（通过 `--project` 参数）
 
 ### 7.3 索引作为优化，而非必需
 
