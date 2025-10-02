@@ -48,6 +48,364 @@ make cross-compile
 ./meta-cc --output json|md|csv      # Output format
 ```
 
+## JSON Output Format Reference
+
+Understanding meta-cc's JSON output structure is crucial for processing data with tools like `jq`.
+
+### Command Output Types
+
+| Command | Output Type | Structure |
+|---------|------------|-----------|
+| `parse stats` | **Object** | `{"TurnCount": N, "ToolCallCount": N, ...}` |
+| `parse extract --type turns` | **Array** | `[{turn1}, {turn2}, ...]` |
+| `parse extract --type tools` | **Array** | `[{tool1}, {tool2}, ...]` |
+| `analyze errors` | **Array** | `[{pattern1}, ...]` or `[]` |
+
+### Common Mistakes ❌ → Correct Usage ✅
+
+#### parse stats (returns Object)
+
+```bash
+# ✅ Correct
+meta-cc parse stats --output json | jq '.TurnCount'
+meta-cc parse stats --output json | jq '.ErrorRate'
+
+# ❌ Wrong - no wrapper object
+meta-cc parse stats --output json | jq '.stats.TurnCount'
+```
+
+#### parse extract --type tools (returns Array)
+
+```bash
+# ✅ Correct
+meta-cc parse extract --type tools --output json | jq 'length'
+meta-cc parse extract --type tools --output json | jq '.[]'
+meta-cc parse extract --type tools --output json | jq '.[0]'
+meta-cc parse extract --type tools --output json | jq -r '.[] | .ToolName'
+
+# ❌ Wrong - assumes object wrapper
+meta-cc parse extract --type tools --output json | jq '.tools'
+meta-cc parse extract --type tools --output json | jq '.tools[]'
+```
+
+#### parse extract --type turns (returns Array)
+
+```bash
+# ✅ Correct
+meta-cc parse extract --type turns --output json | jq 'length'
+meta-cc parse extract --type turns --output json | jq '.[] | select(.type == "user")'
+meta-cc parse extract --type turns --output json | jq -r '.[] | .timestamp'
+
+# ❌ Wrong - assumes object wrapper
+meta-cc parse extract --type turns --output json | jq '.turns'
+```
+
+#### analyze errors (returns Array)
+
+```bash
+# ✅ Correct
+meta-cc analyze errors --output json | jq 'length'
+meta-cc analyze errors --output json | jq '.[]'
+meta-cc analyze errors --output json | jq 'if type == "array" then length else 0 end'
+
+# ❌ Wrong - assumes object wrapper
+meta-cc analyze errors --output json | jq '.ErrorPatterns'
+meta-cc analyze errors --output json | jq '.ErrorPatterns | length'
+```
+
+### Detailed Output Structures
+
+#### parse stats
+
+Returns a single object with session statistics:
+
+```json
+{
+  "TurnCount": 2676,
+  "UserTurnCount": 1097,
+  "AssistantTurnCount": 1579,
+  "ToolCallCount": 1012,
+  "ErrorCount": 0,
+  "ErrorRate": 0,
+  "DurationSeconds": 33796,
+  "ToolFrequency": {
+    "Bash": 495,
+    "Read": 162,
+    "TodoWrite": 140,
+    "Write": 78,
+    "Edit": 65
+  },
+  "TopTools": [
+    {"Name": "Bash", "Count": 495, "Percentage": 48.9},
+    {"Name": "Read", "Count": 162, "Percentage": 16.0}
+  ]
+}
+```
+
+**jq usage examples:**
+```bash
+# Get total turns
+jq '.TurnCount'
+
+# Get error rate
+jq '.ErrorRate'
+
+# Get top 3 tools
+jq '.TopTools[:3]'
+
+# Get frequency of specific tool
+jq '.ToolFrequency.Bash'
+```
+
+#### parse extract --type tools
+
+Returns an array of tool call objects:
+
+```json
+[
+  {
+    "UUID": "abc-123",
+    "ToolName": "Bash",
+    "Input": {
+      "command": "ls -la",
+      "description": "List files"
+    },
+    "Output": "file1.txt\nfile2.txt",
+    "Status": "",
+    "Error": ""
+  },
+  {
+    "UUID": "def-456",
+    "ToolName": "Read",
+    "Input": {
+      "file_path": "/path/to/file.go"
+    },
+    "Output": "package main...",
+    "Status": "",
+    "Error": ""
+  }
+]
+```
+
+**jq usage examples:**
+```bash
+# Count total tools
+jq 'length'
+
+# Get all tool names
+jq -r '.[] | .ToolName'
+
+# Filter by tool name
+jq '.[] | select(.ToolName == "Bash")'
+
+# Get last 10 tools
+jq '.[-10:]'
+
+# Count tool frequency
+jq -r '.[] | .ToolName' | sort | uniq -c | sort -rn
+
+# Extract only errors
+jq '.[] | select(.Status == "error")'
+
+# Get commands from Bash tools
+jq -r '.[] | select(.ToolName == "Bash") | .Input.command'
+```
+
+#### parse extract --type turns
+
+Returns an array of turn (conversation entry) objects:
+
+```json
+[
+  {
+    "type": "user",
+    "timestamp": "2025-10-02T06:07:13.673Z",
+    "uuid": "abc-123",
+    "sessionId": "session-id",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Execute Stage 1.1..."
+        }
+      ]
+    }
+  },
+  {
+    "type": "assistant",
+    "timestamp": "2025-10-02T06:08:57.769Z",
+    "uuid": "def-456",
+    "message": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I'll execute Stage 1.1..."
+        }
+      ]
+    }
+  }
+]
+```
+
+**jq usage examples:**
+```bash
+# Count total turns
+jq 'length'
+
+# Get only user turns
+jq '.[] | select(.type == "user")'
+
+# Get user messages
+jq -r '.[] | select(.type == "user") | .message.content[0].text'
+
+# Filter by timestamp
+jq '.[] | select(.timestamp > "2025-10-02T12:00:00Z")'
+
+# Get turn UUIDs
+jq -r '.[] | .uuid'
+```
+
+#### analyze errors
+
+Returns an array of error pattern objects (empty array if no patterns):
+
+```json
+[
+  {
+    "PatternID": "bash_npm_test_error",
+    "Type": "command_error",
+    "Occurrences": 5,
+    "Signature": "abc123def456",
+    "ToolName": "Bash",
+    "ErrorText": "npm test failed",
+    "FirstSeen": "2025-10-02T10:00:00Z",
+    "LastSeen": "2025-10-02T10:30:00Z",
+    "TimeSpanSeconds": 1800,
+    "Context": {
+      "TurnUUIDs": ["uuid1", "uuid2", "uuid3"],
+      "TurnIndices": [100, 150, 200]
+    }
+  }
+]
+```
+
+**jq usage examples:**
+```bash
+# Count error patterns
+jq 'length'
+
+# Get all error patterns
+jq '.[]'
+
+# Filter by minimum occurrences
+jq '.[] | select(.Occurrences >= 5)'
+
+# Get error messages
+jq -r '.[] | .ErrorText'
+
+# Sort by occurrence count
+jq 'sort_by(.Occurrences) | reverse'
+
+# Safe length check (handles empty results)
+jq 'if type == "array" then length else 0 end'
+```
+
+### Integration with jq
+
+#### Safe Type Checking
+
+Always check the type when uncertain:
+
+```bash
+# Safe array length
+meta-cc analyze errors --output json | \
+  jq 'if type == "array" then length else 0 end'
+
+# Safe object property access
+meta-cc parse stats --output json | \
+  jq 'if type == "object" then .TurnCount else null end'
+```
+
+#### Combining Commands
+
+```bash
+# Get tool usage stats
+meta-cc parse extract --type tools --output json | \
+  jq -r '.[] | .ToolName' | \
+  sort | uniq -c | sort -rn
+
+# Find repeated Bash commands
+meta-cc parse extract --type tools --output json | \
+  jq -r '.[] | select(.ToolName == "Bash") | .Input.command' | \
+  sort | uniq -c | sort -rn
+
+# Calculate error rate manually
+TOTAL=$(meta-cc parse extract --type tools --output json | jq 'length')
+ERRORS=$(meta-cc parse extract --type tools --output json | \
+  jq '[.[] | select(.Status == "error")] | length')
+echo "scale=2; $ERRORS * 100 / $TOTAL" | bc
+```
+
+#### Common Patterns
+
+```bash
+# Pattern 1: Filter and count
+meta-cc parse extract --type tools --output json | \
+  jq '[.[] | select(.ToolName == "Edit")] | length'
+
+# Pattern 2: Extract specific fields
+meta-cc parse extract --type tools --output json | \
+  jq -r '.[] | "\(.ToolName): \(.Input.command // "N/A")"'
+
+# Pattern 3: Group by field
+meta-cc parse extract --type tools --output json | \
+  jq 'group_by(.ToolName) | map({tool: .[0].ToolName, count: length})'
+
+# Pattern 4: Time-based filtering (for turns)
+meta-cc parse extract --type turns --output json | \
+  jq '.[] | select(.timestamp > "2025-10-02T12:00:00Z")'
+```
+
+### Troubleshooting
+
+**Error: "Cannot index array with string"**
+```bash
+# You're trying to access object properties on an array
+# Fix: Remove the property accessor or use .[]
+
+# ❌ Wrong
+jq '.tools'
+
+# ✅ Correct
+jq '.[]'
+```
+
+**Error: "Cannot iterate over object"**
+```bash
+# You're trying to iterate an object
+# Fix: Access the specific property first
+
+# ❌ Wrong
+jq '.[] | .ToolName'  # on parse stats
+
+# ✅ Correct
+jq '.ToolFrequency | to_entries | .[] | "\(.key): \(.value)"'
+```
+
+**Empty output**
+```bash
+# Command returns empty array []
+# This is normal when no data matches (e.g., no errors)
+
+# Check if empty
+meta-cc analyze errors --output json | jq 'length == 0'
+
+# Provide default value
+meta-cc analyze errors --output json | jq 'if length == 0 then "No errors" else . end'
+```
+
 ## Claude Code Integration
 
 meta-cc provides deep integration with Claude Code, allowing you to analyze session metadata directly within your conversation using Slash Commands.

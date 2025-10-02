@@ -84,7 +84,7 @@ echo ""
 # Test 4: Analyze errors
 echo "🐛 Test 4/4: analyze errors"
 ERROR_ANALYSIS=$(./meta-cc --session "$SESSION" analyze errors --output json)
-ERROR_PATTERNS=$(echo "$ERROR_ANALYSIS" | jq -r '.ErrorPatterns | length')
+ERROR_PATTERNS=$(echo "$ERROR_ANALYSIS" | jq 'if type == "array" then length else 0 end')
 if [[ -z "$ERROR_PATTERNS" || "$ERROR_PATTERNS" == "null" ]]; then
     echo "❌ Failed: Error analysis failed"
     exit 1

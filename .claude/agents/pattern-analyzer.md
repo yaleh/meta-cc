@@ -17,6 +17,25 @@ Transform repetitive manual workflows into reusable automation by:
 3. Calculating pattern frequencies and variations
 4. Generating ready-to-use Slash Commands, Subagents, or Hooks
 
+## Important: meta-cc Output Formats
+
+**Before analyzing, understand the output structure:**
+
+| Command | Output Type | Structure |
+|---------|------------|-----------|
+| `parse stats` | Object | `{"TurnCount": N, ...}` |
+| `parse extract --type turns` | Array | `[{turn1}, {turn2}, ...]` |
+| `parse extract --type tools` | Array | `[{tool1}, {tool2}, ...]` |
+| `analyze errors` | Array | `[{pattern1}, ...]` or `[]` |
+
+**Common jq mistakes to avoid:**
+- ❌ `.tools` (assumes object wrapper)
+- ❌ `.ErrorPatterns` (assumes object wrapper)
+- ✅ `.[]` (correct for arrays)
+- ✅ `length` (correct for arrays)
+
+See README.md "JSON Output Format Reference" for details.
+
 ## Analysis Methodology
 
 ### Step 1: Data Collection
@@ -44,6 +63,9 @@ Analyze the extracted data to find:
 #### A. Repeated User Prompts
 ```bash
 # Extract user messages
+# IMPORTANT: parse extract returns ARRAY, not object
+# ✅ Correct: .[] (iterate array)
+# ❌ Wrong: .turns (assumes object wrapper)
 jq -r '.[] | select(.type == "user") | .message.content[0].text' session-turns.json > user-prompts.txt
 
 # Analyze patterns (you'll do this programmatically)

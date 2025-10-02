@@ -33,10 +33,11 @@ echo ""
 tools_data=$(meta-cc parse extract --type tools --output json)
 
 # 解析 JSON 并生成时间线
+# 注意：parse extract 返回数组，不是对象
 echo "$tools_data" | jq -r --arg limit "$LIMIT" '
-.tools[-($limit | tonumber):] |
+.[-($limit | tonumber):] |
 to_entries[] |
-"\(.key + 1). Turn \(.value.turn_index // .key) - **\(.value.tool_name)** \(if .value.status == "error" then "❌" else "✅" end)"
+"\(.key + 1). Turn \(.key) - **\(.value.ToolName)** \(if .value.Status == "error" then "❌" else "✅" end)"
 '
 
 echo ""
@@ -47,15 +48,15 @@ echo ""
 echo "## 统计摘要（最近 ${LIMIT} Turns）"
 echo ""
 echo "$tools_data" | jq -r --arg limit "$LIMIT" '
-.tools[-($limit | tonumber):] |
+.[-($limit | tonumber):] |
 {
   total: length,
-  errors: [.[] | select(.status == "error")] | length,
-  tools: [.[] | .tool_name] | group_by(.) | map({tool: .[0], count: length}) | sort_by(.count) | reverse
+  errors: [.[] | select(.Status == "error")] | length,
+  tools: [.[] | .ToolName] | group_by(.) | map({tool: .[0], count: length}) | sort_by(.count) | reverse
 } |
 "- **总工具调用**: \(.total) 次",
 "- **错误次数**: \(.errors) 次",
-"- **错误率**: \((.errors / .total * 100 | floor))%",
+"- **错误率**: \(if .total > 0 then (.errors / .total * 100 | floor) else 0 end)%",
 "",
 "### Top 工具",
 (.tools[:5] | .[] | "- \(.tool): \(.count) 次")
