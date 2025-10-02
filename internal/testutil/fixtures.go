@@ -8,7 +8,21 @@ import (
 
 // FixtureDir returns the fixtures directory path
 func FixtureDir() string {
-	return filepath.Join("../../tests/fixtures")
+	// Try to find the fixtures directory by checking multiple potential locations
+	candidates := []string{
+		"../../tests/fixtures", // From internal/ packages
+		"../tests/fixtures",    // From cmd/ package
+		"tests/fixtures",       // From root
+	}
+
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+
+	// Default to relative path from internal/
+	return "../../tests/fixtures"
 }
 
 // LoadFixture loads test fixture file content
