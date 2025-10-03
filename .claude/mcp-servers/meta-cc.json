@@ -1,0 +1,13 @@
+{
+  "command": "./meta-cc",
+  "args": ["mcp"],
+  "description": "Meta-cognition analysis for Claude Code sessions with Phase 8 query capabilities",
+  "env": {},
+  "tools": [
+    "get_session_stats",
+    "analyze_errors",
+    "extract_tools",
+    "query_tools",
+    "query_user_messages"
+  ]
+}

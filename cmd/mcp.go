@@ -113,16 +113,73 @@ func handleToolsList(req jsonRPCRequest) {
 		},
 		{
 			"name":        "extract_tools",
-			"description": "Extract tool usage data from the current session",
+			"description": "Extract tool usage data from the current session with pagination (Phase 8 enhanced)",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
+					"limit": map[string]interface{}{
+						"type":        "integer",
+						"default":     100,
+						"description": "Maximum number of tools to extract (default 100, prevents overflow)",
+					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
 						"enum":    []string{"json", "md"},
 						"default": "json",
 					},
 				},
+			},
+		},
+		{
+			"name":        "query_tools",
+			"description": "Query tool calls with flexible filtering and pagination (Phase 8)",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"tool": map[string]interface{}{
+						"type":        "string",
+						"description": "Filter by tool name (e.g., 'Bash', 'Read', 'Edit')",
+					},
+					"status": map[string]interface{}{
+						"type":        "string",
+						"enum":        []string{"error", "success"},
+						"description": "Filter by execution status",
+					},
+					"limit": map[string]interface{}{
+						"type":        "integer",
+						"default":     20,
+						"description": "Maximum number of results (default 20)",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+			},
+		},
+		{
+			"name":        "query_user_messages",
+			"description": "Search user messages with regex pattern matching (Phase 8)",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"pattern": map[string]interface{}{
+						"type":        "string",
+						"description": "Regex pattern to match in message content (required)",
+					},
+					"limit": map[string]interface{}{
+						"type":        "integer",
+						"default":     10,
+						"description": "Maximum number of results (default 10)",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+				"required": []string{"pattern"},
 			},
 		},
 	}
@@ -176,7 +233,41 @@ func executeTool(name string, args map[string]interface{}) (string, error) {
 	case "analyze_errors":
 		cmdArgs = []string{"analyze", "errors", "--output", outputFormat}
 	case "extract_tools":
-		cmdArgs = []string{"parse", "extract", "--type", "tools", "--output", outputFormat}
+		cmdArgs = []string{"query", "tools", "--output", outputFormat}
+
+		// Add default limit to prevent overflow
+		if limit, ok := args["limit"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
+		} else {
+			cmdArgs = append(cmdArgs, "--limit", "100") // Default 100
+		}
+	case "query_tools":
+		cmdArgs = []string{"query", "tools", "--output", outputFormat}
+
+		if tool, ok := args["tool"].(string); ok && tool != "" {
+			cmdArgs = append(cmdArgs, "--tool", tool)
+		}
+		if status, ok := args["status"].(string); ok && status != "" {
+			cmdArgs = append(cmdArgs, "--status", status)
+		}
+		if limit, ok := args["limit"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
+		} else {
+			cmdArgs = append(cmdArgs, "--limit", "20")
+		}
+	case "query_user_messages":
+		pattern, ok := args["pattern"].(string)
+		if !ok || pattern == "" {
+			return "", fmt.Errorf("pattern parameter is required")
+		}
+
+		cmdArgs = []string{"query", "user-messages", "--match", pattern, "--output", outputFormat}
+
+		if limit, ok := args["limit"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
+		} else {
+			cmdArgs = append(cmdArgs, "--limit", "10")
+		}
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
