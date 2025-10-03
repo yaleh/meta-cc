@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -65,11 +64,11 @@ func runQuerySuccessfulPrompts(cmd *cobra.Command, args []string) error {
 
 	// Output result
 	if outputFormat == "md" {
-		return outputSuccessfulPromptsMarkdown(result)
+		return outputSuccessfulPromptsMarkdown(cmd, result)
 	}
 
 	// JSON output (default)
-	encoder := json.NewEncoder(os.Stdout)
+	encoder := json.NewEncoder(cmd.OutOrStdout())
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(result)
 }
@@ -396,7 +395,7 @@ func min(a, b float64) float64 {
 	return b
 }
 
-func outputSuccessfulPromptsMarkdown(result *SuccessfulPromptsResult) error {
+func outputSuccessfulPromptsMarkdown(cmd *cobra.Command, result *SuccessfulPromptsResult) error {
 	var sb strings.Builder
 
 	sb.WriteString("# Successful Prompt Patterns\n\n")
@@ -441,6 +440,6 @@ func outputSuccessfulPromptsMarkdown(result *SuccessfulPromptsResult) error {
 		sb.WriteString("---\n\n")
 	}
 
-	fmt.Print(sb.String())
+	fmt.Fprint(cmd.OutOrStdout(), sb.String())
 	return nil
 }

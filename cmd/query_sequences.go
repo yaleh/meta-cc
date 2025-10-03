@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -88,16 +87,16 @@ func runQuerySequences(cmd *cobra.Command, args []string) error {
 
 	// Output result
 	if outputFormat == "md" {
-		return outputSequencesMarkdown(result)
+		return outputSequencesMarkdown(cmd, result)
 	}
 
 	// JSON output (default)
-	encoder := json.NewEncoder(os.Stdout)
+	encoder := json.NewEncoder(cmd.OutOrStdout())
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(result)
 }
 
-func outputSequencesMarkdown(result *query.ToolSequenceQuery) error {
+func outputSequencesMarkdown(cmd *cobra.Command, result *query.ToolSequenceQuery) error {
 	var sb strings.Builder
 
 	sb.WriteString("# Tool Sequence Patterns\n\n")
@@ -131,7 +130,7 @@ func outputSequencesMarkdown(result *query.ToolSequenceQuery) error {
 		}
 	}
 
-	fmt.Print(sb.String())
+	fmt.Fprint(cmd.OutOrStdout(), sb.String())
 	return nil
 }
 

@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -67,11 +66,11 @@ func runQueryProjectState(cmd *cobra.Command, args []string) error {
 
 	// Output result
 	if outputFormat == "md" {
-		return outputProjectStateMarkdown(state)
+		return outputProjectStateMarkdown(cmd, state)
 	}
 
 	// JSON output (default)
-	encoder := json.NewEncoder(os.Stdout)
+	encoder := json.NewEncoder(cmd.OutOrStdout())
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(state)
 }
@@ -452,7 +451,7 @@ func deduplicateTasks(tasks []IncompleteTask) []IncompleteTask {
 	return result
 }
 
-func outputProjectStateMarkdown(state *ProjectState) error {
+func outputProjectStateMarkdown(cmd *cobra.Command, state *ProjectState) error {
 	var sb strings.Builder
 
 	sb.WriteString("# Project State\n\n")
@@ -501,6 +500,6 @@ func outputProjectStateMarkdown(state *ProjectState) error {
 		}
 	}
 
-	fmt.Print(sb.String())
+	fmt.Fprint(cmd.OutOrStdout(), sb.String())
 	return nil
 }
