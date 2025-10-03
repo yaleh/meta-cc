@@ -753,11 +753,47 @@ If these environment variables are unavailable, meta-cc will automatically fall 
 
 meta-cc integrates with Claude Code in three ways:
 
-- **MCP Server**: Seamless data access (Claude queries autonomously)
-- **Slash Commands**: Quick, pre-defined workflows (`/meta-stats`)
-- **Subagent** (`@meta-coach`): Interactive, conversational analysis
+- **MCP Server**: Seamless data access (Claude queries autonomously) - **14 tools available**
+- **Slash Commands**: Quick, pre-defined workflows (`/meta-stats`, `/meta-errors`, `/meta-query-tools`)
+- **Subagent** (`@meta-coach`): Interactive, conversational analysis with Phase 10 capabilities
 
 **👉 See the [Integration Guide](./docs/integration-guide.md)** for detailed comparison, decision framework, and best practices.
+
+### Phase 10 MCP Tools
+
+The MCP Server now includes **4 new Phase 10 tools**:
+
+#### 1. query_tools_advanced
+Query with SQL-like filter expressions:
+```
+"Find Bash errors with duration > 1000ms"
+→ query_tools_advanced(where="tool='Bash' AND status='error' AND duration>1000")
+```
+
+#### 2. aggregate_stats
+Statistical aggregation with group-by:
+```
+"Show error rates by tool"
+→ aggregate_stats(group_by="tool", metrics="count,error_rate")
+```
+
+#### 3. query_time_series
+Analyze metrics over time:
+```
+"How has my tool usage changed over time?"
+→ query_time_series(metric="tool-calls", interval="day")
+```
+
+#### 4. query_files
+File-level operation statistics:
+```
+"What are my most edited files?"
+→ query_files(sort_by="edit_count", top=10)
+```
+
+**Total MCP Tools**: 14 (10 from Phase 8 + 4 from Phase 10)
+
+See [MCP Usage Guide](./docs/mcp-usage.md) for complete documentation.
 
 ### Reference Documentation
 
@@ -814,7 +850,50 @@ make help            # Show help message
 - macOS (amd64, arm64/Apple Silicon)
 - Windows (amd64)
 
-## Phase 9: Context-Length Management (New!)
+## Phase 10: Advanced Query Capabilities (New!)
+
+Phase 10 introduces SQL-like filtering, aggregation, time series analysis, and file-level statistics for deeper insights.
+
+### Key Features
+
+1. **Advanced Filtering**: SQL-like expressions with AND/OR/NOT, IN, BETWEEN, LIKE, REGEXP
+2. **Aggregation Statistics**: Group-by with metrics (count, error_rate, percentiles)
+3. **Time Series Analysis**: Analyze metrics over time (hour/day/week intervals)
+4. **File-Level Statistics**: Track file operations and identify hotspots
+
+### Quick Examples
+
+```bash
+# Advanced filtering with SQL-like expressions
+meta-cc query tools --filter "tool='Bash' AND status='error'"
+meta-cc query tools --filter "tool IN ('Bash', 'Edit', 'Write')"
+meta-cc query tools --filter "duration BETWEEN 500 AND 2000"
+
+# Aggregation statistics
+meta-cc stats aggregate --group-by tool --metrics "count,error_rate"
+meta-cc stats aggregate --group-by status --metrics count
+
+# Time series analysis
+meta-cc stats time-series --metric tool-calls --interval hour
+meta-cc stats time-series --metric error-rate --interval day
+
+# File-level statistics
+meta-cc stats files --sort-by edit_count --top 10
+meta-cc stats files --sort-by error_count --filter "error_count>0"
+```
+
+### Enhanced Integration
+
+Phase 10 features are fully integrated with:
+- **Slash Commands**: `/meta-stats`, `/meta-errors`, `/meta-query-tools` now use Phase 10 capabilities
+- **MCP Server**: 4 new tools (`query_tools_advanced`, `aggregate_stats`, `query_time_series`, `query_files`)
+- **@meta-coach**: Updated with Phase 10 analysis workflows and best practices
+
+See [Phase 10 MCP Tools](#phase-10-mcp-tools) below for details.
+
+---
+
+## Phase 9: Context-Length Management
 
 Phase 9 introduces powerful features to handle large sessions (>1000 turns) and prevent context overflow.
 

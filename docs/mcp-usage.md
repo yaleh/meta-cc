@@ -2,7 +2,7 @@
 
 ## Overview
 
-meta-cc provides a Model Context Protocol (MCP) Server that allows Claude Code to autonomously query session data without manual CLI commands. With Phase 8 enhancements, the MCP server now provides 10 powerful tools for comprehensive session analysis.
+meta-cc provides a Model Context Protocol (MCP) Server that allows Claude Code to autonomously query session data without manual CLI commands. With Phase 8-10 enhancements, the MCP server now provides **14 powerful tools** for comprehensive session analysis and advanced querying.
 
 ## Configuration
 
@@ -29,7 +29,11 @@ The MCP Server is configured in `.claude/mcp-servers/meta-cc.json`.
     "query_tool_sequences",
     "query_file_access",
     "query_project_state",
-    "query_successful_prompts"
+    "query_successful_prompts",
+    "query_tools_advanced",
+    "aggregate_stats",
+    "query_time_series",
+    "query_files"
   ]
 }
 ```
@@ -268,6 +272,201 @@ Find successful prompt patterns
 **Direct Invocation**:
 ```
 mcp__meta-insight__query_successful_prompts
+```
+
+---
+
+### 11. query_tools_advanced (Phase 10 New)
+
+Query tool calls with advanced SQL-like filter expressions.
+
+**Parameters**:
+- `where` (required): SQL-like filter expression
+- `limit` (optional): Maximum results (default: 20)
+- `output_format` (optional): "json" or "md"
+
+**Supported Operators**:
+- Boolean: AND, OR, NOT
+- Comparison: =, !=, >, <, >=, <=
+- Set: IN, NOT IN
+- Range: BETWEEN ... AND ...
+- Pattern: LIKE (SQL wildcards), REGEXP (regex)
+
+**Example Queries**:
+```
+Find Bash errors with long duration
+Show tools that took between 500 and 2000ms
+Which Edit operations failed?
+Find tools matching a pattern
+```
+
+**Filter Expression Examples**:
+```bash
+# Boolean logic
+"tool='Bash' AND status='error'"
+"status='error' OR duration>1000"
+"NOT (status='success')"
+
+# Set operations
+"tool IN ('Bash', 'Edit', 'Write')"
+"status NOT IN ('success')"
+
+# Range queries
+"duration BETWEEN 500 AND 2000"
+
+# Pattern matching
+"tool LIKE 'meta%'"
+"error REGEXP 'permission.*denied'"
+
+# Complex nested
+"(tool='Bash' OR tool='Edit') AND status='error'"
+```
+
+**Direct Invocation**:
+```
+mcp__meta-insight__query_tools_advanced
+```
+
+---
+
+### 12. aggregate_stats (Phase 10 New)
+
+Aggregate statistics grouped by field with various metrics.
+
+**Parameters**:
+- `group_by` (optional): Field to group by - "tool", "status", or "uuid" (default: "tool")
+- `metrics` (optional): Comma-separated metrics (default: "count,error_rate")
+- `where` (optional): Filter expression to apply before aggregation
+- `output_format` (optional): "json" or "md"
+
+**Available Metrics**:
+- `count`: Number of records in group
+- `error_rate`: Percentage of errors (0.0-1.0)
+
+**Example Queries**:
+```
+Show error rates by tool
+Group by status and show counts
+What's the error rate for each tool type?
+Aggregate Bash commands by status
+```
+
+**Usage Examples**:
+```bash
+# Error rate by tool
+aggregate_stats(group_by="tool", metrics="count,error_rate")
+
+# Count by status
+aggregate_stats(group_by="status", metrics="count")
+
+# With filtering
+aggregate_stats(group_by="tool", metrics="count,error_rate", where="duration>1000")
+```
+
+**Direct Invocation**:
+```
+mcp__meta-insight__aggregate_stats
+```
+
+---
+
+### 13. query_time_series (Phase 10 New)
+
+Analyze metrics over time with automatic time bucketing.
+
+**Parameters**:
+- `metric` (optional): Metric to analyze - "tool-calls" or "error-rate" (default: "tool-calls")
+- `interval` (optional): Time interval - "hour", "day", or "week" (default: "hour")
+- `where` (optional): Filter expression to apply before analysis
+- `output_format` (optional): "json" or "md"
+
+**Available Metrics**:
+- `tool-calls`: Count of tool calls per time bucket
+- `error-rate`: Error percentage per time bucket
+
+**Example Queries**:
+```
+How has my tool usage changed over time?
+Show error trends by day
+When do I use the most tools?
+Track Bash usage hourly
+```
+
+**Usage Examples**:
+```bash
+# Tool calls per hour
+query_time_series(metric="tool-calls", interval="hour")
+
+# Error rate per day
+query_time_series(metric="error-rate", interval="day")
+
+# Filtered time series (Bash only)
+query_time_series(metric="tool-calls", interval="hour", where="tool='Bash'")
+```
+
+**Use Cases**:
+- Identify peak usage hours
+- Track error trends over time
+- Monitor session activity patterns
+- Detect workflow changes
+
+**Direct Invocation**:
+```
+mcp__meta-insight__query_time_series
+```
+
+---
+
+### 14. query_files (Phase 10 New)
+
+Get file-level operation statistics with sorting and filtering.
+
+**Parameters**:
+- `sort_by` (optional): Sort field - "total_ops", "edit_count", "read_count", "write_count", "error_count", or "error_rate" (default: "total_ops")
+- `top` (optional): Limit results to top N files (default: 20)
+- `where` (optional): Filter expression
+- `output_format` (optional): "json" or "md"
+
+**Tracked Operations**:
+- Read count
+- Edit count
+- Write count
+- Error count
+- Total operations
+- Error rate
+
+**Example Queries**:
+```
+What are my most edited files?
+Which files have the most errors?
+Show files with highest error rate
+Find most active files
+```
+
+**Usage Examples**:
+```bash
+# Most edited files
+query_files(sort_by="edit_count", top=10)
+
+# Files with errors
+query_files(sort_by="error_count", where="error_count>0")
+
+# Most active files overall
+query_files(sort_by="total_ops", top=20)
+
+# Error-prone files
+query_files(sort_by="error_rate", where="error_count>0", top=5)
+```
+
+**Use Cases**:
+- Identify refactoring candidates (high edit count)
+- Find problematic files (high error rate)
+- Track file access patterns
+- Prioritize code reviews
+
+**Direct Invocation**:
+```
+mcp__meta-insight__query_files
 ```
 
 ---
@@ -626,13 +825,113 @@ query_context(error_signature="npm_test_fail", window=5)
    - Consider batch editing tool for Glob-based workflows
 ```
 
+## Phase 10 Integration Examples
+
+### Example 1: Advanced Error Analysis
+
+**User**: "Find all Bash errors that took longer than 1 second"
+
+**Claude** (automatically):
+```
+1. Calling query_tools_advanced(where="tool='Bash' AND status='error' AND duration>1000")...
+   → Found 3 long-running Bash errors
+
+2. Analysis:
+   - All errors related to network operations
+   - Average duration: 2.5 seconds
+   - Suggestion: Add timeout parameter to network commands
+```
+
+### Example 2: Tool Usage Patterns
+
+**User**: "Show me tool usage statistics grouped by type"
+
+**Claude** (automatically):
+```
+1. Calling aggregate_stats(group_by="tool", metrics="count,error_rate")...
+
+2. Results:
+   - Bash: 150 calls, 2.0% error rate
+   - Read: 80 calls, 0% error rate
+   - Edit: 60 calls, 1.7% error rate
+   - Write: 40 calls, 0% error rate
+
+3. Insights: Bash has highest usage and error rate - consider adding
+   error handling hooks for common Bash patterns.
+```
+
+### Example 3: Time-Based Analysis
+
+**User**: "How has my error rate changed over the past few days?"
+
+**Claude** (automatically):
+```
+1. Calling query_time_series(metric="error-rate", interval="day")...
+
+2. Trend Analysis:
+   - Day 1: 5.2% error rate
+   - Day 2: 3.1% error rate (improving)
+   - Day 3: 1.8% error rate (steady improvement)
+
+3. Observation: Error rate decreased 65% over 3 days, indicating
+   better command patterns and fewer repeated mistakes.
+```
+
+### Example 4: File Hotspot Detection
+
+**User**: "Which files am I editing the most?"
+
+**Claude** (automatically):
+```
+1. Calling query_files(sort_by="edit_count", top=5)...
+
+2. Top Edited Files:
+   1. cmd/mcp.go - 15 edits, 0 errors
+   2. internal/stats/aggregator.go - 8 edits, 1 error (12.5% error rate)
+   3. cmd/query_tools.go - 6 edits, 0 errors
+   4. README.md - 5 edits, 0 errors
+   5. docs/mcp-usage.md - 4 edits, 0 errors
+
+3. Recommendation: aggregator.go has high edit count and errors -
+   consider refactoring or adding more comprehensive tests.
+```
+
+### Example 5: Complex Multi-Tool Analysis
+
+**User**: "Help me understand why I have so many errors"
+
+**Claude** (orchestrates multiple Phase 10 tools):
+```
+1. aggregate_stats(group_by="tool", metrics="count,error_rate")
+   → Bash: 15% error rate (highest)
+
+2. query_tools_advanced(where="tool='Bash' AND status='error'", limit=10)
+   → Common pattern: "command not found" errors
+
+3. query_files(sort_by="error_count", where="error_count>0")
+   → Errors concentrated in 3 files
+
+4. query_time_series(metric="error-rate", interval="day")
+   → Error rate peaked yesterday, improving today
+
+5. Comprehensive Analysis:
+   - Root cause: Bash path errors in 3 specific files
+   - Pattern: Errors decrease after corrections (learning curve)
+   - Recommendation: Add path validation hook + use absolute paths
+```
+
+---
+
 ## Summary
 
 MCP Server provides:
-- 10 powerful tools (3 from Phase 7 + 7 from Phase 8)
+- **14 powerful tools** (3 from Phase 7 + 7 from Phase 8 + 4 from Phase 10)
 - Natural language queries (no manual commands)
 - Autonomous analysis (Claude decides what to query)
-- Flexible filtering (tool, status, pattern, limit)
+- **Advanced filtering** (SQL-like expressions with AND/OR/NOT, IN, BETWEEN, LIKE, REGEXP)
+- **Statistical aggregation** (group-by with multiple metrics)
+- **Time series analysis** (track trends over hour/day/week)
+- **File-level insights** (hotspot detection and error correlation)
 - Context-aware (automatic pagination)
 - Error investigation (context queries)
 - Workflow optimization (sequence detection)
