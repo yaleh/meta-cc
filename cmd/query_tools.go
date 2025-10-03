@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/filter"
 	"github.com/yale/meta-cc/internal/locator"
+	internalOutput "github.com/yale/meta-cc/internal/output"
 	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/pkg/output"
 )
@@ -144,6 +145,12 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 		// Print summary followed by details
 		fmt.Fprintln(cmd.OutOrStdout(), summaryOutput.Summary)
 		fmt.Fprintln(cmd.OutOrStdout(), summaryOutput.Details)
+
+		// Check for empty results
+		if len(paginated) == 0 {
+			return internalOutput.NewExitCodeError(internalOutput.ExitNoResults, "No results found")
+		}
+
 		return nil
 	}
 
@@ -154,6 +161,10 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 			if err := streamWriter.WriteRecord(tool); err != nil {
 				return fmt.Errorf("stream write error: %w", err)
 			}
+		}
+		// Check for empty results
+		if len(paginated) == 0 {
+			return internalOutput.NewExitCodeError(internalOutput.ExitNoResults, "No results found")
 		}
 		return nil
 	}
@@ -175,6 +186,12 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Fprintln(cmd.OutOrStdout(), outputStr)
+
+		// Check for empty results
+		if len(paginated) == 0 {
+			return internalOutput.NewExitCodeError(internalOutput.ExitNoResults, "No results found")
+		}
+
 		return nil
 	}
 
@@ -200,6 +217,12 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
+
+	// Check for empty results and return appropriate exit code
+	if len(paginated) == 0 {
+		return internalOutput.NewExitCodeError(internalOutput.ExitNoResults, "No results found")
+	}
+
 	return nil
 }
 

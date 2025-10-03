@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/yale/meta-cc/internal/output"
 )
 
 var (
@@ -49,7 +51,18 @@ metacognitive insights and workflow optimization.`,
 }
 
 func Execute() error {
-	return rootCmd.Execute()
+	err := rootCmd.Execute()
+	if err != nil {
+		// Check if it's an ExitCodeError
+		if exitErr, ok := err.(*output.ExitCodeError); ok {
+			// ExitCodeError already has the message printed by Cobra
+			// We just need to exit with the appropriate code
+			os.Exit(exitErr.Code)
+		}
+		// For other errors, Cobra will handle them (exit 1)
+		return err
+	}
+	return nil
 }
 
 func init() {

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/filter"
 	"github.com/yale/meta-cc/internal/locator"
+	internalOutput "github.com/yale/meta-cc/internal/output"
 	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/internal/stats"
 	"github.com/yale/meta-cc/pkg/output"
@@ -132,5 +133,11 @@ func runStatsTimeSeries(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
+
+	// Check for empty results and return appropriate exit code
+	if len(points) == 0 {
+		return internalOutput.NewExitCodeError(internalOutput.ExitNoResults, "No results found")
+	}
+
 	return nil
 }
