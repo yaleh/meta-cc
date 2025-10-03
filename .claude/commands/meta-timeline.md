@@ -1,11 +1,13 @@
 ---
 name: meta-timeline
-description: 生成当前会话的时间线视图，显示工具使用和错误的时序分布
+description: 生成当前会话的时间线视图，显示工具使用和错误的时序分布 (Phase 8 增强：支持分页)
 allowed_tools: [Bash]
 argument-hint: [limit]
 ---
 
 # meta-timeline：会话时间线视图
+
+**Phase 8 增强**: 现在使用 `query tools` 命令，支持高效分页，避免大会话上下文溢出。
 
 生成当前会话的时间线，可视化展示工具使用和错误分布。
 
@@ -29,15 +31,14 @@ LIMIT=${1:-50}
 echo "# 会话时间线（最近 ${LIMIT} Turns）"
 echo ""
 
-# 提取工具调用数据
-tools_data=$(meta-cc parse extract --type tools --output json)
+# 使用 Phase 8 query 命令（支持分页，避免大会话上下文溢出）
+tools_data=$(meta-cc query tools --limit "$LIMIT" --output json)
 
 # 解析 JSON 并生成时间线
-# 注意：parse extract 返回数组，不是对象
-echo "$tools_data" | jq -r --arg limit "$LIMIT" '
-.[-($limit | tonumber):] |
+# query 命令已经限制了数量，直接使用结果
+echo "$tools_data" | jq -r '
 to_entries[] |
-"\(.key + 1). Turn \(.key) - **\(.value.ToolName)** \(if .value.Status == "error" then "❌" else "✅" end)"
+"\(.key + 1). **\(.value.ToolName)** \(if .value.Status == "error" or .value.Error != "" then "❌" else "✅" end)"
 '
 
 echo ""
@@ -47,11 +48,10 @@ echo ""
 # 显示统计摘要
 echo "## 统计摘要（最近 ${LIMIT} Turns）"
 echo ""
-echo "$tools_data" | jq -r --arg limit "$LIMIT" '
-.[-($limit | tonumber):] |
+echo "$tools_data" | jq -r '
 {
   total: length,
-  errors: [.[] | select(.Status == "error")] | length,
+  errors: [.[] | select(.Status == "error" or .Error != "")] | length,
   tools: [.[] | .ToolName] | group_by(.) | map({tool: .[0], count: length}) | sort_by(.count) | reverse
 } |
 "- **总工具调用**: \(.total) 次",
