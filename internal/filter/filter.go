@@ -7,6 +7,12 @@ import (
 	"github.com/yale/meta-cc/internal/parser"
 )
 
+// Valid filter fields for different data types
+var validFields = map[string][]string{
+	"tool_calls": {"status", "tool", "uuid"},
+	"entries":    {"type", "uuid", "role"},
+}
+
 // Condition represents a filter condition
 type Condition struct {
 	Field string // Field name (e.g., "status", "tool", "type")
@@ -129,4 +135,44 @@ func matchesSessionEntry(entry parser.SessionEntry, filter *Filter) bool {
 	}
 
 	return true
+}
+
+// ValidateFilterField checks if a field name is valid for the data type
+func ValidateFilterField(field string, dataType string) error {
+	allowed, ok := validFields[dataType]
+	if !ok {
+		return fmt.Errorf("unknown data type: %s", dataType)
+	}
+
+	for _, valid := range allowed {
+		if field == valid {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("invalid field '%s' for %s (valid fields: %v)", field, dataType, allowed)
+}
+
+// ParseWhereCondition is an alias for ParseFilter with more SQL-like naming
+// Syntax: "field=value,field2=value2" (comma-separated AND conditions)
+func ParseWhereCondition(where string) (*Filter, error) {
+	return ParseFilter(where)
+}
+
+// ApplyWhere applies a WHERE-style filter with field validation
+func ApplyWhere(data interface{}, where string, dataType string) (interface{}, error) {
+	filter, err := ParseWhereCondition(where)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate filter fields
+	for _, cond := range filter.Conditions {
+		if err := ValidateFilterField(cond.Field, dataType); err != nil {
+			// Return error for invalid fields
+			return nil, err
+		}
+	}
+
+	return ApplyFilter(data, filter), nil
 }

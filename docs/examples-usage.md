@@ -2,6 +2,25 @@
 
 This guide shows how to use the meta-cc integration examples (MCP Server, Subagent, and Slash Commands).
 
+## Design Philosophy
+
+meta-cc is designed as a **powerful data retrieval and statistics tool** for Claude Code session history. It follows a clear separation of concerns:
+
+**meta-cc CLI Tool (Data Layer)**
+- ✅ Powerful query and filtering capabilities
+- ✅ Precise statistical analysis
+- ✅ Flexible output control (pagination, chunking, sorting)
+- ✅ Unix-style composability (pipe-friendly)
+- ❌ **No semantic analysis** (no NLP, no recommendations)
+
+**Claude Code Integration Layer (Semantic Layer)**
+- Slash Commands: Single or multiple meta-cc calls with different parameters
+- Subagents: Iterative multi-turn meta-cc calls
+- MCP Tools: Claude autonomously decides parameters
+- ✅ Semantic understanding, pattern recognition, recommendation generation
+
+This separation allows Claude to perform complex analysis by making multiple meta-cc calls with varying parameters, while meta-cc focuses on fast, accurate data extraction.
+
 ## Prerequisites
 
 1. **Install meta-cc**:
@@ -392,6 +411,79 @@ export PATH=$PATH:/home/yale/work/meta-cc
 
 ---
 
+## Advanced Usage Patterns
+
+### Pattern 1: Context-Length Aware Analysis
+
+When dealing with large sessions, use chunking to avoid context overflow:
+
+```bash
+# Extract tools in chunks of 50 records
+meta-cc query tools --limit 50 --offset 0 --output jsonl > chunk1.jsonl
+meta-cc query tools --limit 50 --offset 50 --output jsonl > chunk2.jsonl
+
+# Or use compact CSV format
+meta-cc query tools --fields "timestamp,tool,status" --output csv
+```
+
+### Pattern 2: Unix Pipeline Composition
+
+Combine meta-cc with standard Unix tools:
+
+```bash
+# Find most frequent error commands
+meta-cc query tools --status error --output jsonl | \
+  jq -r '.command' | \
+  sort | uniq -c | sort -rn | head -5
+
+# Analyze tool usage by hour
+meta-cc stats time-series --metric tool-calls --interval hour --output csv | \
+  awk -F, '{sum+=$2} END {print "Total:", sum}'
+
+# Extract user prompts matching pattern
+meta-cc query user-messages --match "fix.*bug" --output jsonl | \
+  jq -r '.content'
+```
+
+### Pattern 3: Multi-Call Analysis (Subagent Pattern)
+
+```bash
+# Step 1: Get overview
+overview=$(meta-cc stats aggregate --group-by tool --output json)
+
+# Step 2: Identify high-error tool
+top_tool=$(echo "$overview" | jq -r '.[0].tool')
+
+# Step 3: Deep dive into that tool's errors
+meta-cc query errors --tool "$top_tool" --limit 20 --output json
+```
+
+### Pattern 4: Selective Field Extraction
+
+Minimize output size by selecting only needed fields:
+
+```bash
+# Minimal fields for quick analysis
+meta-cc extract tools --fields "timestamp,tool,status" --output csv
+
+# Full details for debugging
+meta-cc extract tools --fields "timestamp,tool,command,error" --output jsonl
+```
+
+### Pattern 5: File-Scoped Analysis
+
+Focus on specific modules:
+
+```bash
+# Query operations on authentication module
+meta-cc query file-operations --file "src/auth/*" --output json
+
+# Get stats for specific files
+meta-cc stats files --sort-by error-count --top 10 --output table
+```
+
+---
+
 ## Example Session Flow
 
 ```
@@ -412,6 +504,107 @@ export PATH=$PATH:/home/yale/work/meta-cc
 
 # 6. Get help anytime
 /meta-help
+```
+
+---
+
+## Context-Length Management Strategies
+
+meta-cc provides multiple strategies to handle large session data:
+
+### Strategy 1: Pagination
+```bash
+# First page (records 0-49)
+meta-cc query tools --limit 50 --offset 0
+
+# Second page (records 50-99)
+meta-cc query tools --limit 50 --offset 50
+```
+
+### Strategy 2: Chunking to Files
+```bash
+# Split output into chunks of 100 records each
+meta-cc extract tools --chunk-size 100 --output-dir /tmp/chunks
+
+# Process each chunk separately
+for chunk in /tmp/chunks/*.jsonl; do
+  cat "$chunk" | jq -r 'select(.status=="error")'
+done
+```
+
+### Strategy 3: Pre-filtering
+```bash
+# Only errors in last 50 turns
+meta-cc query tools --window 50 --status error
+
+# Only specific tool
+meta-cc query tools --tool Bash --limit 20
+
+# Time-range filtering
+meta-cc query tools --time-range "2025-10-01..2025-10-03"
+```
+
+### Strategy 4: Compact Output Formats
+```bash
+# CSV is more compact than JSON
+meta-cc extract tools --output csv
+
+# TSV for tab-separated (grep-friendly)
+meta-cc extract tools --output tsv
+
+# Select minimal fields
+meta-cc extract tools --fields "tool,status" --output csv
+```
+
+---
+
+## Cookbook: Common Analysis Patterns
+
+### Find Most Frequent Commands
+```bash
+meta-cc query tools --output jsonl | \
+  jq -r '.command' | \
+  sort | uniq -c | sort -rn | head -10
+```
+
+### Detect Repeated User Questions
+```bash
+meta-cc query user-messages --output jsonl | \
+  jq -r '.content' | \
+  awk '{print tolower($0)}' | \
+  sort | uniq -c | \
+  awk '$1 > 1 {print $1, substr($0, index($0,$2))}'
+```
+
+### Analyze File Modification Patterns
+```bash
+meta-cc query file-operations \
+  --file "src/auth/*.go" \
+  --group-by file \
+  --output table
+```
+
+### Time-Series Visualization
+```bash
+meta-cc stats time-series \
+  --metric tool-calls \
+  --interval hour \
+  --output csv > timeseries.csv
+
+# Plot with gnuplot
+gnuplot -e "set datafile separator ','; \
+            plot 'timeseries.csv' using 1:2 with lines"
+```
+
+### Cross-Session Comparison
+```bash
+# Get stats for two sessions
+meta-cc --session <session-1> stats aggregate --output json > s1.json
+meta-cc --session <session-2> stats aggregate --output json > s2.json
+
+# Compare with jq
+jq -s '.[0] as $s1 | .[1] as $s2 |
+       {session1: $s1[0], session2: $s2[0]}' s1.json s2.json
 ```
 
 Enjoy using meta-cc to optimize your Claude Code workflow! 🚀

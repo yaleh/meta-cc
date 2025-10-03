@@ -31,67 +31,103 @@
 @startuml
 !theme plain
 
-card "Phase 0" as P0 {
-  **项目初始化**
-  - Go 项目骨架
-  - 基础测试框架
-  - 构建脚本
+card "Phase 0-7" as P0 #lightgreen {
+  **✅ MVP 已完成**
+  - 项目初始化
+  - 会话定位
+  - JSONL 解析
+  - 数据提取
+  - 统计分析
+  - 错误分析
+  - Slash Commands
+  - MCP Server
 }
 
-card "Phase 1" as P1 {
-  **会话文件定位**
-  - 环境变量读取
-  - 参数解析
-  - 文件路径解析
+card "Phase 8" as P8 #lightblue {
+  **查询命令基础**
+  - query 命令框架
+  - query tools
+  - query user-messages
+  - 基础过滤器
 }
 
-card "Phase 2" as P2 {
-  **JSONL 解析器**
-  - Turn 数据解析
-  - Tool 调用提取
-  - 错误处理
+card "Phase 9" as P9 #lightblue {
+  **上下文长度应对**
+  - 分页支持
+  - 分片输出
+  - 字段投影
+  - 紧凑格式(TSV)
 }
 
-card "Phase 3" as P3 {
-  **数据提取命令**
-  - parse extract
-  - 输出格式化
-  - 集成测试
+card "Phase 10" as P10 #lightyellow {
+  **高级查询能力**
+  - 高级过滤器
+  - 聚合统计
+  - 时间序列
+  - 文件级统计
 }
 
-card "Phase 4" as P4 {
-  **统计分析**
-  - parse stats
-  - 基础指标
+card "Phase 11" as P11 #lightyellow {
+  **Unix 可组合性**
+  - 流式输出
+  - 退出码标准化
+  - stderr/stdout分离
+  - Cookbook 文档
 }
 
-card "Phase 5" as P5 {
-  **错误模式分析**
-  - analyze errors
-  - 模式检测
+card "Phase 12" as P12 #lightgray {
+  **查询语言增强**
+  - SQL-like 语法
+  - 查询解析器
+  - 关联查询
+  - 性能优化
 }
 
-card "Phase 6" as P6 {
-  **Slash Commands**
-  - /meta-stats
-  - /meta-errors
-  - Claude Code 集成
+card "Phase 13" as P13 #lightgray {
+  **索引功能**
+  - SQLite 索引
+  - 跨会话查询
+  - 索引维护
 }
 
-P0 -down-> P1
-P1 -down-> P2
-P2 -down-> P3
-P3 -down-> P4
-P4 -down-> P5
-P5 -down-> P6
+card "Phase 14" as P14 #lightgray {
+  **Subagent 增强**
+  - @meta-coach 迭代分析
+  - 自动化建议
+  - 工作流优化
+}
 
-note right of P6
+P0 -down-> P8
+P8 -down-> P9
+P9 -down-> P10
+P10 -down-> P11
+P11 -down-> P12
+P12 -down-> P13
+P13 -down-> P14
+
+note right of P0
   **业务闭环完成**
   可在 Claude Code 中使用
 end note
 
+note right of P9
+  **核心查询能力完成**
+  应对大会话场景
+end note
+
+note right of P14
+  **完整生态系统**
+  高级分析能力
+end note
+
 @enduml
 ```
+
+**Phase 优先级分类**：
+- ✅ **已完成** (Phase 0-7): MVP 核心功能
+- 🔵 **高优先级** (Phase 8-9): 核心查询和上下文管理
+- 🟡 **中优先级** (Phase 10-11): 高级查询和可组合性
+- ⚪ **低优先级** (Phase 12-14): 便利性和生态增强
 
 ---
 
@@ -1104,22 +1140,161 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 ---
 
-## 未来 Phase（可选扩展）
+## 未来 Phase（新增）
 
-### Phase 8: 索引功能（可选）
-- SQLite 索引构建
-- 跨会话查询
-- `meta-cc query` 命令组
+### Phase 8: 查询命令基础（Query Foundation）
 
-### Phase 9: 工具使用分析（可选）
-- `meta-cc analyze tools`
-- 工具序列检测
-- 频率统计
+**目标**：实现 `meta-cc query` 命令组的核心查询能力
 
-### Phase 10: Subagent 高级功能（可选）
-- `@meta-coach` 增强
-- 自动化建议实施
-- 工作流模式学习
+**代码量**：~400 行
+
+**优先级**：高（核心检索能力）
+
+**Stage 划分**：
+- Stage 8.1: query 命令框架和路由
+- Stage 8.2: query tools 命令（工具调用查询）
+- Stage 8.3: query user-messages 命令（用户消息查询）
+- Stage 8.4: 基础过滤器引擎（--where, --status, --tool）
+
+**交付物**：
+- `meta-cc query tools --status error --limit 20`
+- `meta-cc query user-messages --match "fix.*bug"`
+- 基础过滤和排序功能
+
+---
+
+### Phase 9: 上下文长度应对（Context-Length Management）
+
+**目标**：实现分片、分页、抽样等上下文管理策略
+
+**代码量**：~350 行
+
+**优先级**：高（解决大会话问题）
+
+**Stage 划分**：
+- Stage 9.1: 分页支持（--limit, --offset）
+- Stage 9.2: 分片输出（--chunk-size, --chunk-index, --output-dir）
+- Stage 9.3: 字段投影（--fields）
+- Stage 9.4: 紧凑输出格式（TSV, 优化 CSV）
+
+**交付物**：
+- `meta-cc query tools --limit 50 --offset 0`
+- `meta-cc extract tools --chunk-size 100 --output-dir /tmp/chunks`
+- `meta-cc extract tools --fields "timestamp,tool,status"`
+- TSV 输出格式
+
+**验证测试**：
+- 测试 2000+ turns 的大会话分片
+- 验证内存占用（流式处理）
+
+---
+
+### Phase 10: 高级查询能力（Advanced Query）
+
+**目标**：实现高级过滤、聚合、时间序列分析
+
+**代码量**：~450 行
+
+**优先级**：中（高级功能）
+
+**Stage 划分**：
+- Stage 10.1: 高级过滤器（正则、时间范围、IN/NOT IN）
+- Stage 10.2: 聚合统计（stats aggregate --group-by）
+- Stage 10.3: 时间序列分析（stats time-series）
+- Stage 10.4: 文件级统计（stats files）
+
+**交付物**：
+- `meta-cc query tools --where "tool IN ('Bash','Edit') AND status='error'"`
+- `meta-cc stats aggregate --group-by tool --metrics "count,error_rate"`
+- `meta-cc stats time-series --metric tool-calls --interval hour`
+- `meta-cc stats files --sort-by error-count --top 10`
+
+---
+
+### Phase 11: Unix 工具可组合性（Composability）
+
+**目标**：优化输出格式和 CLI 设计，完善 Unix 管道支持
+
+**代码量**：~200 行
+
+**优先级**：中（生态集成）
+
+**Stage 划分**：
+- Stage 11.1: JSONL 流式输出（--stream 模式）
+- Stage 11.2: 退出码标准化（0=success, 1=error, 2=no results）
+- Stage 11.3: stderr/stdout 分离（日志 vs 数据）
+- Stage 11.4: 文档：Cookbook 和组合使用指南
+
+**交付物**：
+- `meta-cc query tools --stream` 流式输出
+- 标准化退出码
+- `docs/cookbook.md`：常见分析模式
+- `docs/cli-composability.md`：与 jq/grep/awk 组合示例
+
+---
+
+### Phase 12: 查询语言增强（Query Language）
+
+**目标**：实现 SQL-like 查询语法，提升查询表达能力
+
+**代码量**：~300 行
+
+**优先级**：低（便利性）
+
+**Stage 划分**：
+- Stage 12.1: 查询表达式解析器
+- Stage 12.2: 查询优化器（简化）
+- Stage 12.3: 关联查询（跨 turn 过滤）
+- Stage 12.4: 查询性能优化
+
+**交付物**：
+- 支持 SQL-like 语法：`WHERE tool = 'Bash' AND status = 'error'`
+- 比较操作符：`==, !=, >, <, >=, <=`
+- 逻辑操作符：`AND, OR, NOT`
+- 集合操作符：`IN, NOT IN, LIKE, REGEXP`
+
+---
+
+### Phase 13: 索引功能（可选）
+
+**目标**：SQLite 索引构建，支持跨会话查询
+
+**代码量**：~500 行
+
+**优先级**：低（性能优化）
+
+**Stage 划分**：
+- Stage 13.1: SQLite schema 设计
+- Stage 13.2: 索引构建（index build, index update）
+- Stage 13.3: 索引查询（query sessions --since）
+- Stage 13.4: 索引维护和清理
+
+**交付物**：
+- `meta-cc index build`：全量索引
+- `meta-cc index update`：增量索引
+- `meta-cc query sessions --since "7 days ago"`
+- 索引文件管理
+
+---
+
+### Phase 14: Subagent 高级功能（可选）
+
+**目标**：增强 `@meta-coach` 的多轮调用能力
+
+**代码量**：~150 行（主要是配置）
+
+**优先级**：低（用户体验）
+
+**Stage 划分**：
+- Stage 14.1: @meta-coach 增强提示词
+- Stage 14.2: 迭代分析工作流示例
+- Stage 14.3: 自动化建议实施
+- Stage 14.4: 文档和最佳实践
+
+**交付物**：
+- 更新 `.claude/agents/meta-coach.md`
+- 添加迭代分析示例
+- 工作流优化建议模板
 
 ---
 
