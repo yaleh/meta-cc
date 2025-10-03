@@ -2,7 +2,7 @@
 
 ## Overview
 
-meta-cc provides a Model Context Protocol (MCP) Server that allows Claude Code to autonomously query session data without manual CLI commands. With Phase 8 enhancements, the MCP server now provides 8 powerful tools for comprehensive session analysis.
+meta-cc provides a Model Context Protocol (MCP) Server that allows Claude Code to autonomously query session data without manual CLI commands. With Phase 8 enhancements, the MCP server now provides 10 powerful tools for comprehensive session analysis.
 
 ## Configuration
 
@@ -27,7 +27,9 @@ The MCP Server is configured in `.claude/mcp-servers/meta-cc.json`.
     "query_user_messages",
     "query_context",
     "query_tool_sequences",
-    "query_file_access"
+    "query_file_access",
+    "query_project_state",
+    "query_successful_prompts"
   ]
 }
 ```
@@ -222,6 +224,50 @@ What operations on config.json?
 **Direct Invocation**:
 ```
 mcp__meta-insight__query_file_access
+```
+
+---
+
+### 9. query_project_state (Stage 8.12+)
+
+Query current project state extracted from the session, including git status, working directory, and project metadata.
+
+**Parameters**:
+- `output_format` (optional): "json" or "md"
+
+**Example Queries**:
+```
+What's the current project state?
+Show me git status from the session
+What branch am I on?
+```
+
+**Direct Invocation**:
+```
+mcp__meta-insight__query_project_state
+```
+
+---
+
+### 10. query_successful_prompts (Stage 8.12+)
+
+Query successful prompt patterns based on quality scores and outcomes.
+
+**Parameters**:
+- `min_quality_score` (optional): Minimum quality score 0.0-1.0 (default: 0.8)
+- `limit` (optional): Maximum results (default: 10)
+- `output_format` (optional): "json" or "md"
+
+**Example Queries**:
+```
+What prompts worked best?
+Show me high-quality interactions
+Find successful prompt patterns
+```
+
+**Direct Invocation**:
+```
+mcp__meta-insight__query_successful_prompts
 ```
 
 ---
@@ -583,7 +629,7 @@ query_context(error_signature="npm_test_fail", window=5)
 ## Summary
 
 MCP Server provides:
-- 8 powerful tools (3 from Phase 7 + 5 from Phase 8)
+- 10 powerful tools (3 from Phase 7 + 7 from Phase 8)
 - Natural language queries (no manual commands)
 - Autonomous analysis (Claude decides what to query)
 - Flexible filtering (tool, status, pattern, limit)
@@ -591,6 +637,8 @@ MCP Server provides:
 - Error investigation (context queries)
 - Workflow optimization (sequence detection)
 - File tracking (access history)
+- Project state monitoring (git status, metadata)
+- Prompt pattern analysis (quality scoring)
 
 **Quick Start**:
 1. Ensure `meta-cc` binary is in project root

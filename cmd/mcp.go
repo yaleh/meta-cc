@@ -248,6 +248,44 @@ func handleToolsList(req jsonRPCRequest) {
 				"required": []string{"file"},
 			},
 		},
+		{
+			"name":        "query_project_state",
+			"description": "Query current project state from session (Stage 8.12)",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+			},
+		},
+		{
+			"name":        "query_successful_prompts",
+			"description": "Query successful prompt patterns (Stage 8.12)",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"min_quality_score": map[string]interface{}{
+						"type":        "number",
+						"default":     0.8,
+						"description": "Minimum quality score (0.0-1.0, default 0.8)",
+					},
+					"limit": map[string]interface{}{
+						"type":        "integer",
+						"default":     10,
+						"description": "Maximum number of results (default 10)",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+			},
+		},
 	}
 
 	result := map[string]interface{}{
@@ -365,6 +403,19 @@ func executeTool(name string, args map[string]interface{}) (string, error) {
 		}
 
 		cmdArgs = []string{"query", "file-access", "--file", file, "--output", outputFormat}
+	case "query_project_state":
+		cmdArgs = []string{"query", "project-state", "--output", outputFormat}
+	case "query_successful_prompts":
+		cmdArgs = []string{"query", "successful-prompts", "--output", outputFormat}
+
+		if minQualityScore, ok := args["min_quality_score"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--min-quality-score", fmt.Sprintf("%.2f", minQualityScore))
+		}
+		if limit, ok := args["limit"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
+		} else {
+			cmdArgs = append(cmdArgs, "--limit", "10")
+		}
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}

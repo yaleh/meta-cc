@@ -35,10 +35,11 @@ func TestQueryUserMessagesCommand_Help(t *testing.T) {
 
 	output := buf.String()
 
-	// Verify help mentions pattern matching
+	// Verify help mentions pattern matching and context
 	expectedContent := []string{
 		"Query user messages",
 		"--match",
+		"--with-context",
 	}
 
 	for _, content := range expectedContent {

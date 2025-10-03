@@ -56,10 +56,13 @@ type ToolSequenceQuery struct {
 
 // SequencePattern represents a repeated tool call sequence
 type SequencePattern struct {
-	Pattern      string               `json:"pattern"`
-	Count        int                  `json:"count"`
-	Occurrences  []SequenceOccurrence `json:"occurrences"`
-	TimeSpanMin  int                  `json:"time_span_minutes"`
+	Pattern        string               `json:"pattern"`
+	Count          int                  `json:"count"`
+	Occurrences    []SequenceOccurrence `json:"occurrences"`
+	TimeSpanMin    int                  `json:"time_span_minutes"`
+	SuccessRate    float64              `json:"success_rate,omitempty"`
+	AvgDurationMin float64              `json:"avg_duration_minutes,omitempty"`
+	Context        string               `json:"context,omitempty"`
 }
 
 // SequenceOccurrence represents a single occurrence of a sequence

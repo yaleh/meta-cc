@@ -11,6 +11,8 @@
     "query_user_messages",
     "query_context",
     "query_tool_sequences",
-    "query_file_access"
+    "query_file_access",
+    "query_project_state",
+    "query_successful_prompts"
   ]
 }
