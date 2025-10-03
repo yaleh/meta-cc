@@ -850,6 +850,144 @@ make help            # Show help message
 - macOS (amd64, arm64/Apple Silicon)
 - Windows (amd64)
 
+## Unix Composability (Phase 11)
+
+Phase 11 optimizes meta-cc for seamless integration with Unix pipelines and standard tools following Unix philosophy principles.
+
+### Key Features
+
+1. **JSONL Streaming Output**: Stream data as JSON Lines for efficient pipeline processing
+2. **Standard Exit Codes**: Unix-compliant exit codes (0=success, 1=error, 2=no results)
+3. **Clean I/O Separation**: Logs to stderr, data to stdout - no pipeline interference
+4. **Tool Integration**: Works seamlessly with jq, grep, awk, sed, and other Unix tools
+
+### JSONL Streaming Output
+
+Stream data for efficient pipeline processing:
+
+```bash
+# Basic streaming
+meta-cc query tools --stream
+
+# Pipeline with jq
+meta-cc query tools --stream | jq 'select(.Status == "error")'
+
+# Pipeline with grep
+meta-cc query tools --stream | jq -r '.Error' | grep -i "permission"
+
+# Pipeline with awk
+meta-cc query tools --stream | \
+  jq -r '[.ToolName, .Duration] | @tsv' | \
+  awk '{sum+=$2} END {print "Total:", sum "ms"}'
+```
+
+**JSONL Format**:
+```
+{"uuid":"1","tool":"Bash","status":"success",...}
+{"uuid":"2","tool":"Edit","status":"success",...}
+{"uuid":"3","tool":"Read","status":"error",...}
+```
+
+### Standard Exit Codes
+
+meta-cc follows Unix conventions for exit codes:
+
+| Exit Code | Meaning | Example |
+|-----------|---------|---------|
+| 0 | Success (with results) | `meta-cc query tools --limit 10` |
+| 1 | Error (parsing, I/O, etc.) | `meta-cc query tools --where "invalid syntax"` |
+| 2 | Success (no results) | `meta-cc query tools --where "tool='NonExistent'"` |
+
+**Usage in scripts**:
+```bash
+if meta-cc query tools --where "status='error'"; then
+  echo "Errors found!"
+  # Handle errors...
+else
+  EXIT_CODE=$?
+  if [ $EXIT_CODE -eq 2 ]; then
+    echo "No errors (good!)"
+  else
+    echo "Query failed"
+    exit 1
+  fi
+fi
+```
+
+### stderr/stdout Separation
+
+meta-cc separates logs and data for clean pipeline processing:
+
+- **stdout**: Command output data (JSON, Markdown, TSV)
+- **stderr**: Diagnostic messages (logs, warnings, errors)
+
+```bash
+# Redirect data only
+meta-cc query tools --output json > data.json
+
+# Redirect logs only
+meta-cc query tools --output json 2> debug.log
+
+# Separate both
+meta-cc query tools --output json > data.json 2> debug.log
+
+# Suppress logs in pipelines
+meta-cc query tools --stream 2>/dev/null | jq '.ToolName'
+```
+
+### Common Pipeline Patterns
+
+**Error Analysis**:
+```bash
+# Find top error patterns
+meta-cc query tools --where "status='error'" --stream | \
+  jq -r '.Error' | \
+  grep -oP '(permission|timeout|not found)' | \
+  sort | uniq -c | sort -rn
+```
+
+**Performance Profiling**:
+```bash
+# Average duration by tool
+meta-cc stats aggregate --group-by tool --metrics avg_duration | \
+  jq -r '.[] | [.group_value, .metrics.avg_duration] | @tsv' | \
+  column -t
+```
+
+**Tool Usage Statistics**:
+```bash
+# Tool distribution
+meta-cc query tools --stream | \
+  jq -r '.ToolName' | \
+  sort | uniq -c | sort -rn | \
+  awk '{print $2 ": " $1}'
+```
+
+**File Modification Tracking**:
+```bash
+# Most edited files with error rates
+meta-cc stats files --sort-by edit_count --top 10 | \
+  jq -r '.[] | [.file_path, .edit_count, (.error_rate * 100 | tostring + "%")] | @tsv' | \
+  column -t
+```
+
+### Unix Philosophy
+
+Phase 11 embraces Unix principles:
+
+- **Do one thing well**: Each command has a single, focused purpose
+- **Text streams**: All data flows as structured text (JSON/JSONL)
+- **Composability**: Tools chain together via pipes
+- **Consistent interface**: Uniform command structure and behavior
+
+### See Also
+
+- [Cookbook](docs/cookbook.md) - 10+ practical analysis patterns
+- [CLI Composability Guide](docs/cli-composability.md) - Integration with jq, grep, awk
+- [Examples and Usage](docs/examples-usage.md) - Getting started guide
+
+---
+
 ## Phase 10: Advanced Query Capabilities (New!)
 
 Phase 10 introduces SQL-like filtering, aggregation, time series analysis, and file-level statistics for deeper insights.
