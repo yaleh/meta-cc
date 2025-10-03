@@ -1158,7 +1158,7 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 **优先级**：高（核心检索能力 + 实际应用改进 + MCP 增强 + 上下文支持 + Prompt 优化）
 
-**状态**：✅ Stage 8.1-8.7 已完成，📋 Stage 8.8-8.12 已规划
+**状态**：✅ **已完成** (Stages 8.1-8.12 全部完成，包括 Prompt 优化)
 
 **设计原则**：
 - ✅ **meta-cc 职责**: 数据提取、过滤、聚合、统计（无 LLM/NLP）
@@ -1167,13 +1167,13 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 **Stage 划分**：
 
-**核心查询实现（已完成）**：
+**核心查询实现（✅ 已完成）**：
 - Stage 8.1: query 命令框架和路由 ✅
 - Stage 8.2: query tools 命令（工具调用查询）✅
 - Stage 8.3: query user-messages 命令（用户消息查询）✅
 - Stage 8.4: 增强过滤器引擎（--where, --status, --tool）✅
 
-**集成改进（已完成）**：
+**集成改进（✅ 已完成）**：
 - Stage 8.5: 更新 Slash Commands 使用 Phase 8 ✅
   - 更新 `/meta-timeline` 使用 `query tools --limit`
   - 验证 `/meta-stats` 已最优（无需修改）
@@ -1186,31 +1186,31 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
   - `/meta-query-tools [tool] [status] [limit]` - 快速工具查询
   - `/meta-query-messages [pattern] [limit]` - 消息搜索
 
-**MCP Server 集成（新增 - 已规划）**：
-- Stage 8.8: 增强 MCP Server with Phase 8 工具（1-1.5小时）
+**MCP Server 集成（✅ 已完成）**：
+- Stage 8.8: 增强 MCP Server with Phase 8 工具 ✅
   - 更新 `extract_tools` 使用分页（防止溢出）
   - 添加 `query_tools` MCP 工具（灵活查询）
   - 添加 `query_user_messages` MCP 工具（正则搜索）
   - 测试所有 MCP 工具
-- Stage 8.9: 配置 MCP Server 到 Claude Code（30分钟）
+- Stage 8.9: 配置 MCP Server 到 Claude Code ✅
   - 创建 `.claude/mcp-servers/meta-cc.json` 配置
   - 创建 `docs/mcp-usage.md` 文档
   - 测试 MCP 集成和自然语言查询
 
-**上下文查询扩展（新增 - 已规划）**：
-- Stage 8.10: 上下文和关联查询（2-3小时）
+**上下文查询扩展（✅ 已完成）**：
+- Stage 8.10: 上下文和关联查询 ✅
   - `query context --error-signature <id> --window N`: 错误上下文查询
   - `query file-access --file <path>`: 文件操作历史
   - `query tool-sequences --min-occurrences N`: 工具序列模式
   - 时间窗口查询：`--since`, `--last-n-turns`
-- Stage 8.11: 工作流模式数据支持（1-2小时）
+- Stage 8.11: 工作流模式数据支持 ✅
   - `analyze sequences --min-length N --min-occurrences M`: 工具序列检测
   - `analyze file-churn --threshold N`: 文件频繁修改检测
   - `analyze idle-periods --threshold <duration>`: 时间间隔分析
   - 为 @meta-coach 提供工作流分析数据源
 
-**Prompt 优化数据层（新增 - 已规划）** **NEW**：
-- Stage 8.12: Prompt 建议与优化数据检索（2-3小时）
+**Prompt 优化数据层（✅ 已完成）**：
+- Stage 8.12: Prompt 建议与优化数据检索 ✅
   - 扩展 `query user-messages --with-context N`: 用户消息 + 上下文窗口
   - 新增 `query project-state`: 项目状态、未完成任务、最近文件
   - 新增 `query successful-prompts`: 历史成功 prompts 模式
