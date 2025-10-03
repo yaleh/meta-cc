@@ -16,6 +16,7 @@ var (
 	queryToolsStatus string
 	queryToolsTool   string
 	queryToolsWhere  string
+	queryToolsFilter string
 )
 
 var queryToolsCmd = &cobra.Command{
@@ -27,12 +28,14 @@ Supports filtering by:
   - Tool name (--tool)
   - Status (--status: success|error)
   - General condition (--where: "field=value")
+  - Advanced expressions (--filter: SQL-like syntax)
 
 Examples:
   meta-cc query tools --status error
   meta-cc query tools --tool Bash --limit 20
   meta-cc query tools --where "status=error" --sort-by timestamp
-  meta-cc query tools --tool Edit --status error --output md`,
+  meta-cc query tools --filter "tool='Bash' AND status='error'"
+  meta-cc query tools --filter "tool IN ('Bash', 'Edit') OR duration>1000"`,
 	RunE: runQueryTools,
 }
 
@@ -43,6 +46,7 @@ func init() {
 	queryToolsCmd.Flags().StringVar(&queryToolsStatus, "status", "", "Filter by status (success|error)")
 	queryToolsCmd.Flags().StringVar(&queryToolsTool, "tool", "", "Filter by tool name")
 	queryToolsCmd.Flags().StringVar(&queryToolsWhere, "where", "", "Filter condition (key=value)")
+	queryToolsCmd.Flags().StringVar(&queryToolsFilter, "filter", "", "Advanced filter expression (SQL-like)")
 }
 
 func runQueryTools(cmd *cobra.Command, args []string) error {
@@ -189,9 +193,36 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 }
 
 func applyToolFilters(toolCalls []parser.ToolCall) ([]parser.ToolCall, error) {
-	var result []parser.ToolCall
+	// Apply --filter expression first (most powerful)
+	if queryToolsFilter != "" {
+		expr, err := filter.ParseExpression(queryToolsFilter)
+		if err != nil {
+			return nil, fmt.Errorf("invalid filter expression: %w", err)
+		}
 
-	// Apply --where filter first (with validation)
+		var filtered []parser.ToolCall
+		for _, tc := range toolCalls {
+			// Convert ToolCall to map for expression evaluation
+			record := map[string]interface{}{
+				"tool":   tc.ToolName,
+				"status": tc.Status,
+				"uuid":   tc.UUID,
+				"error":  tc.Error,
+			}
+
+			match, err := expr.Evaluate(record)
+			if err != nil {
+				return nil, fmt.Errorf("filter evaluation error: %w", err)
+			}
+
+			if match {
+				filtered = append(filtered, tc)
+			}
+		}
+		toolCalls = filtered
+	}
+
+	// Apply --where filter (simple key=value pairs)
 	if queryToolsWhere != "" {
 		filtered, err := filter.ApplyWhere(toolCalls, queryToolsWhere, "tool_calls")
 		if err != nil {
@@ -200,7 +231,8 @@ func applyToolFilters(toolCalls []parser.ToolCall) ([]parser.ToolCall, error) {
 		toolCalls = filtered.([]parser.ToolCall)
 	}
 
-	// Apply individual flag filters
+	// Apply individual flag filters (for backwards compatibility)
+	var result []parser.ToolCall
 	for _, tc := range toolCalls {
 		// Apply status filter
 		if queryToolsStatus != "" {
