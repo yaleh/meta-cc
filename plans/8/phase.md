@@ -11,11 +11,12 @@
 - Integration Updates (8.5-8.7): ~250 lines (configuration/documentation)
 - MCP Server Integration (8.8-8.9): ~120 lines (Go code + configuration)
 - Context Query Extensions (8.10-8.11): ~280 lines (Go code)
-- **Total**: ~1050 lines
+- Prompt Optimization Data Layer (8.12): ~200 lines (Go code)
+- **Total**: ~1250 lines
 
 **Priority**: High (core query capability + immediate practical improvements + context support)
 
-**Status**: ✅ Stages 8.1-8.7 Completed, 📋 Stages 8.8-8.11 Planned
+**Status**: ✅ Stages 8.1-8.7 Completed, 📋 Stages 8.8-8.12 Planned
 
 **Design Principles**:
 - ✅ **meta-cc 职责**: 数据提取、过滤、聚合、统计（无 LLM/NLP）
@@ -97,6 +98,22 @@
   - `analyze file-churn --threshold N`: 文件频繁修改检测
   - `analyze idle-periods --threshold <duration>`: 时间间隔分析
   - 为 @meta-coach 提供工作流分析数据源（仅数据，不做语义判断）
+
+#### Stage 8.12: Prompt 建议与优化数据层 (NEW)
+- **Objective**: 为智能 Prompt 建议和改写提供数据检索能力
+- **Code**: ~200 lines
+- **Time**: 2-3 hours
+- **Deliverables**:
+  - 扩展 `query user-messages --with-context N`: 用户消息 + 上下文窗口
+  - 新增 `query project-state`: 项目状态、未完成任务、最近文件
+  - 新增 `query successful-prompts`: 历史成功 prompts 模式
+  - 扩展 `query tool-sequences --successful-only --with-metrics`: 成功工作流
+  - 新增 Slash Commands: `/meta-suggest-next`, `/meta-refine-prompt`
+  - 增强 @meta-coach: Prompt 优化指导能力
+- **职责边界**:
+  - ✅ meta-cc: 数据检索（上下文、项目状态、成功模式）
+  - ✅ Claude: 语义理解、prompt 生成、建议排序
+  - ❌ meta-cc 绝不实现 NLP/LLM 能力
 
 ### MCP Server Integration (New - Planned)
 
@@ -206,6 +223,29 @@ meta-cc analyze file-churn --threshold 5
 meta-cc analyze idle-periods --threshold "5 minutes"
 ```
 
+### Prompt Optimization Commands (8.12)
+```bash
+# Query user messages with context window
+meta-cc query user-messages --match "实现|添加" --limit 5 --with-context 3 --output json
+
+# Query current project state
+meta-cc query project-state --include-incomplete-tasks --output json
+
+# Query successful prompts patterns
+meta-cc query successful-prompts --limit 10 --min-quality-score 0.8 --output json
+
+# Query successful tool sequences
+meta-cc query tool-sequences --successful-only --with-metrics --output json
+
+# Use via Slash Commands
+/meta-suggest-next                              # Get 3 prioritized prompt suggestions
+/meta-refine-prompt "帮我优化一下代码"           # Refine vague prompt
+
+# Use via @meta-coach
+@meta-coach 我不知道下一步做什么                # Get guided prompt suggestions
+@meta-coach 这个 prompt 写得对吗？              # Get prompt optimization feedback
+```
+
 ### Updated Slash Commands (8.5)
 ```bash
 # /meta-timeline now uses Phase 8
@@ -270,7 +310,7 @@ Core query infrastructure - **COMPLETED**
   - Nice to have: Improves UX
   - Can be deferred if time-constrained
 
-### High Priority (Stage 8.10-8.11) 📋
+### High Priority (Stage 8.10-8.12) 📋
 - Stage 8.10: 上下文和关联查询 (2-3 hours)
   - Critical: 为 Slash Commands/Subagent 提供上下文检索
   - Enables error context analysis
@@ -280,6 +320,12 @@ Core query infrastructure - **COMPLETED**
   - Important: 为 @meta-coach 提供工作流分析数据
   - Detects repetitive patterns
   - Identifies inefficient workflows
+
+- Stage 8.12: Prompt 建议与优化数据层 (2-3 hours) **NEW**
+  - Critical: 实现智能 prompt 建议和改写的数据基础
+  - Enables `/meta-suggest-next` and `/meta-refine-prompt`
+  - Enhances @meta-coach with prompt optimization capabilities
+  - High user value: Improves development efficiency by 30%+
 
 ### Medium Priority (Stage 8.8-8.9) 📋
 - Stage 8.8: Enhance MCP Server (1-1.5 hours)

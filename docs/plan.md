@@ -1146,15 +1146,16 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 **目标**：实现 `meta-cc query` 命令组的核心查询能力，并更新现有集成（包括 MCP Server）以使用 Phase 8 功能
 
-**代码量**：~1050 行
+**代码量**：~1250 行
 - 核心实现 (8.1-8.4): ~400 行 (Go 代码)
 - 集成更新 (8.5-8.7): ~250 行 (配置/文档)
 - MCP Server 集成 (8.8-8.9): ~120 行 (Go 代码 + 配置)
 - 上下文查询扩展 (8.10-8.11): ~280 行 (Go 代码)
+- Prompt 优化数据层 (8.12): ~200 行 (Go 代码) **NEW**
 
-**优先级**：高（核心检索能力 + 实际应用改进 + MCP 增强 + 上下文支持）
+**优先级**：高（核心检索能力 + 实际应用改进 + MCP 增强 + 上下文支持 + Prompt 优化）
 
-**状态**：✅ Stage 8.1-8.7 已完成，📋 Stage 8.8-8.11 已规划
+**状态**：✅ Stage 8.1-8.7 已完成，📋 Stage 8.8-8.12 已规划
 
 **设计原则**：
 - ✅ **meta-cc 职责**: 数据提取、过滤、聚合、统计（无 LLM/NLP）
@@ -1205,25 +1206,40 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
   - `analyze idle-periods --threshold <duration>`: 时间间隔分析
   - 为 @meta-coach 提供工作流分析数据源
 
+**Prompt 优化数据层（新增 - 已规划）** **NEW**：
+- Stage 8.12: Prompt 建议与优化数据检索（2-3小时）
+  - 扩展 `query user-messages --with-context N`: 用户消息 + 上下文窗口
+  - 新增 `query project-state`: 项目状态、未完成任务、最近文件
+  - 新增 `query successful-prompts`: 历史成功 prompts 模式
+  - 扩展 `query tool-sequences --successful-only --with-metrics`: 成功工作流
+  - 新增 Slash Commands: `/meta-suggest-next`, `/meta-refine-prompt`
+  - 增强 @meta-coach: Prompt 优化指导能力
+  - **应用价值**: 提升开发效率 30%+，减少 prompt 试错
+
 **交付物**：
 - 核心 CLI 命令：
   - `meta-cc query tools --status error --limit 20`
-  - `meta-cc query user-messages --match "fix.*bug"`
+  - `meta-cc query user-messages --match "fix.*bug" --with-context 3` **NEW**
+  - `meta-cc query project-state --include-incomplete-tasks` **NEW**
+  - `meta-cc query successful-prompts --min-quality-score 0.8` **NEW**
   - `meta-cc query context --error-signature err-a1b2 --window 3`
   - `meta-cc query file-access --file test_auth.js`
+  - `meta-cc query tool-sequences --successful-only --with-metrics` **NEW**
   - `meta-cc analyze sequences --min-occurrences 3`
   - 基础过滤和排序功能
 - 集成改进：
   - 更新的 Slash Commands（防止上下文溢出）
   - 增强的 @meta-coach（使用 Phase 8 能力）
   - 新的快速查询命令（提升用户体验）
+  - `/meta-suggest-next`: 智能建议下一步 prompt **NEW**
+  - `/meta-refine-prompt`: 改写口语化 prompt **NEW**
 - MCP Server 增强：
   - 5 个 MCP 工具（3 个已有 + 2 个新增）
   - 自然语言查询能力
   - 完整的 MCP 使用文档
 - 数据支持能力：
   - 为 Slash Commands 提供精准上下文检索
-  - 为 @meta-coach 提供工作流模式数据
+  - 为 @meta-coach 提供工作流模式数据和 prompt 优化数据 **NEW**
   - 为 MCP Server 提供丰富的查询接口
 
 ---
