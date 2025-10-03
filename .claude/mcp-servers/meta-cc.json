@@ -8,6 +8,9 @@
     "analyze_errors",
     "extract_tools",
     "query_tools",
-    "query_user_messages"
+    "query_user_messages",
+    "query_context",
+    "query_tool_sequences",
+    "query_file_access"
   ]
 }

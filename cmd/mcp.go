@@ -182,6 +182,72 @@ func handleToolsList(req jsonRPCRequest) {
 				"required": []string{"pattern"},
 			},
 		},
+		{
+			"name":        "query_context",
+			"description": "Query context around specific errors (Stage 8.10)",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"error_signature": map[string]interface{}{
+						"type":        "string",
+						"description": "Error pattern ID to query (required)",
+					},
+					"window": map[string]interface{}{
+						"type":        "integer",
+						"default":     3,
+						"description": "Context window size in turns before/after (default 3)",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+				"required": []string{"error_signature"},
+			},
+		},
+		{
+			"name":        "query_tool_sequences",
+			"description": "Query repeated tool call sequences (workflow patterns from Stage 8.11)",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"min_occurrences": map[string]interface{}{
+						"type":        "integer",
+						"default":     3,
+						"description": "Minimum occurrences to report (default 3)",
+					},
+					"pattern": map[string]interface{}{
+						"type":        "string",
+						"description": "Specific sequence pattern to match (e.g., 'Read -> Edit -> Bash')",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+			},
+		},
+		{
+			"name":        "query_file_access",
+			"description": "Query file access history (read/edit/write operations)",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"file": map[string]interface{}{
+						"type":        "string",
+						"description": "File path to query (required)",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+				"required": []string{"file"},
+			},
+		},
 	}
 
 	result := map[string]interface{}{
@@ -268,6 +334,37 @@ func executeTool(name string, args map[string]interface{}) (string, error) {
 		} else {
 			cmdArgs = append(cmdArgs, "--limit", "10")
 		}
+	case "query_context":
+		errorSignature, ok := args["error_signature"].(string)
+		if !ok || errorSignature == "" {
+			return "", fmt.Errorf("error_signature parameter is required")
+		}
+
+		cmdArgs = []string{"query", "context", "--error-signature", errorSignature, "--output", outputFormat}
+
+		if window, ok := args["window"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--window", fmt.Sprintf("%.0f", window))
+		} else {
+			cmdArgs = append(cmdArgs, "--window", "3")
+		}
+	case "query_tool_sequences":
+		cmdArgs = []string{"query", "tool-sequences", "--output", outputFormat}
+
+		if minOccurrences, ok := args["min_occurrences"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--min-occurrences", fmt.Sprintf("%.0f", minOccurrences))
+		} else {
+			cmdArgs = append(cmdArgs, "--min-occurrences", "3")
+		}
+		if pattern, ok := args["pattern"].(string); ok && pattern != "" {
+			cmdArgs = append(cmdArgs, "--pattern", pattern)
+		}
+	case "query_file_access":
+		file, ok := args["file"].(string)
+		if !ok || file == "" {
+			return "", fmt.Errorf("file parameter is required")
+		}
+
+		cmdArgs = []string{"query", "file-access", "--file", file, "--output", outputFormat}
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}

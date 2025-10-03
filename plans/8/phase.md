@@ -10,11 +10,17 @@
 - Core Implementation (8.1-8.4): ~400 lines (Go code)
 - Integration Updates (8.5-8.7): ~250 lines (configuration/documentation)
 - MCP Server Integration (8.8-8.9): ~120 lines (Go code + configuration)
-- **Total**: ~770 lines
+- Context Query Extensions (8.10-8.11): ~280 lines (Go code)
+- **Total**: ~1050 lines
 
-**Priority**: High (core query capability + immediate practical improvements)
+**Priority**: High (core query capability + immediate practical improvements + context support)
 
-**Status**: ✅ Stages 8.1-8.7 Completed, Stages 8.8-8.9 Planned
+**Status**: ✅ Stages 8.1-8.7 Completed, 📋 Stages 8.8-8.11 Planned
+
+**Design Principles**:
+- ✅ **meta-cc 职责**: 数据提取、过滤、聚合、统计（无 LLM/NLP）
+- ✅ **Claude 集成层职责**: 语义理解、上下文关联、建议生成
+- ✅ **职责边界**: meta-cc 绝不做语义判断，只提供结构化数据
 
 ## Stage Breakdown
 
@@ -68,6 +74,29 @@
 - **Deliverables**:
   - `/meta-query-tools [tool] [status] [limit]` - Quick tool query
   - `/meta-query-messages [pattern] [limit]` - Message search
+
+### Context Query Extensions (New - Planned)
+
+#### Stage 8.10: 上下文和关联查询
+- **Objective**: 实现上下文查询和关联查询功能
+- **Code**: ~180 lines
+- **Time**: 2-3 hours
+- **Deliverables**:
+  - `query context --error-signature <id> --window N`: 错误上下文查询
+  - `query file-access --file <path>`: 文件操作历史
+  - `query tool-sequences --min-occurrences N`: 工具序列模式
+  - 时间窗口查询：`--since`, `--last-n-turns`
+  - 为 Slash Commands 和 @meta-coach 提供精准上下文检索
+
+#### Stage 8.11: 工作流模式数据支持
+- **Objective**: 实现工作流模式检测功能
+- **Code**: ~100 lines
+- **Time**: 1-2 hours
+- **Deliverables**:
+  - `analyze sequences --min-length N --min-occurrences M`: 工具序列检测
+  - `analyze file-churn --threshold N`: 文件频繁修改检测
+  - `analyze idle-periods --threshold <duration>`: 时间间隔分析
+  - 为 @meta-coach 提供工作流分析数据源（仅数据，不做语义判断）
 
 ### MCP Server Integration (New - Planned)
 
@@ -156,6 +185,27 @@ meta-cc query user-messages --match "fix.*bug"
 meta-cc query user-messages --match "error|warning" --limit 10
 ```
 
+### Context Query Commands (8.10-8.11)
+```bash
+# Query error context
+meta-cc query context --error-signature err-a1b2 --window 3
+
+# Query file access history
+meta-cc query file-access --file test_auth.js --output json
+
+# Query tool sequences
+meta-cc query tool-sequences --min-occurrences 3
+
+# Time window queries
+meta-cc query tools --since "5 minutes ago"
+meta-cc query tools --last-n-turns 10
+
+# Workflow pattern detection
+meta-cc analyze sequences --min-length 3 --min-occurrences 3
+meta-cc analyze file-churn --threshold 5
+meta-cc analyze idle-periods --threshold "5 minutes"
+```
+
 ### Updated Slash Commands (8.5)
 ```bash
 # /meta-timeline now uses Phase 8
@@ -220,14 +270,25 @@ Core query infrastructure - **COMPLETED**
   - Nice to have: Improves UX
   - Can be deferred if time-constrained
 
-### High Priority (Stage 8.8-8.9) 📋
+### High Priority (Stage 8.10-8.11) 📋
+- Stage 8.10: 上下文和关联查询 (2-3 hours)
+  - Critical: 为 Slash Commands/Subagent 提供上下文检索
+  - Enables error context analysis
+  - Supports file access history and tool sequences
+
+- Stage 8.11: 工作流模式数据支持 (1-2 hours)
+  - Important: 为 @meta-coach 提供工作流分析数据
+  - Detects repetitive patterns
+  - Identifies inefficient workflows
+
+### Medium Priority (Stage 8.8-8.9) 📋
 - Stage 8.8: Enhance MCP Server (1-1.5 hours)
-  - Critical: Completes MCP integration
+  - Important: Completes MCP integration
   - Enables natural language queries
   - Prevents MCP context overflow
 
 - Stage 8.9: Configure MCP Server (30 min)
-  - Important: Makes MCP discoverable
+  - Nice to have: Makes MCP discoverable
   - Documentation for users
   - Integration testing
 
@@ -280,6 +341,29 @@ jq empty .claude/mcp-servers/meta-cc.json
 "搜索我提到 'Phase 8' 的消息"
 ```
 
+### Stage 8.10 Testing
+```bash
+# Test context queries
+./meta-cc query context --error-signature err-a1b2 --window 3 --output json | jq '.occurrences | length'
+
+# Test file access
+./meta-cc query file-access --file test_auth.js --output json | jq '.total_accesses'
+
+# Test tool sequences
+./meta-cc query tool-sequences --min-occurrences 3 --output json | jq '.sequences | length'
+
+# Test time filters
+./meta-cc query tools --since "10 minutes ago" --output json | jq '. | length'
+```
+
+### Stage 8.11 Testing
+```bash
+# Test workflow pattern detection
+./meta-cc analyze sequences --min-length 3 --min-occurrences 3 --output json | jq '.sequences | length'
+./meta-cc analyze file-churn --threshold 5 --output json | jq '.high_churn_files | length'
+./meta-cc analyze idle-periods --threshold "5 minutes" --output json | jq '.idle_periods | length'
+```
+
 ### Integration Testing
 ```bash
 # Test all commands in a large session (>500 turns)
@@ -288,8 +372,13 @@ jq empty .claude/mcp-servers/meta-cc.json
 @meta-coach 帮我优化      # Should use iterative pattern
 /meta-query-tools Bash   # Should work efficiently
 
+# Test new context-aware commands (Stage 8.10-8.11)
+/meta-error-context err-a1b2    # Should show error context
+/meta-workflow-check            # Should use pattern detection
+
 # Test MCP integration
 "分析我的工作流"          # Claude should call MCP tools autonomously
+"查看 test_auth.js 的修改历史"  # Should use query file-access
 ```
 
 ## Success Metrics
@@ -309,6 +398,15 @@ jq empty .claude/mcp-servers/meta-cc.json
 - 📋 Natural language queries work seamlessly
 - 📋 Claude can autonomously analyze workflows
 
+### Context Query Success (8.10-8.11)
+- 📋 Error context queries return complete surrounding turns
+- 📋 File access history provides actionable insights
+- 📋 Tool sequence detection identifies repetitive patterns
+- 📋 Time window queries work accurately
+- 📋 Workflow pattern detection provides data (no semantic judgments)
+- 📋 @meta-coach uses context queries for deeper analysis
+- 📋 Slash Commands leverage context data for better recommendations
+
 ## Dependencies
 
 ### Prerequisites
@@ -321,8 +419,10 @@ jq empty .claude/mcp-servers/meta-cc.json
 - Stage 8.5: Depends on 8.2 (query tools)
 - Stage 8.6: Depends on 8.2, 8.3 (query tools, messages)
 - Stage 8.7: Depends on 8.2, 8.3 (query tools, messages)
-- Stage 8.8: Depends on 8.2, 8.3 (query tools, messages), Phase 7 (MCP implementation)
+- Stage 8.8: Depends on 8.2, 8.3, 8.10 (query tools, messages, context queries), Phase 7 (MCP implementation)
 - Stage 8.9: Depends on 8.8 (enhanced MCP server)
+- Stage 8.10: Depends on 8.2 (query tools framework)
+- Stage 8.11: Depends on 8.10 (context queries for idle-period context)
 
 ## Risk Mitigation
 
@@ -352,6 +452,19 @@ jq empty .claude/mcp-servers/meta-cc.json
 - ✅ `.claude/commands/meta-query-messages.md` - New command created
 - ✅ `README.md` or `docs/examples-usage.md` - Usage examples updated
 
+### Context Query Extensions (8.10-8.11) 📋
+- 📋 `cmd/query_context.go` - Context query implementation
+- 📋 `cmd/query_file_access.go` - File access history
+- 📋 `cmd/query_sequences.go` - Tool sequence queries
+- 📋 `cmd/analyze_sequences.go` - Sequence detection
+- 📋 `cmd/analyze_file_churn.go` - File churn detection
+- 📋 `cmd/analyze_idle.go` - Idle period detection
+- 📋 `internal/query/context.go` - Context query data structures
+- 📋 `internal/analyzer/workflow.go` - Workflow pattern analysis
+- 📋 `.claude/commands/meta-error-context.md` - New Slash Command
+- 📋 `.claude/commands/meta-workflow-check.md` - New Slash Command
+- 📋 Updated `.claude/agents/meta-coach.md` - Workflow analysis section
+
 ### MCP Integration (8.8-8.9) 📋
 - 📋 `cmd/mcp.go` - Enhanced with Phase 8 tools
 - 📋 `.claude/mcp-servers/meta-cc.json` - MCP configuration created
@@ -372,15 +485,17 @@ jq empty .claude/mcp-servers/meta-cc.json
 
 ## Next Steps
 
-### Immediate (Stage 8.5-8.9)
+### Immediate (Stage 8.5-8.11)
 1. ✅ Plan created (this document)
 2. ✅ Execute Stage 8.5 (15-30 min): Update Slash Commands
 3. ✅ Execute Stage 8.6 (20-30 min): Update @meta-coach
 4. ✅ Execute Stage 8.7 (30-45 min): Create new commands
-5. 📋 Execute Stage 8.8 (1-1.5h): Enhance MCP Server
-6. 📋 Execute Stage 8.9 (30 min): Configure MCP Server
-7. 📋 Test all integrations (including MCP)
-8. 📋 Update main documentation
+5. 📋 Execute Stage 8.10 (2-3h): 上下文和关联查询
+6. 📋 Execute Stage 8.11 (1-2h): 工作流模式数据支持
+7. 📋 Execute Stage 8.8 (1-1.5h): Enhance MCP Server
+8. 📋 Execute Stage 8.9 (30 min): Configure MCP Server
+9. 📋 Test all integrations (including context queries and MCP)
+10. 📋 Update main documentation
 
 ### Future (Phase 9+)
 - Phase 9: Context-Length Management (pagination, chunking)
@@ -395,6 +510,8 @@ jq empty .claude/mcp-servers/meta-cc.json
 - **Stage 8.7 Plan**: `plans/8/stage-8.7.md`
 - **Stage 8.8 Plan**: `plans/8/stage-8.8.md`
 - **Stage 8.9 Plan**: `plans/8/stage-8.9.md`
+- **Stage 8.10 Plan**: `plans/8/stage-8.10.md` (NEW)
+- **Stage 8.11 Plan**: `plans/8/stage-8.11.md` (NEW)
 - **MCP Gap Analysis**: `/tmp/phase8-mcp-gap-analysis.md`
 - **Integration Proposal**: `/tmp/meta-cc-integration-improvement-proposal.md`
 - **Main Plan**: `docs/plan.md`

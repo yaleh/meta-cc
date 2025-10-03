@@ -2,7 +2,7 @@
 
 ## Overview
 
-meta-cc provides a Model Context Protocol (MCP) Server that allows Claude Code to autonomously query session data without manual CLI commands.
+meta-cc provides a Model Context Protocol (MCP) Server that allows Claude Code to autonomously query session data without manual CLI commands. With Phase 8 enhancements, the MCP server now provides 8 powerful tools for comprehensive session analysis.
 
 ## Configuration
 
@@ -12,47 +12,97 @@ The MCP Server is configured in `.claude/mcp-servers/meta-cc.json`.
 - `meta-cc` binary in project root or PATH
 - Claude Code with MCP support
 
+**Configuration File**:
+```json
+{
+  "command": "./meta-cc",
+  "args": ["mcp"],
+  "description": "Meta-cognition analysis for Claude Code sessions",
+  "env": {},
+  "tools": [
+    "get_session_stats",
+    "analyze_errors",
+    "extract_tools",
+    "query_tools",
+    "query_user_messages",
+    "query_context",
+    "query_tool_sequences",
+    "query_file_access"
+  ]
+}
+```
+
 ## Available Tools
 
 ### 1. get_session_stats
-Get comprehensive session statistics.
+
+Get comprehensive session statistics including turn count, tool usage, and error rates.
 
 **Parameters**:
 - `output_format` (optional): "json" or "md" (default: "json")
 
-**Example Query**:
+**Example Queries**:
 ```
-帮我看一下当前会话的统计信息
+Show me the session statistics
+How many tools have I used?
+What's my error rate?
 ```
+
+**Direct Invocation**:
+```
+mcp__meta-insight__get_session_stats
+```
+
+---
 
 ### 2. analyze_errors
-Analyze error patterns in the session.
+
+Analyze error patterns in the session, detecting repeated failures and common issues.
 
 **Parameters**:
-- `window_size` (optional): Number of recent turns to analyze (default: 20)
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "json" or "md" (default: "json")
 
-**Example Query**:
+**Example Queries**:
 ```
-分析一下我的错误模式
+Analyze my error patterns
+What errors keep happening?
+Why do my commands fail?
 ```
+
+**Direct Invocation**:
+```
+mcp__meta-insight__analyze_errors
+```
+
+---
 
 ### 3. extract_tools (Phase 8 Enhanced)
-Extract tool usage data with pagination.
+
+Extract tool usage data with pagination to prevent context overflow.
 
 **Parameters**:
 - `limit` (optional): Maximum number of tools (default: 100)
 - `output_format` (optional): "json" or "md"
 
-**Example Query**:
+**Example Queries**:
 ```
-提取最近 50 个工具调用
+Extract the last 50 tool calls
+Show me recent tool usage
+What tools have I been using?
 ```
 
-**Phase 8 Enhancement**: Now uses `query tools --limit` to prevent context overflow.
+**Phase 8 Enhancement**: Now uses `query tools --limit` internally to prevent context overflow.
+
+**Direct Invocation**:
+```
+mcp__meta-insight__extract_tools
+```
+
+---
 
 ### 4. query_tools (Phase 8 New)
-Query tool calls with flexible filtering.
+
+Query tool calls with flexible filtering by tool name, status, and limit.
 
 **Parameters**:
 - `tool` (optional): Filter by tool name (e.g., "Bash", "Read", "Edit")
@@ -62,97 +112,212 @@ Query tool calls with flexible filtering.
 
 **Example Queries**:
 ```
-帮我查一下用了多少次 Bash 工具
-查找所有 Bash 命令的错误
-显示最近 10 个 Edit 工具的调用
+How many times did I use Bash?
+Find all Bash errors
+Show the last 10 Edit tool calls
+What Read commands succeeded?
 ```
 
+**Direct Invocation**:
+```
+mcp__meta-insight__query_tools
+```
+
+---
+
 ### 5. query_user_messages (Phase 8 New)
-Search user messages with regex patterns.
+
+Search user messages with regex pattern matching.
 
 **Parameters**:
-- `pattern` (required): Regex pattern to match
+- `pattern` (required): Regex pattern to match in message content
 - `limit` (optional): Maximum results (default: 10)
 - `output_format` (optional): "json" or "md"
 
 **Example Queries**:
 ```
-搜索我提到 "Phase 8" 的消息
-查找包含 "error" 或 "bug" 的消息
-找到我说过 "fix.*bug" 的地方
+Search for messages about "Phase 8"
+Find when I mentioned "bug" or "error"
+Look for my "fix.*test" messages
 ```
+
+**Regex Pattern Examples**:
+| Pattern | Description |
+|---------|-------------|
+| `Phase 8` | Exact match |
+| `error\|bug` | OR operator |
+| `^Continue` | Start with |
+| `test$` | End with |
+| `fix.*bug` | Between words |
+| `Phase [0-9]` | Number range |
+
+**Direct Invocation**:
+```
+mcp__meta-insight__query_user_messages
+```
+
+---
+
+### 6. query_context (Stage 8.10+)
+
+Query context around specific errors to understand what led to failures.
+
+**Parameters**:
+- `error_signature` (required): Error pattern ID to query
+- `window` (optional): Context window size in turns before/after (default: 3)
+- `output_format` (optional): "json" or "md"
+
+**Example Queries**:
+```
+Show context around the npm test failure
+What happened before the Bash error?
+Give me 5 turns of context for error X
+```
+
+**Direct Invocation**:
+```
+mcp__meta-insight__query_context
+```
+
+---
+
+### 7. query_tool_sequences (Stage 8.11+)
+
+Query repeated tool call sequences to identify workflow patterns.
+
+**Parameters**:
+- `min_occurrences` (optional): Minimum occurrences to report (default: 3)
+- `pattern` (optional): Specific sequence pattern (e.g., "Read -> Edit -> Bash")
+- `output_format` (optional): "json" or "md"
+
+**Example Queries**:
+```
+What tool sequences do I repeat?
+Find my "Read -> Edit -> Bash" pattern
+Show common workflows
+```
+
+**Direct Invocation**:
+```
+mcp__meta-insight__query_tool_sequences
+```
+
+---
+
+### 8. query_file_access
+
+Query file access history including read, edit, and write operations.
+
+**Parameters**:
+- `file` (required): File path to query
+- `output_format` (optional): "json" or "md"
+
+**Example Queries**:
+```
+How many times did I edit main.go?
+Show access history for README.md
+What operations on config.json?
+```
+
+**Direct Invocation**:
+```
+mcp__meta-insight__query_file_access
+```
+
+---
 
 ## Usage Patterns
 
-### 1. 自然语言查询 (Natural Language - Recommended)
+### 1. Natural Language (Recommended)
 
-Claude automatically selects the appropriate tool:
+Claude automatically selects the appropriate tool based on your question:
 
 ```
-User: "我的 Bash 命令哪里出问题了？"
+User: "Why do my Bash commands keep failing?"
+
 Claude: [Automatically calls]
   1. query_tools(tool="Bash", status="error")
-  2. analyze_errors(window_size=50)
+  2. analyze_errors()
   3. Provides analysis and recommendations
 ```
 
-No manual commands needed!
+**No manual commands needed!**
 
 ### 2. Direct Tool Invocation
 
+If you prefer explicit control:
+
 ```
-使用 mcp__meta-insight__query_tools 查询 Bash 工具的使用情况
+Use mcp__meta-insight__query_tools to find Bash errors
 ```
 
 ### 3. Combined Analysis
 
+Claude can orchestrate multiple tools for deep analysis:
+
 ```
-User: "帮我优化工作流"
+User: "Help me optimize my workflow"
+
 Claude: [Automatically calls]
   1. get_session_stats() - Overall metrics
-  2. query_tools(status="error") - Error patterns
-  3. query_user_messages(pattern="优化|improve") - Past optimization attempts
-  4. Provides comprehensive recommendations
+  2. query_tool_sequences(min_occurrences=3) - Repeated patterns
+  3. query_tools(status="error") - Error hotspots
+  4. query_user_messages(pattern="repeat|again") - User frustrations
+  5. Provides comprehensive optimization recommendations
 ```
 
 ## Best Practices
 
 ### 1. Use Natural Language
+
 Let Claude choose the right tool based on context.
 
 **Good**:
 ```
-帮我查一下 Bash 工具的错误
+Find my Bash errors
 ```
 
 **Also Good** (but less natural):
 ```
-使用 query_tools 查询 Bash 错误
+Use query_tools with tool=Bash and status=error
 ```
 
 ### 2. Be Specific When Needed
+
 ```
-查找我最近 20 条提到 "Phase 8" 的消息
+Find the last 20 messages about "Phase 8"
 → Claude calls: query_user_messages(pattern="Phase 8", limit=20)
 ```
 
 ### 3. Combine with Slash Commands
+
 - **Slash Commands**: For repeated workflows, predictable outputs
 - **MCP Tools**: For exploratory analysis, natural language queries
 
-Example:
+**Example**:
 ```
 /meta-stats              # Quick stats (Slash Command)
-分析我的工作流               # Deep analysis (MCP + Claude reasoning)
+Analyze my workflow      # Deep analysis (MCP + Claude reasoning)
 ```
 
 ### 4. Large Sessions
+
 MCP tools automatically handle pagination:
 - `extract_tools`: Default limit 100
 - `query_tools`: Default limit 20
 - `query_user_messages`: Default limit 10
 
 Claude will make multiple calls if needed.
+
+### 5. Error Investigation
+
+Start broad, then narrow down:
+
+```
+1. "Analyze my errors" → analyze_errors()
+2. "Show Bash errors" → query_tools(tool="Bash", status="error")
+3. "What happened before error X?" → query_context(error_signature="X")
+```
 
 ## Troubleshooting
 
@@ -168,6 +333,7 @@ Claude will make multiple calls if needed.
 2. Verify configuration file:
    ```bash
    cat .claude/mcp-servers/meta-cc.json
+   jq empty .claude/mcp-servers/meta-cc.json && echo "Valid JSON"
    ```
 3. Restart Claude Code
 
@@ -191,15 +357,29 @@ Claude will make multiple calls if needed.
 **Symptom**: Tool runs but returns empty results
 
 **Solution**:
-- For `query_tools`: Check tool name spelling (case-sensitive)
+- For `query_tools`: Check tool name spelling (case-sensitive: "Bash", not "bash")
 - For `query_user_messages`: Verify regex pattern is valid
+- For `query_context`: Ensure error_signature exists
+- For `query_file_access`: Check file path is exact
 - Increase limit parameter
+
+### Pattern Matching Issues
+
+**Symptom**: `query_user_messages` returns unexpected results
+
+**Solution**:
+- Test regex pattern with `grep`:
+  ```bash
+  echo "Phase 8 test" | grep -E "Phase [0-9]"
+  ```
+- Escape special characters: `\.`, `\*`, `\+`, `\?`, `\[`, `\]`
+- Use `\|` for OR: `error\|bug`
 
 ## Comparison: MCP vs Slash Commands vs CLI
 
 ### When to Use MCP Tools
 
-✅ **Use MCP when**:
+**Use MCP when**:
 - Asking exploratory questions
 - Combining multiple queries
 - Letting Claude reason about what to query
@@ -207,13 +387,13 @@ Claude will make multiple calls if needed.
 
 **Example**:
 ```
-"我的工作流哪里可以优化？"
-→ Claude autonomously queries stats, errors, and messages
+"Where can I optimize my workflow?"
+→ Claude autonomously queries stats, errors, sequences, and messages
 ```
 
 ### When to Use Slash Commands
 
-✅ **Use Slash Commands when**:
+**Use Slash Commands when**:
 - Repeated workflows
 - Predictable outputs
 - Fast execution needed
@@ -228,14 +408,15 @@ Claude will make multiple calls if needed.
 
 ### When to Use CLI Directly
 
-✅ **Use CLI when**:
+**Use CLI when**:
 - Scripting or automation
 - Outside Claude Code
 - Debugging meta-cc itself
+- Piping to other tools
 
 **Example**:
 ```bash
-meta-cc query tools --tool Bash --status error | jq .
+meta-cc query tools --tool Bash --status error | jq '.tools | length'
 ```
 
 ## Advanced Usage
@@ -244,12 +425,14 @@ meta-cc query tools --tool Bash --status error | jq .
 
 | Pattern | Description | Example Query |
 |---------|-------------|---------------|
-| `Phase 8` | Exact match | "找到 Phase 8 相关消息" |
-| `error\|bug` | OR operator | "搜索 error 或 bug" |
-| `^Continue` | Start with | "找以 Continue 开头的消息" |
-| `test$` | End with | "找以 test 结尾的消息" |
-| `fix.*bug` | Between | "找 fix 和 bug 之间的消息" |
-| `Phase [0-9]` | Number range | "找所有 Phase 加数字的消息" |
+| `Phase 8` | Exact match | "Find messages about Phase 8" |
+| `error\|bug` | OR operator | "Search for error or bug" |
+| `^Continue` | Start with | "Find messages starting with Continue" |
+| `test$` | End with | "Find messages ending with test" |
+| `fix.*bug` | Between | "Find fix followed by bug" |
+| `Phase [0-9]` | Number range | "Find all Phase mentions with numbers" |
+| `(implement\|create)` | Grouped OR | "Find implement or create" |
+| `\btest\b` | Word boundary | "Find exact word test" |
 
 ### Filter Combinations
 
@@ -262,77 +445,170 @@ query_user_messages(pattern="优化|improve|optimize", limit=20)
 
 # Extract recent file operations
 query_tools(tool="Edit|Write|Read", limit=30)
+
+# Find repeated Read -> Edit sequences
+query_tool_sequences(pattern="Read -> Edit", min_occurrences=5)
+
+# Context around specific error
+query_context(error_signature="npm_test_fail", window=5)
 ```
+
+### Workflow Optimization Strategy
+
+1. **Discover Patterns**:
+   ```
+   "What tool sequences do I repeat?"
+   → query_tool_sequences(min_occurrences=3)
+   ```
+
+2. **Identify Pain Points**:
+   ```
+   "What errors keep happening?"
+   → analyze_errors() + query_tools(status="error")
+   ```
+
+3. **Find Context**:
+   ```
+   "What happened before the npm test failures?"
+   → query_context(error_signature="npm_test_fail", window=5)
+   ```
+
+4. **Create Automation**:
+   - Repeated sequences → Slash Command
+   - Repeated errors → Hook or pre-commit check
+   - Complex workflows → Subagent (@meta-coach)
 
 ## Examples
 
 ### Example 1: Debug Workflow Errors
 
-**User**: "为什么我的命令总是失败？"
+**User**: "Why do my commands keep failing?"
 
 **Claude** (automatically):
 ```
 1. Calling query_tools(status="error", limit=20)...
    → Found 5 Bash errors
 
-2. Calling analyze_errors(window_size=50)...
-   → Detected pattern: "npm test" failing repeatedly
+2. Calling analyze_errors()...
+   → Detected pattern: "npm test" failing repeatedly (5 times)
 
-3. Analysis:
-   - Error occurs 5 times in 50 turns
+3. Calling query_context(error_signature="npm_test_fail", window=3)...
+   → Context shows missing test file each time
+
+4. Analysis:
+   - Error occurs 5 times in last 50 turns
    - Same command: "npm test"
-   - Suggestion: Check test configuration or add pre-test hook
+   - Root cause: tests/main.test.js not found
+   - Suggestion: Create test file or fix path in package.json
 ```
 
 ### Example 2: Workflow Optimization
 
-**User**: "帮我优化我的开发流程"
+**User**: "Help me optimize my development workflow"
 
 **Claude** (automatically):
 ```
 1. Calling get_session_stats()...
    → 150 turns, 67 tool calls, 5% error rate
 
-2. Calling query_tools(tool="Bash")...
+2. Calling query_tool_sequences(min_occurrences=3)...
+   → Found: "Read -> Edit -> Bash" repeated 12 times
+
+3. Calling query_tools(tool="Bash")...
    → Bash used 30 times (most frequent)
 
-3. Calling query_user_messages(pattern="重复|again|再次")...
+4. Calling query_user_messages(pattern="repeat|again|re-run")...
    → Found 8 messages about repeated tasks
 
-4. Recommendations:
-   - Create Slash Command for repeated "npm test"
-   - Add Hook for pre-commit checks
-   - Use @meta-coach for deeper analysis
+5. Recommendations:
+   - Create Slash Command for "Read -> Edit -> Bash -> Test" workflow
+   - Add Hook for automatic test execution after Edit
+   - Most common Bash command: "npm test" → Create /test shortcut
+   - Consider @meta-coach for deeper workflow analysis
 ```
 
 ### Example 3: Message Search
 
-**User**: "我之前提到过 Phase 8 的实现细节吗？"
+**User**: "Did I mention Phase 8 implementation details earlier?"
 
 **Claude** (automatically):
 ```
-1. Calling query_user_messages(pattern="Phase 8.*实现|implement.*Phase 8", limit=5)...
+1. Calling query_user_messages(pattern="Phase 8.*(implement|detail)", limit=10)...
 
 2. Results:
-   - Turn 45: "让我们开始 Phase 8 实现..."
-   - Turn 67: "Phase 8 的实现应该包括..."
-   - Turn 89: "完成 Phase 8 实现后..."
+   - Turn 45: "Let's start Phase 8 implementation..."
+   - Turn 67: "Phase 8 details should include..."
+   - Turn 89: "After completing Phase 8 implementation..."
 
 3. Summary: Yes, you discussed Phase 8 implementation 3 times,
    focusing on query commands and integration improvements.
 ```
 
+### Example 4: File Access History
+
+**User**: "How many times did I edit cmd/mcp.go?"
+
+**Claude** (automatically):
+```
+1. Calling query_file_access(file="cmd/mcp.go")...
+
+2. Results:
+   - Read: 5 times (turns 12, 34, 56, 78, 90)
+   - Edit: 8 times (turns 15, 23, 45, 67, 72, 81, 95, 102)
+   - Total operations: 13
+
+3. Summary: You edited cmd/mcp.go 8 times, with most edits
+   occurring during Phase 8 MCP tool implementation.
+```
+
+### Example 5: Tool Sequence Analysis
+
+**User**: "What are my most common workflows?"
+
+**Claude** (automatically):
+```
+1. Calling query_tool_sequences(min_occurrences=3)...
+
+2. Top Sequences:
+   - "Read -> Edit -> Bash" (12 times) - Test workflow
+   - "Grep -> Read -> Edit" (8 times) - Search and fix
+   - "Glob -> Read -> Edit -> Bash" (5 times) - Batch editing
+
+3. Recommendations:
+   - Create /test-workflow for "Read -> Edit -> Bash"
+   - Add Hook to auto-run tests after Edit
+   - Consider batch editing tool for Glob-based workflows
+```
+
 ## Summary
 
 MCP Server provides:
-- ✅ **5 tools** (3 from Phase 7 + 2 from Phase 8)
-- ✅ **Natural language queries** (no manual commands)
-- ✅ **Autonomous analysis** (Claude decides what to query)
-- ✅ **Flexible filtering** (tool, status, pattern, limit)
-- ✅ **Context-aware** (automatic pagination)
+- 8 powerful tools (3 from Phase 7 + 5 from Phase 8)
+- Natural language queries (no manual commands)
+- Autonomous analysis (Claude decides what to query)
+- Flexible filtering (tool, status, pattern, limit)
+- Context-aware (automatic pagination)
+- Error investigation (context queries)
+- Workflow optimization (sequence detection)
+- File tracking (access history)
+
+**Quick Start**:
+1. Ensure `meta-cc` binary is in project root
+2. Configuration is already in `.claude/mcp-servers/meta-cc.json`
+3. Restart Claude Code (if not already loaded)
+4. Start asking questions naturally!
 
 **Next Steps**:
-1. Try natural language queries in Claude Code
-2. Explore different query patterns
-3. Combine with @meta-coach for deep analysis
-4. Create custom Slash Commands for workflows
+- Try natural language queries in Claude Code
+- Explore different query patterns and filters
+- Combine with @meta-coach for deep analysis
+- Create custom Slash Commands for repeated workflows
+- Use query_context to understand error patterns
+- Leverage query_tool_sequences for workflow optimization
+
+## Related Documentation
+
+- [Integration Guide](integration-guide.md) - Choosing between MCP/Slash/Subagent
+- [Examples & Usage](examples-usage.md) - Step-by-step setup guides
+- [Slash Commands Reference](../README.md#slash-commands) - Quick command reference
+- [Troubleshooting](troubleshooting.md) - Common issues and solutions

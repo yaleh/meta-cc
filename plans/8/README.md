@@ -79,11 +79,17 @@ See [phase-8-implementation-plan.md](./phase-8-implementation-plan.md) for compl
 
 ## Code Budget
 
-- Total: ~400 lines
-- Stage 8.1: ~100 lines (framework)
-- Stage 8.2: ~120 lines (query tools)
-- Stage 8.3: ~100 lines (query messages)
-- Stage 8.4: ~80 lines (filter enhancement)
+- Core Implementation (8.1-8.4): ~400 lines
+  - Stage 8.1: ~100 lines (framework)
+  - Stage 8.2: ~120 lines (query tools)
+  - Stage 8.3: ~100 lines (query messages)
+  - Stage 8.4: ~80 lines (filter enhancement)
+- Integration Updates (8.5-8.7): ~250 lines (config/docs)
+- MCP Integration (8.8-8.9): ~120 lines
+- Context Query Extensions (8.10-8.11): ~280 lines
+  - Stage 8.10: ~180 lines (context queries)
+  - Stage 8.11: ~100 lines (workflow patterns)
+- **Total**: ~1050 lines
 
 ## Success Criteria
 
