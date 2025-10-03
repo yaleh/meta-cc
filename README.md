@@ -740,12 +740,23 @@ echo "Project Hash: $CC_PROJECT_HASH"
 
 If these environment variables are unavailable, meta-cc will automatically fall back to working directory inference.
 
+### Integration Options
+
+meta-cc integrates with Claude Code in three ways:
+
+- **MCP Server**: Seamless data access (Claude queries autonomously)
+- **Slash Commands**: Quick, pre-defined workflows (`/meta-stats`)
+- **Subagent** (`@meta-coach`): Interactive, conversational analysis
+
+**👉 See the [Integration Guide](./docs/integration-guide.md)** for detailed comparison, decision framework, and best practices.
+
 ### Reference Documentation
 
-- [Claude Code Slash Commands Official Documentation](https://docs.claude.com/en/docs/claude-code/slash-commands)
-- [meta-cc Command Reference](#usage)
-- [meta-cc Technical Proposal](./docs/proposals/meta-cognition-proposal.md)
-- [Troubleshooting Guide](./docs/troubleshooting.md)
+- **[Integration Guide](./docs/integration-guide.md)** - Choose the right integration method
+- [Examples & Usage](./docs/examples-usage.md) - Step-by-step setup guides
+- [Troubleshooting Guide](./docs/troubleshooting.md) - Common issues and solutions
+- [Technical Proposal](./docs/proposals/meta-cognition-proposal.md) - Architecture deep dive
+- [Claude Code Documentation](https://docs.claude.com/en/docs/claude-code/overview) - Official docs
 
 ## Development
 

@@ -268,35 +268,31 @@ Use meta-insight to get my session statistics
 
 ---
 
-## Comparison: When to Use Each Integration
+## Which Integration Should I Use?
 
-### Use Slash Commands when:
-- ✅ You want **quick, one-off analysis**
-- ✅ You need **formatted output** (markdown tables)
-- ✅ You want **self-service** without conversation
-- ✅ You're comfortable with command syntax
+meta-cc provides three integration methods, each optimized for different use cases:
 
-**Examples**:
-- `/meta-stats` - Quick session overview
-- `/meta-errors 20` - Check recent errors
-- `/meta-compare /path` - Compare projects
+- **MCP Server**: Seamless data access (Claude queries autonomously)
+- **Slash Commands**: Quick, pre-defined workflows
+- **Subagent (@meta-coach)**: Interactive, conversational analysis
 
-### Use @meta-coach when:
-- ✅ You want **interactive guidance**
-- ✅ You need **personalized recommendations**
-- ✅ You want to **explore patterns** through conversation
-- ✅ You need help **implementing optimizations**
+### Quick Decision Guide
 
-**Examples**:
-- "I feel stuck, help me analyze what's happening"
-- "How did I solve similar problems before?"
-- "Create a custom Slash Command for me"
+| I want to... | Use this |
+|--------------|----------|
+| Check stats quickly | `/meta-stats` or ask naturally (MCP) |
+| Analyze repeated errors | `/meta-errors 30` |
+| Understand workflow inefficiency | `@meta-coach` |
+| Compare projects | `/meta-compare <path>` |
+| Get help and guidance | `@meta-coach` |
 
-### Use MCP Server when:
-- ✅ You want **Claude to query data autonomously**
-- ✅ You're building **custom workflows**
-- ✅ You need **programmatic access**
-- ✅ You want **seamless integration** without manual commands
+**👉 For detailed comparison, decision framework, and best practices, see the [Integration Guide](integration-guide.md).**
+
+This guide focuses on **how to use** each integration. The Integration Guide explains **when to choose** each one and provides:
+- 📊 Core differences (context isolation, invocation, execution models)
+- 🎯 Decision trees and scenario matrices
+- 💡 Anti-patterns and best practices
+- 📝 Real-world case studies
 
 **Examples**:
 - "Analyze my last 3 sessions and find patterns"
