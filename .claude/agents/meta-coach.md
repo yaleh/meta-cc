@@ -436,6 +436,129 @@ for file in files:
    meta-cc query tools --filter "file_path='/path/to/file.go' AND status='error'"
    ```
 
+## Phase 11 Unix Composability
+
+Phase 11 introduces Unix-style composability features for seamless integration with standard Unix tools.
+
+### Key Features
+
+1. **JSONL Streaming Output** (`--stream` flag):
+   ```bash
+   # Stream results as JSONL (one JSON object per line)
+   meta-cc query tools --stream | jq '.ToolName' | sort | uniq -c
+   ```
+
+2. **Standard Exit Codes**:
+   - `0`: Success (results found)
+   - `1`: Error (command failed)
+   - `2`: No results (query succeeded but found nothing)
+
+   ```bash
+   # Use exit codes in scripts
+   if meta-cc query tools --where "status='error'" --stream > /dev/null; then
+     echo "Errors found!"
+   else
+     if [ $? -eq 2 ]; then
+       echo "No errors (good!)"
+     fi
+   fi
+   ```
+
+3. **stderr/stdout Separation**:
+   - Data → stdout (can be piped)
+   - Logs → stderr (visible to user, doesn't pollute pipelines)
+
+   ```bash
+   # Clean pipeline without log interference
+   meta-cc query tools --stream 2>/dev/null | jq '.ToolName'
+   ```
+
+### Unix Pipeline Patterns
+
+**Pattern 1: Error Analysis with jq**
+```bash
+# Find most common error types
+meta-cc query tools --where "status='error'" --stream \
+  | jq -r '.Error' \
+  | sort | uniq -c | sort -rn
+```
+
+**Pattern 2: Performance Profiling with awk**
+```bash
+# Calculate average duration by tool
+meta-cc query tools --stream \
+  | jq -r '"\(.ToolName) \(.Duration)"' \
+  | awk '{sum[$1]+=$2; count[$1]++} END {for (t in sum) print t, sum[t]/count[t]}'
+```
+
+**Pattern 3: Tool Usage Statistics**
+```bash
+# Count successful vs failed operations
+meta-cc query tools --stream \
+  | jq -r '.Status' \
+  | sort | uniq -c
+```
+
+**Pattern 4: File Hotspot Detection**
+```bash
+# Find most edited files
+meta-cc stats files --output json \
+  | jq -r '.[] | "\(.edit_count) \(.file_path)"' \
+  | sort -rn | head -10
+```
+
+**Pattern 5: Time-Based Analysis**
+```bash
+# Extract tool usage by hour
+meta-cc query tools --stream \
+  | jq -r '.Timestamp | split("T")[1] | split(":")[0]' \
+  | sort | uniq -c
+```
+
+### Phase 11 Best Practices
+
+1. **Use Streaming for Large Datasets**:
+   ```bash
+   # Good: Streaming with immediate processing
+   meta-cc query tools --stream | jq '.ToolName' | head -10
+
+   # Avoid: Loading all data then processing
+   meta-cc query tools --output json | jq '.[].ToolName' | head -10
+   ```
+
+2. **Check Exit Codes in Scripts**:
+   ```bash
+   # Good: Handle all exit codes
+   meta-cc query tools --where "status='error'" --stream > errors.jsonl
+   case $? in
+     0) echo "Errors found, analyzing..." ;;
+     2) echo "No errors detected" ;;
+     1) echo "Query failed" >&2; exit 1 ;;
+   esac
+   ```
+
+3. **Separate Logs from Data**:
+   ```bash
+   # Good: Redirect stderr when piping
+   meta-cc query tools --stream 2>/dev/null | jq '.ToolName'
+
+   # Or save logs separately
+   meta-cc query tools --stream 2>query.log | jq '.ToolName'
+   ```
+
+4. **Leverage Unix Tools**:
+   ```bash
+   # Combine with grep for pattern matching
+   meta-cc query tools --stream | jq -r '.Error' | grep -i "timeout"
+
+   # Use sed for transformation
+   meta-cc query tools --stream | jq -r '.ToolName' | sed 's/^/Tool: /'
+   ```
+
+5. **See Cookbook for More Examples**:
+   - Refer to `docs/cookbook.md` for 30+ practical analysis patterns
+   - See `docs/cli-composability.md` for jq/grep/awk integration guide
+
 ## Coaching Methodology
 
 ### 1. Listen and Understand

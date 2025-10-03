@@ -28,48 +28,56 @@ fi
 FILTER_EXPR=${1:-""}
 LIMIT=${2:-20}
 
-echo "# 工具调用查询结果"
-echo ""
+echo "# 工具调用查询结果" >&2
+echo "" >&2
 
 # 构建查询命令
 if [ -n "$FILTER_EXPR" ]; then
     # Phase 10: Use advanced filtering if expression looks like a where clause
     if echo "$FILTER_EXPR" | grep -qE "(AND|OR|IN|BETWEEN|LIKE|=|>|<)"; then
-        QUERY_CMD="meta-cc query tools --where \"$FILTER_EXPR\" --limit $LIMIT --output json"
-        echo "**过滤条件**: $FILTER_EXPR"
+        QUERY_CMD="meta-cc query tools --where \"$FILTER_EXPR\" --limit $LIMIT --stream"
+        echo "**过滤条件**: $FILTER_EXPR" >&2
     else
         # Legacy: treat as tool name
-        QUERY_CMD="meta-cc query tools --tool $FILTER_EXPR --limit $LIMIT --output json"
-        echo "**过滤条件**: 工具=$FILTER_EXPR"
+        QUERY_CMD="meta-cc query tools --tool $FILTER_EXPR --limit $LIMIT --stream"
+        echo "**过滤条件**: 工具=$FILTER_EXPR" >&2
     fi
 else
-    QUERY_CMD="meta-cc query tools --limit $LIMIT --output json"
-    echo "**显示**: 最近 $LIMIT 次工具调用"
+    QUERY_CMD="meta-cc query tools --limit $LIMIT --stream"
+    echo "**显示**: 最近 $LIMIT 次工具调用" >&2
 fi
 
-echo ""
-echo "---"
-echo ""
+echo "" >&2
+echo "---" >&2
+echo "" >&2
 
-# 执行查询
-result=$($QUERY_CMD)
+# Phase 11: Execute with streaming and capture exit code
+result=$($QUERY_CMD 2>/dev/null)
+EXIT_CODE=$?
 
-# 检查是否有结果
+# Phase 11: Handle exit codes
+if [ $EXIT_CODE -eq 2 ]; then
+    echo "❌ 未找到匹配的工具调用" >&2
+    echo "" >&2
+    echo "💡 **提示**：" >&2
+    echo "- 检查工具名称拼写（如 Bash, Read, Edit, Write, Grep）" >&2
+    echo "- 检查状态值（error 或 success）" >&2
+    echo "- 尝试增加 limit 参数" >&2
+    exit 0
+elif [ $EXIT_CODE -eq 1 ]; then
+    echo "❌ 查询执行失败" >&2
+    exit 1
+fi
+
+# Convert JSONL to JSON array for jq processing
+result=$(echo "$result" | jq -s '.')
+
+# 检查是否有结果（already handled by exit code above, but keep for safety）
 count=$(echo "$result" | jq 'length')
 
-if [ "$count" -eq 0 ]; then
-    echo "❌ 未找到匹配的工具调用"
-    echo ""
-    echo "💡 **提示**："
-    echo "- 检查工具名称拼写（如 Bash, Read, Edit, Write, Grep）"
-    echo "- 检查状态值（error 或 success）"
-    echo "- 尝试增加 limit 参数"
-    exit 0
-fi
-
 # 显示结果
-echo "## 查询结果（共 $count 条）"
-echo ""
+echo "## 查询结果（共 $count 条）" >&2
+echo "" >&2
 
 # 根据是否有错误过滤，选择不同的显示格式
 if [ "$STATUS" = "error" ]; then
@@ -88,13 +96,13 @@ else
     '
 fi
 
-echo ""
-echo "---"
-echo ""
+echo "" >&2
+echo "---" >&2
+echo "" >&2
 
 # 统计摘要
-echo "## 统计摘要"
-echo ""
+echo "## 统计摘要" >&2
+echo "" >&2
 
 error_count=$(echo "$result" | jq '[.[] | select(.Status == "error" or .Error != "")] | length')
 success_count=$(echo "$result" | jq '[.[] | select(.Status != "error" and .Error == "")] | length')
@@ -103,16 +111,16 @@ if [ "$count" -gt 0 ]; then
     error_rate=$(echo "scale=2; $error_count * 100 / $count" | bc)
 fi
 
-echo "- **总数**: $count 次"
-echo "- **成功**: $success_count 次"
-echo "- **错误**: $error_count 次"
-echo "- **错误率**: ${error_rate}%"
+echo "- **总数**: $count 次" >&2
+echo "- **成功**: $success_count 次" >&2
+echo "- **错误**: $error_count 次" >&2
+echo "- **错误率**: ${error_rate}%" >&2
 
 # 工具频率分布（仅在未过滤工具时显示）
 if [ -z "$TOOL_NAME" ]; then
-    echo ""
-    echo "### 工具分布"
-    echo ""
+    echo "" >&2
+    echo "### 工具分布" >&2
+    echo "" >&2
     echo "$result" | jq -r '
         [.[] | .ToolName] |
         group_by(.) |
@@ -121,18 +129,20 @@ if [ -z "$TOOL_NAME" ]; then
         reverse |
         .[] |
         "- **\(.tool)**: \(.count) 次"
-    '
+    ' >&2
 fi
 
-echo ""
-echo "---"
-echo ""
-echo "💡 **提示**："
-echo "- 使用 /meta-query-tools Bash 查看所有 Bash 调用"
-echo "- 使用 /meta-query-tools \"status='error'\" 查看所有错误（Phase 10）"
-echo "- 使用 /meta-query-tools \"tool IN ('Bash','Edit')\" 查看多个工具（Phase 10）"
-echo "- 使用 /meta-query-tools \"tool='Bash' AND status='error'\" 复杂查询（Phase 10）"
-echo "- 使用 @meta-coach 获取深入分析和建议"
+echo "" >&2
+echo "---" >&2
+echo "" >&2
+echo "💡 **提示**：" >&2
+echo "- 使用 /meta-query-tools Bash 查看所有 Bash 调用" >&2
+echo "- 使用 /meta-query-tools \"status='error'\" 查看所有错误（Phase 10）" >&2
+echo "- 使用 /meta-query-tools \"tool IN ('Bash','Edit')\" 查看多个工具（Phase 10）" >&2
+echo "- 使用 /meta-query-tools \"tool='Bash' AND status='error'\" 复杂查询（Phase 10）" >&2
+echo "- Phase 11: 所有输出支持 --stream 流式 JSONL 格式" >&2
+echo "- Phase 11: 退出码 0=成功, 1=错误, 2=无结果" >&2
+echo "- 使用 @meta-coach 获取深入分析和建议" >&2
 ```
 
 ## 示例

@@ -22,20 +22,26 @@ if ! command -v meta-cc &> /dev/null; then
     exit 1
 fi
 
-# Phase 10: Enhanced statistics with aggregation
-echo "📊 Session Statistics"
-echo ""
+# Phase 11: Streaming output with proper I/O separation
+echo "📊 Session Statistics" >&2
+echo "" >&2
 
-# Basic session stats
-meta-cc parse stats --output md
-echo ""
+# Basic session stats (logs to stderr, data to stdout)
+meta-cc parse stats --output md 2>/dev/null
 
 # Phase 10: Aggregated statistics by tool
-echo "## Aggregated Statistics by Tool"
-echo ""
+echo "" >&2
+echo "## Aggregated Statistics by Tool" >&2
+echo "" >&2
 meta-cc stats aggregate --group-by tool --metrics "count,error_rate" --output md 2>/dev/null || {
-    echo "⚠️  Aggregation command not available (requires Phase 10)"
+    echo "⚠️  Aggregation command not available (requires Phase 10)" >&2
 }
+
+# Phase 11: Exit code handling
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 2 ]; then
+    echo "ℹ️  No data available for aggregation" >&2
+fi
 ```
 
 ## 说明

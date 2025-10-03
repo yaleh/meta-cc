@@ -27,19 +27,28 @@ fi
 WINDOW_SIZE=${1:-20}
 
 # Step 1: 提取错误数据（用于上下文展示）
-echo "## 错误数据提取"
-echo ""
+echo "## 错误数据提取" >&2
+echo "" >&2
 
-# Phase 10: Use advanced filtering for errors
-ERROR_COUNT=$(meta-cc query tools --where "status='error'" --output json 2>/dev/null | grep -o '"uuid"' | wc -l)
+# Phase 11: Use streaming with exit codes for errors
+meta-cc query tools --where "status='error'" --stream 2>/dev/null > /tmp/meta-errors-$$.jsonl
+EXIT_CODE=$?
 
-if [ "$ERROR_COUNT" -eq 0 ]; then
-    echo "✅ 当前会话中未检测到错误。"
+if [ $EXIT_CODE -eq 2 ]; then
+    echo "✅ 当前会话中未检测到错误。" >&2
+    rm -f /tmp/meta-errors-$$.jsonl
     exit 0
+elif [ $EXIT_CODE -eq 1 ]; then
+    echo "❌ 查询错误时出错。" >&2
+    rm -f /tmp/meta-errors-$$.jsonl
+    exit 1
 fi
 
-echo "检测到 $ERROR_COUNT 个错误工具调用。"
-echo ""
+ERROR_COUNT=$(wc -l < /tmp/meta-errors-$$.jsonl)
+rm -f /tmp/meta-errors-$$.jsonl
+
+echo "检测到 $ERROR_COUNT 个错误工具调用。" >&2
+echo "" >&2
 
 # Step 2: 分析错误模式（窗口大小：$WINDOW_SIZE）
 echo "## 错误模式分析（窗口大小：$WINDOW_SIZE）"
