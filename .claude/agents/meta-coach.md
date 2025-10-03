@@ -103,9 +103,9 @@ meta-cc --project /path/to/other/project parse stats --output md
 meta-cc --session <session-id> analyze errors --output md
 ```
 
-## Phase 8 Enhanced Query Capabilities
+## Phase 8-10 Enhanced Query Capabilities
 
-Phase 8 introduces powerful `query` commands for flexible data retrieval. Use these for efficient, targeted analysis.
+Phase 8-10 introduce powerful `query` and `stats` commands for flexible data retrieval and analysis. Use these for efficient, targeted insights.
 
 ### Query Tool Calls
 
@@ -245,6 +245,195 @@ meta-cc query tools --tool "$top_tool" --status error --output json
 
    # Step 3: Deep dive (specific tool)
    meta-cc query tools --tool Bash --status error
+   ```
+
+## Phase 10 Advanced Analysis Capabilities
+
+Phase 10 introduces advanced filtering, aggregation, time series analysis, and file-level statistics for deeper insights.
+
+### Advanced Filtering with SQL-like Expressions
+
+**Boolean Logic**:
+```bash
+# Combine multiple conditions
+meta-cc query tools --filter "tool='Bash' AND status='error'" --output json
+
+# OR conditions
+meta-cc query tools --filter "status='error' OR duration>1000" --output json
+
+# NOT conditions
+meta-cc query tools --filter "NOT (status='success')" --output json
+```
+
+**Set Operations**:
+```bash
+# IN operator - match multiple tools
+meta-cc query tools --filter "tool IN ('Bash', 'Edit', 'Write')" --output json
+
+# NOT IN operator
+meta-cc query tools --filter "status NOT IN ('success')" --output json
+```
+
+**Range Queries**:
+```bash
+# BETWEEN operator for durations
+meta-cc query tools --filter "duration BETWEEN 500 AND 2000" --output json
+
+# Date/time ranges (if timestamp filtering supported)
+meta-cc query tools --filter "timestamp BETWEEN '2025-10-01' AND '2025-10-03'" --output json
+```
+
+**Pattern Matching**:
+```bash
+# LIKE operator (SQL wildcard: % = any chars, _ = single char)
+meta-cc query tools --filter "tool LIKE 'meta%'" --output json
+
+# REGEXP operator (full regex)
+meta-cc query tools --filter "error REGEXP 'permission.*denied'" --output json
+```
+
+**Complex Nested Expressions**:
+```bash
+# Parentheses for grouping
+meta-cc query tools --filter "(tool='Bash' OR tool='Edit') AND status='error'" --output json
+
+# Multi-level conditions
+meta-cc query tools --filter "tool='Bash' AND (status='error' OR duration>2000)" --output json
+```
+
+### Aggregation and Statistical Analysis
+
+**Group-by with Metrics**:
+```bash
+# Aggregate by tool, show counts and error rates
+meta-cc stats aggregate --group-by tool --metrics "count,error_rate" --output json
+
+# Multiple metrics at once
+meta-cc stats aggregate --group-by tool --metrics "count,error_rate" --output md
+```
+
+**Example Analysis Workflow**:
+```python
+# 1. Get aggregated statistics
+stats = mcp.call_tool("aggregate_stats", {
+    "group_by": "tool",
+    "metrics": "count,error_rate"
+})
+
+# 2. Identify high-error tools (>10% error rate)
+high_error_tools = [t for t in stats if t["metrics"]["error_rate"] > 0.1]
+
+# 3. For each problematic tool, analyze time trends
+for tool in high_error_tools:
+    trend = mcp.call_tool("query_time_series", {
+        "metric": "error-rate",
+        "interval": "day",
+        "where": f"tool='{tool['group_value']}'"
+    })
+    # Provide insights on error trends over time...
+```
+
+### Time Series Analysis
+
+**Analyze Metrics Over Time**:
+```bash
+# Tool calls per hour
+meta-cc stats time-series --metric tool-calls --interval hour --output json
+
+# Error rate per day
+meta-cc stats time-series --metric error-rate --interval day --output md
+
+# Average duration per week (if supported)
+meta-cc stats time-series --metric avg-duration --interval week --output json
+```
+
+**With Filtering**:
+```bash
+# Time series for specific tool only
+meta-cc stats time-series --metric tool-calls --interval hour --filter "tool='Bash'" --output json
+```
+
+**Use Cases**:
+- Identify peak usage hours
+- Track error trends over time
+- Monitor session activity patterns
+- Detect workflow changes across days/weeks
+
+### File-Level Statistics
+
+**Identify File Hotspots**:
+```bash
+# Most edited files (top 20)
+meta-cc stats files --sort-by edit_count --top 20 --output md
+
+# Files with most errors
+meta-cc stats files --sort-by error_count --top 10 --output json
+
+# Files with highest error rate
+meta-cc stats files --sort-by error_rate --filter "error_count>0" --output md
+
+# All operations on files, sorted by total activity
+meta-cc stats files --sort-by total_ops --output json
+```
+
+**File Hotspot Detection Workflow**:
+```python
+# 1. Get most edited files with errors
+files = mcp.call_tool("query_files", {
+    "sort_by": "edit_count",
+    "top": 20,
+    "where": "error_count>0"
+})
+
+# 2. For each file, correlate with error patterns
+for file in files:
+    errors = mcp.call_tool("query_tools_advanced", {
+        "where": f"file_path='{file['file_path']}' AND status='error'"
+    })
+
+    # Analyze:
+    # - Which operations fail most (Read/Edit/Write)?
+    # - Are errors clustered in time?
+    # - Is there a pattern in error messages?
+
+    # Provide recommendations:
+    # - Suggest refactoring if edit_count is very high
+    # - Recommend error handling improvements
+    # - Identify if file has structural issues
+```
+
+### Phase 10 Best Practices
+
+1. **Use Advanced Filters for Precision**:
+   ```bash
+   # Good: Precise filtering
+   meta-cc query tools --filter "tool='Bash' AND status='error' AND duration>1000"
+
+   # Old way: Multiple queries + manual filtering
+   ```
+
+2. **Leverage Aggregation for Patterns**:
+   ```bash
+   # Good: Get aggregated view first
+   meta-cc stats aggregate --group-by tool --metrics "count,error_rate"
+
+   # Then drill down into specific tools
+   meta-cc query tools --filter "tool='Bash'" --limit 20
+   ```
+
+3. **Combine Time Series with Filtering**:
+   ```bash
+   # Analyze error trends for specific tool
+   meta-cc stats time-series --metric error-rate --interval day --filter "tool='Edit'"
+   ```
+
+4. **File Analysis for Refactoring Candidates**:
+   ```bash
+   # Find files that need attention
+   meta-cc stats files --sort-by error_count --top 10
+
+   # Then analyze what operations fail
+   meta-cc query tools --filter "file_path='/path/to/file.go' AND status='error'"
    ```
 
 ## Coaching Methodology

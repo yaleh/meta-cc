@@ -24,37 +24,27 @@ if ! command -v meta-cc &> /dev/null; then
 fi
 
 # 参数解析
-TOOL_NAME=${1:-""}
-STATUS=${2:-""}
-LIMIT=${3:-20}
+# Phase 10: Support --where expressions as first parameter
+FILTER_EXPR=${1:-""}
+LIMIT=${2:-20}
 
 echo "# 工具调用查询结果"
 echo ""
 
 # 构建查询命令
-QUERY_CMD="meta-cc query tools --limit $LIMIT --output json"
-
-# 添加工具过滤
-if [ -n "$TOOL_NAME" ]; then
-    QUERY_CMD="$QUERY_CMD --tool $TOOL_NAME"
-    echo "**过滤条件**: 工具=$TOOL_NAME"
-fi
-
-# 添加状态过滤
-if [ -n "$STATUS" ]; then
-    QUERY_CMD="$QUERY_CMD --status $STATUS"
-    if [ -n "$TOOL_NAME" ]; then
-        echo ", 状态=$STATUS"
+if [ -n "$FILTER_EXPR" ]; then
+    # Phase 10: Use advanced filtering if expression looks like a where clause
+    if echo "$FILTER_EXPR" | grep -qE "(AND|OR|IN|BETWEEN|LIKE|=|>|<)"; then
+        QUERY_CMD="meta-cc query tools --where \"$FILTER_EXPR\" --limit $LIMIT --output json"
+        echo "**过滤条件**: $FILTER_EXPR"
     else
-        echo "**过滤条件**: 状态=$STATUS"
+        # Legacy: treat as tool name
+        QUERY_CMD="meta-cc query tools --tool $FILTER_EXPR --limit $LIMIT --output json"
+        echo "**过滤条件**: 工具=$FILTER_EXPR"
     fi
-fi
-
-# 显示数量限制
-if [ -z "$TOOL_NAME" ] && [ -z "$STATUS" ]; then
-    echo "**显示**: 最近 $LIMIT 次工具调用"
 else
-    echo ", 数量限制=$LIMIT"
+    QUERY_CMD="meta-cc query tools --limit $LIMIT --output json"
+    echo "**显示**: 最近 $LIMIT 次工具调用"
 fi
 
 echo ""
@@ -139,8 +129,9 @@ echo "---"
 echo ""
 echo "💡 **提示**："
 echo "- 使用 /meta-query-tools Bash 查看所有 Bash 调用"
-echo "- 使用 /meta-query-tools \"\" error 查看所有错误"
-echo "- 使用 /meta-query-tools Read \"\" 30 查看最近 30 次 Read 调用"
+echo "- 使用 /meta-query-tools \"status='error'\" 查看所有错误（Phase 10）"
+echo "- 使用 /meta-query-tools \"tool IN ('Bash','Edit')\" 查看多个工具（Phase 10）"
+echo "- 使用 /meta-query-tools \"tool='Bash' AND status='error'\" 复杂查询（Phase 10）"
 echo "- 使用 @meta-coach 获取深入分析和建议"
 ```
 

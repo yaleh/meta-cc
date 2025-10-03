@@ -29,7 +29,9 @@ WINDOW_SIZE=${1:-20}
 # Step 1: 提取错误数据（用于上下文展示）
 echo "## 错误数据提取"
 echo ""
-ERROR_COUNT=$(meta-cc parse extract --type tools --filter "status=error" --output json | grep -o '"UUID"' | wc -l)
+
+# Phase 10: Use advanced filtering for errors
+ERROR_COUNT=$(meta-cc query tools --where "status='error'" --output json 2>/dev/null | grep -o '"uuid"' | wc -l)
 
 if [ "$ERROR_COUNT" -eq 0 ]; then
     echo "✅ 当前会话中未检测到错误。"
@@ -51,7 +53,7 @@ if [ "$ERROR_COUNT" -gt 10 ]; then
     PATTERN_OUTPUT=$(meta-cc analyze errors --window "$WINDOW_SIZE" --output md 2>/dev/null | head -100)
     echo "$PATTERN_OUTPUT"
     echo ""
-    echo "💡 Tip: Use 'meta-cc parse extract --type tools --filter \"status=error\" --output tsv' for full error list"
+    echo "💡 Tip: Use 'meta-cc query tools --where \"status='error'\" --output tsv' for full error list"
 else
     PATTERN_OUTPUT=$(meta-cc analyze errors --window "$WINDOW_SIZE" --output md)
     echo "$PATTERN_OUTPUT"

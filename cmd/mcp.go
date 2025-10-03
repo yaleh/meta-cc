@@ -286,6 +286,119 @@ func handleToolsList(req jsonRPCRequest) {
 				},
 			},
 		},
+		// Phase 10: Advanced Query Tools
+		{
+			"name":        "query_tools_advanced",
+			"description": "Query tool calls with SQL-like filter expressions (Phase 10)",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"where": map[string]interface{}{
+						"type":        "string",
+						"description": "SQL-like filter expression (e.g., \"tool='Bash' AND status='error'\")",
+					},
+					"limit": map[string]interface{}{
+						"type":        "integer",
+						"default":     20,
+						"description": "Maximum number of results (default 20)",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+				"required": []string{"where"},
+			},
+		},
+		{
+			"name":        "aggregate_stats",
+			"description": "Aggregate statistics grouped by field (Phase 10)",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"group_by": map[string]interface{}{
+						"type":        "string",
+						"enum":        []string{"tool", "status", "uuid"},
+						"default":     "tool",
+						"description": "Field to group by (tool, status, or uuid)",
+					},
+					"metrics": map[string]interface{}{
+						"type":        "string",
+						"default":     "count,error_rate",
+						"description": "Comma-separated metrics (count, error_rate)",
+					},
+					"where": map[string]interface{}{
+						"type":        "string",
+						"description": "Optional filter expression",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+			},
+		},
+		{
+			"name":        "query_time_series",
+			"description": "Analyze metrics over time (Phase 10)",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"metric": map[string]interface{}{
+						"type":        "string",
+						"enum":        []string{"tool-calls", "error-rate"},
+						"default":     "tool-calls",
+						"description": "Metric to analyze (tool-calls or error-rate)",
+					},
+					"interval": map[string]interface{}{
+						"type":        "string",
+						"enum":        []string{"hour", "day", "week"},
+						"default":     "hour",
+						"description": "Time interval for bucketing",
+					},
+					"where": map[string]interface{}{
+						"type":        "string",
+						"description": "Optional filter expression",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+			},
+		},
+		{
+			"name":        "query_files",
+			"description": "File-level operation statistics (Phase 10)",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"sort_by": map[string]interface{}{
+						"type":        "string",
+						"enum":        []string{"total_ops", "edit_count", "read_count", "write_count", "error_count", "error_rate"},
+						"default":     "total_ops",
+						"description": "Sort field",
+					},
+					"top": map[string]interface{}{
+						"type":        "integer",
+						"default":     20,
+						"description": "Limit results to top N files",
+					},
+					"where": map[string]interface{}{
+						"type":        "string",
+						"description": "Optional filter expression",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+			},
+		},
 	}
 
 	result := map[string]interface{}{
@@ -416,6 +529,79 @@ func executeTool(name string, args map[string]interface{}) (string, error) {
 		} else {
 			cmdArgs = append(cmdArgs, "--limit", "10")
 		}
+
+	// Phase 10: Advanced Query Tools
+	case "query_tools_advanced":
+		where, ok := args["where"].(string)
+		if !ok || where == "" {
+			return "", fmt.Errorf("where parameter is required")
+		}
+
+		cmdArgs = []string{"query", "tools", "--filter", where, "--output", outputFormat}
+
+		if limit, ok := args["limit"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
+		} else {
+			cmdArgs = append(cmdArgs, "--limit", "20")
+		}
+
+	case "aggregate_stats":
+		cmdArgs = []string{"stats", "aggregate", "--output", outputFormat}
+
+		if groupBy, ok := args["group_by"].(string); ok && groupBy != "" {
+			cmdArgs = append(cmdArgs, "--group-by", groupBy)
+		} else {
+			cmdArgs = append(cmdArgs, "--group-by", "tool")
+		}
+
+		if metrics, ok := args["metrics"].(string); ok && metrics != "" {
+			cmdArgs = append(cmdArgs, "--metrics", metrics)
+		} else {
+			cmdArgs = append(cmdArgs, "--metrics", "count,error_rate")
+		}
+
+		if where, ok := args["where"].(string); ok && where != "" {
+			cmdArgs = append(cmdArgs, "--filter", where)
+		}
+
+	case "query_time_series":
+		cmdArgs = []string{"stats", "time-series", "--output", outputFormat}
+
+		if metric, ok := args["metric"].(string); ok && metric != "" {
+			cmdArgs = append(cmdArgs, "--metric", metric)
+		} else {
+			cmdArgs = append(cmdArgs, "--metric", "tool-calls")
+		}
+
+		if interval, ok := args["interval"].(string); ok && interval != "" {
+			cmdArgs = append(cmdArgs, "--interval", interval)
+		} else {
+			cmdArgs = append(cmdArgs, "--interval", "hour")
+		}
+
+		if where, ok := args["where"].(string); ok && where != "" {
+			cmdArgs = append(cmdArgs, "--filter", where)
+		}
+
+	case "query_files":
+		cmdArgs = []string{"stats", "files", "--output", outputFormat}
+
+		if sortBy, ok := args["sort_by"].(string); ok && sortBy != "" {
+			cmdArgs = append(cmdArgs, "--sort-by", sortBy)
+		} else {
+			cmdArgs = append(cmdArgs, "--sort-by", "total_ops")
+		}
+
+		if top, ok := args["top"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--top", fmt.Sprintf("%.0f", top))
+		} else {
+			cmdArgs = append(cmdArgs, "--top", "20")
+		}
+
+		if where, ok := args["where"].(string); ok && where != "" {
+			cmdArgs = append(cmdArgs, "--filter", where)
+		}
+
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
