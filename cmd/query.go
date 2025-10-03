@@ -12,6 +12,7 @@ var (
 	querySortBy  string
 	queryReverse bool
 	queryOffset  int
+	queryStream  bool // Enable JSONL streaming output
 
 	// Time filter parameters
 	querySince      string
@@ -44,6 +45,7 @@ func init() {
 	queryCmd.PersistentFlags().StringVarP(&querySortBy, "sort-by", "s", "", "Sort by field (timestamp, tool, status)")
 	queryCmd.PersistentFlags().BoolVarP(&queryReverse, "reverse", "r", false, "Reverse sort order")
 	queryCmd.PersistentFlags().IntVar(&queryOffset, "offset", 0, "Skip first N results (for pagination)")
+	queryCmd.PersistentFlags().BoolVar(&queryStream, "stream", false, "Output as JSON Lines (JSONL) for streaming")
 
 	// Time filter parameters as persistent flags
 	queryCmd.PersistentFlags().StringVar(&querySince, "since", "", "Filter entries since duration ago (e.g., '5 minutes ago', '1 hour ago')")

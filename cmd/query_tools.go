@@ -147,7 +147,18 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Step 9: Apply field projection if requested
+	// Step 9: Handle streaming output if requested
+	if queryStream {
+		streamWriter := output.NewStreamWriter(cmd.OutOrStdout())
+		for _, tool := range paginated {
+			if err := streamWriter.WriteRecord(tool); err != nil {
+				return fmt.Errorf("stream write error: %w", err)
+			}
+		}
+		return nil
+	}
+
+	// Step 10: Apply field projection if requested
 	projectionConfig := output.ParseProjectionConfig(fieldsFlag, ifErrorIncludeFlag)
 
 	// If projection is requested, project the fields
@@ -167,7 +178,7 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Step 10: Format output (non-chunked, non-projected, non-summary mode)
+	// Step 11: Format output (non-chunked, non-projected, non-summary mode)
 	var outputStr string
 	var formatErr error
 
