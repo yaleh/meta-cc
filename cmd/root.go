@@ -12,6 +12,23 @@ var (
 	sessionID    string
 	projectPath  string
 	outputFormat string
+
+	// Phase 9.1: Pagination and size estimation flags
+	limitFlag        int
+	offsetFlag       int
+	estimateSizeFlag bool
+
+	// Phase 9.2: Chunking flags
+	chunkSizeFlag int
+	outputDirFlag string
+
+	// Phase 9.3: Field projection flags
+	fieldsFlag          string
+	ifErrorIncludeFlag  string
+
+	// Phase 9.4: Compact output format flags
+	summaryFirstFlag bool
+	topNFlag         int
 )
 
 // Build information (injected during build via -ldflags)
@@ -44,7 +61,24 @@ func init() {
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&sessionID, "session", "", "Session ID (or use $CC_SESSION_ID)")
 	rootCmd.PersistentFlags().StringVar(&projectPath, "project", "", "Project path")
-	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "json", "Output format: json|md|csv")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "json", "Output format: json|md|csv|tsv")
+
+	// Phase 9.1: Pagination and size estimation flags
+	rootCmd.PersistentFlags().IntVar(&limitFlag, "limit", 0, "Limit output to N records (0 = no limit)")
+	rootCmd.PersistentFlags().IntVar(&offsetFlag, "offset", 0, "Skip first M records")
+	rootCmd.PersistentFlags().BoolVar(&estimateSizeFlag, "estimate-size", false, "Estimate output size without generating full output")
+
+	// Phase 9.2: Chunking flags
+	rootCmd.PersistentFlags().IntVar(&chunkSizeFlag, "chunk-size", 0, "Split output into chunks of N records (0 = no chunking)")
+	rootCmd.PersistentFlags().StringVar(&outputDirFlag, "output-dir", "", "Output directory for chunks (required with --chunk-size)")
+
+	// Phase 9.3: Field projection flags
+	rootCmd.PersistentFlags().StringVar(&fieldsFlag, "fields", "", "Output only specified fields (comma-separated, e.g., 'UUID,ToolName,Status')")
+	rootCmd.PersistentFlags().StringVar(&ifErrorIncludeFlag, "if-error-include", "", "Include additional fields for error records (comma-separated)")
+
+	// Phase 9.4: Compact output format flags
+	rootCmd.PersistentFlags().BoolVar(&summaryFirstFlag, "summary-first", false, "Output summary before detailed records")
+	rootCmd.PersistentFlags().IntVar(&topNFlag, "top", 0, "Show only top N detailed records (requires --summary-first, 0 = all)")
 
 	// Bind environment variables
 	viper.BindPFlag("session", rootCmd.PersistentFlags().Lookup("session"))

@@ -45,7 +45,16 @@ make cross-compile
 # Global options
 ./meta-cc --session <session-id>    # Specify session ID
 ./meta-cc --project <path>          # Specify project path
-./meta-cc --output json|md|csv      # Output format
+./meta-cc --output json|md|csv|tsv  # Output format
+
+# Phase 9: Context-Length Management Options
+./meta-cc --limit N                 # Limit output to N records
+./meta-cc --offset M                # Skip first M records
+./meta-cc --estimate-size           # Predict output size before generating
+./meta-cc --chunk-size N --output-dir DIR  # Split into chunks
+./meta-cc --fields "f1,f2,f3"       # Output only specified fields (70%+ size reduction)
+./meta-cc --if-error-include "f4"   # Include extra fields on errors
+./meta-cc --summary-first --top N   # Summary + top N details
 ```
 
 ## JSON Output Format Reference
@@ -804,6 +813,231 @@ make help            # Show help message
 - Linux (amd64, arm64)
 - macOS (amd64, arm64/Apple Silicon)
 - Windows (amd64)
+
+## Phase 9: Context-Length Management (New!)
+
+Phase 9 introduces powerful features to handle large sessions (>1000 turns) and prevent context overflow.
+
+### Features
+
+1. **Pagination**: Process data in chunks to avoid memory overflow
+2. **Size Estimation**: Predict output size before generating
+3. **Chunking**: Split large output into multiple files
+4. **Field Projection**: Output only specified fields (70%+ size reduction)
+5. **Compact Formats**: TSV format (86%+ smaller than JSON)
+6. **Summary Mode**: Overview + top N details
+
+### Usage Examples
+
+#### 1. Pagination
+
+```bash
+# Get first 50 tools
+meta-cc query tools --limit 50
+
+# Skip first 100, get next 50
+meta-cc query tools --limit 50 --offset 100
+
+# Iterate through all tools in batches of 100
+for i in {0..10}; do
+  meta-cc query tools --limit 100 --offset $((i*100)) --output json
+done
+```
+
+#### 2. Size Estimation
+
+```bash
+# Estimate output size before generating
+meta-cc query tools --estimate-size
+
+# Output:
+# {
+#   "estimated_bytes": 1107311,
+#   "estimated_kb": 1081.36,
+#   "format": "json",
+#   "record_count": 246
+# }
+
+# Use in Slash Commands for adaptive strategy
+ESTIMATE=$(meta-cc parse stats --estimate-size --output json)
+SIZE=$(echo $ESTIMATE | jq '.estimated_kb')
+if (( $(echo "$SIZE > 100" | bc -l) )); then
+  meta-cc parse stats --summary-first --top 20
+else
+  meta-cc parse stats --output md
+fi
+```
+
+#### 3. Chunking (Large Sessions)
+
+```bash
+# Split 2000 tools into chunks of 100 records each
+meta-cc query tools --chunk-size 100 --output-dir /tmp/chunks
+
+# Output:
+# Generated 20 chunk(s)
+#   Chunk 0: chunk_0001.json (100 records, 44KB)
+#   Chunk 1: chunk_0002.json (100 records, 45KB)
+#   ...
+#   Chunk 19: chunk_0020.json (100 records, 44KB)
+# Manifest: /tmp/chunks/manifest.json
+
+# Check manifest
+cat /tmp/chunks/manifest.json
+# {
+#   "total_records": 2000,
+#   "chunk_size": 100,
+#   "num_chunks": 20,
+#   "chunks": [...]
+# }
+
+# Process chunks in parallel
+ls /tmp/chunks/chunk_*.json | xargs -P 4 -I {} sh -c 'jq ".[] | select(.Status == \"error\")" {}'
+```
+
+#### 4. Field Projection (70%+ Size Reduction)
+
+```bash
+# Output only UUID, ToolName, Status (72.7% smaller)
+meta-cc query tools --fields "UUID,ToolName,Status"
+
+# With error fields conditionally included
+meta-cc query tools --fields "UUID,ToolName,Status" --if-error-include "Error,Output"
+
+# Size comparison
+meta-cc query tools --limit 100 --output json | wc -c
+# Output: 31101 bytes (30.4 KB)
+
+meta-cc query tools --limit 100 --fields "UUID,ToolName,Status" --output json | wc -c
+# Output: 8501 bytes (8.3 KB) - 72.7% reduction!
+```
+
+#### 5. TSV Format (86%+ Smaller)
+
+```bash
+# TSV output (86.4% smaller than JSON)
+meta-cc query tools --output tsv
+
+# Output:
+# UUID	ToolName	Status	Error
+# 1b08...	Read
+# 69a7...	Bash
+# 586a...	Bash
+
+# Combine with other features
+meta-cc query tools --limit 100 --fields "UUID,ToolName,Status" --output tsv
+
+# Pipe to other tools
+meta-cc query tools --output tsv | cut -f2 | sort | uniq -c
+# Count tool usage
+```
+
+#### 6. Summary Mode
+
+```bash
+# Summary + top 10 details
+meta-cc query tools --summary-first --top 10
+
+# Output:
+# === Session Summary ===
+# Total Tools: 246
+# Errors: 0 (0.0%)
+#
+# Top Tools:
+#   1. Bash (102)
+#   2. Read (37)
+#   3. TodoWrite (37)
+#   ...
+#
+# [Top 10 detailed records follow]
+
+# JSON format with summary
+meta-cc query tools --summary-first --top 5 --output json
+```
+
+#### 7. Combined Features
+
+```bash
+# Pagination + Projection + TSV
+meta-cc query tools --limit 50 --fields "ToolName,Status" --output tsv
+
+# Chunking + TSV (ultra-compact for large sessions)
+meta-cc query tools --chunk-size 100 --output-dir ./chunks --output tsv
+
+# Summary + Projection + JSON
+meta-cc query tools --summary-first --top 10 --fields "UUID,ToolName" --output json
+```
+
+### Large Session Best Practices
+
+**Problem**: Sessions with >1000 turns can cause:
+- Context overflow in Claude Code (>200K tokens)
+- Memory issues during processing
+- Slow command execution
+
+**Solution**: Use Phase 9 features adaptively
+
+#### Strategy Selection Matrix
+
+| Session Size | Recommended Strategy | Example Command |
+|-------------|---------------------|----------------|
+| < 500 turns | Standard output | `meta-cc query tools --output json` |
+| 500-1000 turns | Pagination or Projection | `meta-cc query tools --limit 200 --fields "UUID,ToolName,Status"` |
+| 1000-2000 turns | Summary + TSV | `meta-cc query tools --summary-first --top 20 --output tsv` |
+| > 2000 turns | Chunking + TSV | `meta-cc query tools --chunk-size 100 --output-dir ./chunks --output tsv` |
+
+#### Adaptive Slash Command Pattern
+
+```bash
+# Estimate first, then choose strategy
+SIZE=$(meta-cc query tools --estimate-size --output json | jq '.estimated_kb')
+
+if (( $(echo "$SIZE < 50" | bc -l) )); then
+  # Small: full output
+  meta-cc query tools --output md
+elif (( $(echo "$SIZE < 200" | bc -l) )); then
+  # Medium: pagination + projection
+  meta-cc query tools --limit 100 --fields "ToolName,Status,UUID" --output tsv
+else
+  # Large: summary mode
+  meta-cc query tools --summary-first --top 20 --output tsv
+fi
+```
+
+### Performance Metrics
+
+| Feature | Size Reduction | Use Case |
+|---------|---------------|----------|
+| Field Projection (3 fields) | **72.7%** | Reduce JSON size while preserving key data |
+| TSV Format | **86.4%** | Ultra-compact tabular output |
+| Summary Mode | **~95%** | Overview for very large sessions |
+| Chunking | N/A | Split data for parallel processing |
+
+### Migration Guide
+
+**Before Phase 9** (Old way):
+```bash
+# Gets all tools (may overflow context with >1000 turns)
+meta-cc query tools --output json
+```
+
+**After Phase 9** (Recommended):
+```bash
+# Option 1: Estimate first
+meta-cc query tools --estimate-size
+
+# Option 2: Use pagination
+meta-cc query tools --limit 100
+
+# Option 3: Use field projection
+meta-cc query tools --fields "UUID,ToolName,Status"
+
+# Option 4: Use TSV for maximum compression
+meta-cc query tools --output tsv
+
+# Option 5: Use summary for quick overview
+meta-cc query tools --summary-first --top 20
+```
 
 ## Project Structure
 
