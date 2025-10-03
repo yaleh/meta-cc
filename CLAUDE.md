@@ -171,9 +171,36 @@ When development begins, follow this phased approach:
 - **Cross-platform**: Simple cross-compilation for Linux/macOS/Windows
 - **Strong concurrency**: Native goroutines for parallel processing when needed
 
+## Working with Integration Questions
+
+When users ask about which integration method to use (MCP vs Slash Commands vs Subagent):
+
+1. **Refer to the Integration Guide**: `docs/integration-guide.md` contains:
+   - Core differences (context isolation, invocation mechanisms, execution models)
+   - Decision framework and decision trees
+   - Use case scenario matrices
+   - Anti-patterns and best practices
+   - Real-world case studies
+
+2. **Don't recreate the decision framework** - The guide already has comprehensive comparison tables and decision logic. Just summarize key points and link to the guide.
+
+3. **Quick reference**:
+   - **MCP Server**: For natural queries, seamless data access (Claude decides when to call)
+   - **Slash Commands**: For repeated workflows, fast execution, predictable outputs
+   - **Subagent (@meta-coach)**: For exploratory analysis, guided reflection, multi-turn dialogue
+
+4. **When in doubt**: Suggest reading the relevant section of the Integration Guide rather than giving incomplete advice.
+
 ## Reference Documentation
 
-All design decisions are based on official Claude Code documentation:
+**Project Documentation**:
+- **[Integration Guide](docs/integration-guide.md)** - Choosing between MCP/Slash/Subagent (NEW - most comprehensive)
+- [Examples & Usage](docs/examples-usage.md) - Step-by-step setup guides
+- [Technical Proposal](docs/proposals/meta-cognition-proposal.md) - Architecture and design
+- [Implementation Plan](docs/plan.md) - Phase-by-phase development roadmap
+- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
+
+**Official Claude Code Documentation**:
 - [Overview](https://docs.claude.com/en/docs/claude-code/overview)
 - [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands)
 - [Subagents](https://docs.claude.com/en/docs/claude-code/subagents)

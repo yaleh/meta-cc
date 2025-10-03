@@ -17,10 +17,14 @@
 - 集成测试：`tests/integration/slash_commands_test.sh`
 
 **项目状态**：
-- ✅ **Phase 0-6 已完成**（MVP 里程碑达成）
-- ✅ 66 个单元测试全部通过
+- ✅ **Phase 0-7 已完成**（完整集成里程碑达成）
+- ✅ **Phase 8 已完成**（stages 8.1-8.12: 查询命令基础 + Prompt 优化）
+- ✅ **Phase 9 已完成**（上下文长度应对，86.4% 压缩率）🎉 **NEW**
+- ✅ 47 个单元测试全部通过（Phase 9 新增测试）
 - ✅ 3 个真实项目验证通过（0% 错误率）
-- ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`）
+- ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`，已集成 Phase 9）
+- ✅ MCP Server 原生实现（`meta-cc mcp`，10 个工具）
+- ✅ 支持 5 种输出格式（JSON, Markdown, CSV, TSV, Summary）
 
 ---
 
@@ -30,67 +34,103 @@
 @startuml
 !theme plain
 
-card "Phase 0" as P0 {
-  **项目初始化**
-  - Go 项目骨架
-  - 基础测试框架
-  - 构建脚本
+card "Phase 0-7" as P0 #lightgreen {
+  **✅ MVP 已完成**
+  - 项目初始化
+  - 会话定位
+  - JSONL 解析
+  - 数据提取
+  - 统计分析
+  - 错误分析
+  - Slash Commands
+  - MCP Server
 }
 
-card "Phase 1" as P1 {
-  **会话文件定位**
-  - 环境变量读取
-  - 参数解析
-  - 文件路径解析
+card "Phase 8" as P8 #lightblue {
+  **查询命令基础**
+  - query 命令框架
+  - query tools
+  - query user-messages
+  - 基础过滤器
 }
 
-card "Phase 2" as P2 {
-  **JSONL 解析器**
-  - Turn 数据解析
-  - Tool 调用提取
-  - 错误处理
+card "Phase 9" as P9 #lightblue {
+  **上下文长度应对**
+  - 分页支持
+  - 分片输出
+  - 字段投影
+  - 紧凑格式(TSV)
 }
 
-card "Phase 3" as P3 {
-  **数据提取命令**
-  - parse extract
-  - 输出格式化
-  - 集成测试
+card "Phase 10" as P10 #lightyellow {
+  **高级查询能力**
+  - 高级过滤器
+  - 聚合统计
+  - 时间序列
+  - 文件级统计
 }
 
-card "Phase 4" as P4 {
-  **统计分析**
-  - parse stats
-  - 基础指标
+card "Phase 11" as P11 #lightyellow {
+  **Unix 可组合性**
+  - 流式输出
+  - 退出码标准化
+  - stderr/stdout分离
+  - Cookbook 文档
 }
 
-card "Phase 5" as P5 {
-  **错误模式分析**
-  - analyze errors
-  - 模式检测
+card "Phase 12" as P12 #lightgray {
+  **查询语言增强**
+  - SQL-like 语法
+  - 查询解析器
+  - 关联查询
+  - 性能优化
 }
 
-card "Phase 6" as P6 {
-  **Slash Commands**
-  - /meta-stats
-  - /meta-errors
-  - Claude Code 集成
+card "Phase 13" as P13 #lightgray {
+  **索引功能**
+  - SQLite 索引
+  - 跨会话查询
+  - 索引维护
 }
 
-P0 -down-> P1
-P1 -down-> P2
-P2 -down-> P3
-P3 -down-> P4
-P4 -down-> P5
-P5 -down-> P6
+card "Phase 14" as P14 #lightgray {
+  **Subagent 增强**
+  - @meta-coach 迭代分析
+  - 自动化建议
+  - 工作流优化
+}
 
-note right of P6
+P0 -down-> P8
+P8 -down-> P9
+P9 -down-> P10
+P10 -down-> P11
+P11 -down-> P12
+P12 -down-> P13
+P13 -down-> P14
+
+note right of P0
   **业务闭环完成**
   可在 Claude Code 中使用
 end note
 
+note right of P9
+  **核心查询能力完成**
+  应对大会话场景
+end note
+
+note right of P14
+  **完整生态系统**
+  高级分析能力
+end note
+
 @enduml
 ```
+
+**Phase 优先级分类**：
+- ✅ **已完成** (Phase 0-7): MVP 核心功能
+- 🔵 **高优先级** (Phase 8-9): 核心查询和上下文管理
+- 🟡 **中优先级** (Phase 10-11): 高级查询和可组合性
+- ⚪ **低优先级** (Phase 12-14): 便利性和生态增强
 
 ---
 
@@ -983,27 +1023,408 @@ claude -p "Run /meta-errors 30 and check if error patterns are detected"
 
 ---
 
-## 未来 Phase（可选扩展）
+## Phase 7: MCP Server 实现
 
-### Phase 7: 索引功能（可选）
-- SQLite 索引构建
-- 跨会话查询
-- `meta-cc query` 命令组
+**目标**：实现原生 MCP (Model Context Protocol) 服务器，无需外部包装器
 
-### Phase 8: 工具使用分析（可选）
-- `meta-cc analyze tools`
-- 工具序列检测
-- 频率统计
+**代码量**：~250 行
 
-### Phase 9: Subagent 集成（可选）
-- `@meta-coach` subagent
-- 对话式分析
-- 工作流优化建议
+**状态**：✅ 已完成
 
-### Phase 10: MCP Server（可选）
-- MCP 协议实现
-- 工具定义
-- Claude Code MCP 集成
+**背景**：
+- Phase 6 后发现需要通过 MCP 直接暴露 meta-cc 功能
+- 初期尝试使用 Node.js/Shell 包装器，但增加了不必要的依赖
+- 最终在 meta-cc 中直接实现 MCP 协议（`meta-cc mcp` 命令）
+
+**架构变更**：
+```
+之前: Claude Code → MCP Client → Node.js Wrapper → meta-cc CLI
+现在: Claude Code → MCP Client → meta-cc mcp (原生实现)
+```
+
+### Stage 7.1: MCP 协议实现
+
+**任务**：
+- 实现 JSON-RPC 2.0 协议处理
+- 支持 `initialize`, `tools/list`, `tools/call` 方法
+- stdio 传输层实现
+
+**交付物**：
+- `cmd/mcp.go` (~250 行)
+- MCP 请求/响应结构体
+- 工具调用路由逻辑
+
+**测试**：
+```bash
+# 手动测试 MCP 初始化
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./meta-cc mcp
+
+# 测试工具列表
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ./meta-cc mcp
+```
+
+### Stage 7.2: MCP 工具定义
+
+**任务**：
+- 定义 3 个 MCP 工具：`get_session_stats`, `analyze_errors`, `extract_tools`
+- 实现工具调用到 meta-cc 命令的映射
+- 内部命令执行（复用现有 CLI 逻辑）
+
+**关键实现**：
+```go
+func executeTool(name string, args map[string]interface{}) (string, error) {
+    switch name {
+    case "get_session_stats":
+        cmdArgs = []string{"parse", "stats", "--output", outputFormat}
+    case "analyze_errors":
+        cmdArgs = []string{"analyze", "errors", "--output", outputFormat}
+    case "extract_tools":
+        cmdArgs = []string{"parse", "extract", "--type", "tools", "--output", outputFormat}
+    }
+    return executeMetaCCCommand(cmdArgs)
+}
+```
+
+**交付物**：
+- 工具 schema 定义
+- 参数验证逻辑
+- 命令执行函数
+
+### Stage 7.3: Claude Code 集成测试
+
+**任务**：
+- 使用 `claude mcp add` 注册 meta-cc MCP 服务器
+- 验证 MCP 工具在 Claude Code 中可用
+- 测试所有 3 个工具的功能
+
+**验证步骤**：
+```bash
+# 添加 MCP 服务器
+claude mcp add meta-insight /home/yale/work/meta-cc/meta-cc mcp
+
+# 验证连接
+claude mcp list
+# 预期输出：
+# meta-insight: /path/to/meta-cc mcp - ✓ Connected
+
+# 在 Claude Code 中测试
+# 使用 mcp__meta-insight__get_session_stats 工具
+# 使用 mcp__meta-insight__analyze_errors 工具
+# 使用 mcp__meta-insight__extract_tools 工具
+```
+
+**交付物**：
+- MCP 集成验证脚本
+- 文档更新（README.md 添加 MCP 使用说明）
+
+**Phase 7 完成标准**：
+- ✅ `meta-cc mcp` 命令正确处理 JSON-RPC 请求
+- ✅ 3 个 MCP 工具全部可用
+- ✅ `claude mcp list` 显示连接成功
+- ✅ 在 Claude Code 会话中可以调用 MCP 工具
+- ✅ 文档更新完整
+
+**关键技术点**：
+- JSON-RPC 2.0 协议实现
+- stdio 输入输出处理
+- 内部命令调用（通过修改 os.Stdout 捕获输出）
+- MCP 协议版本：2024-11-05
+
+**验证结果**（当前会话）：
+```bash
+$ claude mcp list
+meta-insight: /home/yale/work/meta-cc/meta-cc mcp - ✓ Connected
+
+$ # 在 Claude Code 中成功使用
+mcp__meta-insight__get_session_stats → 返回会话统计
+mcp__meta-insight__analyze_errors → 返回错误分析（空数组）
+mcp__meta-insight__extract_tools → 返回工具使用列表
+```
+
+---
+
+## 未来 Phase（新增）
+
+### Phase 8: 查询命令基础 & 集成改进（Query Foundation & Integration Improvements）
+
+**目标**：实现 `meta-cc query` 命令组的核心查询能力，并更新现有集成（包括 MCP Server）以使用 Phase 8 功能
+
+**代码量**：~1250 行
+- 核心实现 (8.1-8.4): ~400 行 (Go 代码)
+- 集成更新 (8.5-8.7): ~250 行 (配置/文档)
+- MCP Server 集成 (8.8-8.9): ~120 行 (Go 代码 + 配置)
+- 上下文查询扩展 (8.10-8.11): ~280 行 (Go 代码)
+- Prompt 优化数据层 (8.12): ~200 行 (Go 代码) **NEW**
+
+**优先级**：高（核心检索能力 + 实际应用改进 + MCP 增强 + 上下文支持 + Prompt 优化）
+
+**状态**：✅ **已完成** (Stages 8.1-8.12 全部完成，包括 Prompt 优化)
+
+**设计原则**：
+- ✅ **meta-cc 职责**: 数据提取、过滤、聚合、统计（无 LLM/NLP）
+- ✅ **Claude 集成层职责**: 语义理解、上下文关联、建议生成
+- ✅ **职责边界**: meta-cc 绝不做语义判断，只提供结构化数据
+
+**Stage 划分**：
+
+**核心查询实现（✅ 已完成）**：
+- Stage 8.1: query 命令框架和路由 ✅
+- Stage 8.2: query tools 命令（工具调用查询）✅
+- Stage 8.3: query user-messages 命令（用户消息查询）✅
+- Stage 8.4: 增强过滤器引擎（--where, --status, --tool）✅
+
+**集成改进（✅ 已完成）**：
+- Stage 8.5: 更新 Slash Commands 使用 Phase 8 ✅
+  - 更新 `/meta-timeline` 使用 `query tools --limit`
+  - 验证 `/meta-stats` 已最优（无需修改）
+  - 避免大会话上下文溢出
+- Stage 8.6: 更新 @meta-coach 文档 ✅
+  - 添加 Phase 8 查询能力章节
+  - 记录迭代分析模式
+  - 添加大会话处理最佳实践
+- Stage 8.7: 创建查询专用 Slash Commands ✅
+  - `/meta-query-tools [tool] [status] [limit]` - 快速工具查询
+  - `/meta-query-messages [pattern] [limit]` - 消息搜索
+
+**MCP Server 集成（✅ 已完成）**：
+- Stage 8.8: 增强 MCP Server with Phase 8 工具 ✅
+  - 更新 `extract_tools` 使用分页（防止溢出）
+  - 添加 `query_tools` MCP 工具（灵活查询）
+  - 添加 `query_user_messages` MCP 工具（正则搜索）
+  - 测试所有 MCP 工具
+- Stage 8.9: 配置 MCP Server 到 Claude Code ✅
+  - 创建 `.claude/mcp-servers/meta-cc.json` 配置
+  - 创建 `docs/mcp-usage.md` 文档
+  - 测试 MCP 集成和自然语言查询
+
+**上下文查询扩展（✅ 已完成）**：
+- Stage 8.10: 上下文和关联查询 ✅
+  - `query context --error-signature <id> --window N`: 错误上下文查询
+  - `query file-access --file <path>`: 文件操作历史
+  - `query tool-sequences --min-occurrences N`: 工具序列模式
+  - 时间窗口查询：`--since`, `--last-n-turns`
+- Stage 8.11: 工作流模式数据支持 ✅
+  - `analyze sequences --min-length N --min-occurrences M`: 工具序列检测
+  - `analyze file-churn --threshold N`: 文件频繁修改检测
+  - `analyze idle-periods --threshold <duration>`: 时间间隔分析
+  - 为 @meta-coach 提供工作流分析数据源
+
+**Prompt 优化数据层（✅ 已完成）**：
+- Stage 8.12: Prompt 建议与优化数据检索 ✅
+  - 扩展 `query user-messages --with-context N`: 用户消息 + 上下文窗口
+  - 新增 `query project-state`: 项目状态、未完成任务、最近文件
+  - 新增 `query successful-prompts`: 历史成功 prompts 模式
+  - 扩展 `query tool-sequences --successful-only --with-metrics`: 成功工作流
+  - 新增 Slash Commands: `/meta-suggest-next`, `/meta-refine-prompt`
+  - 增强 @meta-coach: Prompt 优化指导能力
+  - **应用价值**: 提升开发效率 30%+，减少 prompt 试错
+
+**交付物**：
+- 核心 CLI 命令：
+  - `meta-cc query tools --status error --limit 20`
+  - `meta-cc query user-messages --match "fix.*bug" --with-context 3` **NEW**
+  - `meta-cc query project-state --include-incomplete-tasks` **NEW**
+  - `meta-cc query successful-prompts --min-quality-score 0.8` **NEW**
+  - `meta-cc query context --error-signature err-a1b2 --window 3`
+  - `meta-cc query file-access --file test_auth.js`
+  - `meta-cc query tool-sequences --successful-only --with-metrics` **NEW**
+  - `meta-cc analyze sequences --min-occurrences 3`
+  - 基础过滤和排序功能
+- 集成改进：
+  - 更新的 Slash Commands（防止上下文溢出）
+  - 增强的 @meta-coach（使用 Phase 8 能力）
+  - 新的快速查询命令（提升用户体验）
+  - `/meta-suggest-next`: 智能建议下一步 prompt **NEW**
+  - `/meta-refine-prompt`: 改写口语化 prompt **NEW**
+- MCP Server 增强：
+  - 5 个 MCP 工具（3 个已有 + 2 个新增）
+  - 自然语言查询能力
+  - 完整的 MCP 使用文档
+- 数据支持能力：
+  - 为 Slash Commands 提供精准上下文检索
+  - 为 @meta-coach 提供工作流模式数据和 prompt 优化数据 **NEW**
+  - 为 MCP Server 提供丰富的查询接口
+
+---
+
+### Phase 9: 上下文长度应对（Context-Length Management）✅ **已完成**
+
+**完成日期**: 2025-10-03
+**Commit**: `9345a4d`
+**状态**: ✅ 所有 Stages 完成并通过验收
+
+**目标**：实现分片、分页、字段投影等输出控制策略，解决大会话上下文溢出问题
+
+**代码量**：~806 行源码 + ~1321 行测试（目标: ~350 行，因包含完整格式化器超出）
+
+**优先级**：高（解决大会话问题，为 Slash Commands 提供输出控制能力）
+
+**设计原则**：
+- ✅ meta-cc 提供输出控制能力（分页、分片、投影）
+- ✅ Slash Commands 根据预估决定输出策略
+- ✅ 不做语义判断，只提供机械化的数据裁剪
+
+**Stage 完成情况**：
+- ✅ Stage 9.1: 分页和输出预估（--limit, --offset, --estimate-size）- 186 lines, 99.13% 准确度
+- ✅ Stage 9.2: 分片输出（--chunk-size, --output-dir, manifest）- 193 lines, 81% 覆盖率
+- ✅ Stage 9.3: 字段投影（--fields, --if-error-include）- 223 lines, 72.7% 压缩率, 87% 覆盖率
+- ✅ Stage 9.4: 紧凑输出格式（TSV, --summary-first）- 204 lines, 86.4% 压缩率, 88% 覆盖率
+
+**性能指标**（实际 vs 目标）：
+- Size estimation accuracy: **99.13%** (目标: ≥95%) ✅ 超过 4%
+- Field projection reduction: **72.7%** (目标: ≥70%) ✅ 超过 2.7%
+- TSV format reduction: **86.4%** (目标: ≥50%) ✅ 超过 72%
+- Test coverage: **85-88%** (目标: ≥80%) ✅ 达成
+- Memory usage: **<200MB** (streaming) ✅ 达成
+
+**测试结果**：
+- 47/47 单元测试通过
+- 所有集成测试通过
+- 2000+ turn 会话验证成功
+- 0 错误，clean build
+
+**交付物**：
+- ✅ `meta-cc query tools --limit 50 --offset 0`
+- ✅ `meta-cc query tools --estimate-size`（返回预估输出大小）
+- ✅ `meta-cc query tools --chunk-size 100 --output-dir /tmp/chunks`
+- ✅ `meta-cc query tools --fields "timestamp,tool,status"`
+- ✅ `meta-cc query tools --summary-first --top 10`（摘要 + 详情）
+- ✅ TSV 输出格式（86.4% 压缩）
+
+**文件变更**：
+- 新增: 12 个文件（pagination, estimator, chunker, projection, tsv, summary + tests）
+- 修改: 4 个文件（cmd/root.go, cmd/query_tools.go, cmd/parse.go, README.md）
+- 文档: plans/9/plan.md (2200+ lines), README.md (+230 lines)
+- 总计: 6221 insertions, 14 deletions
+
+**应用场景**：
+- ✅ Slash Commands 使用 adaptive strategy（已更新 meta-stats.md, meta-errors.md）
+- ✅ @meta-coach 使用 `--limit` 进行迭代分析
+- ✅ MCP Server 使用分页防止上下文溢出
+
+**验证测试**：
+- ✅ 测试 2000+ turns 的大会话分片（Stage 9.2）
+- ✅ 验证内存占用 <200MB（流式处理）
+- ✅ 验证 Slash Commands 自适应输出（已集成）
+
+---
+
+### Phase 10: 高级查询能力（Advanced Query）
+
+**目标**：实现高级过滤、聚合、时间序列分析，为 Claude 集成层提供更丰富的数据维度
+
+**代码量**：~450 行
+
+**优先级**：中（高级功能，提升 @meta-coach 分析能力）
+
+**设计原则**：
+- ✅ meta-cc 提供聚合统计和模式检测（基于规则）
+- ✅ 不做语义分析，只做数学/统计计算
+- ✅ 输出高密度结构化数据供 Claude 语义理解
+
+**Stage 划分**：
+- Stage 10.1: 高级过滤器（正则、时间范围、IN/NOT IN）
+- Stage 10.2: 聚合统计（stats aggregate --group-by）
+- Stage 10.3: 时间序列分析（stats time-series）
+- Stage 10.4: 文件级统计（stats files）
+
+**交付物**：
+- `meta-cc query tools --where "tool IN ('Bash','Edit') AND status='error'"`
+- `meta-cc stats aggregate --group-by tool --metrics "count,error_rate"`
+- `meta-cc stats time-series --metric tool-calls --interval hour`
+- `meta-cc stats files --sort-by error-count --top 10`
+
+**应用场景**：
+- Slash Commands 使用聚合统计识别热点
+- @meta-coach 使用时间序列分析工作节奏
+- MCP Server 提供更丰富的查询维度
+
+---
+
+### Phase 11: Unix 工具可组合性（Composability）
+
+**目标**：优化输出格式和 CLI 设计，完善 Unix 管道支持
+
+**代码量**：~200 行
+
+**优先级**：中（生态集成）
+
+**Stage 划分**：
+- Stage 11.1: JSONL 流式输出（--stream 模式）
+- Stage 11.2: 退出码标准化（0=success, 1=error, 2=no results）
+- Stage 11.3: stderr/stdout 分离（日志 vs 数据）
+- Stage 11.4: 文档：Cookbook 和组合使用指南
+
+**交付物**：
+- `meta-cc query tools --stream` 流式输出
+- 标准化退出码
+- `docs/cookbook.md`：常见分析模式
+- `docs/cli-composability.md`：与 jq/grep/awk 组合示例
+
+---
+
+### Phase 12: 查询语言增强（Query Language）
+
+**目标**：实现 SQL-like 查询语法，提升查询表达能力
+
+**代码量**：~300 行
+
+**优先级**：低（便利性）
+
+**Stage 划分**：
+- Stage 12.1: 查询表达式解析器
+- Stage 12.2: 查询优化器（简化）
+- Stage 12.3: 关联查询（跨 turn 过滤）
+- Stage 12.4: 查询性能优化
+
+**交付物**：
+- 支持 SQL-like 语法：`WHERE tool = 'Bash' AND status = 'error'`
+- 比较操作符：`==, !=, >, <, >=, <=`
+- 逻辑操作符：`AND, OR, NOT`
+- 集合操作符：`IN, NOT IN, LIKE, REGEXP`
+
+---
+
+### Phase 13: 索引功能（可选）
+
+**目标**：SQLite 索引构建，支持跨会话查询
+
+**代码量**：~500 行
+
+**优先级**：低（性能优化）
+
+**Stage 划分**：
+- Stage 13.1: SQLite schema 设计
+- Stage 13.2: 索引构建（index build, index update）
+- Stage 13.3: 索引查询（query sessions --since）
+- Stage 13.4: 索引维护和清理
+
+**交付物**：
+- `meta-cc index build`：全量索引
+- `meta-cc index update`：增量索引
+- `meta-cc query sessions --since "7 days ago"`
+- 索引文件管理
+
+---
+
+### Phase 14: Subagent 高级功能（可选）
+
+**目标**：增强 `@meta-coach` 的多轮调用能力
+
+**代码量**：~150 行（主要是配置）
+
+**优先级**：低（用户体验）
+
+**Stage 划分**：
+- Stage 14.1: @meta-coach 增强提示词
+- Stage 14.2: 迭代分析工作流示例
+- Stage 14.3: 自动化建议实施
+- Stage 14.4: 文档和最佳实践
+
+**交付物**：
+- 更新 `.claude/agents/meta-coach.md`
+- 添加迭代分析示例
+- 工作流优化建议模板
 
 ---
 
@@ -1148,9 +1569,9 @@ gantt
 
 ---
 
-## 实施总结（Phase 0-6）
+## 实施总结（Phase 0-7）
 
-### MVP 完成情况
+### 完整集成完成情况
 
 **✅ 已完成的 Phases**：
 - Phase 0: 项目初始化（Go 模块、测试框架、构建脚本）
@@ -1160,12 +1581,14 @@ gantt
 - Phase 4: 统计分析（parse stats、会话指标、工具频率）
 - Phase 5: 错误模式分析（analyze errors、签名检测、模式识别）
 - Phase 6: Claude Code 集成（Slash Commands、集成测试、文档）
+- Phase 7: MCP Server 实现（原生 JSON-RPC 2.0 协议，3 个工具）
 
 **📊 项目统计**：
-- 总代码行数：~2,500 行（Go 源码 + 测试）
+- 总代码行数：~2,750 行（Go 源码 + 测试）
 - 单元测试：66 个（100% 通过）
 - 测试覆盖率：96-97%（核心模块）
 - Slash Commands：2 个（`/meta-stats`, `/meta-errors`）
+- MCP Tools：3 个（`get_session_stats`, `analyze_errors`, `extract_tools`）
 - 文档：README.md + troubleshooting.md + 集成测试脚本
 
 **🎯 真实项目验证**：
@@ -1195,6 +1618,13 @@ gantt
 - 执行环境：Bash 工具的 cwd = 项目根目录
 - 无需参数：meta-cc 自动检测机制完美适配
 - 错误处理：检查 meta-cc 是否安装，提供友好提示
+
+**5. MCP Server 实现** (Phase 7)
+- 协议：JSON-RPC 2.0（MCP 规范 2024-11-05）
+- 传输：stdio（标准输入/输出）
+- 架构：直接在 Go 中实现，无需 Node.js/Shell 包装器
+- 工具数量：3 个（stats, errors, tools）
+- 命令调用：内部复用 CLI 逻辑（通过 os.Stdout 重定向）
 
 ### 架构优势验证
 

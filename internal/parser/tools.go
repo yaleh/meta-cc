@@ -2,12 +2,13 @@ package parser
 
 // ToolCall represents a complete tool invocation (ToolUse + ToolResult)
 type ToolCall struct {
-	UUID     string                 // UUID of the SessionEntry containing the tool_use
-	ToolName string                 // Name of the tool
-	Input    map[string]interface{} // Tool input parameters
-	Output   string                 // Tool output (ToolResult.Content)
-	Status   string                 // Execution status (success/error)
-	Error    string                 // Error message (if any)
+	UUID      string                 // UUID of the SessionEntry containing the tool_use
+	ToolName  string                 // Name of the tool
+	Input     map[string]interface{} // Tool input parameters
+	Output    string                 // Tool output (ToolResult.Content)
+	Status    string                 // Execution status (success/error)
+	Error     string                 // Error message (if any)
+	Timestamp string                 // Timestamp of the tool call (ISO 8601 format)
 }
 
 // ExtractToolCalls extracts all tool calls from SessionEntry array
@@ -18,8 +19,9 @@ type ToolCall struct {
 func ExtractToolCalls(entries []SessionEntry) []ToolCall {
 	// Step 1: Collect all ToolUse (indexed by ID)
 	toolUseMap := make(map[string]struct {
-		uuid    string
-		toolUse *ToolUse
+		uuid      string
+		toolUse   *ToolUse
+		timestamp string
 	})
 
 	for _, entry := range entries {
@@ -31,11 +33,13 @@ func ExtractToolCalls(entries []SessionEntry) []ToolCall {
 		for _, block := range entry.Message.Content {
 			if block.Type == "tool_use" && block.ToolUse != nil {
 				toolUseMap[block.ToolUse.ID] = struct {
-					uuid    string
-					toolUse *ToolUse
+					uuid      string
+					toolUse   *ToolUse
+					timestamp string
 				}{
-					uuid:    entry.UUID,
-					toolUse: block.ToolUse,
+					uuid:      entry.UUID,
+					toolUse:   block.ToolUse,
+					timestamp: entry.Timestamp,
 				}
 			}
 		}
@@ -62,9 +66,10 @@ func ExtractToolCalls(entries []SessionEntry) []ToolCall {
 
 	for toolUseID, tu := range toolUseMap {
 		toolCall := ToolCall{
-			UUID:     tu.uuid,
-			ToolName: tu.toolUse.Name,
-			Input:    tu.toolUse.Input,
+			UUID:      tu.uuid,
+			ToolName:  tu.toolUse.Name,
+			Input:     tu.toolUse.Input,
+			Timestamp: tu.timestamp,
 		}
 
 		// Find matching ToolResult

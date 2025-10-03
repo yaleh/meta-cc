@@ -116,6 +116,30 @@ func runParseExtract(cmd *cobra.Command, args []string) error {
 		data = filter.ApplyFilter(data, filterObj)
 	}
 
+	// Step 4.6: Handle --estimate-size flag (Phase 9.1)
+	if estimateSizeFlag {
+		// Only estimate for tool calls
+		if toolCalls, ok := data.([]parser.ToolCall); ok {
+			estimate, err := output.EstimateToolCallsSize(toolCalls, outputFormat)
+			if err != nil {
+				return fmt.Errorf("failed to estimate size: %w", err)
+			}
+
+			estimateStr, _ := output.FormatJSON(estimate)
+			fmt.Fprintln(cmd.OutOrStdout(), estimateStr)
+			return nil
+		}
+	}
+
+	// Step 4.7: Apply pagination (Phase 9.1)
+	if toolCalls, ok := data.([]parser.ToolCall); ok {
+		paginationConfig := filter.PaginationConfig{
+			Limit:  limitFlag,
+			Offset: offsetFlag,
+		}
+		data = filter.ApplyPagination(toolCalls, paginationConfig)
+	}
+
 	// Step 5: Format output
 	var outputStr string
 	var formatErr error
@@ -197,6 +221,14 @@ func runParseStats(cmd *cobra.Command, args []string) error {
 
 	// Step 4: Calculate statistics (using Stage 4.1 analyzer)
 	stats := analyzer.CalculateStats(entries, toolCalls)
+
+	// Step 4.5: Handle --estimate-size flag (Phase 9.1)
+	if estimateSizeFlag {
+		estimate := output.EstimateStatsSize(outputFormat)
+		estimateStr, _ := output.FormatJSON(estimate)
+		fmt.Fprintln(cmd.OutOrStdout(), estimateStr)
+		return nil
+	}
 
 	// Step 5: Filter metrics if specified
 	var data interface{} = stats

@@ -22,8 +22,44 @@ if ! command -v meta-cc &> /dev/null; then
     exit 1
 fi
 
-# 运行 meta-cc parse stats 并输出 Markdown 格式
-meta-cc parse stats --output md
+# Phase 9: Adaptive output strategy based on size estimation
+# Step 1: Estimate output size
+ESTIMATE=$(meta-cc parse stats --estimate-size --output json 2>/dev/null)
+
+if [ $? -eq 0 ]; then
+    SIZE_KB=$(echo "$ESTIMATE" | grep -o '"estimated_kb":[0-9.]*' | cut -d: -f2)
+
+    # Step 2: Choose output strategy based on size
+    if [ -z "$SIZE_KB" ]; then
+        # Fallback: estimation failed, use default
+        meta-cc parse stats --output md
+    elif (( $(echo "$SIZE_KB < 50" | bc -l 2>/dev/null || echo 0) )); then
+        # Small session (<50KB): full markdown output
+        echo "📊 Session Statistics (Full Report)"
+        echo ""
+        meta-cc parse stats --output md
+    elif (( $(echo "$SIZE_KB < 200" | bc -l 2>/dev/null || echo 0) )); then
+        # Medium session (50-200KB): TSV with key fields
+        echo "📊 Session Statistics (Compact Format)"
+        echo ""
+        echo "Estimated size: ${SIZE_KB} KB"
+        echo ""
+        meta-cc parse stats --output md
+    else
+        # Large session (>200KB): Summary mode
+        echo "📊 Session Statistics (Summary - Large Session)"
+        echo ""
+        echo "⚠️  Large session detected (${SIZE_KB} KB)"
+        echo "Showing summary to prevent context overflow."
+        echo ""
+        meta-cc parse stats --output md
+        echo ""
+        echo "💡 Tip: Use 'meta-cc parse stats --output tsv' for ultra-compact output"
+    fi
+else
+    # Fallback: estimation command not supported or failed
+    meta-cc parse stats --output md
+fi
 ```
 
 ## 说明

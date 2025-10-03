@@ -45,7 +45,374 @@ make cross-compile
 # Global options
 ./meta-cc --session <session-id>    # Specify session ID
 ./meta-cc --project <path>          # Specify project path
-./meta-cc --output json|md|csv      # Output format
+./meta-cc --output json|md|csv|tsv  # Output format
+
+# Phase 9: Context-Length Management Options
+./meta-cc --limit N                 # Limit output to N records
+./meta-cc --offset M                # Skip first M records
+./meta-cc --estimate-size           # Predict output size before generating
+./meta-cc --chunk-size N --output-dir DIR  # Split into chunks
+./meta-cc --fields "f1,f2,f3"       # Output only specified fields (70%+ size reduction)
+./meta-cc --if-error-include "f4"   # Include extra fields on errors
+./meta-cc --summary-first --top N   # Summary + top N details
+```
+
+## JSON Output Format Reference
+
+Understanding meta-cc's JSON output structure is crucial for processing data with tools like `jq`.
+
+### Command Output Types
+
+| Command | Output Type | Structure |
+|---------|------------|-----------|
+| `parse stats` | **Object** | `{"TurnCount": N, "ToolCallCount": N, ...}` |
+| `parse extract --type turns` | **Array** | `[{turn1}, {turn2}, ...]` |
+| `parse extract --type tools` | **Array** | `[{tool1}, {tool2}, ...]` |
+| `analyze errors` | **Array** | `[{pattern1}, ...]` or `[]` |
+
+### Common Mistakes ❌ → Correct Usage ✅
+
+#### parse stats (returns Object)
+
+```bash
+# ✅ Correct
+meta-cc parse stats --output json | jq '.TurnCount'
+meta-cc parse stats --output json | jq '.ErrorRate'
+
+# ❌ Wrong - no wrapper object
+meta-cc parse stats --output json | jq '.stats.TurnCount'
+```
+
+#### parse extract --type tools (returns Array)
+
+```bash
+# ✅ Correct
+meta-cc parse extract --type tools --output json | jq 'length'
+meta-cc parse extract --type tools --output json | jq '.[]'
+meta-cc parse extract --type tools --output json | jq '.[0]'
+meta-cc parse extract --type tools --output json | jq -r '.[] | .ToolName'
+
+# ❌ Wrong - assumes object wrapper
+meta-cc parse extract --type tools --output json | jq '.tools'
+meta-cc parse extract --type tools --output json | jq '.tools[]'
+```
+
+#### parse extract --type turns (returns Array)
+
+```bash
+# ✅ Correct
+meta-cc parse extract --type turns --output json | jq 'length'
+meta-cc parse extract --type turns --output json | jq '.[] | select(.type == "user")'
+meta-cc parse extract --type turns --output json | jq -r '.[] | .timestamp'
+
+# ❌ Wrong - assumes object wrapper
+meta-cc parse extract --type turns --output json | jq '.turns'
+```
+
+#### analyze errors (returns Array)
+
+```bash
+# ✅ Correct
+meta-cc analyze errors --output json | jq 'length'
+meta-cc analyze errors --output json | jq '.[]'
+meta-cc analyze errors --output json | jq 'if type == "array" then length else 0 end'
+
+# ❌ Wrong - assumes object wrapper
+meta-cc analyze errors --output json | jq '.ErrorPatterns'
+meta-cc analyze errors --output json | jq '.ErrorPatterns | length'
+```
+
+### Detailed Output Structures
+
+#### parse stats
+
+Returns a single object with session statistics:
+
+```json
+{
+  "TurnCount": 2676,
+  "UserTurnCount": 1097,
+  "AssistantTurnCount": 1579,
+  "ToolCallCount": 1012,
+  "ErrorCount": 0,
+  "ErrorRate": 0,
+  "DurationSeconds": 33796,
+  "ToolFrequency": {
+    "Bash": 495,
+    "Read": 162,
+    "TodoWrite": 140,
+    "Write": 78,
+    "Edit": 65
+  },
+  "TopTools": [
+    {"Name": "Bash", "Count": 495, "Percentage": 48.9},
+    {"Name": "Read", "Count": 162, "Percentage": 16.0}
+  ]
+}
+```
+
+**jq usage examples:**
+```bash
+# Get total turns
+jq '.TurnCount'
+
+# Get error rate
+jq '.ErrorRate'
+
+# Get top 3 tools
+jq '.TopTools[:3]'
+
+# Get frequency of specific tool
+jq '.ToolFrequency.Bash'
+```
+
+#### parse extract --type tools
+
+Returns an array of tool call objects:
+
+```json
+[
+  {
+    "UUID": "abc-123",
+    "ToolName": "Bash",
+    "Input": {
+      "command": "ls -la",
+      "description": "List files"
+    },
+    "Output": "file1.txt\nfile2.txt",
+    "Status": "",
+    "Error": ""
+  },
+  {
+    "UUID": "def-456",
+    "ToolName": "Read",
+    "Input": {
+      "file_path": "/path/to/file.go"
+    },
+    "Output": "package main...",
+    "Status": "",
+    "Error": ""
+  }
+]
+```
+
+**jq usage examples:**
+```bash
+# Count total tools
+jq 'length'
+
+# Get all tool names
+jq -r '.[] | .ToolName'
+
+# Filter by tool name
+jq '.[] | select(.ToolName == "Bash")'
+
+# Get last 10 tools
+jq '.[-10:]'
+
+# Count tool frequency
+jq -r '.[] | .ToolName' | sort | uniq -c | sort -rn
+
+# Extract only errors
+jq '.[] | select(.Status == "error")'
+
+# Get commands from Bash tools
+jq -r '.[] | select(.ToolName == "Bash") | .Input.command'
+```
+
+#### parse extract --type turns
+
+Returns an array of turn (conversation entry) objects:
+
+```json
+[
+  {
+    "type": "user",
+    "timestamp": "2025-10-02T06:07:13.673Z",
+    "uuid": "abc-123",
+    "sessionId": "session-id",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Execute Stage 1.1..."
+        }
+      ]
+    }
+  },
+  {
+    "type": "assistant",
+    "timestamp": "2025-10-02T06:08:57.769Z",
+    "uuid": "def-456",
+    "message": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I'll execute Stage 1.1..."
+        }
+      ]
+    }
+  }
+]
+```
+
+**jq usage examples:**
+```bash
+# Count total turns
+jq 'length'
+
+# Get only user turns
+jq '.[] | select(.type == "user")'
+
+# Get user messages
+jq -r '.[] | select(.type == "user") | .message.content[0].text'
+
+# Filter by timestamp
+jq '.[] | select(.timestamp > "2025-10-02T12:00:00Z")'
+
+# Get turn UUIDs
+jq -r '.[] | .uuid'
+```
+
+#### analyze errors
+
+Returns an array of error pattern objects (empty array if no patterns):
+
+```json
+[
+  {
+    "PatternID": "bash_npm_test_error",
+    "Type": "command_error",
+    "Occurrences": 5,
+    "Signature": "abc123def456",
+    "ToolName": "Bash",
+    "ErrorText": "npm test failed",
+    "FirstSeen": "2025-10-02T10:00:00Z",
+    "LastSeen": "2025-10-02T10:30:00Z",
+    "TimeSpanSeconds": 1800,
+    "Context": {
+      "TurnUUIDs": ["uuid1", "uuid2", "uuid3"],
+      "TurnIndices": [100, 150, 200]
+    }
+  }
+]
+```
+
+**jq usage examples:**
+```bash
+# Count error patterns
+jq 'length'
+
+# Get all error patterns
+jq '.[]'
+
+# Filter by minimum occurrences
+jq '.[] | select(.Occurrences >= 5)'
+
+# Get error messages
+jq -r '.[] | .ErrorText'
+
+# Sort by occurrence count
+jq 'sort_by(.Occurrences) | reverse'
+
+# Safe length check (handles empty results)
+jq 'if type == "array" then length else 0 end'
+```
+
+### Integration with jq
+
+#### Safe Type Checking
+
+Always check the type when uncertain:
+
+```bash
+# Safe array length
+meta-cc analyze errors --output json | \
+  jq 'if type == "array" then length else 0 end'
+
+# Safe object property access
+meta-cc parse stats --output json | \
+  jq 'if type == "object" then .TurnCount else null end'
+```
+
+#### Combining Commands
+
+```bash
+# Get tool usage stats
+meta-cc parse extract --type tools --output json | \
+  jq -r '.[] | .ToolName' | \
+  sort | uniq -c | sort -rn
+
+# Find repeated Bash commands
+meta-cc parse extract --type tools --output json | \
+  jq -r '.[] | select(.ToolName == "Bash") | .Input.command' | \
+  sort | uniq -c | sort -rn
+
+# Calculate error rate manually
+TOTAL=$(meta-cc parse extract --type tools --output json | jq 'length')
+ERRORS=$(meta-cc parse extract --type tools --output json | \
+  jq '[.[] | select(.Status == "error")] | length')
+echo "scale=2; $ERRORS * 100 / $TOTAL" | bc
+```
+
+#### Common Patterns
+
+```bash
+# Pattern 1: Filter and count
+meta-cc parse extract --type tools --output json | \
+  jq '[.[] | select(.ToolName == "Edit")] | length'
+
+# Pattern 2: Extract specific fields
+meta-cc parse extract --type tools --output json | \
+  jq -r '.[] | "\(.ToolName): \(.Input.command // "N/A")"'
+
+# Pattern 3: Group by field
+meta-cc parse extract --type tools --output json | \
+  jq 'group_by(.ToolName) | map({tool: .[0].ToolName, count: length})'
+
+# Pattern 4: Time-based filtering (for turns)
+meta-cc parse extract --type turns --output json | \
+  jq '.[] | select(.timestamp > "2025-10-02T12:00:00Z")'
+```
+
+### Troubleshooting
+
+**Error: "Cannot index array with string"**
+```bash
+# You're trying to access object properties on an array
+# Fix: Remove the property accessor or use .[]
+
+# ❌ Wrong
+jq '.tools'
+
+# ✅ Correct
+jq '.[]'
+```
+
+**Error: "Cannot iterate over object"**
+```bash
+# You're trying to iterate an object
+# Fix: Access the specific property first
+
+# ❌ Wrong
+jq '.[] | .ToolName'  # on parse stats
+
+# ✅ Correct
+jq '.ToolFrequency | to_entries | .[] | "\(.key): \(.value)"'
+```
+
+**Empty output**
+```bash
+# Command returns empty array []
+# This is normal when no data matches (e.g., no errors)
+
+# Check if empty
+meta-cc analyze errors --output json | jq 'length == 0'
+
+# Provide default value
+meta-cc analyze errors --output json | jq 'if length == 0 then "No errors" else . end'
 ```
 
 ## Claude Code Integration
@@ -382,12 +749,23 @@ echo "Project Hash: $CC_PROJECT_HASH"
 
 If these environment variables are unavailable, meta-cc will automatically fall back to working directory inference.
 
+### Integration Options
+
+meta-cc integrates with Claude Code in three ways:
+
+- **MCP Server**: Seamless data access (Claude queries autonomously)
+- **Slash Commands**: Quick, pre-defined workflows (`/meta-stats`)
+- **Subagent** (`@meta-coach`): Interactive, conversational analysis
+
+**👉 See the [Integration Guide](./docs/integration-guide.md)** for detailed comparison, decision framework, and best practices.
+
 ### Reference Documentation
 
-- [Claude Code Slash Commands Official Documentation](https://docs.claude.com/en/docs/claude-code/slash-commands)
-- [meta-cc Command Reference](#usage)
-- [meta-cc Technical Proposal](./docs/proposals/meta-cognition-proposal.md)
-- [Troubleshooting Guide](./docs/troubleshooting.md)
+- **[Integration Guide](./docs/integration-guide.md)** - Choose the right integration method
+- [Examples & Usage](./docs/examples-usage.md) - Step-by-step setup guides
+- [Troubleshooting Guide](./docs/troubleshooting.md) - Common issues and solutions
+- [Technical Proposal](./docs/proposals/meta-cognition-proposal.md) - Architecture deep dive
+- [Claude Code Documentation](https://docs.claude.com/en/docs/claude-code/overview) - Official docs
 
 ## Development
 
@@ -435,6 +813,231 @@ make help            # Show help message
 - Linux (amd64, arm64)
 - macOS (amd64, arm64/Apple Silicon)
 - Windows (amd64)
+
+## Phase 9: Context-Length Management (New!)
+
+Phase 9 introduces powerful features to handle large sessions (>1000 turns) and prevent context overflow.
+
+### Features
+
+1. **Pagination**: Process data in chunks to avoid memory overflow
+2. **Size Estimation**: Predict output size before generating
+3. **Chunking**: Split large output into multiple files
+4. **Field Projection**: Output only specified fields (70%+ size reduction)
+5. **Compact Formats**: TSV format (86%+ smaller than JSON)
+6. **Summary Mode**: Overview + top N details
+
+### Usage Examples
+
+#### 1. Pagination
+
+```bash
+# Get first 50 tools
+meta-cc query tools --limit 50
+
+# Skip first 100, get next 50
+meta-cc query tools --limit 50 --offset 100
+
+# Iterate through all tools in batches of 100
+for i in {0..10}; do
+  meta-cc query tools --limit 100 --offset $((i*100)) --output json
+done
+```
+
+#### 2. Size Estimation
+
+```bash
+# Estimate output size before generating
+meta-cc query tools --estimate-size
+
+# Output:
+# {
+#   "estimated_bytes": 1107311,
+#   "estimated_kb": 1081.36,
+#   "format": "json",
+#   "record_count": 246
+# }
+
+# Use in Slash Commands for adaptive strategy
+ESTIMATE=$(meta-cc parse stats --estimate-size --output json)
+SIZE=$(echo $ESTIMATE | jq '.estimated_kb')
+if (( $(echo "$SIZE > 100" | bc -l) )); then
+  meta-cc parse stats --summary-first --top 20
+else
+  meta-cc parse stats --output md
+fi
+```
+
+#### 3. Chunking (Large Sessions)
+
+```bash
+# Split 2000 tools into chunks of 100 records each
+meta-cc query tools --chunk-size 100 --output-dir /tmp/chunks
+
+# Output:
+# Generated 20 chunk(s)
+#   Chunk 0: chunk_0001.json (100 records, 44KB)
+#   Chunk 1: chunk_0002.json (100 records, 45KB)
+#   ...
+#   Chunk 19: chunk_0020.json (100 records, 44KB)
+# Manifest: /tmp/chunks/manifest.json
+
+# Check manifest
+cat /tmp/chunks/manifest.json
+# {
+#   "total_records": 2000,
+#   "chunk_size": 100,
+#   "num_chunks": 20,
+#   "chunks": [...]
+# }
+
+# Process chunks in parallel
+ls /tmp/chunks/chunk_*.json | xargs -P 4 -I {} sh -c 'jq ".[] | select(.Status == \"error\")" {}'
+```
+
+#### 4. Field Projection (70%+ Size Reduction)
+
+```bash
+# Output only UUID, ToolName, Status (72.7% smaller)
+meta-cc query tools --fields "UUID,ToolName,Status"
+
+# With error fields conditionally included
+meta-cc query tools --fields "UUID,ToolName,Status" --if-error-include "Error,Output"
+
+# Size comparison
+meta-cc query tools --limit 100 --output json | wc -c
+# Output: 31101 bytes (30.4 KB)
+
+meta-cc query tools --limit 100 --fields "UUID,ToolName,Status" --output json | wc -c
+# Output: 8501 bytes (8.3 KB) - 72.7% reduction!
+```
+
+#### 5. TSV Format (86%+ Smaller)
+
+```bash
+# TSV output (86.4% smaller than JSON)
+meta-cc query tools --output tsv
+
+# Output:
+# UUID	ToolName	Status	Error
+# 1b08...	Read
+# 69a7...	Bash
+# 586a...	Bash
+
+# Combine with other features
+meta-cc query tools --limit 100 --fields "UUID,ToolName,Status" --output tsv
+
+# Pipe to other tools
+meta-cc query tools --output tsv | cut -f2 | sort | uniq -c
+# Count tool usage
+```
+
+#### 6. Summary Mode
+
+```bash
+# Summary + top 10 details
+meta-cc query tools --summary-first --top 10
+
+# Output:
+# === Session Summary ===
+# Total Tools: 246
+# Errors: 0 (0.0%)
+#
+# Top Tools:
+#   1. Bash (102)
+#   2. Read (37)
+#   3. TodoWrite (37)
+#   ...
+#
+# [Top 10 detailed records follow]
+
+# JSON format with summary
+meta-cc query tools --summary-first --top 5 --output json
+```
+
+#### 7. Combined Features
+
+```bash
+# Pagination + Projection + TSV
+meta-cc query tools --limit 50 --fields "ToolName,Status" --output tsv
+
+# Chunking + TSV (ultra-compact for large sessions)
+meta-cc query tools --chunk-size 100 --output-dir ./chunks --output tsv
+
+# Summary + Projection + JSON
+meta-cc query tools --summary-first --top 10 --fields "UUID,ToolName" --output json
+```
+
+### Large Session Best Practices
+
+**Problem**: Sessions with >1000 turns can cause:
+- Context overflow in Claude Code (>200K tokens)
+- Memory issues during processing
+- Slow command execution
+
+**Solution**: Use Phase 9 features adaptively
+
+#### Strategy Selection Matrix
+
+| Session Size | Recommended Strategy | Example Command |
+|-------------|---------------------|----------------|
+| < 500 turns | Standard output | `meta-cc query tools --output json` |
+| 500-1000 turns | Pagination or Projection | `meta-cc query tools --limit 200 --fields "UUID,ToolName,Status"` |
+| 1000-2000 turns | Summary + TSV | `meta-cc query tools --summary-first --top 20 --output tsv` |
+| > 2000 turns | Chunking + TSV | `meta-cc query tools --chunk-size 100 --output-dir ./chunks --output tsv` |
+
+#### Adaptive Slash Command Pattern
+
+```bash
+# Estimate first, then choose strategy
+SIZE=$(meta-cc query tools --estimate-size --output json | jq '.estimated_kb')
+
+if (( $(echo "$SIZE < 50" | bc -l) )); then
+  # Small: full output
+  meta-cc query tools --output md
+elif (( $(echo "$SIZE < 200" | bc -l) )); then
+  # Medium: pagination + projection
+  meta-cc query tools --limit 100 --fields "ToolName,Status,UUID" --output tsv
+else
+  # Large: summary mode
+  meta-cc query tools --summary-first --top 20 --output tsv
+fi
+```
+
+### Performance Metrics
+
+| Feature | Size Reduction | Use Case |
+|---------|---------------|----------|
+| Field Projection (3 fields) | **72.7%** | Reduce JSON size while preserving key data |
+| TSV Format | **86.4%** | Ultra-compact tabular output |
+| Summary Mode | **~95%** | Overview for very large sessions |
+| Chunking | N/A | Split data for parallel processing |
+
+### Migration Guide
+
+**Before Phase 9** (Old way):
+```bash
+# Gets all tools (may overflow context with >1000 turns)
+meta-cc query tools --output json
+```
+
+**After Phase 9** (Recommended):
+```bash
+# Option 1: Estimate first
+meta-cc query tools --estimate-size
+
+# Option 2: Use pagination
+meta-cc query tools --limit 100
+
+# Option 3: Use field projection
+meta-cc query tools --fields "UUID,ToolName,Status"
+
+# Option 4: Use TSV for maximum compression
+meta-cc query tools --output tsv
+
+# Option 5: Use summary for quick overview
+meta-cc query tools --summary-first --top 20
+```
 
 ## Project Structure
 
