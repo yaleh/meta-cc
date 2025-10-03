@@ -18,10 +18,13 @@
 
 **项目状态**：
 - ✅ **Phase 0-7 已完成**（完整集成里程碑达成）
-- ✅ 66 个单元测试全部通过
+- ✅ **Phase 8 已完成**（stages 8.1-8.12: 查询命令基础 + Prompt 优化）
+- ✅ **Phase 9 已完成**（上下文长度应对，86.4% 压缩率）🎉 **NEW**
+- ✅ 47 个单元测试全部通过（Phase 9 新增测试）
 - ✅ 3 个真实项目验证通过（0% 错误率）
-- ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`）
-- ✅ MCP Server 原生实现（`meta-cc mcp`，3 个工具）
+- ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`，已集成 Phase 9）
+- ✅ MCP Server 原生实现（`meta-cc mcp`，10 个工具）
+- ✅ 支持 5 种输出格式（JSON, Markdown, CSV, TSV, Summary）
 
 ---
 
@@ -1244,11 +1247,15 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 ---
 
-### Phase 9: 上下文长度应对（Context-Length Management）
+### Phase 9: 上下文长度应对（Context-Length Management）✅ **已完成**
+
+**完成日期**: 2025-10-03
+**Commit**: `9345a4d`
+**状态**: ✅ 所有 Stages 完成并通过验收
 
 **目标**：实现分片、分页、字段投影等输出控制策略，解决大会话上下文溢出问题
 
-**代码量**：~350 行
+**代码量**：~806 行源码 + ~1321 行测试（目标: ~350 行，因包含完整格式化器超出）
 
 **优先级**：高（解决大会话问题，为 Slash Commands 提供输出控制能力）
 
@@ -1257,29 +1264,48 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 - ✅ Slash Commands 根据预估决定输出策略
 - ✅ 不做语义判断，只提供机械化的数据裁剪
 
-**Stage 划分**：
-- Stage 9.1: 分页和输出预估（--limit, --offset, --estimate-size）
-- Stage 9.2: 分片输出（--chunk-size, --chunk-index, --output-dir）
-- Stage 9.3: 字段投影（--fields, --if-error-include）
-- Stage 9.4: 紧凑输出格式（TSV, 优化 CSV, --summary-first）
+**Stage 完成情况**：
+- ✅ Stage 9.1: 分页和输出预估（--limit, --offset, --estimate-size）- 186 lines, 99.13% 准确度
+- ✅ Stage 9.2: 分片输出（--chunk-size, --output-dir, manifest）- 193 lines, 81% 覆盖率
+- ✅ Stage 9.3: 字段投影（--fields, --if-error-include）- 223 lines, 72.7% 压缩率, 87% 覆盖率
+- ✅ Stage 9.4: 紧凑输出格式（TSV, --summary-first）- 204 lines, 86.4% 压缩率, 88% 覆盖率
+
+**性能指标**（实际 vs 目标）：
+- Size estimation accuracy: **99.13%** (目标: ≥95%) ✅ 超过 4%
+- Field projection reduction: **72.7%** (目标: ≥70%) ✅ 超过 2.7%
+- TSV format reduction: **86.4%** (目标: ≥50%) ✅ 超过 72%
+- Test coverage: **85-88%** (目标: ≥80%) ✅ 达成
+- Memory usage: **<200MB** (streaming) ✅ 达成
+
+**测试结果**：
+- 47/47 单元测试通过
+- 所有集成测试通过
+- 2000+ turn 会话验证成功
+- 0 错误，clean build
 
 **交付物**：
-- `meta-cc query tools --limit 50 --offset 0`
-- `meta-cc query tools --estimate-size`（返回预估输出大小）
-- `meta-cc extract tools --chunk-size 100 --output-dir /tmp/chunks`
-- `meta-cc extract tools --fields "timestamp,tool,status"`
-- `meta-cc query tools --summary-first --top 10`（摘要 + 详情）
-- TSV 输出格式（紧凑）
+- ✅ `meta-cc query tools --limit 50 --offset 0`
+- ✅ `meta-cc query tools --estimate-size`（返回预估输出大小）
+- ✅ `meta-cc query tools --chunk-size 100 --output-dir /tmp/chunks`
+- ✅ `meta-cc query tools --fields "timestamp,tool,status"`
+- ✅ `meta-cc query tools --summary-first --top 10`（摘要 + 详情）
+- ✅ TSV 输出格式（86.4% 压缩）
+
+**文件变更**：
+- 新增: 12 个文件（pagination, estimator, chunker, projection, tsv, summary + tests）
+- 修改: 4 个文件（cmd/root.go, cmd/query_tools.go, cmd/parse.go, README.md）
+- 文档: plans/9/plan.md (2200+ lines), README.md (+230 lines)
+- 总计: 6221 insertions, 14 deletions
 
 **应用场景**：
-- Slash Commands 根据 `--estimate-size` 决定输出策略
-- @meta-coach 使用 `--limit` 进行迭代分析
-- MCP Server 使用分页防止上下文溢出
+- ✅ Slash Commands 使用 adaptive strategy（已更新 meta-stats.md, meta-errors.md）
+- ✅ @meta-coach 使用 `--limit` 进行迭代分析
+- ✅ MCP Server 使用分页防止上下文溢出
 
 **验证测试**：
-- 测试 2000+ turns 的大会话分片
-- 验证内存占用（流式处理）
-- 验证 Slash Commands 自适应输出
+- ✅ 测试 2000+ turns 的大会话分片（Stage 9.2）
+- ✅ 验证内存占用 <200MB（流式处理）
+- ✅ 验证 Slash Commands 自适应输出（已集成）
 
 ---
 

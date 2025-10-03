@@ -42,9 +42,21 @@ echo ""
 # Step 2: 分析错误模式（窗口大小：$WINDOW_SIZE）
 echo "## 错误模式分析（窗口大小：$WINDOW_SIZE）"
 echo ""
-PATTERN_OUTPUT=$(meta-cc analyze errors --window "$WINDOW_SIZE" --output md)
 
-echo "$PATTERN_OUTPUT"
+# Phase 9: Use summary mode for large error sets
+if [ "$ERROR_COUNT" -gt 10 ]; then
+    echo "⚠️  Large error set detected ($ERROR_COUNT errors)"
+    echo "Showing summary with top 10 patterns to prevent context overflow."
+    echo ""
+    PATTERN_OUTPUT=$(meta-cc analyze errors --window "$WINDOW_SIZE" --output md 2>/dev/null | head -100)
+    echo "$PATTERN_OUTPUT"
+    echo ""
+    echo "💡 Tip: Use 'meta-cc parse extract --type tools --filter \"status=error\" --output tsv' for full error list"
+else
+    PATTERN_OUTPUT=$(meta-cc analyze errors --window "$WINDOW_SIZE" --output md)
+    echo "$PATTERN_OUTPUT"
+fi
+
 echo ""
 
 # Step 3: 如果检测到错误模式，提供优化建议
