@@ -762,47 +762,54 @@ If these environment variables are unavailable, meta-cc will automatically fall 
 
 meta-cc integrates with Claude Code in three ways:
 
-- **MCP Server**: Seamless data access (Claude queries autonomously) - **14 tools available**
+- **MCP Server**: Seamless data access (Claude queries autonomously) - **16 tools available** (Phase 12: project-level + session-level)
 - **Slash Commands**: Quick, pre-defined workflows (`/meta-stats`, `/meta-errors`, `/meta-query-tools`)
 - **Subagent** (`@meta-coach`): Interactive, conversational analysis with Phase 10 capabilities
 
 **👉 See the [Integration Guide](./docs/integration-guide.md)** for detailed comparison, decision framework, and best practices.
 
-### Phase 10 MCP Tools
+### Phase 12: Project-Level vs Session-Level Queries
 
-The MCP Server now includes **4 new Phase 10 tools**:
+Phase 12 introduces **dual-scope querying** for deeper metacognitive insights:
 
-#### 1. query_tools_advanced
-Query with SQL-like filter expressions:
+**Project-Level Tools** (query all sessions):
 ```
-"Find Bash errors with duration > 1000ms"
-→ query_tools_advanced(where="tool='Bash' AND status='error' AND duration>1000")
-```
-
-#### 2. aggregate_stats
-Statistical aggregation with group-by:
-```
-"Show error rates by tool"
-→ aggregate_stats(group_by="tool", metrics="count,error_rate")
+get_stats, analyze_errors, query_tools, query_user_messages,
+query_tool_sequences, query_file_access, query_successful_prompts, query_context
 ```
 
-#### 3. query_time_series
-Analyze metrics over time:
+**Session-Level Tools** (query current session only):
 ```
-"How has my tool usage changed over time?"
-→ query_time_series(metric="tool-calls", interval="day")
-```
-
-#### 4. query_files
-File-level operation statistics:
-```
-"What are my most edited files?"
-→ query_files(sort_by="edit_count", top=10)
+get_session_stats, analyze_errors_session, query_tools_session, query_user_messages_session,
+query_tool_sequences_session, query_file_access_session, query_successful_prompts_session, query_context_session
 ```
 
-**Total MCP Tools**: 14 (10 from Phase 8 + 4 from Phase 10)
+**Use project-level tools** to analyze long-term patterns, recurring errors, and workflow evolution.
+**Use session-level tools** for focused debugging, quick summaries, and immediate context.
 
-See [MCP Usage Guide](./docs/mcp-usage.md) for complete documentation.
+**👉 See the [MCP Project Scope Guide](./docs/mcp-project-scope.md)** for detailed usage examples and best practices.
+
+### MCP Tools Summary
+
+The MCP Server includes **16 tools** across multiple phases:
+
+**Phase 8 Tools** (10 tools):
+- Core query tools: `get_session_stats`, `analyze_errors`, `extract_tools`, `query_tools`, `query_user_messages`
+- Advanced queries: `query_context`, `query_tool_sequences`, `query_file_access`, `query_project_state`, `query_successful_prompts`
+
+**Phase 10 Tools** (4 tools):
+- `query_tools_advanced` - SQL-like filtering
+- `aggregate_stats` - Statistical aggregation
+- `query_time_series` - Time series analysis
+- `query_files` - File-level statistics
+
+**Phase 12 Tools** (adds dual-scope querying):
+- **8 Project-level tools** (query all sessions): `get_stats`, `analyze_errors`, `query_tools`, etc.
+- **8 Session-level tools** (current session only): `get_session_stats`, `analyze_errors_session`, `query_tools_session`, etc.
+
+**Total**: 16 tools (8 project-level + 8 session-level)
+
+See [MCP Usage Guide](./docs/mcp-usage.md) and [MCP Project Scope Guide](./docs/mcp-project-scope.md) for complete documentation.
 
 ### Reference Documentation
 

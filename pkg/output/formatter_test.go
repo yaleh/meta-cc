@@ -135,6 +135,63 @@ func TestFormatMarkdown_SessionEntries(t *testing.T) {
 	}
 }
 
+func TestFormatMarkdown_UserMessages(t *testing.T) {
+	// Import UserMessage type from cmd package (defined in cmd/query_messages.go:44)
+	type UserMessage struct {
+		TurnSequence int    `json:"turn_sequence"`
+		UUID         string `json:"uuid"`
+		Timestamp    string `json:"timestamp"`
+		Content      string `json:"content"`
+	}
+
+	userMessages := []UserMessage{
+		{
+			TurnSequence: 1,
+			UUID:         "uuid-1",
+			Timestamp:    "2025-10-04T03:41:42.444Z",
+			Content:      "List all the user input history of this project.",
+		},
+		{
+			TurnSequence: 37,
+			UUID:         "uuid-2",
+			Timestamp:    "2025-10-04T03:43:35.552Z",
+			Content:      "Find out why it failed.",
+		},
+	}
+
+	output, err := FormatMarkdown(userMessages)
+	if err != nil {
+		t.Fatalf("FormatMarkdown failed: %v", err)
+	}
+
+	// Verify Markdown table structure
+	if !strings.Contains(output, "| Turn | UUID | Timestamp | Content |") {
+		t.Errorf("Expected Markdown table header, got: %s", output)
+	}
+
+	// Verify first message row
+	if !strings.Contains(output, "| 1 |") {
+		t.Errorf("Expected turn 1 row, got: %s", output)
+	}
+
+	if !strings.Contains(output, "uuid-1") {
+		t.Errorf("Expected uuid-1 in output, got: %s", output)
+	}
+
+	if !strings.Contains(output, "List all the user input history") {
+		t.Errorf("Expected first message content, got: %s", output)
+	}
+
+	// Verify second message row
+	if !strings.Contains(output, "| 37 |") {
+		t.Errorf("Expected turn 37 row, got: %s", output)
+	}
+
+	if !strings.Contains(output, "Find out why it failed") {
+		t.Errorf("Expected second message content, got: %s", output)
+	}
+}
+
 func TestFormatCSV_ToolCalls(t *testing.T) {
 	toolCalls := []parser.ToolCall{
 		{

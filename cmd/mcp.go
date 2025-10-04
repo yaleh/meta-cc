@@ -111,6 +111,21 @@ func handleToolsList(req jsonRPCRequest) {
 				},
 			},
 		},
+		// Phase 12 Stage 12.3: Session-level tools with _session suffix
+		{
+			"name":        "analyze_errors_session",
+			"description": "Analyze error patterns in the current session only",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+			},
+		},
 		{
 			"name":        "extract_tools",
 			"description": "Extract tool usage data from the current session with pagination (Phase 8 enhanced)",
@@ -399,6 +414,149 @@ func handleToolsList(req jsonRPCRequest) {
 				},
 			},
 		},
+		// Phase 12 Stage 12.3: Additional session-level tools with _session suffix
+		{
+			"name":        "query_tools_session",
+			"description": "Query tool calls in the current session only. For project-level queries, use query_tools.",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"tool": map[string]interface{}{
+						"type":        "string",
+						"description": "Filter by tool name (e.g., 'Bash', 'Read', 'Edit')",
+					},
+					"status": map[string]interface{}{
+						"type":        "string",
+						"enum":        []string{"error", "success"},
+						"description": "Filter by execution status",
+					},
+					"limit": map[string]interface{}{
+						"type":        "integer",
+						"default":     20,
+						"description": "Maximum number of results (default 20)",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+			},
+		},
+		{
+			"name":        "query_user_messages_session",
+			"description": "Search user messages in the current session only using regex pattern matching",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"pattern": map[string]interface{}{
+						"type":        "string",
+						"description": "Regex pattern to match in message content (required)",
+					},
+					"limit": map[string]interface{}{
+						"type":        "integer",
+						"default":     10,
+						"description": "Maximum number of results (default 10)",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+				"required": []string{"pattern"},
+			},
+		},
+		{
+			"name":        "query_tool_sequences_session",
+			"description": "Query repeated tool call sequences (workflow patterns) in the current session only",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"min_occurrences": map[string]interface{}{
+						"type":        "integer",
+						"default":     3,
+						"description": "Minimum occurrences to report (default 3)",
+					},
+					"pattern": map[string]interface{}{
+						"type":        "string",
+						"description": "Specific sequence pattern to match (e.g., 'Read -> Edit -> Bash')",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+			},
+		},
+		{
+			"name":        "query_file_access_session",
+			"description": "Query file access history (read/edit/write operations) in the current session only",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"file": map[string]interface{}{
+						"type":        "string",
+						"description": "File path to query (required)",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+				"required": []string{"file"},
+			},
+		},
+		{
+			"name":        "query_successful_prompts_session",
+			"description": "Query successful prompt patterns in the current session only",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"min_quality_score": map[string]interface{}{
+						"type":        "number",
+						"default":     0.8,
+						"description": "Minimum quality score (0.0-1.0, default 0.8)",
+					},
+					"limit": map[string]interface{}{
+						"type":        "integer",
+						"default":     10,
+						"description": "Maximum number of results (default 10)",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+			},
+		},
+		{
+			"name":        "query_context_session",
+			"description": "Query context around specific errors in the current session only",
+			"inputSchema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"error_signature": map[string]interface{}{
+						"type":        "string",
+						"description": "Error pattern ID to query (required)",
+					},
+					"window": map[string]interface{}{
+						"type":        "integer",
+						"default":     3,
+						"description": "Context window size in turns before/after (default 3)",
+					},
+					"output_format": map[string]interface{}{
+						"type":    "string",
+						"enum":    []string{"json", "md"},
+						"default": "json",
+					},
+				},
+				"required": []string{"error_signature"},
+			},
+		},
 	}
 
 	result := map[string]interface{}{
@@ -600,6 +758,85 @@ func executeTool(name string, args map[string]interface{}) (string, error) {
 
 		if where, ok := args["where"].(string); ok && where != "" {
 			cmdArgs = append(cmdArgs, "--filter", where)
+		}
+
+	// Phase 12 Stage 12.3: Session-level tools with _session suffix (NO --project flag)
+	case "analyze_errors_session":
+		cmdArgs = []string{"analyze", "errors", "--output", outputFormat}
+
+	case "query_tools_session":
+		cmdArgs = []string{"query", "tools", "--output", outputFormat}
+
+		if tool, ok := args["tool"].(string); ok && tool != "" {
+			cmdArgs = append(cmdArgs, "--tool", tool)
+		}
+		if status, ok := args["status"].(string); ok && status != "" {
+			cmdArgs = append(cmdArgs, "--status", status)
+		}
+		if limit, ok := args["limit"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
+		} else {
+			cmdArgs = append(cmdArgs, "--limit", "20")
+		}
+
+	case "query_user_messages_session":
+		pattern, ok := args["pattern"].(string)
+		if !ok || pattern == "" {
+			return "", fmt.Errorf("pattern parameter is required")
+		}
+
+		cmdArgs = []string{"query", "user-messages", "--match", pattern, "--output", outputFormat}
+
+		if limit, ok := args["limit"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
+		} else {
+			cmdArgs = append(cmdArgs, "--limit", "10")
+		}
+
+	case "query_context_session":
+		errorSignature, ok := args["error_signature"].(string)
+		if !ok || errorSignature == "" {
+			return "", fmt.Errorf("error_signature parameter is required")
+		}
+
+		cmdArgs = []string{"query", "context", "--error-signature", errorSignature, "--output", outputFormat}
+
+		if window, ok := args["window"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--window", fmt.Sprintf("%.0f", window))
+		} else {
+			cmdArgs = append(cmdArgs, "--window", "3")
+		}
+
+	case "query_tool_sequences_session":
+		cmdArgs = []string{"query", "tool-sequences", "--output", outputFormat}
+
+		if minOccurrences, ok := args["min_occurrences"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--min-occurrences", fmt.Sprintf("%.0f", minOccurrences))
+		} else {
+			cmdArgs = append(cmdArgs, "--min-occurrences", "3")
+		}
+		if pattern, ok := args["pattern"].(string); ok && pattern != "" {
+			cmdArgs = append(cmdArgs, "--pattern", pattern)
+		}
+
+	case "query_file_access_session":
+		file, ok := args["file"].(string)
+		if !ok || file == "" {
+			return "", fmt.Errorf("file parameter is required")
+		}
+
+		cmdArgs = []string{"query", "file-access", "--file", file, "--output", outputFormat}
+
+	case "query_successful_prompts_session":
+		cmdArgs = []string{"query", "successful-prompts", "--output", outputFormat}
+
+		if minQualityScore, ok := args["min_quality_score"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--min-quality-score", fmt.Sprintf("%.2f", minQualityScore))
+		}
+		if limit, ok := args["limit"].(float64); ok {
+			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
+		} else {
+			cmdArgs = append(cmdArgs, "--limit", "10")
 		}
 
 	default:
