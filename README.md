@@ -2,6 +2,15 @@
 
 Meta-Cognition tool for Claude Code - analyze session history for workflow optimization.
 
+## Recent Milestones
+
+### Agent Formalization (v0.11.1) - October 2025
+- **92% size reduction** across 5 agent files (3074 → 244 lines)
+- **100% behavioral semantics preserved** using lambda calculus formal specifications
+- **Zero regressions** - all tests pass with 70-100% coverage
+- Replaces verbose prose with mathematically precise function definitions
+- See [Formalization Summary](.claude/agents/FORMALIZATION_SUMMARY.md) for details
+
 ## Features
 
 - 🔍 Parse Claude Code session history (JSONL format)
