@@ -168,31 +168,79 @@ endif
 **参考文档：**
 - [设置和配置](https://docs.claude.com/en/docs/claude-code/settings)
 
-### 2.2 命令结构
+### 2.2 命令结构与输出格式原则
+
+**输出格式设计原则**（Phase 13）：
+
+```
+核心原则：
+1. 双格式原则 - 仅保留 JSONL 和 TSV
+2. 格式一致性 - 所有场景输出有效格式（包括错误）
+3. 数据日志分离 - stdout=数据, stderr=日志
+4. Unix 可组合性 - meta-cc 提供简单检索，复杂过滤交给 jq/awk/grep
+5. 客户端渲染 - 移除 Markdown，由 Claude Code 自行渲染
+```
+
+**格式选择**：
+- **JSONL**（默认，`--stream`）：机器处理，jq 友好，流式性能
+- **TSV**（`--output tsv`）：轻量级，awk/grep 友好，体积小
+
+**移除格式**（避免冗余和维护负担）：
+- ❌ JSON (pretty array) → 用 `--stream | jq -s` 替代
+- ❌ CSV → 用 TSV 替代（转换：`tr '\t' ','`）
+- ❌ Markdown → 客户端渲染（Slash Commands 让 Claude 格式化）
+
+**命令结构**：
 
 ```bash
 meta-cc - Claude Code Meta-Cognition Tool
 
 全局选项:
-  --session <id>          会话ID（或读取 $CC_SESSION_ID）
+  --session <id>          会话ID（或自动检测）
   --project <path>        项目路径（自动转换为哈希目录）
-  --output <json|md|csv>  输出格式（默认：json）
+  --stream                JSONL 输出（默认）
+  --output tsv            TSV 输出
+  --fields <list>         字段投影（逗号分隔）
+  --limit <n>             限制结果数量
+  --offset <n>            跳过前 N 条
 
 COMMANDS:
   parse       解析会话文件（核心功能）
-    dump      导出完整 JSONL 为结构化格式
     extract   提取特定数据（turns/tools/errors）
     stats     会话统计信息
 
-  query       数据查询（需先建索引，可选）
-    sessions  列出项目下所有会话
-    turns     查询轮次
-    tools     工具使用统计
+  query       数据查询（无需索引）
+    tools     查询工具调用
+    messages  查询用户消息
+    context   查询上下文
+    sequences 查询工具序列
 
   analyze     模式分析（基于规则，无 LLM）
     errors    错误模式检测
-    tools     工具使用模式
-    timeline  时间线分析
+    sequences 工具序列模式
+
+  stats       统计分析
+    aggregate 聚合统计
+    timeseries 时间序列
+    files     文件级统计
+```
+
+**Unix 可组合性示例**：
+
+```bash
+# meta-cc 提供简单检索（--where, --status, --tool）
+meta-cc query tools --status error --limit 100
+
+# 复杂过滤交给 jq（多条件、计算、转换）
+meta-cc query tools | jq 'select(.Duration > 5000 and .ToolName == "Bash")'
+
+# TSV + awk 处理（轻量场景）
+meta-cc query tools --output tsv | awk -F'\t' '{if ($3 == "error") print $2}'
+
+# 组合使用（meta-cc + jq + awk）
+meta-cc query tools --status error | \
+  jq -r '[.ToolName, .Duration] | @tsv' | \
+  awk '{sum+=$2} END {print "Total:", sum "ms"}'
 ```
 
 ### 2.3 核心命令示例

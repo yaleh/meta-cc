@@ -1433,68 +1433,105 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 ---
 
-### Phase 13: 查询语言增强（Query Language）
+### Phase 13: 输出格式简化与一致性（Output Format Simplification）
 
-**目标**：实现 SQL-like 查询语法，提升查询表达能力
+**目标**：简化输出格式为 JSONL 和 TSV 两种核心格式，强化格式一致性和错误处理
 
-**代码量**：~300 行
+**代码量**：~400 行
 
-**优先级**：低（便利性）
+**优先级**：高（核心体验改进，Unix 哲学对齐）
 
-**Stage 划分**：
-- Stage 12.1: 查询表达式解析器
-- Stage 12.2: 查询优化器（简化）
-- Stage 12.3: 关联查询（跨 turn 过滤）
-- Stage 12.4: 查询性能优化
+**状态**：待实施
 
-**交付物**：
-- 支持 SQL-like 语法：`WHERE tool = 'Bash' AND status = 'error'`
-- 比较操作符：`==, !=, >, <, >=, <=`
-- 逻辑操作符：`AND, OR, NOT`
-- 集合操作符：`IN, NOT IN, LIKE, REGEXP`
+**设计原则**：
+- ✅ **双格式原则**：仅保留 JSONL（机器处理）和 TSV（CLI 工具友好）
+- ✅ **格式一致性**：所有场景（正常/异常）都输出有效格式
+- ✅ **数据日志分离**：stdout=数据，stderr=诊断日志
+- ✅ **Unix 可组合性**：meta-cc 提供简单检索，复杂过滤交给 jq/awk/grep
+- ✅ **无自动降级**：移除格式降级逻辑，客户端负责渲染
 
----
-
-### Phase 14: 索引功能（可选）
-
-**目标**：SQLite 索引构建，支持跨会话查询
-
-**代码量**：~500 行
-
-**优先级**：低（性能优化）
+**核心改变**：
+```
+移除格式：JSON (pretty), CSV, Markdown
+保留格式：JSONL (默认), TSV
+客户端渲染：Claude Code 自行将 JSONL 转为 Markdown 展示
+```
 
 **Stage 划分**：
-- Stage 14.1: SQLite schema 设计
-- Stage 14.2: 索引构建（index build, index update）
-- Stage 14.3: 索引查询（query sessions --since）
-- Stage 14.4: 索引维护和清理
+- Stage 13.1: 移除冗余格式（JSON, CSV, Markdown）
+- Stage 13.2: 增强 TSV 支持所有数据类型（泛型投影）
+- Stage 13.3: 统一错误处理（格式化错误输出）
+- Stage 13.4: 更新文档和集成配置
 
 **交付物**：
-- `meta-cc index build`：全量索引
-- `meta-cc index update`：增量索引
-- `meta-cc query sessions --since "7 days ago"`
-- 索引文件管理
+- 移除的格式处理代码：
+  - `pkg/output/json.go` (保留 `FormatJSON` 用于错误)
+  - `pkg/output/csv.go`
+  - `pkg/output/markdown.go`
+- 增强的 TSV 格式化器：
+  - `pkg/output/tsv.go`（支持所有数据类型）
+  - 泛型字段投影机制
+- 统一的错误处理：
+  - JSONL 格式错误对象（stdout）
+  - TSV 格式错误消息（stderr）
+  - Cobra 错误拦截（`cmd/root.go`）
+- 更新的全局参数：
+  - `--stream`（默认，JSONL 输出）
+  - `--output tsv`（TSV 输出）
+  - 移除 `--output json|csv|md`
+- 文档更新：
+  - `docs/cli-composability.md`：格式选择指南
+  - `README.md`：输出格式章节
+  - Slash Commands 更新（使用 JSONL）
 
----
+**应用场景**：
+- **JSONL 默认**：所有命令输出 JSONL，Claude Code/MCP 直接消费
+- **TSV 轻量**：用户需要 awk/grep 处理时使用 `--output tsv`
+- **jq 管道**：`meta-cc query tools | jq 'select(.Status == "error")'`
+- **Markdown 渲染**：Slash Commands 接收 JSONL 后让 Claude 格式化
 
-### Phase 15: Subagent 高级功能（可选）
+**Unix 可组合性原则**：
+```bash
+# meta-cc 提供简单检索
+meta-cc query tools --status error --limit 100
 
-**目标**：增强 `@meta-coach` 的多轮调用能力
+# 复杂过滤交给 jq
+meta-cc query tools | jq 'select(.Duration > 5000 and .ToolName == "Bash")'
 
-**代码量**：~150 行（主要是配置）
+# TSV + awk 处理
+meta-cc query tools --output tsv | awk -F'\t' '{if ($3 == "error") print $2}'
+```
 
-**优先级**：低（用户体验）
+**格式一致性保证**：
+```bash
+# 正常查询
+meta-cc query tools --limit 5
+# 输出：5 行 JSONL
 
-**Stage 划分**：
-- Stage 15.1: @meta-coach 增强提示词
-- Stage 15.2: 迭代分析工作流示例
-- Stage 15.3: 自动化建议实施
-- Stage 15.4: 文档和最佳实践
+# 无结果
+meta-cc query tools --where "tool='NonExistent'"
+# stdout: (empty)
+# stderr: Warning: No results found
+# exit: 2
 
-**交付物**：
-- 更新 `.claude/agents/meta-coach.md`
-- 添加迭代分析示例
-- 工作流优化建议模板
+# 参数错误（JSONL 格式）
+meta-cc query tools --where "invalid syntax"
+# stdout: {"error":"invalid where condition","code":"INVALID_FILTER",...}
+# exit: 1
+
+# 参数错误（TSV 格式）
+meta-cc query tools --where "invalid syntax" --output tsv
+# stdout: (empty)
+# stderr: Error: invalid where condition
+# exit: 1
+```
+
+**验证测试**：
+- 所有命令默认输出 JSONL
+- TSV 支持所有数据类型（ToolCall, AggregatedStats, TimeSeriesData）
+- 错误场景输出格式一致
+- jq/awk 管道处理验证
+- Slash Commands 更新后正常工作
 
 ---
 
