@@ -78,7 +78,15 @@ card "Phase 11" as P11 #lightyellow {
   - Cookbook 文档
 }
 
-card "Phase 12" as P12 #lightgray {
+card "Phase 12" as P12 #lightgreen {
+  **MCP 项目级查询**
+  - 项目级工具（默认）
+  - 会话级工具（_session）
+  - --project . 支持
+  - 跨会话分析
+}
+
+card "Phase 13" as P13 #lightgray {
   **查询语言增强**
   - SQL-like 语法
   - 查询解析器
@@ -86,14 +94,14 @@ card "Phase 12" as P12 #lightgray {
   - 性能优化
 }
 
-card "Phase 13" as P13 #lightgray {
+card "Phase 14" as P14 #lightgray {
   **索引功能**
   - SQLite 索引
   - 跨会话查询
   - 索引维护
 }
 
-card "Phase 14" as P14 #lightgray {
+card "Phase 15" as P15 #lightgray {
   **Subagent 增强**
   - @meta-coach 迭代分析
   - 自动化建议
@@ -107,6 +115,7 @@ P10 -down-> P11
 P11 -down-> P12
 P12 -down-> P13
 P13 -down-> P14
+P14 -down-> P15
 
 note right of P0
   **业务闭环完成**
@@ -1363,7 +1372,68 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 ---
 
-### Phase 12: 查询语言增强（Query Language）
+### Phase 12: MCP 项目级查询（MCP Project Scope）
+
+**目标**：扩展 MCP Server 支持项目级和会话级查询，默认提供跨会话分析能力
+
+**代码量**：~300 行
+
+**优先级**：高（核心功能，元认知需要跨会话分析）
+
+**设计原则**：
+- ✅ 默认查询范围为**项目级**（所有会话）
+- ✅ 工具名带 `_session` 后缀表示**仅查询当前会话**
+- ✅ 保持 API 清晰：无后缀 = 项目级，`_session` = 会话级
+- ✅ 利用 `--project .` 标志实现跨会话查询
+
+**Stage 划分**：
+- Stage 12.1: 添加项目级工具定义（`query_tools`, `query_user_messages`, `get_stats` 等）
+- Stage 12.2: 实现 `executeTool()` 项目级查询逻辑（添加 `--project .`）
+- Stage 12.3: 添加会话级工具（`_session` 后缀）
+- Stage 12.4: 更新 MCP 配置和文档
+
+**交付物**：
+- `query_tools`：项目级工具调用查询（默认）
+- `query_tools_session`：当前会话工具调用查询
+- `query_user_messages`：项目级用户消息搜索
+- `query_user_messages_session`：当前会话用户消息搜索
+- `get_stats`：项目级统计信息
+- `get_session_stats`：当前会话统计（已存在，保持兼容）
+- 更新后的 `.claude/mcp-servers/meta-cc.json`
+- `docs/mcp-project-scope.md`：使用指南
+
+**工具映射表**：
+| 项目级（默认） | 会话级 | 说明 |
+|--------------|--------|------|
+| `get_stats` | `get_session_stats` | 统计信息 |
+| `analyze_errors` | `analyze_errors_session` | 错误分析 |
+| `query_tools` | `query_tools_session` | 工具调用查询 |
+| `query_user_messages` | `query_user_messages_session` | 用户消息搜索 |
+| `query_tool_sequences` | `query_tool_sequences_session` | 工作流模式 |
+| `query_file_access` | `query_file_access_session` | 文件操作历史 |
+| `query_successful_prompts` | `query_successful_prompts_session` | 优质提示词 |
+| `query_context` | `query_context_session` | 错误上下文 |
+
+**应用场景**：
+- 跨会话分析工作模式（如"我在这个项目中如何使用 agents？"）
+- 项目级错误模式识别（发现重复出现的问题）
+- 当前会话快速分析（聚焦当前对话上下文）
+- 提示词质量跨会话对比
+
+**验证测试**：
+- 测试 `query_tools` 返回多会话数据
+- 测试 `query_tools_session` 仅返回当前会话数据
+- 验证 `--project .` 正确传递到 CLI
+- 测试工具命名一致性
+
+**兼容性**：
+- ✅ 保持 `get_session_stats` 不变（向后兼容）
+- ✅ 新工具采用统一命名约定
+- ✅ 文档清晰说明默认行为
+
+---
+
+### Phase 13: 查询语言增强（Query Language）
 
 **目标**：实现 SQL-like 查询语法，提升查询表达能力
 
@@ -1385,7 +1455,7 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 ---
 
-### Phase 13: 索引功能（可选）
+### Phase 14: 索引功能（可选）
 
 **目标**：SQLite 索引构建，支持跨会话查询
 
@@ -1394,10 +1464,10 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 **优先级**：低（性能优化）
 
 **Stage 划分**：
-- Stage 13.1: SQLite schema 设计
-- Stage 13.2: 索引构建（index build, index update）
-- Stage 13.3: 索引查询（query sessions --since）
-- Stage 13.4: 索引维护和清理
+- Stage 14.1: SQLite schema 设计
+- Stage 14.2: 索引构建（index build, index update）
+- Stage 14.3: 索引查询（query sessions --since）
+- Stage 14.4: 索引维护和清理
 
 **交付物**：
 - `meta-cc index build`：全量索引
@@ -1407,7 +1477,7 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 ---
 
-### Phase 14: Subagent 高级功能（可选）
+### Phase 15: Subagent 高级功能（可选）
 
 **目标**：增强 `@meta-coach` 的多轮调用能力
 
@@ -1416,10 +1486,10 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 **优先级**：低（用户体验）
 
 **Stage 划分**：
-- Stage 14.1: @meta-coach 增强提示词
-- Stage 14.2: 迭代分析工作流示例
-- Stage 14.3: 自动化建议实施
-- Stage 14.4: 文档和最佳实践
+- Stage 15.1: @meta-coach 增强提示词
+- Stage 15.2: 迭代分析工作流示例
+- Stage 15.3: 自动化建议实施
+- Stage 15.4: 文档和最佳实践
 
 **交付物**：
 - 更新 `.claude/agents/meta-coach.md`
