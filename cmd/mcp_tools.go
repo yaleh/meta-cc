@@ -200,7 +200,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		// Phase 10: Advanced query tools with scope
 		{
 			"name":        "query_tools_advanced",
-			"description": "Query tool calls with SQL-like filter expressions. Use for complex filtering scenarios that simple filters cannot handle (e.g., combining multiple conditions).",
+			"description": "Query tool calls with SQL-like filter expressions across project sessions. Default project-level scope enables complex multi-condition analysis (e.g., 'tool=\"Bash\" AND status=\"error\" AND duration>5000'). Use for meta-cognition: discovering subtle patterns through advanced filtering, analyzing correlations between tool usage and outcomes, or investigating specific workflow hypotheses across sessions.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -221,7 +221,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		},
 		{
 			"name":        "aggregate_stats",
-			"description": "Aggregate statistics grouped by field (tool, status, or uuid). Use for generating summary reports or identifying high-level trends in tool usage.",
+			"description": "Aggregate statistics grouped by field (tool, status, or uuid) across all project sessions. Default project-level scope provides comprehensive summary metrics (tool counts, error rates) for cross-session comparison. Use for meta-cognition: identifying which tools are most reliable over time, comparing error rates across different workflow phases, or tracking overall efficiency improvements across the project lifecycle.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -247,7 +247,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		},
 		{
 			"name":        "query_time_series",
-			"description": "Analyze metrics over time (tool call frequency, error rates by hour/day/week). Use for identifying temporal patterns or workflow trends over time.",
+			"description": "Analyze metrics over time (tool call frequency, error rates) bucketed by hour/day/week across project history. Default project-level scope reveals temporal patterns and workflow evolution. Use for meta-cognition: discovering peak productivity hours, identifying when errors cluster temporally, understanding how your workflow rhythm changes over project phases, or detecting burnout signals through activity pattern shifts.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -274,7 +274,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		},
 		{
 			"name":        "query_files",
-			"description": "File-level operation statistics (total operations, edit/read/write counts, error rates by file). Use for identifying frequently modified files or file-level hotspots.",
+			"description": "File-level operation statistics (total operations, edit/read/write counts, error rates) across all project sessions. Default project-level scope identifies files with persistent churn or error patterns. Use for meta-cognition: discovering architectural hotspots that require frequent changes, identifying files prone to editing errors, understanding which parts of the codebase consume most attention, or detecting refactoring opportunities through file access patterns.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{

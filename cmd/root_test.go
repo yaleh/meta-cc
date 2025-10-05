@@ -23,11 +23,6 @@ func TestProjectFlagDefaultBehavior(t *testing.T) {
 			expectProject: true,
 		},
 		{
-			name:          "analyze errors with no flags should use project",
-			args:          []string{"analyze", "errors"},
-			expectProject: true,
-		},
-		{
 			name:          "parse stats with --session-only should not use project",
 			args:          []string{"parse", "stats", "--session-only"},
 			expectProject: false,

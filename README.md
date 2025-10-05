@@ -547,6 +547,8 @@ Expected output:
 
 ### Available Slash Commands
 
+meta-cc provides **4 core Slash Commands** for quick analysis:
+
 #### `/meta-stats` - Session Statistics
 
 Display statistical information about the current Claude Code session.
@@ -634,6 +636,73 @@ Based on detected error patterns, consider the following:
 - Discover workflow bottlenecks (frequent failures)
 - Get optimization recommendations (hooks, alternatives, prompt improvements)
 - Focus on recent errors (using window parameter)
+
+#### `/meta-timeline` - Session Timeline
+
+Generate a chronological timeline view of the session.
+
+**Usage**:
+```
+/meta-timeline           # Default: last 50 turns
+/meta-timeline 20        # Last 20 turns
+```
+
+**Use cases**:
+- Visualize session flow and tool usage patterns
+- Identify time distribution of errors
+- Understand workflow sequences
+
+#### `/meta-help` - Help and Usage Guide
+
+Display comprehensive help for all meta-cc features, including Slash Commands, MCP Server, and @meta-coach subagent.
+
+**Usage**:
+```
+/meta-help
+```
+
+**Use cases**:
+- Learn available commands and features
+- Get quick reference for integration methods
+- Troubleshoot common issues
+
+---
+
+### Recommended Usage Patterns
+
+meta-cc offers **three integration tiers** for different use cases:
+
+#### 🚀 Quick Statistics → Slash Commands (Lowest Priority)
+
+For fast, pre-defined analyses:
+```
+/meta-stats              # Session overview
+/meta-errors             # Error patterns
+/meta-timeline           # Chronological view
+```
+
+#### 🔍 Natural Queries → MCP Server (Core Integration)
+
+Ask Claude directly - MCP tools are called automatically:
+```
+"Show me all Bash errors in this project"
+"Find user messages mentioning 'refactor'"
+"Analyze tool usage trends across sessions"
+"Compare error rates between different workflow phases"
+```
+
+Available MCP tools: 14 tools including `query_tools`, `analyze_errors`, `query_user_messages`, `aggregate_stats`, and more.
+
+#### 🎓 Deep Analysis → @meta-coach Subagent (Highest Value)
+
+For interactive coaching and workflow optimization:
+```
+@meta-coach Why do my tests keep failing?
+@meta-coach Help me optimize my workflow
+@meta-coach Analyze my efficiency bottlenecks
+```
+
+The @meta-coach subagent combines MCP data access with LLM reasoning to provide personalized guidance.
 
 ### Troubleshooting
 
@@ -725,21 +794,22 @@ chmod -R u+r ~/.claude/projects/
 
 ### Advanced Usage
 
-#### Combining Slash Commands and CLI
+#### Combining Integration Tiers
 
 ```bash
-# Step 1: Quick view in Claude Code using /meta-stats
+# Step 1: Quick view in Claude Code using Slash Command
+/meta-stats
 # /meta-stats
 
-# Step 2: If high error rate found, analyze with /meta-errors
-# /meta-errors
+# Step 2: If high error rate found, use natural query (MCP)
+"Show me the top 10 most frequent errors in this project"
 
-# Step 3: Export detailed error data for deep analysis
-meta-cc parse extract --type tools --filter "status=error" --output csv > errors.csv
+# Step 3: For deep analysis, use @meta-coach
+@meta-coach Why do I have so many Bash errors?
 
-# Step 4: Generate complete report
-meta-cc parse stats --output md > session-report.md
-meta-cc analyze errors --output md >> session-report.md
+# Step 4: Export data for offline analysis (CLI)
+meta-cc query errors --output jsonl > errors.jsonl
+meta-cc query tools --status error --output tsv > error-tools.tsv
 ```
 
 #### Creating Custom Slash Commands
@@ -789,7 +859,7 @@ If these environment variables are unavailable, meta-cc will automatically fall 
 meta-cc integrates with Claude Code in three ways:
 
 - **MCP Server**: Seamless data access (Claude queries autonomously) - **14 tools available** (Phase 13: unified scope parameter)
-- **Slash Commands**: Quick, pre-defined workflows (`/meta-stats`, `/meta-errors`, `/meta-query-tools`)
+- **Slash Commands**: Quick, pre-defined workflows (`/meta-stats`, `/meta-errors`, `/meta-timeline`, `/meta-help`) - 4 core commands
 - **Subagent** (`@meta-coach`): Interactive, conversational analysis with Phase 10 capabilities
 
 **👉 See the [Integration Guide](./docs/integration-guide.md)** for detailed comparison, decision framework, and best practices.
@@ -1077,7 +1147,7 @@ meta-cc stats files --sort-by error_count --filter "error_count>0"
 ### Enhanced Integration
 
 Phase 10 features are fully integrated with:
-- **Slash Commands**: `/meta-stats`, `/meta-errors`, `/meta-query-tools` now use Phase 10 capabilities
+- **Slash Commands**: `/meta-stats`, `/meta-errors`, `/meta-timeline` now use Phase 10 capabilities
 - **MCP Server**: 4 new tools (`query_tools_advanced`, `aggregate_stats`, `query_time_series`, `query_files`)
 - **@meta-coach**: Updated with Phase 10 analysis workflows and best practices
 
