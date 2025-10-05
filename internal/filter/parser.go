@@ -309,7 +309,7 @@ func (p *ExpressionParser) matchKeyword(keyword string) bool {
 		endPos := p.pos + len(keyword)
 		if endPos < len(p.input) {
 			nextCh := p.input[endPos]
-			if !( nextCh == ' ' || nextCh == '\t' || nextCh == ')' || nextCh == '(') {
+			if !(nextCh == ' ' || nextCh == '\t' || nextCh == ')' || nextCh == '(') {
 				return false
 			}
 		}

@@ -8,8 +8,8 @@ import (
 // when no session-specific flag is provided
 func TestProjectFlagDefaultBehavior(t *testing.T) {
 	tests := []struct {
-		name        string
-		args        []string
+		name          string
+		args          []string
 		expectProject bool
 	}{
 		{

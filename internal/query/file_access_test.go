@@ -90,12 +90,12 @@ func TestBuildFileAccessQuery(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		filePath       string
-		wantAccesses   int
-		wantReadCount  int
-		wantEditCount  int
-		wantErr        bool
+		name          string
+		filePath      string
+		wantAccesses  int
+		wantReadCount int
+		wantEditCount int
+		wantErr       bool
 	}{
 		{
 			name:          "full path match",

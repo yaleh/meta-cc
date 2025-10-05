@@ -44,7 +44,7 @@ func runQuerySuccessfulPrompts(cmd *cobra.Command, args []string) error {
 	sessionPath, err := loc.Locate(locator.LocateOptions{
 		SessionID:   sessionID,
 		ProjectPath: projectPath, // from global parameter
-		SessionOnly: sessionOnly,  // Phase 13: opt-out of project default
+		SessionOnly: sessionOnly, // Phase 13: opt-out of project default
 
 	})
 	if err != nil {
@@ -82,12 +82,12 @@ type SuccessfulPromptsResult struct {
 
 // SuccessfulPrompt represents a successful prompt with metadata
 type SuccessfulPrompt struct {
-	TurnSequence    int              `json:"turn_sequence"`
-	UserPrompt      string           `json:"user_prompt"`
-	Context         PromptContext    `json:"context"`
-	Outcome         PromptOutcome    `json:"outcome"`
-	QualityScore    float64          `json:"quality_score"`
-	PatternFeatures PatternFeatures  `json:"pattern_features"`
+	TurnSequence    int             `json:"turn_sequence"`
+	UserPrompt      string          `json:"user_prompt"`
+	Context         PromptContext   `json:"context"`
+	Outcome         PromptOutcome   `json:"outcome"`
+	QualityScore    float64         `json:"quality_score"`
+	PatternFeatures PatternFeatures `json:"pattern_features"`
 }
 
 // PromptContext represents the context when prompt was given
@@ -98,10 +98,10 @@ type PromptContext struct {
 
 // PromptOutcome represents the outcome of the prompt
 type PromptOutcome struct {
-	Status           string   `json:"status"`
-	TurnsToComplete  int      `json:"turns_to_complete"`
-	ErrorCount       int      `json:"error_count"`
-	Deliverables     []string `json:"deliverables,omitempty"`
+	Status          string   `json:"status"`
+	TurnsToComplete int      `json:"turns_to_complete"`
+	ErrorCount      int      `json:"error_count"`
+	Deliverables    []string `json:"deliverables,omitempty"`
 }
 
 // PatternFeatures represents structural features of the prompt
@@ -187,8 +187,8 @@ func buildSuccessfulPrompts(entries []parser.SessionEntry, minQuality float64, l
 // analyzePromptOutcome analyzes the outcome of a user prompt
 func analyzePromptOutcome(entries []parser.SessionEntry, userEntryIdx int, turnIndex map[string]int) (PromptOutcome, int) {
 	outcome := PromptOutcome{
-		Status:      "unknown",
-		ErrorCount:  0,
+		Status:       "unknown",
+		ErrorCount:   0,
 		Deliverables: []string{},
 	}
 

@@ -162,9 +162,9 @@ func TestDetectIdlePeriods(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
-		name           string
-		entries        []parser.SessionEntry
-		thresholdMin   int
+		name            string
+		entries         []parser.SessionEntry
+		thresholdMin    int
 		expectedPeriods int
 	}{
 		{
@@ -189,9 +189,9 @@ func TestDetectIdlePeriods(t *testing.T) {
 			name: "multiple idle periods",
 			entries: []parser.SessionEntry{
 				makeToolUseEntry("1", "Bash", now.Add(0*time.Second)),
-				makeToolUseEntry("2", "Read", now.Add(10*time.Minute)),  // Gap 1: 10min
-				makeToolUseEntry("3", "Edit", now.Add(12*time.Minute)),  // Gap: 2min (below threshold)
-				makeToolUseEntry("4", "Bash", now.Add(20*time.Minute)),  // Gap 2: 8min
+				makeToolUseEntry("2", "Read", now.Add(10*time.Minute)), // Gap 1: 10min
+				makeToolUseEntry("3", "Edit", now.Add(12*time.Minute)), // Gap: 2min (below threshold)
+				makeToolUseEntry("4", "Bash", now.Add(20*time.Minute)), // Gap 2: 8min
 			},
 			thresholdMin:    5,
 			expectedPeriods: 2,

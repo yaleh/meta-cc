@@ -16,10 +16,10 @@ type LocateOptions struct {
 // Phase 13: 默认使用项目级分析（--project .），除非设置 --session-only
 // 按优先级尝试以下策略：
 //
-//	1. 环境变量 CC_SESSION_ID + CC_PROJECT_HASH (仅当 --session-only 时)
-//	2. 命令行参数 --session
-//	3. 命令行参数 --project
-//	4. 默认：当前工作目录（Phase 13: 项目级默认）
+//  1. 环境变量 CC_SESSION_ID + CC_PROJECT_HASH (仅当 --session-only 时)
+//  2. 命令行参数 --session
+//  3. 命令行参数 --project
+//  4. 默认：当前工作目录（Phase 13: 项目级默认）
 func (l *SessionLocator) Locate(opts LocateOptions) (string, error) {
 	// 策略1: 环境变量（仅在 --session-only 模式下）
 	if !opts.SessionOnly && os.Getenv("CC_SESSION_ID") != "" {

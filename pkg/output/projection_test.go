@@ -208,38 +208,38 @@ func TestProjectionSizeReduction(t *testing.T) {
 // TestParseProjectionConfig tests parsing field specs from strings
 func TestParseProjectionConfig(t *testing.T) {
 	tests := []struct {
-		name               string
-		fieldsStr          string
-		ifErrorIncludeStr  string
-		expectedFields     int
+		name                string
+		fieldsStr           string
+		ifErrorIncludeStr   string
+		expectedFields      int
 		expectedErrorFields int
 	}{
 		{
-			name:               "basic fields",
-			fieldsStr:          "UUID,ToolName,Status",
-			ifErrorIncludeStr:  "",
-			expectedFields:     3,
+			name:                "basic fields",
+			fieldsStr:           "UUID,ToolName,Status",
+			ifErrorIncludeStr:   "",
+			expectedFields:      3,
 			expectedErrorFields: 0,
 		},
 		{
-			name:               "fields with spaces",
-			fieldsStr:          "UUID, ToolName, Status",
-			ifErrorIncludeStr:  "",
-			expectedFields:     3,
+			name:                "fields with spaces",
+			fieldsStr:           "UUID, ToolName, Status",
+			ifErrorIncludeStr:   "",
+			expectedFields:      3,
 			expectedErrorFields: 0,
 		},
 		{
-			name:               "with error fields",
-			fieldsStr:          "UUID,ToolName",
-			ifErrorIncludeStr:  "Error,Output",
-			expectedFields:     2,
+			name:                "with error fields",
+			fieldsStr:           "UUID,ToolName",
+			ifErrorIncludeStr:   "Error,Output",
+			expectedFields:      2,
 			expectedErrorFields: 2,
 		},
 		{
-			name:               "empty config",
-			fieldsStr:          "",
-			ifErrorIncludeStr:  "",
-			expectedFields:     0,
+			name:                "empty config",
+			fieldsStr:           "",
+			ifErrorIncludeStr:   "",
+			expectedFields:      0,
 			expectedErrorFields: 0,
 		},
 	}

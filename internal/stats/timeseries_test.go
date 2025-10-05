@@ -118,7 +118,7 @@ func TestAnalyzeTimeSeries_WeekInterval(t *testing.T) {
 	// Start on Monday (2025-09-29 is a Monday)
 	baseTime := time.Date(2025, 9, 29, 10, 0, 0, 0, time.UTC)
 	tools := []parser.ToolCall{
-		{ToolName: "Bash", Timestamp: baseTime.Format(time.RFC3339)},                        // Monday
+		{ToolName: "Bash", Timestamp: baseTime.Format(time.RFC3339)},                         // Monday
 		{ToolName: "Read", Timestamp: baseTime.Add(3 * 24 * time.Hour).Format(time.RFC3339)}, // Thursday
 		{ToolName: "Edit", Timestamp: baseTime.Add(8 * 24 * time.Hour).Format(time.RFC3339)}, // Next Tuesday
 	}

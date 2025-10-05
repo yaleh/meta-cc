@@ -12,10 +12,10 @@ import (
 )
 
 var (
-	sequencesMinOccur     int
-	sequencesPattern      string
-	sequencesSuccessOnly  bool
-	sequencesWithMetrics  bool
+	sequencesMinOccur    int
+	sequencesPattern     string
+	sequencesSuccessOnly bool
+	sequencesWithMetrics bool
 )
 
 // querySequencesCmd represents the tool-sequences query command
@@ -52,7 +52,7 @@ func runQuerySequences(cmd *cobra.Command, args []string) error {
 	sessionPath, err := loc.Locate(locator.LocateOptions{
 		SessionID:   sessionID,
 		ProjectPath: projectPath, // from global parameter
-		SessionOnly: sessionOnly,  // Phase 13: opt-out of project default
+		SessionOnly: sessionOnly, // Phase 13: opt-out of project default
 
 	})
 	if err != nil {
@@ -278,11 +278,11 @@ func determineSequenceContext(pattern string) string {
 	lower := strings.ToLower(pattern)
 
 	contexts := map[string][]string{
-		"代码修改工作流":     {"read", "grep", "edit"},
-		"测试驱动开发循环":    {"bash", "read", "edit", "bash"},
-		"文件创建和验证":     {"write", "read"},
-		"探索性代码阅读":     {"grep", "read", "read"},
-		"调试和错误修复":     {"bash", "read", "edit"},
+		"代码修改工作流":  {"read", "grep", "edit"},
+		"测试驱动开发循环": {"bash", "read", "edit", "bash"},
+		"文件创建和验证":  {"write", "read"},
+		"探索性代码阅读":  {"grep", "read", "read"},
+		"调试和错误修复":  {"bash", "read", "edit"},
 	}
 
 	for context, keywords := range contexts {

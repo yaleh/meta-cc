@@ -13,33 +13,33 @@ func TestComparisonExpression(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "string equality",
-			expr: &ComparisonExpression{Field: "tool", Operator: "=", Value: "Bash"},
-			record: map[string]interface{}{"tool": "Bash"},
+			name:     "string equality",
+			expr:     &ComparisonExpression{Field: "tool", Operator: "=", Value: "Bash"},
+			record:   map[string]interface{}{"tool": "Bash"},
 			expected: true,
 		},
 		{
-			name: "string inequality",
-			expr: &ComparisonExpression{Field: "tool", Operator: "!=", Value: "Edit"},
-			record: map[string]interface{}{"tool": "Bash"},
+			name:     "string inequality",
+			expr:     &ComparisonExpression{Field: "tool", Operator: "!=", Value: "Edit"},
+			record:   map[string]interface{}{"tool": "Bash"},
 			expected: true,
 		},
 		{
-			name: "numeric greater than",
-			expr: &ComparisonExpression{Field: "duration", Operator: ">", Value: 100},
-			record: map[string]interface{}{"duration": 150},
+			name:     "numeric greater than",
+			expr:     &ComparisonExpression{Field: "duration", Operator: ">", Value: 100},
+			record:   map[string]interface{}{"duration": 150},
 			expected: true,
 		},
 		{
-			name: "numeric less than or equal",
-			expr: &ComparisonExpression{Field: "duration", Operator: "<=", Value: 200},
-			record: map[string]interface{}{"duration": 200},
+			name:     "numeric less than or equal",
+			expr:     &ComparisonExpression{Field: "duration", Operator: "<=", Value: 200},
+			record:   map[string]interface{}{"duration": 200},
 			expected: true,
 		},
 		{
-			name: "field missing",
-			expr: &ComparisonExpression{Field: "missing", Operator: "=", Value: "test"},
-			record: map[string]interface{}{"tool": "Bash"},
+			name:     "field missing",
+			expr:     &ComparisonExpression{Field: "missing", Operator: "=", Value: "test"},
+			record:   map[string]interface{}{"tool": "Bash"},
 			expected: false,
 		},
 	}
@@ -72,7 +72,7 @@ func TestBinaryExpression(t *testing.T) {
 				Left:     &ComparisonExpression{Field: "tool", Operator: "=", Value: "Bash"},
 				Right:    &ComparisonExpression{Field: "status", Operator: "=", Value: "error"},
 			},
-			record: map[string]interface{}{"tool": "Bash", "status": "error"},
+			record:   map[string]interface{}{"tool": "Bash", "status": "error"},
 			expected: true,
 		},
 		{
@@ -82,7 +82,7 @@ func TestBinaryExpression(t *testing.T) {
 				Left:     &ComparisonExpression{Field: "tool", Operator: "=", Value: "Bash"},
 				Right:    &ComparisonExpression{Field: "status", Operator: "=", Value: "success"},
 			},
-			record: map[string]interface{}{"tool": "Bash", "status": "error"},
+			record:   map[string]interface{}{"tool": "Bash", "status": "error"},
 			expected: false,
 		},
 		{
@@ -92,7 +92,7 @@ func TestBinaryExpression(t *testing.T) {
 				Left:     &ComparisonExpression{Field: "tool", Operator: "=", Value: "Edit"},
 				Right:    &ComparisonExpression{Field: "status", Operator: "=", Value: "error"},
 			},
-			record: map[string]interface{}{"tool": "Bash", "status": "error"},
+			record:   map[string]interface{}{"tool": "Bash", "status": "error"},
 			expected: true,
 		},
 	}
@@ -142,7 +142,7 @@ func TestInExpression(t *testing.T) {
 				Values: []interface{}{"Bash", "Edit", "Write"},
 				Negate: false,
 			},
-			record: map[string]interface{}{"tool": "Bash"},
+			record:   map[string]interface{}{"tool": "Bash"},
 			expected: true,
 		},
 		{
@@ -152,7 +152,7 @@ func TestInExpression(t *testing.T) {
 				Values: []interface{}{"Edit", "Write"},
 				Negate: false,
 			},
-			record: map[string]interface{}{"tool": "Bash"},
+			record:   map[string]interface{}{"tool": "Bash"},
 			expected: false,
 		},
 		{
@@ -162,7 +162,7 @@ func TestInExpression(t *testing.T) {
 				Values: []interface{}{"Edit", "Write"},
 				Negate: true,
 			},
-			record: map[string]interface{}{"tool": "Bash"},
+			record:   map[string]interface{}{"tool": "Bash"},
 			expected: true,
 		},
 	}
@@ -189,21 +189,21 @@ func TestBetweenExpression(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "numeric in range",
-			expr: &BetweenExpression{Field: "duration", Lower: 100, Upper: 200},
-			record: map[string]interface{}{"duration": 150},
+			name:     "numeric in range",
+			expr:     &BetweenExpression{Field: "duration", Lower: 100, Upper: 200},
+			record:   map[string]interface{}{"duration": 150},
 			expected: true,
 		},
 		{
-			name: "numeric out of range",
-			expr: &BetweenExpression{Field: "duration", Lower: 100, Upper: 200},
-			record: map[string]interface{}{"duration": 250},
+			name:     "numeric out of range",
+			expr:     &BetweenExpression{Field: "duration", Lower: 100, Upper: 200},
+			record:   map[string]interface{}{"duration": 250},
 			expected: false,
 		},
 		{
-			name: "numeric at boundary",
-			expr: &BetweenExpression{Field: "duration", Lower: 100, Upper: 200},
-			record: map[string]interface{}{"duration": 200},
+			name:     "numeric at boundary",
+			expr:     &BetweenExpression{Field: "duration", Lower: 100, Upper: 200},
+			record:   map[string]interface{}{"duration": 200},
 			expected: true,
 		},
 	}
@@ -230,27 +230,27 @@ func TestLikeExpression(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "starts with pattern",
-			expr: &LikeExpression{Field: "tool", Pattern: "meta%"},
-			record: map[string]interface{}{"tool": "meta-coach"},
+			name:     "starts with pattern",
+			expr:     &LikeExpression{Field: "tool", Pattern: "meta%"},
+			record:   map[string]interface{}{"tool": "meta-coach"},
 			expected: true,
 		},
 		{
-			name: "ends with pattern",
-			expr: &LikeExpression{Field: "tool", Pattern: "%coach"},
-			record: map[string]interface{}{"tool": "meta-coach"},
+			name:     "ends with pattern",
+			expr:     &LikeExpression{Field: "tool", Pattern: "%coach"},
+			record:   map[string]interface{}{"tool": "meta-coach"},
 			expected: true,
 		},
 		{
-			name: "contains pattern",
-			expr: &LikeExpression{Field: "tool", Pattern: "%ta-co%"},
-			record: map[string]interface{}{"tool": "meta-coach"},
+			name:     "contains pattern",
+			expr:     &LikeExpression{Field: "tool", Pattern: "%ta-co%"},
+			record:   map[string]interface{}{"tool": "meta-coach"},
 			expected: true,
 		},
 		{
-			name: "no match",
-			expr: &LikeExpression{Field: "tool", Pattern: "bash%"},
-			record: map[string]interface{}{"tool": "meta-coach"},
+			name:     "no match",
+			expr:     &LikeExpression{Field: "tool", Pattern: "bash%"},
+			record:   map[string]interface{}{"tool": "meta-coach"},
 			expected: false,
 		},
 	}
@@ -278,23 +278,23 @@ func TestRegexpExpression(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "simple pattern match",
-			expr: &RegexpExpression{Field: "error", Pattern: "permission.*denied"},
-			record: map[string]interface{}{"error": "permission access denied"},
+			name:     "simple pattern match",
+			expr:     &RegexpExpression{Field: "error", Pattern: "permission.*denied"},
+			record:   map[string]interface{}{"error": "permission access denied"},
 			expected: true,
 		},
 		{
-			name: "no match",
-			expr: &RegexpExpression{Field: "error", Pattern: "timeout"},
-			record: map[string]interface{}{"error": "permission denied"},
+			name:     "no match",
+			expr:     &RegexpExpression{Field: "error", Pattern: "timeout"},
+			record:   map[string]interface{}{"error": "permission denied"},
 			expected: false,
 		},
 		{
-			name: "invalid regexp",
-			expr: &RegexpExpression{Field: "error", Pattern: "[invalid("},
-			record: map[string]interface{}{"error": "test"},
+			name:     "invalid regexp",
+			expr:     &RegexpExpression{Field: "error", Pattern: "[invalid("},
+			record:   map[string]interface{}{"error": "test"},
 			expected: false,
-			wantErr: true,
+			wantErr:  true,
 		},
 	}
 

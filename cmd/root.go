@@ -26,8 +26,8 @@ var (
 	outputDirFlag string
 
 	// Phase 9.3: Field projection flags
-	fieldsFlag          string
-	ifErrorIncludeFlag  string
+	fieldsFlag         string
+	ifErrorIncludeFlag string
 
 	// Phase 9.4: Compact output format flags
 	summaryFirstFlag bool

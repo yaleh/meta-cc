@@ -15,9 +15,9 @@ BUILD_DIR := build
 BINARY_NAME := meta-cc
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build test clean install cross-compile help
+.PHONY: all build test clean install cross-compile lint fmt vet help
 
-all: test build
+all: lint test build
 
 build:
 	@echo "Building $(BINARY_NAME) $(VERSION)..."
@@ -60,11 +60,32 @@ deps:
 	$(GOMOD) download
 	$(GOMOD) tidy
 
+lint: fmt vet
+	@echo "Running static analysis..."
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run ./...; \
+	else \
+		echo "golangci-lint not found. Install with:"; \
+		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
+		echo "Skipping lint checks..."; \
+	fi
+
+fmt:
+	@echo "Formatting code..."
+	@gofmt -l -w .
+
+vet:
+	@echo "Running go vet..."
+	@$(GOCMD) vet ./...
+
 help:
 	@echo "Available targets:"
 	@echo "  make build           - Build for current platform"
 	@echo "  make test            - Run tests"
 	@echo "  make test-coverage   - Run tests with coverage report"
+	@echo "  make lint            - Run static analysis (fmt + vet + golangci-lint)"
+	@echo "  make fmt             - Format code with gofmt"
+	@echo "  make vet             - Run go vet"
 	@echo "  make clean           - Remove build artifacts"
 	@echo "  make install         - Install to GOPATH/bin"
 	@echo "  make cross-compile   - Build for all platforms"

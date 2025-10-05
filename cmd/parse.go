@@ -78,7 +78,7 @@ func runParseExtract(cmd *cobra.Command, args []string) error {
 	sessionPath, err := loc.Locate(locator.LocateOptions{
 		SessionID:   sessionID,   // from global parameter
 		ProjectPath: projectPath, // from global parameter
-		SessionOnly: sessionOnly,  // Phase 13: opt-out of project default
+		SessionOnly: sessionOnly, // Phase 13: opt-out of project default
 	})
 	if err != nil {
 		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
@@ -208,7 +208,7 @@ func runParseStats(cmd *cobra.Command, args []string) error {
 	sessionPath, err := loc.Locate(locator.LocateOptions{
 		SessionID:   sessionID,   // from global parameter
 		ProjectPath: projectPath, // from global parameter
-		SessionOnly: sessionOnly,  // Phase 13: opt-out of project default
+		SessionOnly: sessionOnly, // Phase 13: opt-out of project default
 	})
 	if err != nil {
 		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)

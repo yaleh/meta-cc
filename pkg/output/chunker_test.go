@@ -119,24 +119,24 @@ func TestGenerateManifest(t *testing.T) {
 
 	metadata := []ChunkMetadata{
 		{
-			Index:      0,
-			File:       "chunk_0001.jsonl",
-			Records:    100,
-			SizeBytes:  12345,
+			Index:       0,
+			File:        "chunk_0001.jsonl",
+			Records:     100,
+			SizeBytes:   12345,
 			TotalChunks: 3,
 		},
 		{
-			Index:      1,
-			File:       "chunk_0002.jsonl",
-			Records:    100,
-			SizeBytes:  12340,
+			Index:       1,
+			File:        "chunk_0002.jsonl",
+			Records:     100,
+			SizeBytes:   12340,
 			TotalChunks: 3,
 		},
 		{
-			Index:      2,
-			File:       "chunk_0003.jsonl",
-			Records:    50,
-			SizeBytes:  6170,
+			Index:       2,
+			File:        "chunk_0003.jsonl",
+			Records:     50,
+			SizeBytes:   6170,
 			TotalChunks: 3,
 		},
 	}

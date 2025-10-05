@@ -80,16 +80,16 @@ func TestExtractToolCalls_MultipleCallsSameEntry(t *testing.T) {
 					{
 						Type: "tool_use",
 						ToolUse: &ToolUse{
-							ID:   "tool_1",
-							Name: "Read",
+							ID:    "tool_1",
+							Name:  "Read",
 							Input: map[string]interface{}{"file": "a.txt"},
 						},
 					},
 					{
 						Type: "tool_use",
 						ToolUse: &ToolUse{
-							ID:   "tool_2",
-							Name: "Grep",
+							ID:    "tool_2",
+							Name:  "Grep",
 							Input: map[string]interface{}{"pattern": "error"},
 						},
 					},
@@ -146,8 +146,8 @@ func TestExtractToolCalls_UnmatchedToolUse(t *testing.T) {
 					{
 						Type: "tool_use",
 						ToolUse: &ToolUse{
-							ID:   "orphan_tool",
-							Name: "Bash",
+							ID:    "orphan_tool",
+							Name:  "Bash",
 							Input: map[string]interface{}{},
 						},
 					},

@@ -15,11 +15,11 @@ type SequenceAnalysis struct {
 
 // SequencePattern represents a repeated tool call sequence
 type SequencePattern struct {
-	Pattern      string               `json:"pattern"`
-	Length       int                  `json:"length"`
-	Count        int                  `json:"count"`
-	Occurrences  []SequenceOccurrence `json:"occurrences"`
-	TimeSpanMin  int                  `json:"time_span_minutes"`
+	Pattern     string               `json:"pattern"`
+	Length      int                  `json:"length"`
+	Count       int                  `json:"count"`
+	Occurrences []SequenceOccurrence `json:"occurrences"`
+	TimeSpanMin int                  `json:"time_span_minutes"`
 }
 
 // SequenceOccurrence represents a single occurrence of a sequence
