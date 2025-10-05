@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/locator"
 	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/pkg/output"
 )
@@ -59,26 +58,15 @@ type ContextEntry struct {
 }
 
 func runQueryUserMessages(cmd *cobra.Command, args []string) error {
-	// Step 1: Locate and parse session
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,
-		ProjectPath: projectPath, // from global parameter
-		SessionOnly: sessionOnly, // Phase 13: opt-out of project default
-
-	})
-	if err != nil {
+	// Step 1: Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
 		return fmt.Errorf("failed to locate session: %w", err)
 	}
 
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return fmt.Errorf("failed to parse session: %w", err)
-	}
-
 	// Step 2: Build turn index and extract user messages
-	turnIndex := buildTurnIndex(entries)
+	entries := p.GetEntries()
+	turnIndex := p.BuildTurnIndex()
 	userMessages := extractUserMessages(entries, turnIndex)
 
 	// Step 3: Apply pattern matching
@@ -97,7 +85,11 @@ func runQueryUserMessages(cmd *cobra.Command, args []string) error {
 		userMessages = filtered
 	}
 
-	// Step 4: Sort if requested
+	// Step 4: Apply default deterministic sorting (by turn sequence)
+	// This ensures same query always produces same output order
+	sortUserMessages(userMessages, "turn_sequence", false)
+
+	// Step 4b: Apply custom sort if requested (overrides default)
 	if querySortBy != "" {
 		sortUserMessages(userMessages, querySortBy, queryReverse)
 	}
@@ -180,6 +172,7 @@ func extractUserMessages(entries []parser.SessionEntry, turnIndex map[string]int
 }
 
 // buildTurnIndex builds a map from UUID to turn number
+// This is kept as a helper for other commands that still use it
 func buildTurnIndex(entries []parser.SessionEntry) map[string]int {
 	turnIndex := make(map[string]int)
 	turn := 0
@@ -264,17 +257,20 @@ func buildContextEntry(entry parser.SessionEntry, turn int, turnIndex map[string
 }
 
 func sortUserMessages(messages []UserMessage, sortBy string, reverse bool) {
-	sort.Slice(messages, func(i, j int) bool {
+	// Use stable sort to preserve relative order for equal values
+	sort.SliceStable(messages, func(i, j int) bool {
 		var less bool
 
 		switch sortBy {
+		case "turn_sequence":
+			less = messages[i].TurnSequence < messages[j].TurnSequence
 		case "timestamp":
 			less = messages[i].Timestamp < messages[j].Timestamp
 		case "uuid":
 			less = messages[i].UUID < messages[j].UUID
 		default:
-			// Default: sort by timestamp
-			less = messages[i].Timestamp < messages[j].Timestamp
+			// Default: sort by turn sequence (deterministic)
+			less = messages[i].TurnSequence < messages[j].TurnSequence
 		}
 
 		if reverse {

@@ -1,202 +1,227 @@
 ---
 name: meta-errors
-description: 分析当前项目最新会话中的错误模式（Phase 13：默认项目级，可选参数：window-size）
+description: Analyze error patterns in current session (Phase 14 - simplified query)
 allowed_tools: [Bash]
-argument-hint: [window-size]
 ---
 
-# meta-errors：错误模式分析
+# meta-errors: Error Pattern Analysis
 
-Phase 13 更新：默认分析当前项目的最新会话。使用 `meta-cc --session-only analyze errors` 切换到仅当前会话。
+Phase 14 Update: Uses new simplified `query errors` command. Aggregation done via jq.
 
-分析会话中的错误模式，检测重复出现的错误（出现 3 次以上）。
+Analyze errors in the session by extracting error list and aggregating patterns.
 
 ```bash
-# 检查 meta-cc 是否安装
+# Check if meta-cc is installed
 if ! command -v meta-cc &> /dev/null; then
-    echo "❌ 错误：meta-cc 未安装或不在 PATH 中"
+    echo "❌ Error: meta-cc not installed or not in PATH"
     echo ""
-    echo "请安装 meta-cc："
-    echo "  1. 下载或构建 meta-cc 二进制文件"
-    echo "  2. 将其放置在 PATH 中（如 /usr/local/bin/meta-cc）"
-    echo "  3. 确保可执行权限：chmod +x /usr/local/bin/meta-cc"
+    echo "Please install meta-cc:"
+    echo "  1. Download or build meta-cc binary"
+    echo "  2. Place it in PATH (e.g., /usr/local/bin/meta-cc)"
+    echo "  3. Ensure executable permissions: chmod +x /usr/local/bin/meta-cc"
     echo ""
-    echo "详情参见：https://github.com/yale/meta-cc"
+    echo "Details: https://github.com/yale/meta-cc"
     exit 1
 fi
 
-# 获取窗口参数（默认 20）
-WINDOW_SIZE=${1:-20}
-
-# Step 1: 提取错误数据（用于上下文展示）
-echo "## 错误数据提取" >&2
+# Step 1: Extract all errors using new query errors command
+echo "## Error Data Extraction" >&2
 echo "" >&2
 
-# Phase 11: Use streaming with exit codes for errors
-meta-cc query tools --where "status='error'" --stream 2>/dev/null > /tmp/meta-errors-$$.jsonl
+# Phase 14: Use new query errors command
+ERRORS_JSON=$(meta-cc query errors 2>/dev/null)
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 2 ]; then
-    echo "✅ 当前会话中未检测到错误。" >&2
-    rm -f /tmp/meta-errors-$$.jsonl
+    echo "✅ No errors detected in current session." >&2
     exit 0
 elif [ $EXIT_CODE -eq 1 ]; then
-    echo "❌ 查询错误时出错。" >&2
-    rm -f /tmp/meta-errors-$$.jsonl
+    echo "❌ Error occurred during query." >&2
     exit 1
 fi
 
-ERROR_COUNT=$(wc -l < /tmp/meta-errors-$$.jsonl)
-rm -f /tmp/meta-errors-$$.jsonl
-
-echo "检测到 $ERROR_COUNT 个错误工具调用。" >&2
+ERROR_COUNT=$(echo "$ERRORS_JSON" | jq '. | length')
+echo "Detected $ERROR_COUNT error tool call(s)." >&2
 echo "" >&2
 
-# Step 2: 分析错误模式（窗口大小：$WINDOW_SIZE）
-echo "## 错误模式分析（窗口大小：$WINDOW_SIZE）"
+# Step 2: Aggregate error patterns using jq
+echo "## Error Pattern Analysis"
 echo ""
 
-# Phase 13: Use JSONL output, render to Markdown
-patterns_json=$(meta-cc analyze errors --window "$WINDOW_SIZE" 2>/dev/null)
+# Group by signature and count occurrences
+PATTERNS=$(echo "$ERRORS_JSON" | jq -s 'if length > 0 then
+    .[0] | group_by(.signature) | map({
+        signature: .[0].signature,
+        tool_name: .[0].tool_name,
+        count: length,
+        first_seen: .[0].timestamp,
+        last_seen: .[-1].timestamp,
+        sample_error: .[0].error,
+        time_span_seconds: ((.[- 1].timestamp | fromdateiso8601) - (.[0].timestamp | fromdateiso8601))
+    }) | sort_by(-.count)
+else
+    []
+end')
 
-# Phase 9: Use summary mode for large error sets
-if [ "$ERROR_COUNT" -gt 10 ]; then
-    echo "⚠️  Large error set detected ($ERROR_COUNT errors)"
+PATTERN_COUNT=$(echo "$PATTERNS" | jq '. | length')
+
+if [ "$PATTERN_COUNT" -eq 0 ]; then
+    echo "✅ No errors detected in current session."
+    exit 0
+fi
+
+# Step 3: Format output as Markdown
+echo "# Error Pattern Analysis"
+echo ""
+echo "Found $PATTERN_COUNT error pattern(s):"
+echo ""
+
+# Show patterns (limit to top 10 if many)
+if [ "$PATTERN_COUNT" -gt 10 ]; then
+    echo "⚠️  Large error set detected ($PATTERN_COUNT patterns)"
     echo "Showing top 10 patterns to prevent context overflow."
     echo ""
-    echo "$patterns_json" | jq -s -r 'if length > 0 then
-        "# Error Pattern Analysis\n\nFound \(length) error pattern(s):\n" +
-        (.[:10] | .[] |
-        "\n## Pattern: \(.ToolName)\n" +
-        "- **Type**: \(.Type)\n" +
-        "- **Occurrences**: \(.Occurrences) times\n" +
-        "- **Signature**: `\(.Signature)`\n" +
-        "- **Error**: \(.ErrorText)\n" +
-        "\n### Context\n" +
-        "- **First Occurrence**: \(.FirstSeen)\n" +
-        "- **Last Occurrence**: \(.LastSeen)\n" +
-        "- **Time Span**: \(.TimeSpanSeconds) seconds\n"
-        )
-    else
-        "✅ 未检测到重复错误模式（出现 < 3 次）。"
-    end'
-    echo ""
-    echo "💡 Tip: Use 'meta-cc query tools --where \"status='error'\" --output tsv' for full error list"
-else
-    echo "$patterns_json" | jq -s -r 'if length > 0 then
-        "# Error Pattern Analysis\n\nFound \(length) error pattern(s):\n" +
-        (.[] |
-        "\n## Pattern: \(.ToolName)\n" +
-        "- **Type**: \(.Type)\n" +
-        "- **Occurrences**: \(.Occurrences) times\n" +
-        "- **Signature**: `\(.Signature)`\n" +
-        "- **Error**: \(.ErrorText)\n" +
-        "\n### Context\n" +
-        "- **First Occurrence**: \(.FirstSeen)\n" +
-        "- **Last Occurrence**: \(.LastSeen)\n" +
-        "- **Time Span**: \(.TimeSpanSeconds) seconds\n"
-        )
-    else
-        "✅ 未检测到重复错误模式（出现 < 3 次）。"
-    end'
-fi
 
-PATTERN_OUTPUT="$patterns_json"
+    echo "$PATTERNS" | jq -r '.[:10] | .[] |
+        "\n## Pattern: \(.tool_name)\n" +
+        "- **Signature**: `\(.signature)`\n" +
+        "- **Occurrences**: \(.count) times\n" +
+        "- **Error**: \(.sample_error)\n" +
+        "\n### Context\n" +
+        "- **First Occurrence**: \(.first_seen)\n" +
+        "- **Last Occurrence**: \(.last_seen)\n" +
+        "- **Time Span**: \(.time_span_seconds) seconds\n" +
+        "\n---\n"'
+
+    echo ""
+    echo "💡 Tip: Use 'meta-cc query errors | jq' for custom analysis"
+else
+    echo "$PATTERNS" | jq -r '.[] |
+        "\n## Pattern: \(.tool_name)\n" +
+        "- **Signature**: `\(.signature)`\n" +
+        "- **Occurrences**: \(.count) times\n" +
+        "- **Error**: \(.sample_error)\n" +
+        "\n### Context\n" +
+        "- **First Occurrence**: \(.first_seen)\n" +
+        "- **Last Occurrence**: \(.last_seen)\n" +
+        "- **Time Span**: \(.time_span_seconds) seconds\n" +
+        "\n---\n"'
+fi
 
 echo ""
 
-# Step 3: 如果检测到错误模式，提供优化建议
-if echo "$PATTERN_OUTPUT" | grep -q "## Pattern"; then
-    echo "---"
-    echo ""
-    echo "## 优化建议"
-    echo ""
-    echo "基于检测到的错误模式，请考虑以下优化措施："
-    echo ""
-    echo "1. **检查重复错误的根本原因**"
-    echo "   - 查看错误文本，识别是否为相同的底层问题"
-    echo "   - 检查相关的 Turn 序列，了解错误发生的上下文"
-    echo ""
-    echo "2. **使用 Claude Code Hooks 预防错误**"
-    echo "   - 创建 pre-tool hook 检查常见错误条件"
-    echo "   - 例如：文件存在性检查、权限验证、参数格式校验"
-    echo ""
-    echo "3. **调整工作流**"
-    echo "   - 如果错误集中在某个工具，考虑使用替代方案"
-    echo "   - 优化提示词以减少错误触发频率"
-    echo ""
-    echo "4. **查看详细错误列表**"
-    echo "   - 运行：\`meta-cc parse extract --type tools --filter \"status=error\" --output md\`"
-    echo "   - 分析每个错误的具体原因和上下文"
-    echo ""
-else
-    echo "✅ 未检测到重复错误模式（出现 < 3 次）。"
-fi
+# Step 4: Provide optimization suggestions
+echo "---"
+echo ""
+echo "## Optimization Suggestions"
+echo ""
+echo "Based on detected error patterns, consider the following optimizations:"
+echo ""
+echo "1. **Investigate Repeated Errors**"
+echo "   - Review error text to identify root causes"
+echo "   - Check affected turns for context"
+echo ""
+echo "2. **Use Claude Code Hooks for Prevention**"
+echo "   - Create pre-tool hooks to check error conditions"
+echo "   - Example: file existence checks, permission validation"
+echo ""
+echo "3. **Adjust Workflow**"
+echo "   - If errors concentrate in one tool, consider alternatives"
+echo "   - Optimize prompts to reduce error frequency"
+echo ""
+echo "4. **View Full Error List**"
+echo "   - Run: \`meta-cc query errors | jq\`"
+echo "   - Analyze each error's specific cause and context"
+echo ""
+
+# Step 5: Show query examples
+echo "## Advanced Query Examples"
+echo ""
+echo "**Last 50 errors:**"
+echo "\`\`\`bash"
+echo "meta-cc query errors | jq '.[-50:]'"
+echo "\`\`\`"
+echo ""
+echo "**Errors by specific tool:**"
+echo "\`\`\`bash"
+echo "meta-cc query errors | jq '[.[] | select(.tool_name == \"Bash\")]'"
+echo "\`\`\`"
+echo ""
+echo "**Count by tool:**"
+echo "\`\`\`bash"
+echo "meta-cc query errors | jq 'group_by(.tool_name) | map({tool: .[0].tool_name, count: length})'"
+echo "\`\`\`"
 ```
 
-## 参数说明
+## Output Content
 
-- `window-size`（可选）：分析最近 N 个 Turn。默认值为 20。
-  - 示例：`/meta-errors 50`（分析最近 50 个 Turn）
-  - 省略参数：`/meta-errors`（使用默认窗口 20）
+1. **Error Data Extraction**: Count total errors in session
+2. **Error Pattern Analysis**: Group errors by signature and show top patterns
+3. **Optimization Suggestions**: Provide actionable improvement measures
+4. **Advanced Query Examples**: Show how to use jq for custom analysis
 
-## 输出内容
+## Migration from Phase 13
 
-1. **错误数据提取**：统计会话中的错误总数
-2. **错误模式分析**：检测重复出现的错误（≥3 次）
-3. **优化建议**：基于检测到的模式提供可行的改进措施
+Phase 14 replaces `analyze errors --window` with `query errors` + jq:
 
-## 输出示例
+**Old (Phase 13):**
+```bash
+meta-cc analyze errors --window 50
+```
+
+**New (Phase 14):**
+```bash
+meta-cc query errors | jq '.[-50:]'
+```
+
+**Aggregation (Phase 14):**
+```bash
+meta-cc query errors | jq 'group_by(.signature) | map({sig: .[0].signature, count: length})'
+```
+
+## Output Example
 
 ```markdown
-## 错误数据提取
-
-检测到 12 个错误工具调用。
-
-## 错误模式分析（窗口大小：20）
+## Error Pattern Analysis
 
 # Error Pattern Analysis
 
 Found 2 error pattern(s):
 
-## Pattern 1: Bash
+## Pattern: Bash
 
-- **Type**: repeated_error
+- **Signature**: `Bash:command not found: xyz`
 - **Occurrences**: 5 times
-- **Signature**: `a3f2b1c4d5e6f7g8`
 - **Error**: command not found: xyz
 
 ### Context
 
-- **First Occurrence**: 2025-10-02T10:00:00.000Z
-- **Last Occurrence**: 2025-10-02T10:15:00.000Z
-- **Time Span**: 900 seconds (15.0 minutes)
-- **Affected Turns**: 5
+- **First Occurrence**: 2025-10-05T10:00:00.000Z
+- **Last Occurrence**: 2025-10-05T10:15:00.000Z
+- **Time Span**: 900 seconds
 
 ---
 
-## 优化建议
+## Optimization Suggestions
 
-基于检测到的错误模式，请考虑以下优化措施：
+Based on detected error patterns, consider the following optimizations:
 
-1. **检查重复错误的根本原因**
-   - 查看错误文本，识别是否为相同的底层问题
+1. **Investigate Repeated Errors**
+   - Review error text to identify root causes
 
-2. **使用 Claude Code Hooks 预防错误**
-   - 创建 pre-tool hook 检查常见错误条件
-
-3. **调整工作流**
-   - 如果错误集中在某个工具，考虑使用替代方案
+2. **Use Claude Code Hooks for Prevention**
+   - Create pre-tool hooks to check error conditions
 ```
 
-## 使用场景
+## Use Cases
 
-- 识别重复出现的错误，避免重复调试
-- 发现工作流中的瓶颈（某些操作频繁失败）
-- 获取优化建议（hooks、替代方案、提示词改进）
-- 关注最近的错误（使用窗口参数）
+- Identify repeated errors to avoid re-debugging
+- Discover workflow bottlenecks (operations failing frequently)
+- Get optimization suggestions (hooks, alternatives, prompt improvements)
+- Custom analysis using jq for advanced filtering
 
-## 相关命令
+## Related Commands
 
-- `/meta-stats`：查看会话统计信息
-- `meta-cc parse extract --type errors`：查看所有错误详情
+- `/meta-stats`: View session statistics
+- `meta-cc query errors`: Extract error list
+- `meta-cc query tools --status error`: Query error tool calls

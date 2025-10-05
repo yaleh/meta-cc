@@ -7,7 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/filter"
-	"github.com/yale/meta-cc/internal/locator"
 	internalOutput "github.com/yale/meta-cc/internal/output"
 	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/pkg/output"
@@ -51,26 +50,14 @@ func init() {
 }
 
 func runQueryTools(cmd *cobra.Command, args []string) error {
-	// Step 1: Locate and parse session
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,
-		ProjectPath: projectPath, // from global parameter
-		SessionOnly: sessionOnly, // Phase 13: opt-out of project default
-
-	})
-	if err != nil {
+	// Step 1: Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
 		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
 	}
 
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return internalOutput.OutputError(err, internalOutput.ErrParseError, outputFormat)
-	}
-
-	// Step 2: Extract tool calls
-	toolCalls := parser.ExtractToolCalls(entries)
+	// Step 2: Extract tool calls using pipeline
+	toolCalls := p.ExtractToolCalls()
 
 	// Step 3: Apply filters
 	filtered, err := applyToolFilters(toolCalls)
@@ -78,7 +65,11 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 		return internalOutput.OutputError(err, internalOutput.ErrFilterError, outputFormat)
 	}
 
-	// Step 4: Sort if requested
+	// Step 4: Apply default deterministic sorting (by timestamp)
+	// This ensures same query always produces same output order
+	output.SortByTimestamp(filtered)
+
+	// Step 4b: Apply custom sort if requested (overrides default)
 	if querySortBy != "" {
 		sortToolCalls(filtered, querySortBy, queryReverse)
 	}
@@ -284,10 +275,13 @@ func applyToolFilters(toolCalls []parser.ToolCall) ([]parser.ToolCall, error) {
 }
 
 func sortToolCalls(toolCalls []parser.ToolCall, sortBy string, reverse bool) {
-	sort.Slice(toolCalls, func(i, j int) bool {
+	// Use stable sort to preserve relative order for equal values
+	sort.SliceStable(toolCalls, func(i, j int) bool {
 		var less bool
 
 		switch sortBy {
+		case "timestamp":
+			less = toolCalls[i].Timestamp < toolCalls[j].Timestamp
 		case "tool":
 			less = toolCalls[i].ToolName < toolCalls[j].ToolName
 		case "status":
@@ -295,8 +289,8 @@ func sortToolCalls(toolCalls []parser.ToolCall, sortBy string, reverse bool) {
 		case "uuid":
 			less = toolCalls[i].UUID < toolCalls[j].UUID
 		default:
-			// Default: sort by tool name
-			less = toolCalls[i].ToolName < toolCalls[j].ToolName
+			// Default: sort by timestamp (deterministic)
+			less = toolCalls[i].Timestamp < toolCalls[j].Timestamp
 		}
 
 		if reverse {

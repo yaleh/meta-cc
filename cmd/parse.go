@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/analyzer"
 	"github.com/yale/meta-cc/internal/filter"
-	"github.com/yale/meta-cc/internal/locator"
 	internalOutput "github.com/yale/meta-cc/internal/output"
 	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/pkg/output"
@@ -73,36 +72,23 @@ func runParseExtract(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	// Step 2: Locate session file (using Phase 1 locator)
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,   // from global parameter
-		ProjectPath: projectPath, // from global parameter
-		SessionOnly: sessionOnly, // Phase 13: opt-out of project default
-	})
-	if err != nil {
+	// Step 2: Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
 		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
 	}
 
-	// Step 3: Parse session file (using Phase 2 parser)
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return internalOutput.OutputError(err, internalOutput.ErrParseError, outputFormat)
-	}
-
-	// Step 4: Extract data based on type
+	// Step 3: Extract data based on type
 	var data interface{}
 
 	switch extractType {
 	case "turns":
-		data = entries
+		data = p.GetEntries()
 	case "tools":
-		toolCalls := parser.ExtractToolCalls(entries)
-		data = toolCalls
+		data = p.ExtractToolCalls()
 	case "errors":
 		// Extract failed tool calls
-		toolCalls := parser.ExtractToolCalls(entries)
+		toolCalls := p.ExtractToolCalls()
 		var errorCalls []parser.ToolCall
 		for _, tc := range toolCalls {
 			if tc.Status == "error" || tc.Error != "" {
@@ -203,26 +189,15 @@ func init() {
 }
 
 func runParseStats(cmd *cobra.Command, args []string) error {
-	// Step 1: Locate session file (using Phase 1 locator)
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,   // from global parameter
-		ProjectPath: projectPath, // from global parameter
-		SessionOnly: sessionOnly, // Phase 13: opt-out of project default
-	})
-	if err != nil {
+	// Step 1: Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
 		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
 	}
 
-	// Step 2: Parse session file (using Phase 2 parser)
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return internalOutput.OutputError(err, internalOutput.ErrParseError, outputFormat)
-	}
-
-	// Step 3: Extract tool calls
-	toolCalls := parser.ExtractToolCalls(entries)
+	// Step 2: Extract entries and tool calls
+	entries := p.GetEntries()
+	toolCalls := p.ExtractToolCalls()
 
 	// Step 4: Calculate statistics (using Stage 4.1 analyzer)
 	stats := analyzer.CalculateStats(entries, toolCalls)

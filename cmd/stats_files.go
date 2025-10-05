@@ -5,9 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/filter"
-	"github.com/yale/meta-cc/internal/locator"
 	internalOutput "github.com/yale/meta-cc/internal/output"
-	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/internal/stats"
 	"github.com/yale/meta-cc/pkg/output"
 )
@@ -57,26 +55,14 @@ func init() {
 }
 
 func runStatsFiles(cmd *cobra.Command, args []string) error {
-	// Step 1: Locate and parse session
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,
-		ProjectPath: projectPath, // from global parameter
-		SessionOnly: sessionOnly, // Phase 13: opt-out of project default
-
-	})
-	if err != nil {
+	// Step 1: Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
 		return fmt.Errorf("failed to locate session: %w", err)
 	}
 
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return fmt.Errorf("failed to parse session: %w", err)
-	}
-
 	// Step 2: Extract tool calls
-	toolCalls := parser.ExtractToolCalls(entries)
+	toolCalls := p.ExtractToolCalls()
 
 	// Step 3: Analyze file statistics
 	fileStats := stats.AnalyzeFileStats(toolCalls)
@@ -123,17 +109,18 @@ func runStatsFiles(cmd *cobra.Command, args []string) error {
 
 	// Step 7: Format output
 	var outputStr string
+	var formatErr error
 	switch outputFormat {
 	case "jsonl":
-		outputStr, err = output.FormatJSONL(fileStats)
+		outputStr, formatErr = output.FormatJSONL(fileStats)
 	case "tsv":
-		outputStr, err = output.FormatTSV(fileStats)
+		outputStr, formatErr = output.FormatTSV(fileStats)
 	default:
 		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
 	}
 
-	if err != nil {
-		return fmt.Errorf("failed to format output: %w", err)
+	if formatErr != nil {
+		return fmt.Errorf("failed to format output: %w", formatErr)
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)

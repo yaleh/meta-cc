@@ -101,9 +101,9 @@ COMMANDS:
   stats <path>
       Calculate session statistics
 
-  errors <path> [window]
-      Analyze error patterns
-      Args: window - Number of recent turns to analyze (default: 20)
+  errors <path>
+      Extract error list (simple list, use jq for windowing)
+      Example: $SCRIPT_NAME errors . | jq '.[-20:]'
 
   query-tools <path> [filter] [limit]
       Query tool calls
@@ -284,7 +284,42 @@ cmd_stats() {
 }
 
 cmd_errors() {
-    error "Command 'errors' not implemented yet"
+    if [ $# -lt 1 ]; then
+        error "Usage: $SCRIPT_NAME errors <path>"
+    fi
+
+    local path="$1"
+    local jsonl_file=$(get_jsonl_files "$path")
+
+    info "Processing: $jsonl_file"
+
+    # Extract tool_use entries to get tool names
+    local tool_use_names=$(jq -c '
+        select(.type == "assistant") |
+        .message.content[]? |
+        select(.type == "tool_use") |
+        {id: .id, name: .name}
+    ' "$jsonl_file" | jq -s 'map({key: .id, value: .name}) | from_entries')
+
+    # Extract error entries from tool_result
+    jq -c \
+        --argjson tool_names "$tool_use_names" \
+        '
+        select(.type == "user") |
+        .uuid as $uuid |
+        .timestamp as $ts |
+        .message.content[]? |
+        select(.type == "tool_result" and .is_error == true) |
+        . as $result |
+        ($tool_names[$result.tool_use_id] // "unknown") as $tool_name |
+        {
+            UUID: $uuid,
+            Timestamp: $ts,
+            ToolName: $tool_name,
+            Error: ($result.content // ""),
+            Signature: ($tool_name + ":" + (($result.content // "")[:50]))
+        }
+    ' "$jsonl_file" | jq -s 'sort_by(.Timestamp) | .[]'
 }
 
 cmd_query_tools() {

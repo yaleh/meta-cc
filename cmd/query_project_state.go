@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/locator"
 	"github.com/yale/meta-cc/internal/parser"
 )
 
@@ -41,26 +40,14 @@ func init() {
 }
 
 func runQueryProjectState(cmd *cobra.Command, args []string) error {
-	// Locate session file
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,
-		ProjectPath: projectPath, // from global parameter
-		SessionOnly: sessionOnly, // Phase 13: opt-out of project default
-
-	})
-	if err != nil {
+	// Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
 		return fmt.Errorf("failed to locate session: %w", err)
 	}
 
-	// Read and parse session file
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return fmt.Errorf("failed to read session file: %w", err)
-	}
-
 	// Build project state
+	entries := p.GetEntries()
 	state, err := buildProjectState(entries, projectStateIncludeTasks)
 	if err != nil {
 		return fmt.Errorf("failed to build project state: %w", err)

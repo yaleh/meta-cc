@@ -68,6 +68,15 @@ func Execute() error {
 	return nil
 }
 
+// getGlobalOptions returns GlobalOptions from global flags
+func getGlobalOptions() GlobalOptions {
+	return GlobalOptions{
+		SessionID:   sessionID,
+		ProjectPath: projectPath,
+		SessionOnly: sessionOnly,
+	}
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
