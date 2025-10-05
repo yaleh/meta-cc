@@ -1534,22 +1534,62 @@ meta-cc query tools --where "invalid syntax" --output tsv
 
 ---
 
-## Phase 14: 架构重构与职责清晰化（Architecture Refactoring）
+## Phase 14: 架构重构与集成层调整（Architecture Refactoring & Integration Realignment）
 
-**目标**：重构命令实现以消除代码重复，明确 meta-cc 职责边界，统一输出确定性
+**目标**：重构命令实现以消除代码重复，明确 meta-cc 职责边界，**调整集成层次架构（引入 @meta-query Subagent）**
 
-**代码量**：~600 行（重构）
+**代码量**：~800 行（重构 + 新 Subagent）
 
-**优先级**：高（核心架构改进，提升可维护性）
+**优先级**：高（核心架构改进，解决 MCP 输出过大问题）
 
 **状态**：待实施
 
+**背景与问题**：
+- **现状**：MCP 作为核心集成层，但存在两个问题：
+  1. **输出过大**：MCP `query_tools` 返回大量原始 JSONL，消耗大量 LLM tokens
+  2. **聚合能力缺失**：`aggregate_stats` 失败（error -32603），无法提供统计摘要
+- **矛盾**：MCP 需要"适合 LLM 消费"的输出（聚合后），但这违反 principles.md 的"职责最小化"原则
+- **根因**：MCP 试图"既简单又强大"，职责不清
+
 **设计原则**：
-- ✅ **职责最小化原则**：meta-cc 仅负责 Claude Code 会话历史知识的提取，不做分析决策
+- ✅ **职责最小化原则**：meta-cc CLI 仅负责数据提取，不做聚合决策
 - ✅ **Pipeline 模式**：抽象通用数据处理流程（定位 → 加载 → 提取 → 输出）
 - ✅ **输出确定性**：所有输出按稳定字段排序（UUID/Timestamp）
 - ✅ **代码重用优先**：消除跨命令的重复逻辑（~345 行重复代码）
-- ✅ **延迟决策**：将过滤、窗口、格式化等决策推给下游工具/LLM
+- ✅ **延迟决策**：将聚合、过滤等决策推给 Subagent 层（通过 Unix 管道）
+- ✅ **混合方案 C**：MCP 保留轻量级查询，引入 @meta-query Subagent 处理复杂聚合
+
+### 架构调整策略（混合方案 C）
+
+**新架构层次**：
+```
+用户交互层
+  ├─ 自然对话 → Claude 自主调用 MCP（简单查询，无聚合）
+  ├─ @meta-query Subagent → 复杂聚合（CLI + Unix 管道）
+  └─ @meta-coach → 语义分析（调用 @meta-query 获取聚合数据）
+
+数据访问层
+  ├─ MCP meta-insight（轻量级查询，JSONL 原始输出）
+  └─ @meta-query Subagent（聚合层，组织 meta-cc + jq/awk 管道）
+
+核心数据层
+  └─ meta-cc CLI（数据提取，JSONL/TSV）
+```
+
+**职责划分**：
+
+| 层级 | 职责 | 示例 |
+|------|------|------|
+| **meta-cc CLI** | 数据提取 | `query tools --status error --output jsonl` |
+| **MCP meta-insight** | 简单查询映射 | Claude: "最近的错误" → `query_tools status=error limit=10` |
+| **@meta-query** | 复杂聚合（管道组织） | `meta-cc query tools \| jq ... \| sort \| uniq -c` |
+| **@meta-coach** | 语义分析 | 基于聚合数据生成优化建议 |
+
+**关键改变**：
+- ✅ **MCP 简化**：仅用于简单查询，不做聚合（保持轻量）
+- ✅ **引入 @meta-query**：专门处理需要聚合的场景（CLI + 管道）
+- ✅ **CLI 保持纯粹**：仅数据提取，不增加聚合逻辑
+- ✅ **符合 Unix 哲学**：复杂处理由管道组合实现
 
 ### Stage 14.1: Pipeline 抽象层
 
@@ -1557,26 +1597,28 @@ meta-cc query tools --where "invalid syntax" --output tsv
 - 提取通用 `SessionPipeline` 类型
 - 实现 `Load()`, `ExtractEntries()`, `BuildIndex()` 方法
 - 统一会话定位和 JSONL 解析逻辑
+- **支持多会话加载**（已在 Phase 13 实现，此处完善测试）
 
 **交付物**：
 ```go
-// pkg/pipeline/session.go (~120 行)
+// cmd/pipeline.go (~150 行，已存在）
 type SessionPipeline struct {
     opts    GlobalOptions
     session string
-    entries []parser.Entry
+    entries []parser.SessionEntry
 }
 
 func NewSessionPipeline(opts GlobalOptions) *SessionPipeline
-func (p *SessionPipeline) Load(loadOpts LoadOptions) error
-func (p *SessionPipeline) ExtractEntries(filter EntryFilter) []parser.Entry
-func (p *SessionPipeline) BuildTurnIndex() map[string]int
+func (p *SessionPipeline) Load(loadOpts LoadOptions) error  // 支持项目级多会话加载
+func (p *SessionPipeline) GetEntries() []parser.SessionEntry
+func (p *SessionPipeline) FilterEntries(filter EntryFilter) []parser.SessionEntry
 ```
 
 **测试**：
 ```bash
-go test ./pkg/pipeline -v
+go test ./cmd -run TestSessionPipeline -v
 # 验证 Pipeline 单元测试覆盖率 ≥90%
+# 验证多会话加载功能（TestSessionPipeline_LoadProjectLevel）
 ```
 
 ### Stage 14.2: errors 命令简化
@@ -1637,7 +1679,113 @@ done
 diff /tmp/run-*.jsonl
 ```
 
-### Stage 14.4: 代码重复消除
+### Stage 14.4: 创建 @meta-query Subagent（新增）
+
+**任务**：
+- 创建 `.claude/subagents/meta-query.md`
+- 实现 CLI + Unix 管道组织能力
+- 提供常见聚合场景（错误统计、工具频率、Top-N 查询）
+- 可被其他 Subagents 调用（如 @meta-coach）
+
+**交付物**：
+```markdown
+# .claude/subagents/meta-query.md
+---
+name: meta-query
+description: CLI 数据查询和聚合专家（组织 meta-cc + Unix 管道）
+allowed_tools: [Bash, Read]
+---
+
+你是 meta-query，负责组织 meta-cc CLI 命令和 Unix 管道来完成复杂的数据聚合查询。
+
+## 核心能力
+1. 调用 meta-cc CLI 命令获取原始数据（JSONL）
+2. 使用 jq/awk/sort/uniq 等 Unix 工具进行聚合和统计
+3. 返回处理后的结果（适合 LLM 消费的紧凑格式）
+
+## 工作流程
+1. 理解用户查询意图（统计/聚合/排序/过滤）
+2. 构建 meta-cc 命令（如 `query tools --status error --project .`）
+3. 设计 Unix 管道处理（如 `jq -r '.ToolName' | sort | uniq -c | sort -rn`）
+4. 执行并返回结果
+
+## 示例场景
+
+### 场景 1：错误工具统计
+User: "统计本项目所有错误，按工具分组"
+
+@meta-query:
+```bash
+meta-cc query tools --status error --project . --output jsonl \
+  | jq -r '.ToolName' \
+  | sort \
+  | uniq -c \
+  | sort -rn
+```
+
+输出：
+```
+311 Bash
+ 62 Read
+ 38 Edit
+...
+```
+
+### 场景 2：最近 50 条错误的签名分析
+User: "分析最近 50 条错误，找出重复最多的"
+
+@meta-query:
+```bash
+meta-cc query tools --status error --project . --limit 50 --output jsonl \
+  | jq -r '.Error' \
+  | grep -v '^$' \
+  | sort \
+  | uniq -c \
+  | sort -rn \
+  | head -10
+```
+
+### 场景 3：文件操作历史
+User: "查看 cmd/mcp.go 的所有修改历史"
+
+@meta-query:
+```bash
+meta-cc query tools --project . --output jsonl \
+  | jq 'select(.Input.file_path? == "cmd/mcp.go")' \
+  | jq -r '[.Timestamp, .ToolName, .Status] | @tsv'
+```
+
+## 与其他 Subagents 集成
+
+@meta-coach 可以调用 @meta-query 获取聚合数据：
+- User → @meta-coach（"分析错误模式"）
+- @meta-coach → @meta-query（"获取错误统计"）
+- @meta-query → 返回聚合结果
+- @meta-coach → 语义分析并生成建议
+
+## 设计原则
+- ✅ 不做语义分析，只做数据聚合
+- ✅ 优先使用 jq（处理 JSON）和 awk（处理 TSV）
+- ✅ 返回紧凑的统计结果（而非原始大数据）
+- ✅ 管道失败时提供调试信息
+```
+
+**测试场景**：
+```bash
+# 测试 1：错误统计
+User: "@meta-query 统计本项目错误，按工具分组"
+验证: 返回 "311 Bash, 62 Read..." 统计结果
+
+# 测试 2：Top-N 查询
+User: "@meta-query 最频繁的 10 个错误消息是什么？"
+验证: 返回 Top 10 错误签名和计数
+
+# 测试 3：被 @meta-coach 调用
+User: "@meta-coach 分析本项目的错误模式"
+验证: @meta-coach → @meta-query → 返回聚合数据 → @meta-coach 生成建议
+```
+
+### Stage 14.5: 代码重复消除
 
 **任务**：
 - 统一输出逻辑到 `output.Format()`
@@ -1660,60 +1808,82 @@ timeline        ~120 行   ~50 行   -58%
 **测试**：
 ```bash
 # 验证重构后功能一致性
-./test-scripts/validate-meta-cc.sh
+make test
 # 验证代码减少 ≥60%
 git diff --stat HEAD~1 HEAD | grep "deletions"
 ```
+
+### Stage 14.6: MCP aggregate_stats 修复（可选）
+
+**任务**：
+- 诊断 MCP `aggregate_stats` error -32603 根因
+- 如果是简单 bug，修复并添加测试
+- 如果实现复杂，标记为 deprecated（推荐使用 @meta-query）
+
+**决策依据**：
+- 如果修复成本 <50 行代码 → 修复
+- 如果需要复杂聚合逻辑 → deprecated，推荐 @meta-query
 
 **Phase 14 完成标准**：
 - ✅ Pipeline 抽象层实现并通过测试（覆盖率 ≥90%）
 - ✅ `query errors` 替代 `analyze errors`（提供迁移文档）
 - ✅ 所有 query 命令输出稳定排序
+- ✅ **@meta-query Subagent 创建并通过测试**（新增）
+- ✅ **@meta-query 与 @meta-coach 集成测试通过**（新增）
 - ✅ 代码行数减少 ≥60%
 - ✅ 所有单元测试和集成测试通过
 
 **向后兼容性**：
 - ⚠️ `analyze errors` 命令标记为 deprecated（保留 1-2 个版本）
 - ⚠️ `--window` 参数移除（文档说明用 `jq` 替代）
+- ⚠️ MCP `aggregate_stats` 可能标记为 deprecated（如果修复成本高）
 - ✅ 其他命令输出内容不变（仅排序顺序固定）
 
 ---
 
-## Phase 15: MCP 工具完善与优化（MCP Tools Enhancement）
+## Phase 15: MCP 工具简化与定位调整（MCP Tools Simplification）
 
-**目标**：补全未暴露的 CLI 功能到 MCP，优化工具描述，移除语义分析类工具
+**目标**：简化 MCP 工具职责（仅轻量级查询），优化工具描述，移除聚合类工具
 
-**代码量**：~300 行
+**代码量**：~200 行（简化为主，减少代码）
 
-**优先级**：中（完善 MCP 生态，提升可用性）
+**优先级**：高（与 Phase 14 配合，明确 MCP vs Subagent 边界）
 
 **状态**：待实施
 
-### Stage 15.1: 添加缺失的 MCP 工具
+**背景**：
+- Phase 14 引入 @meta-query Subagent 承担聚合职责
+- MCP 重新定位为**轻量级查询层**（无聚合，仅返回原始 JSONL）
+- 符合 principles.md 的"职责最小化"和"延迟决策"原则
+
+### Stage 15.1: 移除聚合类 MCP 工具
 
 **任务**：
-- 添加 `query_errors` MCP 工具（映射到 `query errors` CLI）
-- 添加 `query_workflow_patterns` MCP 工具（映射到 `analyze sequences` CLI）
-- 添加 `query_file_hotspots` MCP 工具（映射到 `analyze file-churn` CLI）
+- 移除或标记 deprecated：`aggregate_stats`（已失败，且违反职责边界）
+- 移除或标记 deprecated：`analyze_errors`（聚合错误，应由 @meta-query 处理）
+- 保留简单查询工具：`query_tools`, `query_user_messages`, `query_errors`（无聚合）
+
+**迁移指南**：
+```markdown
+# 迁移 aggregate_stats
+改用 @meta-query subagent：
+User: "@meta-query 统计错误，按工具分组"
+
+# 迁移 analyze_errors
+改用 @meta-query + query errors：
+User: "@meta-query 分析最近 50 条错误的重复模式"
+```
 
 **交付物**：
-```go
-// cmd/mcp_tools.go 新增工具定义
-{
-    "name": "query_errors",
-    "description": "Query tool errors with optional filters. Returns error list without aggregation (use jq for grouping).",
-    "inputSchema": {
-        "scope": scopeProperty,
-        "limit": limitProperty,
-        "output_format": outputFormatProperty,
-    },
-}
-```
+- 更新 `cmd/mcp.go`：移除聚合类工具定义
+- 创建 `docs/mcp-migration-guide.md`：从 MCP 聚合工具迁移到 @meta-query
+- 更新 MCP 工具总数：从 14+ 个简化到 ~10 个核心工具
 
 **测试**：
 ```bash
-# 验证 MCP 工具可调用
-echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_errors","arguments":{"limit":10}}}' | meta-cc mcp
+# 验证 MCP 工具列表
+echo '{"jsonrpc":"2.0","method":"tools/list"}' | meta-cc mcp | jq '.result.tools[] | .name'
+# 应不包含 aggregate_stats, analyze_errors
 ```
 
 ### Stage 15.2: 简化 MCP 工具描述
@@ -1736,25 +1906,41 @@ echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_errors","ar
 - 更新所有 14 个 MCP 工具描述
 - `docs/mcp-tools-reference.md` 完整文档（包含使用场景）
 
-### Stage 15.3: 移除语义分析类工具
+### Stage 15.3: 简化 MCP 工具参数
 
 **任务**：
-- 移除 `query_successful_prompts` MCP 工具（需要质量评分，属语义分析）
-- 简化 `query_project_state` 为仅返回文件列表（移除"未完成任务"分析）
-- 标记 `analyze_errors` 为 deprecated（推荐使用 `query_errors`）
+- 移除复杂的聚合参数（如 `group_by`, `metrics`, `window`）
+- 保留基础过滤参数（`status`, `tool`, `limit`, `scope`）
+- 所有 MCP 工具统一返回 JSONL 格式（无 summary, 无 aggregation）
 
-**迁移指南**：
-```markdown
-# 迁移 query_successful_prompts
-改用 @prompt-advisor subagent（Phase 16）
+**参数简化对比**：
+```go
+// 改进前：query_tools 参数过多
+{
+    "tool": "string",
+    "status": "string",
+    "limit": "number",
+    "scope": "string",
+    "output_format": "string",
+    "group_by": "string",        // ❌ 移除（聚合决策）
+    "metrics": "array",          // ❌ 移除（聚合决策）
+    "window": "number",          // ❌ 移除（过滤决策）
+}
 
-# 迁移 analyze_errors
-改用 query_errors（Phase 14）
+// 改进后：仅保留基础查询参数
+{
+    "tool": "string",            // 过滤：工具名
+    "status": "string",          // 过滤：状态
+    "limit": "number",           // 限制：返回数量
+    "scope": "string",           // 范围：project/session
+    "output_format": "string",   // 格式：jsonl（默认）
+}
 ```
 
 **交付物**：
-- 更新 `cmd/mcp_tools.go`（移除/简化工具）
-- 迁移文档（`docs/mcp-migration-guide.md`）
+- 更新所有 MCP 工具的 `inputSchema`
+- 移除聚合相关参数验证代码
+- 更新 `docs/mcp-tools-reference.md`
 
 ### Stage 15.4: MCP 工具文档优化
 
@@ -1780,75 +1966,128 @@ Claude: "Show me the last 10 errors"
 → 调用 query_errors(limit=10, scope="session")
 ```
 
+**MCP 工具最终列表**（简化后）：
+
+| 工具名 | 职责 | 返回类型 |
+|--------|------|----------|
+| `get_session_stats` | 会话统计 | JSON 对象 |
+| `query_tools` | 工具调用查询 | JSONL 列表（无聚合） |
+| `query_tools_session` | 会话级工具查询 | JSONL 列表 |
+| `query_user_messages` | 用户消息搜索 | JSONL 列表 |
+| `query_user_messages_session` | 会话级消息搜索 | JSONL 列表 |
+| `query_errors` | 错误查询（新增） | JSONL 列表（无聚合） |
+| `query_context` | 错误上下文查询 | JSONL 列表 |
+| `query_file_access` | 文件操作历史 | JSONL 列表 |
+| `query_tool_sequences` | 工具序列查询 | JSONL 列表（无聚合） |
+| `extract_tools` | 工具提取（遗留） | JSONL 列表 |
+
+**移除的工具**：
+- ❌ `aggregate_stats`（失败 + 违反职责）→ 改用 @meta-query
+- ❌ `analyze_errors`（聚合错误）→ 改用 @meta-query
+- ❌ `query_successful_prompts`（语义分析）→ 改用 @meta-coach
+- ❌ `query_project_state`（复杂分析）→ 改用 @meta-coach
+
 **Phase 15 完成标准**：
-- ✅ 补全 3 个缺失的 MCP 工具
+- ✅ 移除 4 个聚合/分析类 MCP 工具
+- ✅ 保留 10 个核心查询工具（仅返回原始 JSONL）
 - ✅ 所有工具描述 ≤100 字符
-- ✅ 移除 2 个语义分析类工具
-- ✅ 完整的 MCP 工具参考文档
-- ✅ MCP 集成测试通过
+- ✅ 完整的 MCP 迁移文档（`docs/mcp-migration-guide.md`）
+- ✅ 完整的 MCP 工具参考文档（`docs/mcp-tools-reference.md`）
+- ✅ MCP 集成测试通过（验证无聚合输出）
 
 ---
 
 ## Phase 16: Subagent 实现（Subagent Implementation）
 
-**目标**：实现语义分析层 Subagents，提供端到端的元认知分析能力
+**目标**：实现语义分析层 Subagents，提供端到端的元认知分析能力，**完成三层架构**
 
-**代码量**：~800 行（配置 + 文档）
+**代码量**：~1000 行（配置 + 文档，包含 @meta-query）
 
 **优先级**：高（完成语义层，实现完整架构）
 
-**状态**：待实施
+**状态**：部分完成（Phase 14 已创建 @meta-query，此 Phase 完善其他 Subagents）
 
 **设计原则**：
 - ✅ Subagents 负责语义理解、推理、建议生成
-- ✅ 调用 MCP 工具获取数据，不直接调用 CLI
+- ✅ **@meta-query 调用 CLI + 管道进行聚合**（Phase 14 已实现）
+- ✅ **其他 Subagents 调用 MCP 工具获取原始数据**
+- ✅ **@meta-coach 等高级 Subagents 调用 @meta-query 获取聚合数据**
 - ✅ 支持多轮对话和上下文关联
 - ✅ 可嵌套调用其他 Subagents
 
-### Stage 16.1: @meta-coach 核心 Subagent
+### Stage 16.1: 更新 @meta-coach 核心 Subagent（基于 Phase 14 @meta-query）
 
 **任务**：
-- 创建 `.claude/subagents/meta-coach.md`
-- 实现工作流优化、元认知反思、分层建议生成
-- 支持调用所有 MCP 工具和嵌套 Subagents
+- 更新现有 `.claude/subagents/meta-coach.md`（已存在）
+- **集成 @meta-query**：调用 @meta-query 获取聚合数据（而非直接调用 MCP）
+- 保持语义分析和建议生成能力
+- 支持调用专用 Subagents（@error-analyst, @workflow-tuner）
 
 **交付物**：
 ```markdown
-# .claude/subagents/meta-coach.md
+# .claude/subagents/meta-coach.md（更新版）
 ---
 name: meta-coach
 description: 元认知分析和工作流优化顾问
-allowed_tools: [all MCP tools, @error-analyst, @workflow-tuner]
+allowed_tools: [MCP meta-insight tools, @meta-query, @error-analyst, @workflow-tuner]
 ---
 
 你是 meta-coach，负责分析用户在 Claude Code 中的工作模式并提供优化建议。
 
 ## 核心能力
-1. 调用 MCP 工具获取会话/项目数据
-2. 分析工作模式和效率瓶颈
-3. 提供分层建议（立即/可选/长期）
-4. 协助实施优化（创建 Hooks/Commands/Subagents）
+1. **调用 @meta-query 获取聚合数据**（优先方式，避免处理大量原始 JSONL）
+2. 调用 MCP 工具获取原始数据（当需要完整上下文时）
+3. 分析工作模式和效率瓶颈
+4. 提供分层建议（立即/可选/长期）
+5. 协助实施优化（创建 Hooks/Commands/Subagents）
 
 ## 工作流程
 1. 询问用户分析目标（工作流/错误/效率）
-2. 调用相应 MCP 工具获取数据
-3. 分析并生成建议（必要时调用专用 Subagents）
-4. 与用户确认并协助实施
+2. **优先调用 @meta-query 获取统计摘要**（避免 token 浪费）
+3. 必要时调用 MCP 工具获取详细数据
+4. 分析并生成建议（必要时调用专用 Subagents）
+5. 与用户确认并协助实施
 
 ## 示例对话
-User: "帮我分析这个会话的错误模式"
+
+### 场景 1：错误模式分析（使用 @meta-query）
+User: "帮我分析本项目的错误模式"
+
 @meta-coach:
-1. 调用 query_errors(scope="session")
-2. 发现 3 个 Read 工具重复失败
-3. 调用 @error-analyst 深度分析
-4. 建议：添加文件存在检查 Hook
+1. 调用 @meta-query："统计本项目所有错误，按工具分组"
+   → 返回："311 Bash, 62 Read, 38 Edit..."
+2. 调用 @meta-query："Bash 错误中重复最多的是什么？"
+   → 返回："139 FAIL, 19 jq parse error..."
+3. 分析：测试失败最严重（139次），jq 数据格式问题（19次）
+4. 建议：
+   - P0：改进测试稳定性（隔离环境、清理进程）
+   - P1：改进 jq 错误处理（检查空输出）
+
+### 场景 2：详细上下文分析（使用 MCP）
+User: "为什么 Read 工具失败了 58 次？"
+
+@meta-coach:
+1. 调用 MCP query_errors(tool="Read", limit=10)
+   → 返回前 10 条 Read 错误详情（JSONL）
+2. 分析错误签名："File does not exist" 占 93.5%
+3. 调用 @meta-query："哪些文件路径最常失败？"
+4. 建议：改进文件路径推断逻辑
+
+## 数据获取策略
+
+| 场景 | 优先方式 | 备选方式 |
+|------|----------|----------|
+| 统计摘要 | @meta-query | - |
+| Top-N 查询 | @meta-query | - |
+| 详细记录 | MCP tools | - |
+| 上下文分析 | MCP tools | @meta-query 提供概览 |
 ```
 
 **测试**：
 ```bash
 # 在 Claude Code 中测试
-User: "@meta-coach 分析当前会话的工作效率"
-# 验证 Subagent 调用 MCP 工具并生成建议
+User: "@meta-coach 分析本项目的错误模式"
+# 验证：@meta-coach → @meta-query（获取统计）→ 生成建议
 ```
 
 ### Stage 16.2: @error-analyst 专用 Subagent
@@ -1944,24 +2183,44 @@ User: "@meta-coach 全面分析项目健康度"
 ```
 
 **Phase 16 完成标准**：
-- ✅ @meta-coach 核心 Subagent 实现
+- ✅ @meta-coach 核心 Subagent 更新（集成 @meta-query）
 - ✅ @error-analyst 专用 Subagent 实现
 - ✅ @workflow-tuner 专用 Subagent 实现
-- ✅ 嵌套调用测试通过
+- ✅ **@meta-query 被其他 Subagents 成功调用**（新增验证）
+- ✅ 嵌套调用测试通过（@meta-coach → @meta-query → CLI）
 - ✅ 完整的 Subagent 使用文档
-- ✅ 至少 3 个端到端测试场景通过
+- ✅ 至少 4 个端到端测试场景通过（包括 @meta-query 场景）
 
-**架构完整性**：
+**架构完整性（混合方案 C）**：
 ```
 数据层（meta-cc CLI）
-  ↓ 提供结构化数据
-MCP 层（14 个工具）
-  ↓ 供 Claude/Subagents 调用
-Subagent 层（@meta-coach, @error-analyst, @workflow-tuner）
+  ↓ 提供结构化数据（JSONL/TSV）
+
+集成层（双路径）
+  ├─ MCP 层（10 个轻量级查询工具）
+  │   ↓ 返回原始 JSONL
+  │   ↓ 供 Claude 自主调用 / Subagents 调用
+  │
+  └─ @meta-query Subagent（聚合层）
+      ↓ 组织 CLI + Unix 管道
+      ↓ 返回统计摘要
+      ↓ 供其他 Subagents 调用
+
+Subagent 层（语义分析）
+  ├─ @meta-coach（调用 @meta-query + MCP）
+  ├─ @error-analyst（调用 MCP + @meta-query）
+  └─ @workflow-tuner（调用 @meta-query）
   ↓ 语义理解 + 建议生成
+
 用户
   ↓ 获得元认知洞察和优化建议
 ```
+
+**关键改进**：
+- ✅ MCP 仅负责轻量级查询（无聚合，符合职责最小化）
+- ✅ @meta-query 承担聚合职责（CLI + 管道，符合延迟决策）
+- ✅ @meta-coach 等高级 Subagents 优先调用 @meta-query（避免 token 浪费）
+- ✅ 三层架构清晰：数据层（CLI）→ 聚合层（@meta-query）→ 语义层（@meta-coach）
 
 ---
 
@@ -1990,8 +2249,9 @@ Subagent 层（@meta-coach, @error-analyst, @workflow-tuner）
 | 7 | MCP 原生实现 | 14 个 MCP 工具可用 |
 | 8-9 | 核心查询完成 | 应对大会话，分页/分片/投影 |
 | 10-13 | 高级功能 | 聚合统计、项目级查询、输出简化 |
-| 14 | 架构重构 | Pipeline 抽象，代码减少 72% |
-| 15-16 | **完整架构** | MCP 优化 + Subagent 语义层 |
+| 14 | **架构重构 + 集成层调整** | Pipeline 抽象 + **@meta-query Subagent**（混合方案 C） |
+| 15 | **MCP 简化** | 移除聚合工具，简化到 10 个核心查询工具 |
+| 16 | **完整三层架构** | CLI（数据）→ @meta-query（聚合）→ @meta-coach（语义） |
 
 ---
 
@@ -2001,9 +2261,24 @@ meta-cc 项目采用 TDD 和渐进式交付：
 - Phase 0-6 (MVP): 业务闭环，可用
 - Phase 7-9: 核心能力完善
 - Phase 10-13: 高级功能和优化
-- **Phase 14-16: 架构重构和语义层实现（完整三层架构）**
+- **Phase 14-16: 架构重构和集成层调整（混合方案 C 完整架构）**
 
-**三层架构完成标志**：
+**混合方案 C 架构完成标志**：
 ```
-数据层（CLI）→ MCP 层（14 工具）→ Subagent 层（@meta-coach 等）
+数据层（meta-cc CLI）
+  ↓ JSONL/TSV 数据提取
+
+集成层（双路径）
+  ├─ MCP 层（10 个轻量级查询工具，无聚合）
+  └─ @meta-query Subagent（CLI + Unix 管道聚合）
+
+语义层（Subagent）
+  └─ @meta-coach, @error-analyst, @workflow-tuner
 ```
+
+**关键设计原则实现**：
+- ✅ **职责最小化**：CLI 仅提取数据，不做聚合决策
+- ✅ **延迟决策**：聚合逻辑推迟到 @meta-query（通过管道实现）
+- ✅ **Unix 可组合性**：充分利用 jq/awk/sort/uniq 等工具
+- ✅ **MCP 简化**：仅负责轻量级查询，避免职责膨胀
+- ✅ **Subagent 分层**：@meta-query（聚合）+ @meta-coach（语义）
