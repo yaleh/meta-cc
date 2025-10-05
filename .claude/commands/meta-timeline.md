@@ -32,7 +32,11 @@ echo "# 会话时间线（最近 ${LIMIT} Turns）"
 echo ""
 
 # 使用 Phase 8 query 命令（支持分页，避免大会话上下文溢出）
-tools_data=$(meta-cc query tools --limit "$LIMIT" --output json)
+# Phase 13: JSONL output by default
+tools_jsonl=$(meta-cc query tools --limit "$LIMIT" 2>/dev/null)
+
+# Convert JSONL to JSON array for jq processing
+tools_data=$(echo "$tools_jsonl" | jq -s '.')
 
 # 解析 JSON 并生成时间线
 # query 命令已经限制了数量，直接使用结果

@@ -43,8 +43,11 @@ echo ""
 echo "---"
 echo ""
 
-# 执行查询
-result=$(meta-cc query user-messages --match "$PATTERN" --limit "$LIMIT" --sort-by timestamp --reverse --output json)
+# 执行查询 (Phase 13: JSONL output by default)
+result_jsonl=$(meta-cc query user-messages --match "$PATTERN" --limit "$LIMIT" --sort-by timestamp --reverse 2>/dev/null)
+
+# Convert JSONL to JSON array for jq processing
+result=$(echo "$result_jsonl" | jq -s '.')
 
 # 检查是否有结果
 count=$(echo "$result" | jq 'length')

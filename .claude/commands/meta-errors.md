@@ -28,8 +28,8 @@ fi
 echo "## Error Data Extraction" >&2
 echo "" >&2
 
-# Phase 14: Use new query errors command
-ERRORS_JSON=$(meta-cc query errors 2>/dev/null)
+# Phase 14: Use new query errors command (outputs JSONL)
+ERRORS_JSONL=$(meta-cc query errors 2>/dev/null)
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 2 ]; then
@@ -40,7 +40,9 @@ elif [ $EXIT_CODE -eq 1 ]; then
     exit 1
 fi
 
-ERROR_COUNT=$(echo "$ERRORS_JSON" | jq '. | length')
+# Convert JSONL to JSON array for jq processing
+ERRORS_JSON=$(echo "$ERRORS_JSONL" | jq -s '.')
+ERROR_COUNT=$(echo "$ERRORS_JSON" | jq 'length')
 echo "Detected $ERROR_COUNT error tool call(s)." >&2
 echo "" >&2
 
@@ -49,8 +51,8 @@ echo "## Error Pattern Analysis"
 echo ""
 
 # Group by signature and count occurrences
-PATTERNS=$(echo "$ERRORS_JSON" | jq -s 'if length > 0 then
-    .[0] | group_by(.signature) | map({
+PATTERNS=$(echo "$ERRORS_JSON" | jq 'if length > 0 then
+    group_by(.signature) | map({
         signature: .[0].signature,
         tool_name: .[0].tool_name,
         count: length,
