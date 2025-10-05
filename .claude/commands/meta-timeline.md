@@ -42,7 +42,7 @@ tools_data=$(echo "$tools_jsonl" | jq -s '.')
 # query 命令已经限制了数量，直接使用结果
 echo "$tools_data" | jq -r '
 to_entries[] |
-"\(.key + 1). **\(.value.ToolName)** \(if .value.Status == "error" or .value.Error != "" then "❌" else "✅" end)"
+"\(.key + 1). **\(.value.ToolName)** \(if .value.Status == "error" or (.value.Error | length) > 0 then "❌" else "✅" end)"
 '
 
 echo ""
@@ -55,7 +55,7 @@ echo ""
 echo "$tools_data" | jq -r '
 {
   total: length,
-  errors: [.[] | select(.Status == "error" or .Error != "")] | length,
+  errors: [.[] | select(.Status == "error" or (.Error | length) > 0)] | length,
   tools: [.[] | .ToolName] | group_by(.) | map({tool: .[0], count: length}) | sort_by(.count) | reverse
 } |
 "- **总工具调用**: \(.total) 次",
@@ -74,7 +74,7 @@ echo ""
 echo "## 错误分析"
 echo ""
 
-error_count=$(echo "$tools_data" | jq '[.tools | .[] | select(.status == "error")] | length')
+error_count=$(echo "$tools_data" | jq '[.[] | select(.Status == "error" or (.Error | length) > 0)] | length')
 
 if [ "$error_count" -eq 0 ]; then
     echo "✅ 在最近 ${LIMIT} Turns 中未检测到错误。"
