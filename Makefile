@@ -13,15 +13,22 @@ GOCLEAN := $(GOCMD) clean
 GOMOD := $(GOCMD) mod
 BUILD_DIR := build
 BINARY_NAME := meta-cc
+MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build test clean install cross-compile lint fmt vet help
+.PHONY: all build build-cli build-mcp test clean install cross-compile lint fmt vet help
 
 all: lint test build
 
-build:
+build: build-cli build-mcp
+
+build-cli:
 	@echo "Building $(BINARY_NAME) $(VERSION)..."
 	$(GOBUILD) $(LDFLAGS) -o $(BINARY_NAME) .
+
+build-mcp:
+	@echo "Building $(MCP_BINARY_NAME) $(VERSION)..."
+	$(GOBUILD) -o $(MCP_BINARY_NAME) ./cmd/mcp-server
 
 test:
 	@echo "Running tests..."
@@ -36,6 +43,7 @@ clean:
 	@echo "Cleaning..."
 	$(GOCLEAN)
 	rm -f $(BINARY_NAME)
+	rm -f $(MCP_BINARY_NAME)
 	rm -rf $(BUILD_DIR)
 	rm -f coverage.out coverage.html
 
@@ -80,7 +88,9 @@ vet:
 
 help:
 	@echo "Available targets:"
-	@echo "  make build           - Build for current platform"
+	@echo "  make build           - Build both meta-cc and meta-cc-mcp"
+	@echo "  make build-cli       - Build meta-cc CLI only"
+	@echo "  make build-mcp       - Build meta-cc-mcp MCP server only"
 	@echo "  make test            - Run tests"
 	@echo "  make test-coverage   - Run tests with coverage report"
 	@echo "  make lint            - Run static analysis (fmt + vet + golangci-lint)"

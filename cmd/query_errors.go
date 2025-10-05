@@ -2,22 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/filter"
 	internalOutput "github.com/yale/meta-cc/internal/output"
+	"github.com/yale/meta-cc/pkg/output"
 )
-
-// ErrorEntry represents a single error occurrence
-type ErrorEntry struct {
-	UUID      string `json:"uuid"`
-	Timestamp string `json:"timestamp"`
-	ToolName  string `json:"tool_name"`
-	Error     string `json:"error"`
-	Signature string `json:"signature"`
-}
 
 var queryErrorsCmd = &cobra.Command{
 	Use:   "errors",
@@ -59,10 +50,10 @@ func runQueryErrors(cmd *cobra.Command, args []string) error {
 	tools := p.ExtractToolCalls()
 
 	// 4. Filter errors only
-	var errors []ErrorEntry
+	var errors []output.ErrorEntry
 	for _, tool := range tools {
 		if tool.Status == "error" || tool.Error != "" {
-			errors = append(errors, ErrorEntry{
+			errors = append(errors, output.ErrorEntry{
 				UUID:      tool.UUID,
 				Timestamp: tool.Timestamp,
 				ToolName:  tool.ToolName,
@@ -72,10 +63,9 @@ func runQueryErrors(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// 5. Sort by timestamp (deterministic output - lexicographic sort of ISO 8601)
-	sort.Slice(errors, func(i, j int) bool {
-		return errors[i].Timestamp < errors[j].Timestamp
-	})
+	// 5. Apply default deterministic sorting (by timestamp)
+	// This ensures same query always produces same output order
+	output.SortByTimestamp(errors)
 
 	// 6. Apply pagination if specified
 	if limitFlag > 0 || offsetFlag > 0 {
@@ -116,10 +106,10 @@ func generateErrorSignature(toolName, errorText string) string {
 }
 
 // applyErrorPagination applies pagination to error entries
-func applyErrorPagination(errors []ErrorEntry, config filter.PaginationConfig) []ErrorEntry {
+func applyErrorPagination(errors []output.ErrorEntry, config filter.PaginationConfig) []output.ErrorEntry {
 	start := config.Offset
 	if start >= len(errors) {
-		return []ErrorEntry{}
+		return []output.ErrorEntry{}
 	}
 
 	end := len(errors)

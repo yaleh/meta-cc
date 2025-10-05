@@ -131,7 +131,9 @@ func BuildToolCommand(toolName string, args map[string]interface{}) ([]string, e
 			Build(), nil
 
 	case "analyze_errors":
-		return NewCommandBuilder("analyze", "errors").
+		// Phase 14.2: Deprecated - redirect to query errors
+		// TODO: Remove in future version, use query_errors directly
+		return NewCommandBuilder("query", "errors").
 			WithScope(scope).
 			WithOutputFormat(outputFormat).
 			Build(), nil

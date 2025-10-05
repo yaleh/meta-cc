@@ -34,7 +34,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		// Core analysis tools with scope parameter
 		{
 			"name":        "analyze_errors",
-			"description": "Analyze error patterns across project history (repeated failures, tool-specific errors, temporal trends). Default project-level scope enables discovery of persistent issues across sessions. Use for meta-cognition: identifying systematic workflow problems, debugging recurring issues, or tracking error resolution over time.",
+			"description": "[DEPRECATED] Use query_tools with status='error' filter instead. This tool will be removed in a future version. Analyze error patterns across project history (repeated failures, tool-specific errors, temporal trends). Default project-level scope enables discovery of persistent issues across sessions.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{

@@ -286,3 +286,79 @@ func benchmarkSortByTimestamp(b *testing.B, size int) {
 		SortByTimestamp(testTools)
 	}
 }
+
+// TestSortByTimestamp_ErrorEntries tests sorting error entries
+func TestSortByTimestamp_ErrorEntries(t *testing.T) {
+	now := time.Now()
+	errors := []ErrorEntry{
+		{UUID: "c", Timestamp: now.Add(2 * time.Hour).Format(time.RFC3339Nano), ToolName: "Edit"},
+		{UUID: "a", Timestamp: now.Format(time.RFC3339Nano), ToolName: "Bash"},
+		{UUID: "b", Timestamp: now.Add(1 * time.Hour).Format(time.RFC3339Nano), ToolName: "Read"},
+	}
+
+	SortByTimestamp(errors)
+
+	// Verify sorted order (a, b, c by time)
+	if errors[0].UUID != "a" {
+		t.Errorf("Expected first UUID 'a', got '%s'", errors[0].UUID)
+	}
+	if errors[1].UUID != "b" {
+		t.Errorf("Expected second UUID 'b', got '%s'", errors[1].UUID)
+	}
+	if errors[2].UUID != "c" {
+		t.Errorf("Expected third UUID 'c', got '%s'", errors[2].UUID)
+	}
+}
+
+// TestSortByTimestamp_ErrorEntries_Stability tests stable sort for error entries
+func TestSortByTimestamp_ErrorEntries_Stability(t *testing.T) {
+	now := time.Now()
+	sameTime := now.Format(time.RFC3339Nano)
+
+	errors := []ErrorEntry{
+		{UUID: "third", Timestamp: sameTime, ToolName: "Bash"},
+		{UUID: "first", Timestamp: sameTime, ToolName: "Read"},
+		{UUID: "second", Timestamp: sameTime, ToolName: "Edit"},
+	}
+
+	SortByTimestamp(errors)
+
+	// Verify relative order is preserved (stable sort)
+	if errors[0].UUID != "third" || errors[1].UUID != "first" || errors[2].UUID != "second" {
+		t.Errorf("Stable sort failed for errors: got order [%s, %s, %s]",
+			errors[0].UUID, errors[1].UUID, errors[2].UUID)
+	}
+}
+
+// TestSortByTimestamp_ErrorEntries_Idempotency tests idempotency for error entries
+func TestSortByTimestamp_ErrorEntries_Idempotency(t *testing.T) {
+	now := time.Now()
+	errors := []ErrorEntry{
+		{UUID: "d", Timestamp: now.Add(3 * time.Hour).Format(time.RFC3339Nano)},
+		{UUID: "a", Timestamp: now.Format(time.RFC3339Nano)},
+		{UUID: "c", Timestamp: now.Add(2 * time.Hour).Format(time.RFC3339Nano)},
+		{UUID: "b", Timestamp: now.Add(1 * time.Hour).Format(time.RFC3339Nano)},
+	}
+
+	// Sort first time
+	SortByTimestamp(errors)
+	firstResult := make([]string, len(errors))
+	for i, e := range errors {
+		firstResult[i] = e.UUID
+	}
+
+	// Sort second time
+	SortByTimestamp(errors)
+	secondResult := make([]string, len(errors))
+	for i, e := range errors {
+		secondResult[i] = e.UUID
+	}
+
+	// Verify identical results
+	for i := range firstResult {
+		if firstResult[i] != secondResult[i] {
+			t.Errorf("Idempotency check failed for errors at index %d: first=%s, second=%s",
+				i, firstResult[i], secondResult[i])
+		}
+	}
+}

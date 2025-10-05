@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yale/meta-cc/pkg/output"
 )
 
 func TestGenerateErrorSignature(t *testing.T) {
@@ -183,10 +184,10 @@ func TestExtractErrorsFromToolCalls(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var errors []ErrorEntry
+			var errors []output.ErrorEntry
 			for _, tool := range tt.tools {
 				if tool.Status == "error" || tool.Error != "" {
-					errors = append(errors, ErrorEntry{
+					errors = append(errors, output.ErrorEntry{
 						UUID:      tool.UUID,
 						Timestamp: tool.Timestamp,
 						ToolName:  tool.ToolName,

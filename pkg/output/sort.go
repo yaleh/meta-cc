@@ -6,6 +6,17 @@ import (
 	"github.com/yale/meta-cc/internal/parser"
 )
 
+// ErrorEntry represents a tool error with timestamp
+// Note: This type must match the ErrorEntry in cmd/query_errors.go
+// In future phases, this will be moved to a common package
+type ErrorEntry struct {
+	UUID      string `json:"uuid"`
+	Timestamp string `json:"timestamp"`
+	ToolName  string `json:"tool_name"`
+	Error     string `json:"error"`
+	Signature string `json:"signature"`
+}
+
 // SortByTimestamp sorts data by timestamp field (ascending order).
 // Uses stable sort to preserve relative order for equal timestamps.
 // Supports: []parser.ToolCall, []ErrorEntry, and command-specific types.
@@ -15,7 +26,10 @@ func SortByTimestamp(data interface{}) {
 		sort.SliceStable(v, func(i, j int) bool {
 			return v[i].Timestamp < v[j].Timestamp
 		})
-		// Note: ErrorEntry will be added when query errors command is implemented
+	case []ErrorEntry:
+		sort.SliceStable(v, func(i, j int) bool {
+			return v[i].Timestamp < v[j].Timestamp
+		})
 		// Additional types can be added as needed
 	}
 }
@@ -24,13 +38,17 @@ func SortByTimestamp(data interface{}) {
 // Uses stable sort to preserve relative order for equal sequence numbers.
 // Primarily used for user messages and other turn-based data.
 //
-// Note: Currently supports sorting via reflection for types with TurnSequence field.
-// In future phases, this will use common types when query commands are refactored.
+// Note: This uses a type switch to support different message types.
+// When command types are refactored (future phases), this will use standardized types.
 func SortByTurnSequence(data interface{}) {
-	// This is a generic implementation that will work with any slice type
-	// that has a TurnSequence field. The actual sorting will be done
-	// in the command-specific code for now.
-	// Future refactoring (Phase 14.4) will standardize message types.
+	// Type assertion interface for any type with TurnSequence field
+	type TurnSequenced interface {
+		GetTurnSequence() int
+	}
+
+	// For now, we don't have a common interface. Commands handle their own sorting.
+	// This function serves as a documentation anchor for turn sequence sorting.
+	// Future refactoring will standardize this when message types are unified.
 }
 
 // SortByUUID sorts data by UUID lexicographically (ascending order).
