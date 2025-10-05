@@ -92,7 +92,7 @@ type ToolUse struct {
 // ToolResult 表示工具调用的结果
 type ToolResult struct {
 	ToolUseID string `json:"tool_use_id"`
-	Content   string `json:"-"`      // 手动处理（可以是 string 或 array）
+	Content   string `json:"-"`        // 手动处理（可以是 string 或 array）
 	IsError   bool   `json:"is_error"` // 标识是否为错误
 	Status    string `json:"status,omitempty"`
 	Error     string `json:"error,omitempty"`

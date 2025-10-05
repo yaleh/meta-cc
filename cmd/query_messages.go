@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/parser"
@@ -156,8 +157,8 @@ func extractUserMessages(entries []parser.SessionEntry, turnIndex map[string]int
 			}
 		}
 
-		// Only include if there's actual content
-		if content != "" {
+		// Only include if there's actual content AND it's not a system message
+		if content != "" && !isSystemMessage(content) {
 			turn := turnIndex[entry.UUID]
 			messages = append(messages, UserMessage{
 				TurnSequence: turn,
@@ -169,6 +170,38 @@ func extractUserMessages(entries []parser.SessionEntry, turnIndex map[string]int
 	}
 
 	return messages
+}
+
+// isSystemMessage checks if the content is a system-generated message
+// System messages include:
+// - Slash command trigger messages: <command-message>, <command-name>, <command-args>
+// - Slash command expanded content: starts with "# meta-"
+// - Local command output: <local-command>
+// - System warnings: "Caveat:"
+func isSystemMessage(content string) bool {
+	trimmed := strings.TrimSpace(content)
+
+	// Empty content is not a system message
+	if trimmed == "" {
+		return false
+	}
+
+	systemPrefixes := []string{
+		"<command-message>",
+		"<command-name>",
+		"<command-args>",
+		"<local-command",
+		"Caveat:",
+		"# meta-", // Slash command expanded content
+	}
+
+	for _, prefix := range systemPrefixes {
+		if strings.HasPrefix(trimmed, prefix) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // buildTurnIndex builds a map from UUID to turn number

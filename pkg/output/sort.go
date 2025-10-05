@@ -15,8 +15,8 @@ func SortByTimestamp(data interface{}) {
 		sort.SliceStable(v, func(i, j int) bool {
 			return v[i].Timestamp < v[j].Timestamp
 		})
-	// Note: ErrorEntry will be added when query errors command is implemented
-	// Additional types can be added as needed
+		// Note: ErrorEntry will be added when query errors command is implemented
+		// Additional types can be added as needed
 	}
 }
 

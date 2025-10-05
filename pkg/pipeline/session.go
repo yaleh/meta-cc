@@ -10,10 +10,10 @@ import (
 // SessionPipeline encapsulates session data processing
 // Provides a unified interface for locating, loading, and extracting session data
 type SessionPipeline struct {
-	opts      GlobalOptions          // Global configuration options
-	session   string                 // Path to loaded session file
-	entries   []parser.SessionEntry  // Parsed session entries
-	turnIndex map[string]int         // UUID → turn sequence mapping (cached)
+	opts      GlobalOptions         // Global configuration options
+	session   string                // Path to loaded session file
+	entries   []parser.SessionEntry // Parsed session entries
+	turnIndex map[string]int        // UUID → turn sequence mapping (cached)
 }
 
 // NewSessionPipeline creates a new pipeline instance

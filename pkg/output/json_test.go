@@ -163,9 +163,9 @@ func TestFormatJSONL_CompactOutput(t *testing.T) {
 // This documents the expected behavior per Phase 13 principles
 func TestFormatJSONL_ProperJSONLFormat(t *testing.T) {
 	type ErrorEntry struct {
-		UUID      string `json:"uuid"`
-		ToolName  string `json:"tool_name"`
-		Error     string `json:"error"`
+		UUID     string `json:"uuid"`
+		ToolName string `json:"tool_name"`
+		Error    string `json:"error"`
 	}
 
 	errors := []ErrorEntry{

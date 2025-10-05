@@ -243,7 +243,7 @@ func TestExtractToolCallsWithIsError(t *testing.T) {
 						ToolResult: &ToolResult{
 							ToolUseID: "toolu_123",
 							Content:   "MCP error -32603: Tool execution failed",
-							IsError:   true, // Simulating is_error=true from JSONL
+							IsError:   true,                                      // Simulating is_error=true from JSONL
 							Error:     "MCP error -32603: Tool execution failed", // Should be populated by UnmarshalJSON
 						},
 					},
