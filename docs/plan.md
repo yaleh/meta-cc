@@ -86,22 +86,29 @@ card "Phase 12" as P12 #lightgreen {
   - 跨会话分析
 }
 
-card "Phase 13" as P13 #lightgray {
-  **查询语言增强**
-  - SQL-like 语法
-  - 查询解析器
-  - 关联查询
-  - 性能优化
+card "Phase 13" as P13 #lightgreen {
+  **输出格式简化**
+  - JSONL/TSV 双格式
+  - 格式一致性
+  - 错误处理标准化
 }
 
-card "Phase 14" as P14 #lightgray {
+card "Phase 14" as P14 #yellow {
+  **架构重构与职责清晰化**
+  - Pipeline 模式抽象
+  - errors 命令简化
+  - 输出排序标准化
+  - 代码重复消除
+}
+
+card "Phase 15" as P15 #lightgray {
   **索引功能**
   - SQLite 索引
   - 跨会话查询
   - 索引维护
 }
 
-card "Phase 15" as P15 #lightgray {
+card "Phase 16" as P16 #lightgray {
   **Subagent 增强**
   - @meta-coach 迭代分析
   - 自动化建议
@@ -1532,6 +1539,165 @@ meta-cc query tools --where "invalid syntax" --output tsv
 - 错误场景输出格式一致
 - jq/awk 管道处理验证
 - Slash Commands 更新后正常工作
+
+---
+
+### Phase 14: 架构重构与职责清晰化（Architecture Refactoring）
+
+**目标**：重构命令实现以消除代码重复，明确 meta-cc 职责边界，统一输出确定性
+
+**代码量**：~600 行（重构）
+
+**优先级**：高（核心架构改进，提升可维护性）
+
+**状态**：待实施
+
+**设计原则**：
+- ✅ **职责最小化原则**：meta-cc 仅负责 Claude Code 会话历史知识的提取，不做分析决策
+- ✅ **Pipeline 模式**：抽象通用数据处理流程（定位 → 加载 → 提取 → 输出）
+- ✅ **输出确定性**：所有输出按稳定字段排序（UUID/Timestamp）
+- ✅ **代码重用优先**：消除跨命令的重复逻辑（~345 行重复代码）
+- ✅ **延迟决策**：将过滤、窗口、格式化等决策推给下游工具/LLM
+
+**核心问题分析**：
+```
+问题 1: 代码重复率 30%
+- 定位会话代码: ~10 行 × 5 命令 = 50 行
+- JSONL 解析: ~8 行 × 5 命令 = 40 行
+- Turn 索引构建: ~15 行 × 3 命令 = 45 行
+- 过滤逻辑: ~20 行 × 3 命令 = 60 行
+- 输出格式化: ~30 行 × 5 命令 = 150 行
+→ 总重复: ~345 行
+
+问题 2: errors 命令职责越界（317 行 → 应为 50 行）
+- 窗口分析应由 LLM 决策
+- SHA256 签名过度工程（简化为 tool+error 组合）
+- 模式计数应交给 jq 等工具
+
+问题 3: query-tools 输出非确定性
+- Go map 迭代顺序随机
+- 需要强制按 UUID 排序
+```
+
+**Stage 划分**：
+
+**Stage 14.1: Pipeline 抽象层**
+- 提取通用 `SessionPipeline` 类型
+- 实现 `Load()`, `ExtractEntries()`, `BuildIndex()` 方法
+- 统一会话定位和 JSONL 解析逻辑
+
+交付物：
+```go
+// pkg/pipeline/session.go (~120 行)
+type SessionPipeline struct {
+    opts    GlobalOptions
+    session string
+    entries []parser.Entry
+}
+
+func NewSessionPipeline(opts GlobalOptions) *SessionPipeline
+func (p *SessionPipeline) Load(loadOpts LoadOptions) error
+func (p *SessionPipeline) ExtractEntries(filter EntryFilter) []parser.Entry
+func (p *SessionPipeline) BuildTurnIndex() map[string]int
+```
+
+**Stage 14.2: errors 命令简化**
+- 移除窗口过滤逻辑（`--window` 参数废弃）
+- 简化错误签名：`{tool}:{error_prefix}` 替代 SHA256
+- 移除模式计数和分组（交给 `jq 'group_by(.Signature) | map({sig: .[0].Signature, count: length})'`）
+- 输出简单错误列表（JSONL）
+
+改进前后对比：
+```bash
+# 改进前（meta-cc 决策分析范围）
+meta-cc analyze errors --window 50
+# 输出: 聚合后的错误模式（包含计数、首次/最后出现）
+
+# 改进后（meta-cc 仅提取，LLM 决策）
+meta-cc query errors | jq '.[length-50:]' | jq 'group_by(.Signature)'
+# meta-cc 输出全部错误，jq 负责窗口选择和聚合
+```
+
+交付物：
+```go
+// cmd/query_errors.go (~80 行，vs 原 317 行）
+type ErrorEntry struct {
+    UUID      string
+    Timestamp string
+    ToolName  string
+    Error     string
+    Signature string  // "{tool}:{error[:50]}"
+}
+
+func runQueryErrors(cmd *cobra.Command, args []string) error {
+    session := pipeline.NewSessionPipeline(globalOpts).Load(loadOpts)
+    errors := session.ExtractErrors()  // 简单列表，无聚合
+    return output.Format(errors, outputOpts)
+}
+```
+
+**Stage 14.3: 输出排序标准化**
+- 为所有 `query` 命令添加默认排序
+- `query tools` → 按 `Timestamp` 排序
+- `query messages` → 按 `turn_sequence` 排序
+- `query errors` → 按 `Timestamp` 排序
+
+交付物：
+```go
+// pkg/output/sort.go (~50 行)
+func SortByTimestamp(data interface{}) interface{}
+func SortByTurnSequence(data interface{}) interface{}
+func SortByUUID(data interface{}) interface{}
+```
+
+**Stage 14.4: 代码重复消除**
+- 统一输出逻辑到 `output.Format()`
+- 重构 5 个命令使用 `SessionPipeline`
+- 移除重复的会话定位和解析代码
+
+改进前后代码量对比：
+```
+命令            改进前    改进后    减少
+-----------------------------------------
+parse stats     ~170 行   ~60 行   -65%
+query tools     ~307 行   ~80 行   -74%
+query messages  ~280 行   ~70 行   -75%
+analyze errors  ~317 行   ~80 行   -75%
+timeline        ~120 行   ~50 行   -58%
+-----------------------------------------
+总计            1194 行   340 行   -72%
+```
+
+**应用场景**：
+- **简化维护**：新增命令复用 Pipeline，减少 70% 样板代码
+- **职责清晰**：meta-cc 不做分析决策，专注数据提取
+- **确定性输出**：CI/CD 环境中输出稳定可比较
+- **Unix 组合**：`meta-cc query errors | jq/awk` 灵活分析
+
+**验证测试**：
+- 所有命令输出与重构前一致（排序后比较）
+- Pipeline 单元测试覆盖率 ≥90%
+- 验证脚本（`test-scripts/validate-meta-cc.sh`）100% 通过
+- 代码行数减少 ≥60%
+
+**向后兼容性**：
+- ⚠️ `analyze errors` 命令输出格式变化（从聚合模式列表 → 简单错误列表）
+- ⚠️ `--window` 参数移除（用 `jq` 或 `head -n` 替代）
+- ✅ 其他命令输出内容不变（仅排序顺序变化）
+- 📝 需更新文档说明迁移路径
+
+**架构优势**：
+```
+改进前：
+  每个命令独立实现 → 345 行重复代码 → 维护成本高
+
+改进后：
+  SessionPipeline (120 行)
+      ↓
+  5 个命令共享 (avg 68 行/命令)
+      ↓
+  总代码减少 72%，可维护性提升
+```
 
 ---
 

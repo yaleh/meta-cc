@@ -168,6 +168,43 @@ endif
 **参考文档：**
 - [设置和配置](https://docs.claude.com/en/docs/claude-code/settings)
 
+**架构设计原则**（Phase 14 增强）：
+
+```
+核心职责边界：
+1. 职责最小化原则 - meta-cc 仅负责 Claude Code 会话历史知识的提取
+   - ✅ 提取：Turn、ToolCall、Error 等结构化数据
+   - ✅ 检测：基于规则的模式识别（重复错误签名、工具序列）
+   - ❌ 分析：不做语义分析、不做决策（如窗口大小、聚合方式）
+   - ❌ 过滤：不预判用户需求，复杂过滤交给 jq/awk
+
+2. Pipeline 模式 - 抽象通用数据处理流程
+   - 定位会话 → 加载 JSONL → 提取数据 → 输出格式化
+   - 消除跨命令重复代码（~345 行重复 → 120 行共享 Pipeline）
+
+3. 输出确定性 - 所有输出按稳定字段排序
+   - query tools → 按 Timestamp 排序
+   - query messages → 按 turn_sequence 排序
+   - 解决 Go map 迭代随机性问题
+
+4. 延迟决策 - 将分析决策推给下游工具/LLM
+   - ❌ meta-cc 不应实现：窗口过滤、错误聚合、模式计数
+   - ✅ 交给 jq/awk：`meta-cc query errors | jq '.[length-50:]'`
+   - ✅ 交给 Claude：Slash Commands 从 JSONL 生成语义建议
+```
+
+**实际应用示例**：
+
+```bash
+# 错误：meta-cc 预判分析范围（违反职责最小化）
+meta-cc analyze errors --window 50 --aggregate
+# 输出：{"pattern1": {count: 5}, "pattern2": {count: 3}}
+
+# 正确：meta-cc 仅提取，LLM/工具负责决策
+meta-cc query errors | jq '.[length-50:] | group_by(.Signature) | map({pattern: .[0].Signature, count: length})'
+# meta-cc 输出全部错误，jq 负责窗口选择和聚合
+```
+
 ### 2.2 命令结构与输出格式原则
 
 **输出格式设计原则**（Phase 13）：
