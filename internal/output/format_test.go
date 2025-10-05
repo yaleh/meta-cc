@@ -29,18 +29,20 @@ func TestFormatOutput_JSONL(t *testing.T) {
 		t.Fatalf("FormatOutput failed: %v", err)
 	}
 
-	// Verify JSONL format (should be valid JSON array)
-	var decoded []parser.ToolCall
-	if err := json.Unmarshal([]byte(output), &decoded); err != nil {
-		t.Fatalf("output is not valid JSON: %v", err)
+	// Verify JSONL format (one object per line)
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 lines (JSONL), got %d", len(lines))
 	}
 
-	if len(decoded) != 2 {
-		t.Errorf("expected 2 tool calls, got %d", len(decoded))
+	// Verify first line
+	var first parser.ToolCall
+	if err := json.Unmarshal([]byte(lines[0]), &first); err != nil {
+		t.Fatalf("line 1 is not valid JSON: %v", err)
 	}
 
-	if decoded[0].UUID != "test-uuid-1" {
-		t.Errorf("expected UUID 'test-uuid-1', got '%s'", decoded[0].UUID)
+	if first.UUID != "test-uuid-1" {
+		t.Errorf("expected UUID 'test-uuid-1', got '%s'", first.UUID)
 	}
 }
 
@@ -161,14 +163,14 @@ func TestFormatOutput_TSV_NonToolCalls(t *testing.T) {
 func TestFormatOutput_EmptyArray(t *testing.T) {
 	tools := []parser.ToolCall{}
 
-	// JSONL should handle empty arrays
+	// JSONL should handle empty arrays (returns empty string)
 	output, err := FormatOutput(tools, "jsonl")
 	if err != nil {
 		t.Fatalf("FormatOutput failed for empty array: %v", err)
 	}
 
-	if strings.TrimSpace(output) != "[]" {
-		t.Errorf("expected '[]' for empty array, got '%s'", output)
+	if strings.TrimSpace(output) != "" {
+		t.Errorf("expected empty string for empty array, got '%s'", output)
 	}
 
 	// TSV should handle empty arrays (returns empty string)

@@ -92,7 +92,8 @@ type ToolUse struct {
 // ToolResult 表示工具调用的结果
 type ToolResult struct {
 	ToolUseID string `json:"tool_use_id"`
-	Content   string `json:"-"` // 手动处理（可以是 string 或 array）
+	Content   string `json:"-"`      // 手动处理（可以是 string 或 array）
+	IsError   bool   `json:"is_error"` // 标识是否为错误
 	Status    string `json:"status,omitempty"`
 	Error     string `json:"error,omitempty"`
 }
@@ -121,6 +122,10 @@ func (tr *ToolResult) UnmarshalJSON(data []byte) error {
 	var contentStr string
 	if err := json.Unmarshal(aux.ContentRaw, &contentStr); err == nil {
 		tr.Content = contentStr
+		// 当 is_error=true 时，将 content 也复制到 Error 字段
+		if tr.IsError && tr.Error == "" {
+			tr.Error = contentStr
+		}
 		return nil
 	}
 
@@ -141,6 +146,11 @@ func (tr *ToolResult) UnmarshalJSON(data []byte) error {
 		}
 	}
 	tr.Content = strings.Join(texts, "\n")
+
+	// 当 is_error=true 时，将合并后的 content 也复制到 Error 字段
+	if tr.IsError && tr.Error == "" {
+		tr.Error = tr.Content
+	}
 
 	return nil
 }

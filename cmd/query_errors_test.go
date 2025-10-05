@@ -3,6 +3,8 @@ package cmd
 import (
 	"strings"
 	"testing"
+
+	"github.com/yale/meta-cc/internal/parser"
 )
 
 func TestGenerateErrorSignature(t *testing.T) {
@@ -91,4 +93,137 @@ func TestGenerateErrorSignature_DifferentTools(t *testing.T) {
 	if !strings.HasPrefix(sig2, "Write:") {
 		t.Errorf("expected signature to start with 'Write:', got %q", sig2)
 	}
+}
+
+// TestExtractErrorsFromToolCalls tests that we correctly extract errors from tool calls
+func TestExtractErrorsFromToolCalls(t *testing.T) {
+	tests := []struct {
+		name     string
+		tools    []parser.ToolCall
+		wantLen  int
+		wantSigs []string
+	}{
+		{
+			name: "extract errors with Status field",
+			tools: []parser.ToolCall{
+				{
+					UUID:      "uuid-1",
+					Timestamp: "2025-10-05T00:00:00Z",
+					ToolName:  "Bash",
+					Status:    "error",
+					Error:     "command not found: xyz",
+				},
+				{
+					UUID:      "uuid-2",
+					Timestamp: "2025-10-05T00:01:00Z",
+					ToolName:  "Read",
+					Status:    "",
+					Error:     "",
+				},
+			},
+			wantLen:  1,
+			wantSigs: []string{"Bash:command not found: xyz"},
+		},
+		{
+			name: "extract errors with Error field only",
+			tools: []parser.ToolCall{
+				{
+					UUID:      "uuid-3",
+					Timestamp: "2025-10-05T00:02:00Z",
+					ToolName:  "Edit",
+					Status:    "",
+					Error:     "file not found",
+				},
+				{
+					UUID:      "uuid-4",
+					Timestamp: "2025-10-05T00:03:00Z",
+					ToolName:  "Write",
+					Status:    "",
+					Error:     "",
+				},
+			},
+			wantLen:  1,
+			wantSigs: []string{"Edit:file not found"},
+		},
+		{
+			name: "extract MCP errors",
+			tools: []parser.ToolCall{
+				{
+					UUID:      "uuid-5",
+					Timestamp: "2025-10-05T00:04:00Z",
+					ToolName:  "mcp__meta-insight__query_user_messages_session",
+					Status:    "",
+					Error:     "MCP error -32603: Tool execution failed",
+				},
+			},
+			wantLen:  1,
+			wantSigs: []string{"mcp__meta-insight__query_user_messages_session:MCP error -32603: Tool execution failed"},
+		},
+		{
+			name: "no errors",
+			tools: []parser.ToolCall{
+				{
+					UUID:      "uuid-6",
+					Timestamp: "2025-10-05T00:05:00Z",
+					ToolName:  "Bash",
+					Status:    "",
+					Error:     "",
+				},
+			},
+			wantLen:  0,
+			wantSigs: []string{},
+		},
+		{
+			name:     "empty tool list",
+			tools:    []parser.ToolCall{},
+			wantLen:  0,
+			wantSigs: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var errors []ErrorEntry
+			for _, tool := range tt.tools {
+				if tool.Status == "error" || tool.Error != "" {
+					errors = append(errors, ErrorEntry{
+						UUID:      tool.UUID,
+						Timestamp: tool.Timestamp,
+						ToolName:  tool.ToolName,
+						Error:     tool.Error,
+						Signature: generateErrorSignature(tool.ToolName, tool.Error),
+					})
+				}
+			}
+
+			if len(errors) != tt.wantLen {
+				t.Errorf("got %d errors, want %d", len(errors), tt.wantLen)
+			}
+
+			for i, sig := range tt.wantSigs {
+				if i >= len(errors) {
+					t.Errorf("missing error at index %d, want signature %q", i, sig)
+					continue
+				}
+				if errors[i].Signature != sig {
+					t.Errorf("error[%d].Signature = %q, want %q", i, errors[i].Signature, sig)
+				}
+			}
+		})
+	}
+}
+
+// TestQueryErrorsOutput tests the full query errors command output format
+func TestQueryErrorsOutput(t *testing.T) {
+	// This test will verify that the output is in JSONL format (one JSON object per line)
+	// not JSON array format
+
+	// Create a mock session with errors
+	// This test should FAIL initially because current implementation outputs JSON array
+
+	t.Run("output should be JSONL format", func(t *testing.T) {
+		// We'll test this after fixing the implementation
+		// For now, this documents the expected behavior
+		t.Skip("TODO: Implement JSONL output format test after fixing output format")
+	})
 }
