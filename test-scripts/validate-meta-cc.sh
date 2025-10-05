@@ -370,7 +370,55 @@ cmd_query_tools() {
 }
 
 cmd_query_messages() {
-    error "Command 'query-messages' not implemented yet"
+    if [ $# -lt 1 ]; then
+        error "Usage: $SCRIPT_NAME query-messages <path> [pattern] [limit]"
+    fi
+
+    local path="$1"
+    local pattern="${2:-.*}"
+    local limit="${3:-10}"
+    local jsonl_file=$(get_jsonl_files "$path")
+
+    info "Processing: $jsonl_file"
+    info "Pattern: $pattern, Limit: $limit"
+
+    # Step 1: Build turn index (only count user/assistant messages)
+    local turn_index=$(jq -c '
+        select(.type == "user" or .type == "assistant") |
+        .uuid
+    ' "$jsonl_file" | \
+    awk '{print NR "\t" $0}' | \
+    jq -R -r 'split("\t") | {turn: (.[0] | tonumber), uuid: (.[1] | fromjson)}' | \
+    jq -s 'map({key: .uuid, value: .turn}) | from_entries')
+
+    # Step 2: Extract user messages, concatenate text blocks, filter by pattern
+    local messages=$(jq -c \
+        --arg pattern "$pattern" \
+        --argjson turn_idx "$turn_index" \
+        '
+        select(.type == "user") |
+        .uuid as $uuid |
+        .timestamp as $ts |
+        (
+            if (.message.content | type) == "string" then
+                # content is string - use directly
+                .message.content
+            else
+                # content is array - concatenate text blocks
+                [.message.content[]? | select(.type == "text") | .text] | join("")
+            end
+        ) as $content |
+        select($content != "" and ($content | test($pattern))) |
+        {
+            turn_sequence: $turn_idx[$uuid],
+            uuid: $uuid,
+            timestamp: $ts,
+            content: $content
+        }
+        ' "$jsonl_file")
+
+    # Apply limit and output as JSONL
+    echo "$messages" | head -n "$limit"
 }
 
 cmd_timeline() {
