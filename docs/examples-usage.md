@@ -133,13 +133,13 @@ Then have a conversation:
 You: @meta-coach I feel like I'm stuck in a loop with these tests...
 
 Coach: Let me analyze your recent session to see what's happening.
-[Runs: meta-cc analyze errors --window 30 --output md]
+[Runs: meta-cc analyze errors --window 30 | Claude renders to Markdown]
 ...
 
 You: @meta-coach How can I optimize my workflow?
 
 Coach: Let me check your tool usage patterns.
-[Runs: meta-cc parse stats --output md]
+[Runs: meta-cc parse stats | Claude renders to Markdown]
 ...
 ```
 
@@ -237,9 +237,9 @@ I found 2 error patterns:
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `get_session_stats` | Get session statistics | `output_format`: json\|md |
-| `analyze_errors` | Analyze error patterns | `window`: number, `output_format`: json\|md |
-| `extract_tools` | Extract tool usage data | `filter`: all\|error\|success, `output_format`: json\|md |
+| `get_session_stats` | Get session statistics | `output_format`: jsonl (default) |
+| `analyze_errors` | Analyze error patterns | `window`: number, `output_format`: jsonl (default) |
+| `extract_tools` | Extract tool usage data | `filter`: all\|error\|success, `output_format`: jsonl (default) |
 
 #### Testing MCP Server
 
@@ -418,12 +418,12 @@ export PATH=$PATH:/home/yale/work/meta-cc
 When dealing with large sessions, use chunking to avoid context overflow:
 
 ```bash
-# Extract tools in chunks of 50 records
-meta-cc query tools --limit 50 --offset 0 --output jsonl > chunk1.jsonl
-meta-cc query tools --limit 50 --offset 50 --output jsonl > chunk2.jsonl
+# Extract tools in chunks of 50 records (JSONL is default)
+meta-cc query tools --limit 50 --offset 0 > chunk1.jsonl
+meta-cc query tools --limit 50 --offset 50 > chunk2.jsonl
 
-# Or use compact CSV format
-meta-cc query tools --fields "timestamp,tool,status" --output csv
+# Or use compact TSV format
+meta-cc query tools --fields "timestamp,tool,status" --output tsv
 ```
 
 ### Pattern 2: Unix Pipeline Composition
@@ -431,31 +431,31 @@ meta-cc query tools --fields "timestamp,tool,status" --output csv
 Combine meta-cc with standard Unix tools:
 
 ```bash
-# Find most frequent error commands
-meta-cc query tools --status error --output jsonl | \
+# Find most frequent error commands (JSONL is default)
+meta-cc query tools --status error | \
   jq -r '.command' | \
   sort | uniq -c | sort -rn | head -5
 
-# Analyze tool usage by hour
-meta-cc stats time-series --metric tool-calls --interval hour --output csv | \
-  awk -F, '{sum+=$2} END {print "Total:", sum}'
+# Analyze tool usage by hour (use TSV for awk processing)
+meta-cc stats time-series --metric tool-calls --interval hour --output tsv | \
+  awk -F'\t' '{sum+=$2} END {print "Total:", sum}'
 
-# Extract user prompts matching pattern
-meta-cc query user-messages --match "fix.*bug" --output jsonl | \
+# Extract user prompts matching pattern (JSONL is default)
+meta-cc query user-messages --match "fix.*bug" | \
   jq -r '.content'
 ```
 
 ### Pattern 3: Multi-Call Analysis (Subagent Pattern)
 
 ```bash
-# Step 1: Get overview
-overview=$(meta-cc stats aggregate --group-by tool --output json)
+# Step 1: Get overview (JSONL is default)
+overview=$(meta-cc stats aggregate --group-by tool | jq -s '.')
 
 # Step 2: Identify high-error tool
 top_tool=$(echo "$overview" | jq -r '.[0].tool')
 
-# Step 3: Deep dive into that tool's errors
-meta-cc query errors --tool "$top_tool" --limit 20 --output json
+# Step 3: Deep dive into that tool's errors (JSONL is default)
+meta-cc query errors --tool "$top_tool" --limit 20
 ```
 
 ### Pattern 4: Selective Field Extraction
@@ -463,11 +463,11 @@ meta-cc query errors --tool "$top_tool" --limit 20 --output json
 Minimize output size by selecting only needed fields:
 
 ```bash
-# Minimal fields for quick analysis
-meta-cc extract tools --fields "timestamp,tool,status" --output csv
+# Minimal fields for quick analysis (use TSV for compact output)
+meta-cc extract tools --fields "timestamp,tool,status" --output tsv
 
-# Full details for debugging
-meta-cc extract tools --fields "timestamp,tool,command,error" --output jsonl
+# Full details for debugging (JSONL is default)
+meta-cc extract tools --fields "timestamp,tool,command,error"
 ```
 
 ### Pattern 5: File-Scoped Analysis
@@ -475,11 +475,11 @@ meta-cc extract tools --fields "timestamp,tool,command,error" --output jsonl
 Focus on specific modules:
 
 ```bash
-# Query operations on authentication module
-meta-cc query file-operations --file "src/auth/*" --output json
+# Query operations on authentication module (JSONL is default)
+meta-cc query file-operations --file "src/auth/*"
 
-# Get stats for specific files
-meta-cc stats files --sort-by error-count --top 10 --output table
+# Get stats for specific files (use TSV for tabular output)
+meta-cc stats files --sort-by error-count --top 10 --output tsv
 ```
 
 ---
@@ -546,14 +546,14 @@ meta-cc query tools --time-range "2025-10-01..2025-10-03"
 
 ### Strategy 4: Compact Output Formats
 ```bash
-# CSV is more compact than JSON
-meta-cc extract tools --output csv
-
-# TSV for tab-separated (grep-friendly)
+# TSV is most compact for tabular data
 meta-cc extract tools --output tsv
 
-# Select minimal fields
-meta-cc extract tools --fields "tool,status" --output csv
+# JSONL is default (streaming-friendly)
+meta-cc extract tools
+
+# Select minimal fields with TSV
+meta-cc extract tools --fields "tool,status" --output tsv
 ```
 
 ---
@@ -562,14 +562,16 @@ meta-cc extract tools --fields "tool,status" --output csv
 
 ### Find Most Frequent Commands
 ```bash
-meta-cc query tools --output jsonl | \
+# JSONL is default
+meta-cc query tools | \
   jq -r '.command' | \
   sort | uniq -c | sort -rn | head -10
 ```
 
 ### Detect Repeated User Questions
 ```bash
-meta-cc query user-messages --output jsonl | \
+# JSONL is default
+meta-cc query user-messages | \
   jq -r '.content' | \
   awk '{print tolower($0)}' | \
   sort | uniq -c | \
@@ -578,29 +580,31 @@ meta-cc query user-messages --output jsonl | \
 
 ### Analyze File Modification Patterns
 ```bash
+# Use TSV for tabular output
 meta-cc query file-operations \
   --file "src/auth/*.go" \
   --group-by file \
-  --output table
+  --output tsv | column -t
 ```
 
 ### Time-Series Visualization
 ```bash
+# Use TSV for data files
 meta-cc stats time-series \
   --metric tool-calls \
   --interval hour \
-  --output csv > timeseries.csv
+  --output tsv > timeseries.tsv
 
 # Plot with gnuplot
-gnuplot -e "set datafile separator ','; \
-            plot 'timeseries.csv' using 1:2 with lines"
+gnuplot -e "set datafile separator '\t'; \
+            plot 'timeseries.tsv' using 1:2 with lines"
 ```
 
 ### Cross-Session Comparison
 ```bash
-# Get stats for two sessions
-meta-cc --session <session-1> stats aggregate --output json > s1.json
-meta-cc --session <session-2> stats aggregate --output json > s2.json
+# Get stats for two sessions (JSONL default, slurp into array)
+meta-cc --session <session-1> stats aggregate | jq -s '.' > s1.json
+meta-cc --session <session-2> stats aggregate | jq -s '.' > s2.json
 
 # Compare with jq
 jq -s '.[0] as $s1 | .[1] as $s2 |

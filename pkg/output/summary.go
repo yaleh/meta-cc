@@ -87,31 +87,23 @@ func FormatSummaryFirst(tools []parser.ToolCall, topN int, detailFormat string) 
 	var err error
 
 	switch detailFormat {
-	case "json":
+	case "jsonl":
 		var data []byte
-		data, err = json.MarshalIndent(detailTools, "", "  ")
+		data, err = json.Marshal(detailTools) // Compact JSON (JSONL)
 		if err != nil {
 			return SummaryOutput{}, err
 		}
 		details = string(data)
 
-	case "md", "markdown":
-		details, err = FormatMarkdown(detailTools)
-		if err != nil {
-			return SummaryOutput{}, err
-		}
-
-	case "csv":
-		details, err = FormatCSV(detailTools)
-		if err != nil {
-			return SummaryOutput{}, err
-		}
-
 	case "tsv":
-		details = FormatTSV(detailTools)
+		var err error
+		details, err = FormatTSV(detailTools)
+		if err != nil {
+			return SummaryOutput{}, fmt.Errorf("failed to format TSV: %w", err)
+		}
 
 	default:
-		return SummaryOutput{}, fmt.Errorf("unsupported format: %s", detailFormat)
+		return SummaryOutput{}, fmt.Errorf("unsupported format: %s (supported: jsonl, tsv)", detailFormat)
 	}
 
 	return SummaryOutput{

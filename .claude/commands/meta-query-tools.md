@@ -51,7 +51,7 @@ echo "" >&2
 echo "---" >&2
 echo "" >&2
 
-# Phase 11: Execute with streaming and capture exit code
+# Phase 13: Execute with JSONL output (default) and capture exit code
 result=$($QUERY_CMD 2>/dev/null)
 EXIT_CODE=$?
 
@@ -69,7 +69,7 @@ elif [ $EXIT_CODE -eq 1 ]; then
     exit 1
 fi
 
-# Convert JSONL to JSON array for jq processing
+# Convert JSONL to JSON array for jq processing (slurp)
 result=$(echo "$result" | jq -s '.')
 
 # 检查是否有结果（already handled by exit code above, but keep for safety）
@@ -140,7 +140,7 @@ echo "- 使用 /meta-query-tools Bash 查看所有 Bash 调用" >&2
 echo "- 使用 /meta-query-tools \"status='error'\" 查看所有错误（Phase 10）" >&2
 echo "- 使用 /meta-query-tools \"tool IN ('Bash','Edit')\" 查看多个工具（Phase 10）" >&2
 echo "- 使用 /meta-query-tools \"tool='Bash' AND status='error'\" 复杂查询（Phase 10）" >&2
-echo "- Phase 11: 所有输出支持 --stream 流式 JSONL 格式" >&2
+echo "- Phase 13: 默认 JSONL 格式输出，使用 --output tsv 获取表格格式" >&2
 echo "- Phase 11: 退出码 0=成功, 1=错误, 2=无结果" >&2
 echo "- 使用 @meta-coach 获取深入分析和建议" >&2
 ```

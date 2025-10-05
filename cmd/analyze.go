@@ -94,22 +94,22 @@ func runAnalyzeErrors(cmd *cobra.Command, args []string) error {
 	if len(patterns) == 0 {
 		// 无错误模式
 		switch outputFormat {
-		case "json":
+		case "jsonl":
 			outputStr = "[]"
-		case "md", "markdown":
-			outputStr = "# Error Pattern Analysis\n\nNo error patterns detected in this session.\n"
+		case "tsv":
+			outputStr = ""
 		default:
-			return fmt.Errorf("unsupported output format: %s", outputFormat)
+			return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
 		}
 	} else {
 		// 有错误模式
 		switch outputFormat {
-		case "json":
-			outputStr, formatErr = output.FormatJSON(patterns)
-		case "md", "markdown":
-			outputStr, formatErr = formatErrorPatternsMarkdown(patterns)
+		case "jsonl":
+			outputStr, formatErr = output.FormatJSONL(patterns)
+		case "tsv":
+			outputStr, formatErr = output.FormatTSV(patterns)
 		default:
-			return fmt.Errorf("unsupported output format: %s (analyze errors supports json and md)", outputFormat)
+			return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
 		}
 
 		if formatErr != nil {

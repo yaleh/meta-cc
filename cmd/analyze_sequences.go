@@ -64,12 +64,12 @@ func runAnalyzeSequences(cmd *cobra.Command, args []string) error {
 	var formatErr error
 
 	switch outputFormat {
-	case "json":
-		outputStr, formatErr = output.FormatJSON(result)
-	case "md", "markdown":
-		outputStr, formatErr = formatSequencesMarkdown(result)
+	case "jsonl":
+		outputStr, formatErr = output.FormatJSONL(result)
+	case "tsv":
+		outputStr, formatErr = output.FormatTSV(result)
 	default:
-		return fmt.Errorf("unsupported output format: %s (analyze sequences supports json and md)", outputFormat)
+		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
 	}
 
 	if formatErr != nil {

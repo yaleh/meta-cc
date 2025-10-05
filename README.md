@@ -54,7 +54,7 @@ make cross-compile
 # Global options
 ./meta-cc --session <session-id>    # Specify session ID
 ./meta-cc --project <path>          # Specify project path
-./meta-cc --output json|md|csv|tsv  # Output format
+./meta-cc --output jsonl|tsv        # Output format (JSONL default, TSV for CLI tools)
 
 # Phase 9: Context-Length Management Options
 ./meta-cc --limit N                 # Limit output to N records
@@ -66,9 +66,31 @@ make cross-compile
 ./meta-cc --summary-first --top N   # Summary + top N details
 ```
 
-## JSON Output Format Reference
+## Output Format Philosophy
 
-Understanding meta-cc's JSON output structure is crucial for processing data with tools like `jq`.
+meta-cc follows the **Unix philosophy** with two core output formats:
+
+### JSONL (Default - JSON Lines)
+- **Machine-readable**: One JSON object per line
+- **Composable**: Pipe to `jq` for complex filtering
+- **Consistent**: All commands output JSONL by default
+- **Integration-ready**: Perfect for Slash Commands and MCP Server
+- **Streaming-friendly**: Process large datasets incrementally
+
+### TSV (Tab-Separated Values)
+- **CLI-friendly**: Easy to process with `awk`, `grep`, `cut`
+- **Compact**: Smaller than JSON for large datasets
+- **Human-readable**: Can be viewed directly or with `column -t`
+- **No escaping issues**: Simpler than CSV (no quote handling)
+
+### Removed Formats (Phase 13)
+- **JSON (pretty)**: Use `jq '.'` for pretty-printing JSONL
+- **CSV**: Use TSV instead (simpler, no quoting issues)
+- **Markdown**: Let Claude Code render JSONL to Markdown
+
+## JSONL Output Format Reference
+
+Understanding meta-cc's JSONL output structure is crucial for processing data with tools like `jq`.
 
 ### Command Output Types
 
@@ -84,51 +106,57 @@ Understanding meta-cc's JSON output structure is crucial for processing data wit
 #### parse stats (returns Object)
 
 ```bash
-# ✅ Correct
-meta-cc parse stats --output json | jq '.TurnCount'
-meta-cc parse stats --output json | jq '.ErrorRate'
+# ✅ Correct (JSONL - default format)
+meta-cc parse stats | jq '.TurnCount'
+meta-cc parse stats | jq '.ErrorRate'
+
+# ✅ Also correct (explicit JSONL)
+meta-cc parse stats --output jsonl | jq '.TurnCount'
 
 # ❌ Wrong - no wrapper object
-meta-cc parse stats --output json | jq '.stats.TurnCount'
+meta-cc parse stats | jq '.stats.TurnCount'
 ```
 
 #### parse extract --type tools (returns Array)
 
 ```bash
-# ✅ Correct
-meta-cc parse extract --type tools --output json | jq 'length'
-meta-cc parse extract --type tools --output json | jq '.[]'
-meta-cc parse extract --type tools --output json | jq '.[0]'
-meta-cc parse extract --type tools --output json | jq -r '.[] | .ToolName'
+# ✅ Correct (JSONL - default format, outputs one JSON object per line)
+meta-cc parse extract --type tools | jq -s 'length'    # Count all
+meta-cc parse extract --type tools | jq '.'             # Show each line
+meta-cc parse extract --type tools | jq -r '.ToolName' # Extract field
+
+# ✅ Also correct (convert JSONL to array with -s)
+meta-cc parse extract --type tools | jq -s '.[0]'     # First tool
+meta-cc parse extract --type tools | jq -s '.[]'      # All tools
 
 # ❌ Wrong - assumes object wrapper
-meta-cc parse extract --type tools --output json | jq '.tools'
-meta-cc parse extract --type tools --output json | jq '.tools[]'
+meta-cc parse extract --type tools | jq '.tools'
+meta-cc parse extract --type tools | jq '.tools[]'
 ```
 
 #### parse extract --type turns (returns Array)
 
 ```bash
-# ✅ Correct
-meta-cc parse extract --type turns --output json | jq 'length'
-meta-cc parse extract --type turns --output json | jq '.[] | select(.type == "user")'
-meta-cc parse extract --type turns --output json | jq -r '.[] | .timestamp'
+# ✅ Correct (JSONL - default format)
+meta-cc parse extract --type turns | jq -s 'length'
+meta-cc parse extract --type turns | jq 'select(.type == "user")'
+meta-cc parse extract --type turns | jq -r '.timestamp'
 
 # ❌ Wrong - assumes object wrapper
-meta-cc parse extract --type turns --output json | jq '.turns'
+meta-cc parse extract --type turns | jq '.turns'
 ```
 
 #### analyze errors (returns Array)
 
 ```bash
-# ✅ Correct
-meta-cc analyze errors --output json | jq 'length'
-meta-cc analyze errors --output json | jq '.[]'
-meta-cc analyze errors --output json | jq 'if type == "array" then length else 0 end'
+# ✅ Correct (JSONL - default format, one error pattern per line)
+meta-cc analyze errors | jq -s 'length'
+meta-cc analyze errors | jq '.'
+meta-cc analyze errors | jq -s 'if type == "array" then length else 0 end'
 
 # ❌ Wrong - assumes object wrapper
-meta-cc analyze errors --output json | jq '.ErrorPatterns'
-meta-cc analyze errors --output json | jq '.ErrorPatterns | length'
+meta-cc analyze errors | jq '.ErrorPatterns'
+meta-cc analyze errors | jq '.ErrorPatterns | length'
 ```
 
 ### Detailed Output Structures
@@ -337,53 +365,51 @@ jq 'if type == "array" then length else 0 end'
 Always check the type when uncertain:
 
 ```bash
-# Safe array length
-meta-cc analyze errors --output json | \
-  jq 'if type == "array" then length else 0 end'
+# Safe array length (JSONL - use -s to slurp into array)
+meta-cc analyze errors | jq -s 'if type == "array" then length else 0 end'
 
 # Safe object property access
-meta-cc parse stats --output json | \
-  jq 'if type == "object" then .TurnCount else null end'
+meta-cc parse stats | jq 'if type == "object" then .TurnCount else null end'
 ```
 
 #### Combining Commands
 
 ```bash
-# Get tool usage stats
-meta-cc parse extract --type tools --output json | \
-  jq -r '.[] | .ToolName' | \
+# Get tool usage stats (JSONL format)
+meta-cc parse extract --type tools | \
+  jq -r '.ToolName' | \
   sort | uniq -c | sort -rn
 
 # Find repeated Bash commands
-meta-cc parse extract --type tools --output json | \
-  jq -r '.[] | select(.ToolName == "Bash") | .Input.command' | \
+meta-cc parse extract --type tools | \
+  jq 'select(.ToolName == "Bash") | .Input.command' | jq -r | \
   sort | uniq -c | sort -rn
 
 # Calculate error rate manually
-TOTAL=$(meta-cc parse extract --type tools --output json | jq 'length')
-ERRORS=$(meta-cc parse extract --type tools --output json | \
-  jq '[.[] | select(.Status == "error")] | length')
+TOTAL=$(meta-cc parse extract --type tools | jq -s 'length')
+ERRORS=$(meta-cc parse extract --type tools | \
+  jq 'select(.Status == "error")' | jq -s 'length')
 echo "scale=2; $ERRORS * 100 / $TOTAL" | bc
 ```
 
 #### Common Patterns
 
 ```bash
-# Pattern 1: Filter and count
-meta-cc parse extract --type tools --output json | \
-  jq '[.[] | select(.ToolName == "Edit")] | length'
+# Pattern 1: Filter and count (JSONL)
+meta-cc parse extract --type tools | \
+  jq 'select(.ToolName == "Edit")' | jq -s 'length'
 
 # Pattern 2: Extract specific fields
-meta-cc parse extract --type tools --output json | \
-  jq -r '.[] | "\(.ToolName): \(.Input.command // "N/A")"'
+meta-cc parse extract --type tools | \
+  jq -r '"\(.ToolName): \(.Input.command // "N/A")"'
 
-# Pattern 3: Group by field
-meta-cc parse extract --type tools --output json | \
-  jq 'group_by(.ToolName) | map({tool: .[0].ToolName, count: length})'
+# Pattern 3: Group by field (slurp JSONL into array first)
+meta-cc parse extract --type tools | jq -s \
+  'group_by(.ToolName) | map({tool: .[0].ToolName, count: length})'
 
 # Pattern 4: Time-based filtering (for turns)
-meta-cc parse extract --type turns --output json | \
-  jq '.[] | select(.timestamp > "2025-10-02T12:00:00Z")'
+meta-cc parse extract --type turns | \
+  jq 'select(.timestamp > "2025-10-02T12:00:00Z")'
 ```
 
 ### Troubleshooting

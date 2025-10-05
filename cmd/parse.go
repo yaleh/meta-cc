@@ -8,6 +8,7 @@ import (
 	"github.com/yale/meta-cc/internal/analyzer"
 	"github.com/yale/meta-cc/internal/filter"
 	"github.com/yale/meta-cc/internal/locator"
+	internalOutput "github.com/yale/meta-cc/internal/output"
 	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/pkg/output"
 )
@@ -65,7 +66,11 @@ func runParseExtract(cmd *cobra.Command, args []string) error {
 	}
 
 	if !validTypes[extractType] {
-		return fmt.Errorf("invalid type '%s': must be one of: turns, tools, errors", extractType)
+		return internalOutput.OutputError(
+			fmt.Errorf("invalid type '%s': must be one of: turns, tools, errors", extractType),
+			internalOutput.ErrInvalidArgument,
+			outputFormat,
+		)
 	}
 
 	// Step 2: Locate session file (using Phase 1 locator)
@@ -75,14 +80,14 @@ func runParseExtract(cmd *cobra.Command, args []string) error {
 		ProjectPath: projectPath, // from global parameter
 	})
 	if err != nil {
-		return fmt.Errorf("failed to locate session file: %w", err)
+		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
 	}
 
 	// Step 3: Parse session file (using Phase 2 parser)
 	sessionParser := parser.NewSessionParser(sessionPath)
 	entries, err := sessionParser.ParseEntries()
 	if err != nil {
-		return fmt.Errorf("failed to parse session file: %w", err)
+		return internalOutput.OutputError(err, internalOutput.ErrParseError, outputFormat)
 	}
 
 	// Step 4: Extract data based on type
@@ -110,7 +115,7 @@ func runParseExtract(cmd *cobra.Command, args []string) error {
 	if extractFilter != "" {
 		filterObj, err := filter.ParseFilter(extractFilter)
 		if err != nil {
-			return fmt.Errorf("invalid filter: %w", err)
+			return internalOutput.OutputError(err, internalOutput.ErrFilterError, outputFormat)
 		}
 
 		data = filter.ApplyFilter(data, filterObj)
@@ -122,10 +127,10 @@ func runParseExtract(cmd *cobra.Command, args []string) error {
 		if toolCalls, ok := data.([]parser.ToolCall); ok {
 			estimate, err := output.EstimateToolCallsSize(toolCalls, outputFormat)
 			if err != nil {
-				return fmt.Errorf("failed to estimate size: %w", err)
+				return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 			}
 
-			estimateStr, _ := output.FormatJSON(estimate)
+			estimateStr, _ := output.FormatJSONL(estimate)
 			fmt.Fprintln(cmd.OutOrStdout(), estimateStr)
 			return nil
 		}
@@ -140,27 +145,25 @@ func runParseExtract(cmd *cobra.Command, args []string) error {
 		data = filter.ApplyPagination(toolCalls, paginationConfig)
 	}
 
-	// Step 5: Format output
-	var outputStr string
-	var formatErr error
-
-	switch outputFormat {
-	case "json":
-		outputStr, formatErr = output.FormatJSON(data)
-	case "md", "markdown":
-		outputStr, formatErr = output.FormatMarkdown(data)
-	case "csv":
-		outputStr, formatErr = output.FormatCSV(data)
-	default:
-		return fmt.Errorf("unsupported output format: %s", outputFormat)
+	// Step 5: Check for empty results
+	switch v := data.(type) {
+	case []parser.ToolCall:
+		if len(v) == 0 {
+			return internalOutput.WarnNoResults(outputFormat)
+		}
+	case []parser.SessionEntry:
+		if len(v) == 0 {
+			return internalOutput.WarnNoResults(outputFormat)
+		}
 	}
 
+	// Step 6: Format output
+	outputStr, formatErr := internalOutput.FormatOutput(data, outputFormat)
 	if formatErr != nil {
-		return fmt.Errorf("failed to format output: %w", formatErr)
+		return internalOutput.OutputError(formatErr, internalOutput.ErrInternalError, outputFormat)
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
-
 	return nil
 }
 
@@ -206,14 +209,14 @@ func runParseStats(cmd *cobra.Command, args []string) error {
 		ProjectPath: projectPath, // from global parameter
 	})
 	if err != nil {
-		return fmt.Errorf("failed to locate session file: %w", err)
+		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
 	}
 
 	// Step 2: Parse session file (using Phase 2 parser)
 	sessionParser := parser.NewSessionParser(sessionPath)
 	entries, err := sessionParser.ParseEntries()
 	if err != nil {
-		return fmt.Errorf("failed to parse session file: %w", err)
+		return internalOutput.OutputError(err, internalOutput.ErrParseError, outputFormat)
 	}
 
 	// Step 3: Extract tool calls
@@ -225,7 +228,7 @@ func runParseStats(cmd *cobra.Command, args []string) error {
 	// Step 4.5: Handle --estimate-size flag (Phase 9.1)
 	if estimateSizeFlag {
 		estimate := output.EstimateStatsSize(outputFormat)
-		estimateStr, _ := output.FormatJSON(estimate)
+		estimateStr, _ := output.FormatJSONL(estimate)
 		fmt.Fprintln(cmd.OutOrStdout(), estimateStr)
 		return nil
 	}
@@ -239,24 +242,12 @@ func runParseStats(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 6: Format output (using Phase 3 formatters)
-	var outputStr string
-	var formatErr error
-
-	switch outputFormat {
-	case "json":
-		outputStr, formatErr = output.FormatJSON(data)
-	case "md", "markdown":
-		outputStr, formatErr = formatStatsMarkdown(stats)
-	default:
-		return fmt.Errorf("unsupported output format: %s (stats command supports json and md)", outputFormat)
-	}
-
+	outputStr, formatErr := internalOutput.FormatOutput(data, outputFormat)
 	if formatErr != nil {
-		return fmt.Errorf("failed to format output: %w", formatErr)
+		return internalOutput.OutputError(formatErr, internalOutput.ErrInternalError, outputFormat)
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
-
 	return nil
 }
 

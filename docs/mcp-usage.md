@@ -45,7 +45,7 @@ The MCP Server is configured in `.claude/mcp-servers/meta-cc.json`.
 Get comprehensive session statistics including turn count, tool usage, and error rates.
 
 **Parameters**:
-- `output_format` (optional): "json" or "md" (default: "json")
+- `output_format` (optional): "jsonl" (JSONL format) (default: jsonl)
 
 **Example Queries**:
 ```
@@ -66,7 +66,7 @@ mcp__meta-insight__get_session_stats
 Analyze error patterns in the session, detecting repeated failures and common issues.
 
 **Parameters**:
-- `output_format` (optional): "json" or "md" (default: "json")
+- `output_format` (optional): "jsonl" (JSONL format) (default: jsonl)
 
 **Example Queries**:
 ```
@@ -88,7 +88,7 @@ Extract tool usage data with pagination to prevent context overflow.
 
 **Parameters**:
 - `limit` (optional): Maximum number of tools (default: 100)
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Example Queries**:
 ```
@@ -114,7 +114,7 @@ Query tool calls with flexible filtering by tool name, status, and limit.
 - `tool` (optional): Filter by tool name (e.g., "Bash", "Read", "Edit")
 - `status` (optional): Filter by status ("error" or "success")
 - `limit` (optional): Maximum results (default: 20)
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Example Queries**:
 ```
@@ -138,7 +138,7 @@ Search user messages with regex pattern matching.
 **Parameters**:
 - `pattern` (required): Regex pattern to match in message content
 - `limit` (optional): Maximum results (default: 10)
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Example Queries**:
 ```
@@ -171,7 +171,7 @@ Query context around specific errors to understand what led to failures.
 **Parameters**:
 - `error_signature` (required): Error pattern ID to query
 - `window` (optional): Context window size in turns before/after (default: 3)
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Example Queries**:
 ```
@@ -194,7 +194,7 @@ Query repeated tool call sequences to identify workflow patterns.
 **Parameters**:
 - `min_occurrences` (optional): Minimum occurrences to report (default: 3)
 - `pattern` (optional): Specific sequence pattern (e.g., "Read -> Edit -> Bash")
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Example Queries**:
 ```
@@ -216,7 +216,7 @@ Query file access history including read, edit, and write operations.
 
 **Parameters**:
 - `file` (required): File path to query
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Example Queries**:
 ```
@@ -237,7 +237,7 @@ mcp__meta-insight__query_file_access
 Query current project state extracted from the session, including git status, working directory, and project metadata.
 
 **Parameters**:
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Example Queries**:
 ```
@@ -260,7 +260,7 @@ Query successful prompt patterns based on quality scores and outcomes.
 **Parameters**:
 - `min_quality_score` (optional): Minimum quality score 0.0-1.0 (default: 0.8)
 - `limit` (optional): Maximum results (default: 10)
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Example Queries**:
 ```
@@ -283,7 +283,7 @@ Query tool calls with advanced SQL-like filter expressions.
 **Parameters**:
 - `where` (required): SQL-like filter expression
 - `limit` (optional): Maximum results (default: 20)
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Supported Operators**:
 - Boolean: AND, OR, NOT
@@ -337,7 +337,7 @@ Aggregate statistics grouped by field with various metrics.
 - `group_by` (optional): Field to group by - "tool", "status", or "uuid" (default: "tool")
 - `metrics` (optional): Comma-separated metrics (default: "count,error_rate")
 - `where` (optional): Filter expression to apply before aggregation
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Available Metrics**:
 - `count`: Number of records in group
@@ -378,7 +378,7 @@ Analyze metrics over time with automatic time bucketing.
 - `metric` (optional): Metric to analyze - "tool-calls" or "error-rate" (default: "tool-calls")
 - `interval` (optional): Time interval - "hour", "day", or "week" (default: "hour")
 - `where` (optional): Filter expression to apply before analysis
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Available Metrics**:
 - `tool-calls`: Count of tool calls per time bucket
@@ -425,7 +425,7 @@ Get file-level operation statistics with sorting and filtering.
 - `sort_by` (optional): Sort field - "total_ops", "edit_count", "read_count", "write_count", "error_count", or "error_rate" (default: "total_ops")
 - `top` (optional): Limit results to top N files (default: 20)
 - `where` (optional): Filter expression
-- `output_format` (optional): "json" or "md"
+- `output_format` (optional): "jsonl" (JSONL format)
 
 **Tracked Operations**:
 - Read count

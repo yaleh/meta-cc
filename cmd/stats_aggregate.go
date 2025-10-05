@@ -135,14 +135,12 @@ func runStatsAggregate(cmd *cobra.Command, args []string) error {
 	// Step 6: Format output
 	var outputStr string
 	switch outputFormat {
-	case "json":
-		outputStr, err = output.FormatJSON(results)
-	case "md", "markdown":
-		outputStr, err = output.FormatMarkdown(results)
-	case "csv":
-		outputStr, err = output.FormatCSV(results)
+	case "jsonl":
+		outputStr, err = output.FormatJSONL(results)
+	case "tsv":
+		outputStr, err = output.FormatTSV(results)
 	default:
-		outputStr, err = output.FormatJSON(results)
+		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
 	}
 
 	if err != nil {

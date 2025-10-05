@@ -2,6 +2,18 @@
 
 This guide demonstrates how to integrate meta-cc with standard Unix tools for powerful data analysis workflows.
 
+## Phase 13: Output Format Simplification
+
+meta-cc now supports only **two output formats** for maximum Unix composability:
+
+- **JSONL (default)**: One JSON object per line - perfect for streaming and jq processing
+- **TSV**: Tab-separated values - optimal for awk, grep, cut processing
+
+Removed formats (use alternatives):
+- ~~JSON (pretty)~~ → Use `meta-cc ... | jq '.'`
+- ~~CSV~~ → Use `--output tsv` instead
+- ~~Markdown~~ → Let Claude Code render JSONL
+
 ## Table of Contents
 
 1. [jq Integration](#jq-integration)
@@ -21,53 +33,53 @@ jq is a lightweight JSON processor, perfect for filtering and transforming meta-
 ### Basic Filtering
 
 ```bash
-# Select errors only
-meta-cc query tools --stream | jq 'select(.Status == "error")'
+# Select errors only (JSONL default - one object per line)
+meta-cc query tools | jq 'select(.Status == "error")'
 
 # Select specific tool
-meta-cc query tools --stream | jq 'select(.ToolName == "Bash")'
+meta-cc query tools | jq 'select(.ToolName == "Bash")'
 
 # Multiple conditions
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq 'select(.ToolName == "Bash" and .Status == "error")'
 ```
 
 ### Field Extraction
 
 ```bash
-# Extract tool names only
-meta-cc query tools --stream | jq -r '.ToolName'
+# Extract tool names only (JSONL - one per line)
+meta-cc query tools | jq -r '.ToolName'
 
 # Extract multiple fields as TSV
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '[.ToolName, .Status, .Duration] | @tsv'
 
 # Create custom objects
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq '{tool: .ToolName, failed: (.Status == "error"), duration_sec: (.Duration / 1000)}'
 ```
 
 ### Aggregation
 
 ```bash
-# Count by tool (using jq)
-meta-cc query tools --stream | \
-  jq -s 'group_by(.ToolName) |
-         map({tool: .[0].ToolName, count: length}) |
-         sort_by(.count) | reverse'
+# Count by tool (using jq slurp to create array from JSONL)
+meta-cc query tools | jq -s \
+  'group_by(.ToolName) |
+   map({tool: .[0].ToolName, count: length}) |
+   sort_by(.count) | reverse'
 
 # Average duration by tool
-meta-cc query tools --stream | \
-  jq -s 'group_by(.ToolName) |
-         map({tool: .[0].ToolName,
-              avg_duration: (map(.Duration) | add / length)})'
+meta-cc query tools | jq -s \
+  'group_by(.ToolName) |
+   map({tool: .[0].ToolName,
+        avg_duration: (map(.Duration) | add / length)})'
 ```
 
 ### Conditional Processing
 
 ```bash
 # Different output based on status
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq 'if .Status == "error" then
         {error: .ToolName, message: .Error}
       else
@@ -75,7 +87,7 @@ meta-cc query tools --stream | \
       end'
 
 # Add severity field
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq '. + if .Duration > 5000 then
              {severity: "high"}
            elif .Duration > 2000 then
@@ -95,17 +107,17 @@ grep is excellent for pattern matching and filtering text output.
 
 ```bash
 # Find permission errors
-meta-cc query tools --where "status='error'" --stream | \
+meta-cc query tools --where "status='error'" | \
   jq -r '.Error' | \
   grep -i "permission"
 
 # Case-insensitive search
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '.ToolName + ": " + .Error' | \
   grep -i "timeout\|failed\|denied"
 
 # Invert match (exclude pattern)
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '.ToolName' | \
   grep -v "Bash"  # Exclude Bash tools
 ```
@@ -114,12 +126,12 @@ meta-cc query tools --stream | \
 
 ```bash
 # Count occurrences
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '.Error' | \
   grep -c "permission denied"
 
 # Count unique error patterns
-meta-cc query tools --where "status='error'" --stream | \
+meta-cc query tools --where "status='error'" | \
   jq -r '.Error' | \
   grep -oP '(permission|timeout|not found|failed)' | \
   sort | uniq -c
@@ -144,7 +156,7 @@ awk is powerful for text processing, calculations, and formatting.
 
 ```bash
 # Extract and format fields
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '[.ToolName, .Status, .Duration] | @tsv' | \
   awk '{print "Tool:", $1, "Status:", $2, "Duration:", $3 "ms"}'
 
@@ -158,12 +170,12 @@ meta-cc stats aggregate --group-by tool | \
 
 ```bash
 # Sum durations
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '.Duration' | \
   awk '{sum += $1} END {print "Total duration:", sum "ms"}'
 
 # Average, min, max
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '.Duration' | \
   awk '{sum+=$1; if($1>max) max=$1; if(min==""|$1<min) min=$1; count++}
        END {print "Avg:", sum/count, "Min:", min, "Max:", max}'
@@ -173,12 +185,12 @@ meta-cc query tools --stream | \
 
 ```bash
 # Flag slow operations
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '[.ToolName, .Duration] | @tsv' | \
   awk '{if ($2 > 5000) print "SLOW:", $1, $2 "ms"; else print "OK:", $1, $2 "ms"}'
 
 # Count by category
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '.Duration' | \
   awk '{
     if ($1 < 1000) fast++;
@@ -192,7 +204,7 @@ meta-cc query tools --stream | \
 
 ```bash
 # Group and sum by tool
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '[.ToolName, .Duration] | @tsv' | \
   awk '{duration[$1] += $2; count[$1]++}
        END {for (tool in duration)
@@ -210,12 +222,12 @@ sed is useful for stream editing and text transformation.
 
 ```bash
 # Normalize tool names
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '.ToolName' | \
   sed 's/Bash/Shell/g; s/Edit/Modify/g'
 
 # Clean up error messages
-meta-cc query tools --where "status='error'" --stream | \
+meta-cc query tools --where "status='error'" | \
   jq -r '.Error' | \
   sed 's|/home/[^/]*/|~/|g'  # Replace home paths with ~
 ```
@@ -224,12 +236,12 @@ meta-cc query tools --where "status='error'" --stream | \
 
 ```bash
 # Delete empty lines
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '.Error // empty' | \
   sed '/^$/d'
 
 # Keep only lines matching pattern
-meta-cc query tools --stream | \
+meta-cc query tools | \
   jq -r '.ToolName + ": " + .Status' | \
   sed -n '/error/p'  # Print only lines with "error"
 ```
@@ -244,7 +256,7 @@ Real-world scenarios often combine multiple tools for complex analysis.
 
 ```bash
 # Find top error patterns with counts
-meta-cc query tools --where "status='error'" --stream | \
+meta-cc query tools --where "status='error'" | \
   jq -r '.Error' | \
   grep -oP '(permission|timeout|not found|failed to \w+)' | \
   sed 's/failed to \w*/failed to .../g' | \
@@ -270,7 +282,7 @@ meta-cc query tools --where "status='error'" --stream | \
 
   echo ""
   echo "Slowest Operations:"
-  meta-cc query tools --sort-by duration --reverse --limit 5 --stream | \
+  meta-cc query tools --sort-by duration --reverse --limit 5 | \
     jq -r '[.ToolName, .Duration, .Status] | @tsv' | \
     awk '{printf "  %s: %dms (%s)\n", $1, $2, $3}'
 } > performance_report.txt
@@ -291,15 +303,15 @@ meta-cc stats files --sort-by error_count | \
 
 ## Performance Tips
 
-### 1. Use `--stream` for Large Datasets
+### 1. JSONL is Default (Streaming-Friendly)
 
-Streaming avoids loading everything into memory:
+JSONL avoids loading everything into memory:
 ```bash
-# Good: Process incrementally
-meta-cc query tools --stream | jq 'select(.Status == "error")' | head -100
+# Good: Process incrementally (JSONL default)
+meta-cc query tools | jq 'select(.Status == "error")' | head -100
 
-# Avoid: Load all, then filter
-meta-cc query tools --output json | jq '.[] | select(.Status == "error")' | head -100
+# Also good: Use TSV for large datasets
+meta-cc query tools --output tsv | awk -F'\t' '$3 == "error"' | head -100
 ```
 
 ### 2. Filter Early
@@ -307,10 +319,10 @@ meta-cc query tools --output json | jq '.[] | select(.Status == "error")' | head
 Apply filters in meta-cc before piping:
 ```bash
 # Good: Filter in query
-meta-cc query tools --where "status='error'" --stream | jq -r '.Error'
+meta-cc query tools --where "status='error'" | jq -r '.Error'
 
 # Less efficient: Filter after
-meta-cc query tools --stream | jq 'select(.Status == "error") | .Error'
+meta-cc query tools | jq 'select(.Status == "error") | .Error'
 ```
 
 ### 3. Use Compact Output
@@ -318,14 +330,14 @@ meta-cc query tools --stream | jq 'select(.Status == "error") | .Error'
 Use `-c` flag in jq for compact JSON:
 ```bash
 # Compact output (faster, less space)
-meta-cc query tools --stream | jq -c 'select(.Status == "error")'
+meta-cc query tools | jq -c 'select(.Status == "error")'
 ```
 
 ### 4. Redirect stderr
 
 Suppress logs when scripting:
 ```bash
-meta-cc query tools --stream 2>/dev/null | jq '.ToolName'
+meta-cc query tools 2>/dev/null | jq '.ToolName'
 ```
 
 ---
@@ -336,14 +348,13 @@ meta-cc query tools --stream 2>/dev/null | jq '.ToolName'
 
 **Problem**: jq fails to parse output
 
-**Solution**: Ensure `--stream` or `--output json` is used
+**Solution**: JSONL is now the default format
 ```bash
-# Wrong: Default output might not be JSON
-meta-cc query tools | jq '.ToolName'
+# Correct: JSONL is default (one JSON object per line)
+meta-cc query tools | jq -r '.ToolName'
 
-# Correct:
-meta-cc query tools --output json | jq '.[] | .ToolName'
-meta-cc query tools --stream | jq -r '.ToolName'
+# For arrays: Use jq -s to slurp JSONL into array
+meta-cc query tools | jq -s 'length'
 ```
 
 ### Logs interfering with pipeline
@@ -352,7 +363,7 @@ meta-cc query tools --stream | jq -r '.ToolName'
 
 **Solution**: Redirect stderr to /dev/null
 ```bash
-meta-cc query tools --stream 2>/dev/null | jq '.ToolName'
+meta-cc query tools 2>/dev/null | jq '.ToolName'
 ```
 
 ### Exit code confusion

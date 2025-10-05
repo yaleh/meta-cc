@@ -58,13 +58,13 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 		ProjectPath: projectPath,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to locate session: %w", err)
+		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
 	}
 
 	sessionParser := parser.NewSessionParser(sessionPath)
 	entries, err := sessionParser.ParseEntries()
 	if err != nil {
-		return fmt.Errorf("failed to parse session: %w", err)
+		return internalOutput.OutputError(err, internalOutput.ErrParseError, outputFormat)
 	}
 
 	// Step 2: Extract tool calls
@@ -73,7 +73,7 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 	// Step 3: Apply filters
 	filtered, err := applyToolFilters(toolCalls)
 	if err != nil {
-		return err
+		return internalOutput.OutputError(err, internalOutput.ErrFilterError, outputFormat)
 	}
 
 	// Step 4: Sort if requested
@@ -85,11 +85,11 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 	if estimateSizeFlag {
 		estimate, err := output.EstimateToolCallsSize(filtered, outputFormat)
 		if err != nil {
-			return fmt.Errorf("failed to estimate size: %w", err)
+			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 		}
 
-		// Output estimate as JSON
-		estimateStr, _ := output.FormatJSON(estimate)
+		// Output estimate as JSONL
+		estimateStr, _ := output.FormatJSONL(estimate)
 		fmt.Fprintln(cmd.OutOrStdout(), estimateStr)
 		return nil
 	}
@@ -115,13 +115,17 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 	if chunkSizeFlag > 0 {
 		// Validate output directory is specified
 		if outputDirFlag == "" {
-			return fmt.Errorf("--output-dir is required when using --chunk-size")
+			return internalOutput.OutputError(
+				fmt.Errorf("--output-dir is required when using --chunk-size"),
+				internalOutput.ErrInvalidArgument,
+				outputFormat,
+			)
 		}
 
 		// Create chunks
 		metadata, err := output.ChunkToolCalls(paginated, chunkSizeFlag, outputDirFlag, outputFormat)
 		if err != nil {
-			return fmt.Errorf("failed to create chunks: %w", err)
+			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 		}
 
 		// Output chunk summary to stderr (not stdout)
@@ -139,32 +143,33 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 	if summaryFirstFlag {
 		summaryOutput, err := output.FormatSummaryFirst(paginated, topNFlag, outputFormat)
 		if err != nil {
-			return fmt.Errorf("failed to generate summary: %w", err)
+			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
+		}
+
+		// Check for empty results first
+		if len(paginated) == 0 {
+			return internalOutput.WarnNoResults(outputFormat)
 		}
 
 		// Print summary followed by details
 		fmt.Fprintln(cmd.OutOrStdout(), summaryOutput.Summary)
 		fmt.Fprintln(cmd.OutOrStdout(), summaryOutput.Details)
 
-		// Check for empty results
-		if len(paginated) == 0 {
-			return internalOutput.NewExitCodeError(internalOutput.ExitNoResults, "No results found")
-		}
-
 		return nil
 	}
 
 	// Step 9: Handle streaming output if requested
 	if queryStream {
+		// Check for empty results first
+		if len(paginated) == 0 {
+			return internalOutput.WarnNoResults(outputFormat)
+		}
+
 		streamWriter := output.NewStreamWriter(cmd.OutOrStdout())
 		for _, tool := range paginated {
 			if err := streamWriter.WriteRecord(tool); err != nil {
-				return fmt.Errorf("stream write error: %w", err)
+				return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 			}
-		}
-		// Check for empty results
-		if len(paginated) == 0 {
-			return internalOutput.NewExitCodeError(internalOutput.ExitNoResults, "No results found")
 		}
 		return nil
 	}
@@ -174,55 +179,38 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 
 	// If projection is requested, project the fields
 	if len(projectionConfig.Fields) > 0 {
+		// Check for empty results first
+		if len(paginated) == 0 {
+			return internalOutput.WarnNoResults(outputFormat)
+		}
+
 		projected, err := output.ProjectToolCalls(paginated, projectionConfig)
 		if err != nil {
-			return fmt.Errorf("failed to project fields: %w", err)
+			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 		}
 
 		// Format projected output
 		outputStr, formatErr := output.FormatProjectedOutput(projected, outputFormat)
 		if formatErr != nil {
-			return fmt.Errorf("failed to format projected output: %w", formatErr)
+			return internalOutput.OutputError(formatErr, internalOutput.ErrInternalError, outputFormat)
 		}
 
 		fmt.Fprintln(cmd.OutOrStdout(), outputStr)
-
-		// Check for empty results
-		if len(paginated) == 0 {
-			return internalOutput.NewExitCodeError(internalOutput.ExitNoResults, "No results found")
-		}
-
 		return nil
 	}
 
 	// Step 11: Format output (non-chunked, non-projected, non-summary mode)
-	var outputStr string
-	var formatErr error
-
-	switch outputFormat {
-	case "json":
-		outputStr, formatErr = output.FormatJSON(paginated)
-	case "md", "markdown":
-		outputStr, formatErr = output.FormatMarkdown(paginated)
-	case "csv":
-		outputStr, formatErr = output.FormatCSV(paginated)
-	case "tsv":
-		outputStr = output.FormatTSV(paginated)
-	default:
-		return fmt.Errorf("unsupported output format: %s", outputFormat)
+	// Check for empty results first
+	if len(paginated) == 0 {
+		return internalOutput.WarnNoResults(outputFormat)
 	}
 
+	outputStr, formatErr := internalOutput.FormatOutput(paginated, outputFormat)
 	if formatErr != nil {
-		return fmt.Errorf("failed to format output: %w", formatErr)
+		return internalOutput.OutputError(formatErr, internalOutput.ErrInternalError, outputFormat)
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
-
-	// Check for empty results and return appropriate exit code
-	if len(paginated) == 0 {
-		return internalOutput.NewExitCodeError(internalOutput.ExitNoResults, "No results found")
-	}
-
 	return nil
 }
 

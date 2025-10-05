@@ -124,12 +124,12 @@ func runQueryUserMessages(cmd *cobra.Command, args []string) error {
 	var formatErr error
 
 	switch outputFormat {
-	case "json":
-		outputStr, formatErr = output.FormatJSON(userMessages)
-	case "md", "markdown":
-		outputStr, formatErr = output.FormatMarkdown(userMessages)
+	case "jsonl":
+		outputStr, formatErr = output.FormatJSONL(userMessages)
+	case "tsv":
+		outputStr, formatErr = output.FormatTSV(userMessages)
 	default:
-		return fmt.Errorf("unsupported output format: %s", outputFormat)
+		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
 	}
 
 	if formatErr != nil {

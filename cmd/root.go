@@ -45,6 +45,8 @@ var rootCmd = &cobra.Command{
 	Short: "Meta-Cognition tool for Claude Code",
 	Long: `meta-cc analyzes Claude Code session history to provide
 metacognitive insights and workflow optimization.`,
+	SilenceErrors: true, // We handle errors ourselves
+	SilenceUsage:  true, // Don't show usage on errors
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
@@ -74,7 +76,7 @@ func init() {
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&sessionID, "session", "", "Session ID (or use $CC_SESSION_ID)")
 	rootCmd.PersistentFlags().StringVar(&projectPath, "project", "", "Project path")
-	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "json", "Output format: json|md|csv|tsv")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "jsonl", "Output format: jsonl|tsv")
 
 	// Phase 9.1: Pagination and size estimation flags
 	rootCmd.PersistentFlags().IntVar(&limitFlag, "limit", 0, "Limit output to N records (0 = no limit)")

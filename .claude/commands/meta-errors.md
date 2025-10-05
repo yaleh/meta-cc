@@ -54,19 +54,52 @@ echo "" >&2
 echo "## 错误模式分析（窗口大小：$WINDOW_SIZE）"
 echo ""
 
+# Phase 13: Use JSONL output, render to Markdown
+patterns_json=$(meta-cc analyze errors --window "$WINDOW_SIZE" 2>/dev/null)
+
 # Phase 9: Use summary mode for large error sets
 if [ "$ERROR_COUNT" -gt 10 ]; then
     echo "⚠️  Large error set detected ($ERROR_COUNT errors)"
-    echo "Showing summary with top 10 patterns to prevent context overflow."
+    echo "Showing top 10 patterns to prevent context overflow."
     echo ""
-    PATTERN_OUTPUT=$(meta-cc analyze errors --window "$WINDOW_SIZE" --output md 2>/dev/null | head -100)
-    echo "$PATTERN_OUTPUT"
+    echo "$patterns_json" | jq -s -r 'if length > 0 then
+        "# Error Pattern Analysis\n\nFound \(length) error pattern(s):\n" +
+        (.[:10] | .[] |
+        "\n## Pattern: \(.ToolName)\n" +
+        "- **Type**: \(.Type)\n" +
+        "- **Occurrences**: \(.Occurrences) times\n" +
+        "- **Signature**: `\(.Signature)`\n" +
+        "- **Error**: \(.ErrorText)\n" +
+        "\n### Context\n" +
+        "- **First Occurrence**: \(.FirstSeen)\n" +
+        "- **Last Occurrence**: \(.LastSeen)\n" +
+        "- **Time Span**: \(.TimeSpanSeconds) seconds\n"
+        )
+    else
+        "✅ 未检测到重复错误模式（出现 < 3 次）。"
+    end'
     echo ""
     echo "💡 Tip: Use 'meta-cc query tools --where \"status='error'\" --output tsv' for full error list"
 else
-    PATTERN_OUTPUT=$(meta-cc analyze errors --window "$WINDOW_SIZE" --output md)
-    echo "$PATTERN_OUTPUT"
+    echo "$patterns_json" | jq -s -r 'if length > 0 then
+        "# Error Pattern Analysis\n\nFound \(length) error pattern(s):\n" +
+        (.[] |
+        "\n## Pattern: \(.ToolName)\n" +
+        "- **Type**: \(.Type)\n" +
+        "- **Occurrences**: \(.Occurrences) times\n" +
+        "- **Signature**: `\(.Signature)`\n" +
+        "- **Error**: \(.ErrorText)\n" +
+        "\n### Context\n" +
+        "- **First Occurrence**: \(.FirstSeen)\n" +
+        "- **Last Occurrence**: \(.LastSeen)\n" +
+        "- **Time Span**: \(.TimeSpanSeconds) seconds\n"
+        )
+    else
+        "✅ 未检测到重复错误模式（出现 < 3 次）。"
+    end'
 fi
+
+PATTERN_OUTPUT="$patterns_json"
 
 echo ""
 

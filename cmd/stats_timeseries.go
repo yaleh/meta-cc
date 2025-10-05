@@ -118,14 +118,12 @@ func runStatsTimeSeries(cmd *cobra.Command, args []string) error {
 	// Step 5: Format output
 	var outputStr string
 	switch outputFormat {
-	case "json":
-		outputStr, err = output.FormatJSON(points)
-	case "md", "markdown":
-		outputStr, err = output.FormatMarkdown(points)
-	case "csv":
-		outputStr, err = output.FormatCSV(points)
+	case "jsonl":
+		outputStr, err = output.FormatJSONL(points)
+	case "tsv":
+		outputStr, err = output.FormatTSV(points)
 	default:
-		outputStr, err = output.FormatJSON(points)
+		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
 	}
 
 	if err != nil {

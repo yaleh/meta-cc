@@ -50,28 +50,21 @@ func WriteChunk(chunk []parser.ToolCall, format, outputPath string) error {
 	var err error
 
 	switch format {
-	case "json":
-		data, err = json.MarshalIndent(chunk, "", "  ")
+	case "jsonl":
+		data, err = json.Marshal(chunk) // Compact JSON (JSONL)
 		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+			return fmt.Errorf("failed to marshal JSONL: %w", err)
 		}
 
-	case "md", "markdown":
-		content, err := FormatMarkdown(chunk)
+	case "tsv":
+		content, err := FormatTSV(chunk)
 		if err != nil {
-			return fmt.Errorf("failed to format Markdown: %w", err)
-		}
-		data = []byte(content)
-
-	case "csv":
-		content, err := FormatCSV(chunk)
-		if err != nil {
-			return fmt.Errorf("failed to format CSV: %w", err)
+			return fmt.Errorf("failed to format TSV: %w", err)
 		}
 		data = []byte(content)
 
 	default:
-		return fmt.Errorf("unsupported format: %s", format)
+		return fmt.Errorf("unsupported format: %s (supported: jsonl, tsv)", format)
 	}
 
 	// Ensure output directory exists
@@ -169,7 +162,7 @@ func ChunkToolCalls(tools []parser.ToolCall, chunkSize int, outputDir, format st
 	}
 
 	// Generate manifest file
-	manifestPath := filepath.Join(outputDir, "manifest.json")
+	manifestPath := filepath.Join(outputDir, "manifest.jsonl")
 	if err := GenerateManifest(metadata, manifestPath); err != nil {
 		return nil, fmt.Errorf("failed to generate manifest: %w", err)
 	}
@@ -180,12 +173,10 @@ func ChunkToolCalls(tools []parser.ToolCall, chunkSize int, outputDir, format st
 // getExtension returns the file extension for a given format
 func getExtension(format string) string {
 	switch format {
-	case "json":
-		return "json"
-	case "md", "markdown":
-		return "md"
-	case "csv":
-		return "csv"
+	case "jsonl":
+		return "jsonl"
+	case "tsv":
+		return "tsv"
 	default:
 		return "txt"
 	}

@@ -22,20 +22,40 @@ if ! command -v meta-cc &> /dev/null; then
     exit 1
 fi
 
-# Phase 11: Streaming output with proper I/O separation
+# Phase 13: JSONL output (default), Claude renders to Markdown
 echo "📊 Session Statistics" >&2
 echo "" >&2
 
-# Basic session stats (logs to stderr, data to stdout)
-meta-cc parse stats --output md 2>/dev/null
+# Basic session stats (JSONL output, logs to stderr)
+stats_json=$(meta-cc parse stats 2>/dev/null)
+
+# Parse JSONL and render as Markdown
+echo "$stats_json" | jq -r '
+"# Session Statistics\n" +
+"- **Total Turns**: \(.TurnCount)\n" +
+"- **Tool Calls**: \(.ToolCallCount)\n" +
+"- **Error Count**: \(.ErrorCount)\n" +
+"- **Error Rate**: \(.ErrorRate)%\n" +
+"- **Session Duration**: \(.DurationSeconds / 60 | floor) minutes\n" +
+"\n## Tool Usage Frequency\n" +
+"| Tool | Count | Percentage |\n" +
+"|------|-------|------------|\n" +
+((.TopTools // []) | .[] | "| \(.Name) | \(.Count) | \(.Percentage)% |") +
+"\n"'
 
 # Phase 10: Aggregated statistics by tool
 echo "" >&2
 echo "## Aggregated Statistics by Tool" >&2
 echo "" >&2
-meta-cc stats aggregate --group-by tool --metrics "count,error_rate" --output md 2>/dev/null || {
-    echo "⚠️  Aggregation command not available (requires Phase 10)" >&2
-}
+agg_json=$(meta-cc stats aggregate --group-by tool --metrics "count,error_rate" 2>/dev/null || echo "[]")
+echo "$agg_json" | jq -s -r '
+if length > 0 then
+  "| Tool | Count | Error Rate |\n" +
+  "|------|-------|------------|\n" +
+  (.[] | .[] | "| \(.group_value) | \(.metrics.count) | \(.metrics.error_rate * 100 | tostring + "%" |) ")
+else
+  "⚠️  No aggregation data available"
+end'
 
 # Phase 11: Exit code handling
 EXIT_CODE=$?
