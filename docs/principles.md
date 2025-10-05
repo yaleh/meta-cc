@@ -84,26 +84,62 @@ meta-cc 仅负责 Claude Code 会话历史知识的提取，不做分析决策�
 
 ## 四、MCP Server 设计原则
 
+### 架构分离：CLI vs MCP
+
+**meta-cc CLI**（核心数据层）：
+- ✅ 职责：JSONL 解析、数据提取、模式检测
+- ✅ 输出：JSONL 格式（原始数据，无过滤）
+- ✅ 不做：查询过滤、聚合统计、语义分析
+- ✅ 可执行文件：`meta-cc`
+
+**meta-cc-mcp**（MCP Server 层）：
+- ✅ 职责：接收 MCP 请求，调用 CLI，使用 gojq 过滤/聚合
+- ✅ 处理流程：
+  1. 调用 `meta-cc` CLI 获取原始 JSONL
+  2. 使用 `gojq` 库应用 jq 表达式过滤
+  3. 可选统计聚合（stats_only/stats_first）
+  4. 输出长度控制（max_output_bytes，默认 50KB）
+- ✅ 可执行文件：`meta-cc-mcp`（独立二进制）
+
+### 查询语法：jq
+
+**技术选择**：
+- ✅ 使用 gojq 库（github.com/itchyny/gojq）
+- ✅ jq 语法最适合 LLM（Claude 可直接生成表达式）
+- ✅ 功能强大（过滤、投影、聚合、排序、分组）
+- ✅ 纯 Go 实现，流式处理
+
+**示例 jq_filter**：
+```bash
+# 过滤错误
+.[] | select(.Status == "error")
+
+# 统计工具分布
+.[] | select(.Status == "error") | .ToolName | group_by(.) | map({tool: .[0], count: length})
+```
+
+### MCP 输出控制
+
+1. **单一格式**：仅支持 JSONL
+2. **默认输出限制**：50KB（max_output_bytes=51200）
+3. **截断策略**：保留完整 JSONL 行 + 截断警告
+4. **统计模式**：
+   - `stats_only=true`：仅返回统计（如 `{"tool":"Bash","count":311}`）
+   - `stats_first=true`：先统计后详情（用 `---` 分隔）
+
 ### 默认查询范围
 
 - ✅ **默认查询范围为项目级**（所有会话）
 - ✅ 工具名带 `_session` 后缀表示**仅查询当前会话**
 - ✅ 保持 API 清晰：无后缀 = 项目级，`_session` = 会话级
-- ✅ 利用 `--project .` 标志实现跨会话查询
 
-**工具命名约定：**
+**工具命名约定**：
 
 | 项目级（默认） | 会话级 | 说明 |
 |--------------|--------|------|
 | `query_tools` | `query_tools_session` | 工具调用查询 |
-| `analyze_errors` | `analyze_errors_session` | 错误分析 |
 | `query_user_messages` | `query_user_messages_session` | 用户消息搜索 |
 | `get_stats` | `get_session_stats` | 统计信息 |
-
-**设计理由：**
-- 元认知需要跨会话分析（发现长期模式）
-- 用户期望 MCP 提供项目全局视角
-- 会话级查询作为快速上下文检索的补充
 
 ---
 
@@ -127,75 +163,52 @@ meta-cc CLI 是系统的核心，提供清晰、简洁的对外接口：
 
 **1. MCP Server（核心层）**
 
-MCP 是 Claude Code 应用 meta-cc 的核心方式：
-
-- ✅ 作为 meta-cc 能力的主要接入点
-- ✅ Claude 可自主决策何时调用 MCP 工具
-- ✅ 提供项目级和会话级数据访问
-- ✅ 支持自然语言查询转换为 CLI 调用
+- ✅ meta-cc-mcp 作为主要接入点
+- ✅ Claude 自主决策何时调用
+- ✅ 支持 jq 表达式过滤和统计
+- ✅ 项目级/会话级数据访问
 
 **MCP 职责**：
-- 将自然语言查询映射到 meta-cc CLI 命令
-- 返回结构化数据供 Claude 分析
-- 处理复杂的跨会话查询
+- 调用 meta-cc CLI 获取原始数据
+- 使用 gojq 应用 jq_filter 过滤
+- 统计聚合（stats_only/stats_first）
+- 输出长度控制（max_output_bytes）
 
 **2. Subagents（语义层）**
 
-Subagents 基于 MCP 能力，提供更高层次的语义能力：
-
-- ✅ 调用 MCP 工具获取数据
-- ✅ 结合命令行工具（jq/awk/grep）进行数据处理
-- ✅ 利用 LLM 推理能力进行语义分析
-- ✅ 可嵌套调用其他 subagents 形成复杂工作流
+- ✅ **@meta-query**：组织 CLI + Unix 管道进行复杂聚合
+- ✅ **@meta-coach**：语义分析和建议生成（调用 MCP 或 @meta-query）
+- ✅ 可嵌套调用形成复杂工作流
 
 **Subagent 职责**：
-- 语义理解和分析（如错误模式识别）
-- 建议生成和优先级判断
-- 上下文关联和推理
-- 引导式对话和反思
+- @meta-query：多步 Unix 管道（jq/awk/sort/uniq）
+- @meta-coach：语义理解、上下文关联、建议生成
 
-**示例**：`@meta-coach` subagent
-- 通过 MCP 获取会话历史数据
-- 分析工作模式和效率瓶颈
-- 提供分层建议（立即/可选/长期）
-- 协助实施优化（修改配置、创建命令）
+**使用决策**：
+- 单步 jq 可完成 → 使用 MCP
+- 多步 Unix 管道 → 使用 @meta-query
 
 **3. Slash Commands（快捷层）**
 
-Slash Commands 是优先级最低的集成方式：
-
-- ✅ 直接调用 meta-cc CLI（不通过 MCP）
-- ✅ 提供快速统计和简单分析
-- ✅ 适合重复性、可预测的查询
-
-**Slash Command 职责**：
-- 快速统计信息展示（如 `/meta-stats`）
-- 简单错误分析（如 `/meta-errors`）
-- 固定格式的报告生成
-
-**限制**：
-- 不能自主决策查询范围
-- 不支持复杂的多步推理
-- 输出格式相对固定
+- ✅ 直接调用 meta-cc CLI
+- ✅ 固定格式的快速报告
+- ✅ 适合重复性查询
 
 ### 集成层次对比
 
-| 特性 | MCP Server | Subagents | Slash Commands |
-|------|-----------|-----------|----------------|
-| 优先级 | 最高（核心） | 高（语义层） | 低（快捷层） |
-| 调用方式 | Claude 自主决策 | 用户显式调用 `@` | 用户显式调用 `/` |
-| 数据访问 | 通过 MCP 协议 | 通过 MCP + CLI | 直接调用 CLI |
-| 语义能力 | 中（查询映射） | 高（推理+嵌套） | 低（固定逻辑） |
-| 灵活性 | 高 | 最高 | 低 |
-| 使用场景 | 自然查询 | 复杂分析 | 快速统计 |
+| 特性 | MCP Server | @meta-query | @meta-coach | Slash Commands |
+|------|-----------|-------------|-------------|----------------|
+| 调用方式 | Claude 自主 | 用户 `@` | 用户 `@` | 用户 `/` |
+| 查询能力 | jq 过滤/统计 | Unix 管道 | 语义分析 | 固定逻辑 |
+| 输出控制 | ✅ 内置 | 手动 | - | 固定 |
+| 使用场景 | 80%常见查询 | 20%复杂管道 | 分析建议 | 快速统计 |
 
 ### 分离的好处
 
-1. **性能**：CLI 处理纯数据，速度快
-2. **成本**：不为简单统计调用 LLM
-3. **可测试性**：CLI 输出确定性，易于测试
-4. **灵活性**：同一份数据，可被多个上层工具复用
-5. **可组合性**：各层可独立演进，按需组合
+1. **职责清晰**：CLI（数据）→ MCP（过滤）→ Subagent（语义）
+2. **性能优化**：gojq 库处理过滤，避免多次调用 CLI
+3. **可测试性**：各层独立，易于测试
+4. **灵活性**：MCP 覆盖常见场景，@meta-query 处理复杂场景
 
 ---
 
