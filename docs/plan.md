@@ -91,18 +91,20 @@ card "Phase 14" as P14 #yellow {
   - 代码重复消除
 }
 
-card "Phase 15" as P15 #lightgray {
-  **索引功能**
-  - SQLite 索引
-  - 跨会话查询
-  - 索引维护
+card "Phase 15" as P15 #lightyellow {
+  **MCP 工具完善**
+  - 补全缺失工具
+  - 简化工具描述
+  - 移除语义分析工具
+  - MCP 文档优化
 }
 
-card "Phase 16" as P16 #lightgray {
-  **Subagent 增强**
-  - @meta-coach 迭代分析
-  - 自动化建议
-  - 工作流优化
+card "Phase 16" as P16 #lightgreen {
+  **Subagent 实现**
+  - @meta-coach 核心
+  - @error-analyst 专用
+  - @workflow-tuner 专用
+  - 嵌套调用测试
 }
 
 P0 -down-> P8
@@ -113,6 +115,7 @@ P11 -down-> P12
 P12 -down-> P13
 P13 -down-> P14
 P14 -down-> P15
+P15 -down-> P16
 
 note right of P0
   **业务闭环完成**
@@ -124,19 +127,20 @@ note right of P9
   应对大会话场景
 end note
 
-note right of P14
-  **完整生态系统**
-  高级分析能力
+note right of P16
+  **完整架构实现**
+  数据层 + MCP + Subagent
 end note
 
 @enduml
 ```
 
 **Phase 优先级分类**：
-- ✅ **已完成** (Phase 0-7): MVP 核心功能
-- 🔵 **高优先级** (Phase 8-9): 核心查询和上下文管理
+- ✅ **已完成** (Phase 0-9): MVP + 核心查询 + 上下文管理
 - 🟡 **中优先级** (Phase 10-11): 高级查询和可组合性
-- ⚪ **低优先级** (Phase 12-14): 便利性和生态增强
+- 🟢 **高优先级** (Phase 12-14): 输出简化 + 架构重构 + MCP 项目级
+- 🟡 **中优先级** (Phase 15): MCP 工具完善
+- 🟢 **高优先级** (Phase 16): Subagent 语义层实现
 
 ---
 
@@ -1149,9 +1153,7 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 ---
 
-## 未来 Phase（新增）
-
-### Phase 8: 查询命令基础 & 集成改进（Query Foundation & Integration Improvements）
+## Phase 8: 查询命令基础 & 集成改进（Query Foundation & Integration Improvements）
 
 **目标**：实现 `meta-cc query` 命令组的核心查询能力，并更新现有集成（包括 MCP Server）以使用 Phase 8 功能
 
@@ -1532,7 +1534,7 @@ meta-cc query tools --where "invalid syntax" --output tsv
 
 ---
 
-### Phase 14: 架构重构与职责清晰化（Architecture Refactoring）
+## Phase 14: 架构重构与职责清晰化（Architecture Refactoring）
 
 **目标**：重构命令实现以消除代码重复，明确 meta-cc 职责边界，统一输出确定性
 
@@ -1549,34 +1551,14 @@ meta-cc query tools --where "invalid syntax" --output tsv
 - ✅ **代码重用优先**：消除跨命令的重复逻辑（~345 行重复代码）
 - ✅ **延迟决策**：将过滤、窗口、格式化等决策推给下游工具/LLM
 
-**核心问题分析**：
-```
-问题 1: 代码重复率 30%
-- 定位会话代码: ~10 行 × 5 命令 = 50 行
-- JSONL 解析: ~8 行 × 5 命令 = 40 行
-- Turn 索引构建: ~15 行 × 3 命令 = 45 行
-- 过滤逻辑: ~20 行 × 3 命令 = 60 行
-- 输出格式化: ~30 行 × 5 命令 = 150 行
-→ 总重复: ~345 行
+### Stage 14.1: Pipeline 抽象层
 
-问题 2: errors 命令职责越界（317 行 → 应为 50 行）
-- 窗口分析应由 LLM 决策
-- SHA256 签名过度工程（简化为 tool+error 组合）
-- 模式计数应交给 jq 等工具
-
-问题 3: query-tools 输出非确定性
-- Go map 迭代顺序随机
-- 需要强制按 UUID 排序
-```
-
-**Stage 划分**：
-
-**Stage 14.1: Pipeline 抽象层**
+**任务**：
 - 提取通用 `SessionPipeline` 类型
 - 实现 `Load()`, `ExtractEntries()`, `BuildIndex()` 方法
 - 统一会话定位和 JSONL 解析逻辑
 
-交付物：
+**交付物**：
 ```go
 // pkg/pipeline/session.go (~120 行)
 type SessionPipeline struct {
@@ -1591,48 +1573,53 @@ func (p *SessionPipeline) ExtractEntries(filter EntryFilter) []parser.Entry
 func (p *SessionPipeline) BuildTurnIndex() map[string]int
 ```
 
-**Stage 14.2: errors 命令简化**
-- 移除窗口过滤逻辑（`--window` 参数废弃）
-- 简化错误签名：`{tool}:{error_prefix}` 替代 SHA256
-- 移除模式计数和分组（交给 `jq 'group_by(.Signature) | map({sig: .[0].Signature, count: length})'`）
-- 输出简单错误列表（JSONL）
+**测试**：
+```bash
+go test ./pkg/pipeline -v
+# 验证 Pipeline 单元测试覆盖率 ≥90%
+```
 
-改进前后对比：
+### Stage 14.2: errors 命令简化
+
+**任务**：
+- 移除 `analyze errors` 命令的窗口过滤逻辑
+- 简化错误签名：`{tool}:{error_prefix}` 替代 SHA256
+- 移除模式计数和分组（交给 `jq`）
+- `query errors` 输出简单错误列表（JSONL）
+
+**改进对比**：
 ```bash
 # 改进前（meta-cc 决策分析范围）
 meta-cc analyze errors --window 50
 # 输出: 聚合后的错误模式（包含计数、首次/最后出现）
 
-# 改进后（meta-cc 仅提取，LLM 决策）
+# 改进后（meta-cc 仅提取，jq 决策）
 meta-cc query errors | jq '.[length-50:]' | jq 'group_by(.Signature)'
 # meta-cc 输出全部错误，jq 负责窗口选择和聚合
 ```
 
-交付物：
-```go
-// cmd/query_errors.go (~80 行，vs 原 317 行）
-type ErrorEntry struct {
-    UUID      string
-    Timestamp string
-    ToolName  string
-    Error     string
-    Signature string  // "{tool}:{error[:50]}"
-}
+**交付物**：
+- `cmd/query_errors.go` (~80 行，vs 原 `analyze errors` 317 行）
+- `query errors` 命令文档更新
+- 迁移指南（从 `analyze errors` 到 `query errors`）
 
-func runQueryErrors(cmd *cobra.Command, args []string) error {
-    session := pipeline.NewSessionPipeline(globalOpts).Load(loadOpts)
-    errors := session.ExtractErrors()  // 简单列表，无聚合
-    return output.Format(errors, outputOpts)
-}
+**测试**：
+```bash
+# 验证输出与 analyze errors 等价（经 jq 处理后）
+meta-cc query errors | jq 'group_by(.Signature)' > /tmp/new.json
+meta-cc analyze errors --window 0 > /tmp/old.json
+diff /tmp/new.json /tmp/old.json
 ```
 
-**Stage 14.3: 输出排序标准化**
+### Stage 14.3: 输出排序标准化
+
+**任务**：
 - 为所有 `query` 命令添加默认排序
 - `query tools` → 按 `Timestamp` 排序
 - `query messages` → 按 `turn_sequence` 排序
 - `query errors` → 按 `Timestamp` 排序
 
-交付物：
+**交付物**：
 ```go
 // pkg/output/sort.go (~50 行)
 func SortByTimestamp(data interface{}) interface{}
@@ -1640,12 +1627,24 @@ func SortByTurnSequence(data interface{}) interface{}
 func SortByUUID(data interface{}) interface{}
 ```
 
-**Stage 14.4: 代码重复消除**
+**测试**：
+```bash
+# 验证输出确定性（多次运行结果一致）
+for i in {1..10}; do
+  meta-cc query tools > /tmp/run-$i.jsonl
+done
+# 所有文件应完全相同
+diff /tmp/run-*.jsonl
+```
+
+### Stage 14.4: 代码重复消除
+
+**任务**：
 - 统一输出逻辑到 `output.Format()`
 - 重构 5 个命令使用 `SessionPipeline`
 - 移除重复的会话定位和解析代码
 
-改进前后代码量对比：
+**改进前后代码量**：
 ```
 命令            改进前    改进后    减少
 -----------------------------------------
@@ -1658,35 +1657,310 @@ timeline        ~120 行   ~50 行   -58%
 总计            1194 行   340 行   -72%
 ```
 
-**应用场景**：
-- **简化维护**：新增命令复用 Pipeline，减少 70% 样板代码
-- **职责清晰**：meta-cc 不做分析决策，专注数据提取
-- **确定性输出**：CI/CD 环境中输出稳定可比较
-- **Unix 组合**：`meta-cc query errors | jq/awk` 灵活分析
+**测试**：
+```bash
+# 验证重构后功能一致性
+./test-scripts/validate-meta-cc.sh
+# 验证代码减少 ≥60%
+git diff --stat HEAD~1 HEAD | grep "deletions"
+```
 
-**验证测试**：
-- 所有命令输出与重构前一致（排序后比较）
-- Pipeline 单元测试覆盖率 ≥90%
-- 验证脚本（`test-scripts/validate-meta-cc.sh`）100% 通过
-- 代码行数减少 ≥60%
+**Phase 14 完成标准**：
+- ✅ Pipeline 抽象层实现并通过测试（覆盖率 ≥90%）
+- ✅ `query errors` 替代 `analyze errors`（提供迁移文档）
+- ✅ 所有 query 命令输出稳定排序
+- ✅ 代码行数减少 ≥60%
+- ✅ 所有单元测试和集成测试通过
 
 **向后兼容性**：
-- ⚠️ `analyze errors` 命令输出格式变化（从聚合模式列表 → 简单错误列表）
-- ⚠️ `--window` 参数移除（用 `jq` 或 `head -n` 替代）
-- ✅ 其他命令输出内容不变（仅排序顺序变化）
-- 📝 需更新文档说明迁移路径
+- ⚠️ `analyze errors` 命令标记为 deprecated（保留 1-2 个版本）
+- ⚠️ `--window` 参数移除（文档说明用 `jq` 替代）
+- ✅ 其他命令输出内容不变（仅排序顺序固定）
 
-**架构优势**：
+---
+
+## Phase 15: MCP 工具完善与优化（MCP Tools Enhancement）
+
+**目标**：补全未暴露的 CLI 功能到 MCP，优化工具描述，移除语义分析类工具
+
+**代码量**：~300 行
+
+**优先级**：中（完善 MCP 生态，提升可用性）
+
+**状态**：待实施
+
+### Stage 15.1: 添加缺失的 MCP 工具
+
+**任务**：
+- 添加 `query_errors` MCP 工具（映射到 `query errors` CLI）
+- 添加 `query_workflow_patterns` MCP 工具（映射到 `analyze sequences` CLI）
+- 添加 `query_file_hotspots` MCP 工具（映射到 `analyze file-churn` CLI）
+
+**交付物**：
+```go
+// cmd/mcp_tools.go 新增工具定义
+{
+    "name": "query_errors",
+    "description": "Query tool errors with optional filters. Returns error list without aggregation (use jq for grouping).",
+    "inputSchema": {
+        "scope": scopeProperty,
+        "limit": limitProperty,
+        "output_format": outputFormatProperty,
+    },
+}
 ```
-改进前：
-  每个命令独立实现 → 345 行重复代码 → 维护成本高
 
-改进后：
-  SessionPipeline (120 行)
-      ↓
-  5 个命令共享 (avg 68 行/命令)
-      ↓
-  总代码减少 72%，可维护性提升
+**测试**：
+```bash
+# 验证 MCP 工具可调用
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_errors","arguments":{"limit":10}}}' | meta-cc mcp
+```
+
+### Stage 15.2: 简化 MCP 工具描述
+
+**任务**：
+- 精简所有 MCP 工具描述至 100 字符以内
+- 分离"用途说明"和"使用场景"（后者移到文档）
+- 统一描述格式：`<动作> <对象> <范围说明>`
+
+**改进对比**：
+```go
+// 改进前（200+ 字符）
+"description": "Analyze error patterns across project history (repeated failures, tool-specific errors, temporal trends). Default project-level scope enables discovery of persistent issues across sessions. Use for meta-cognition: identifying systematic workflow problems, debugging recurring issues, or tracking error resolution over time."
+
+// 改进后（简洁）
+"description": "Query errors across project history. Default scope: project (cross-session analysis)."
+```
+
+**交付物**：
+- 更新所有 14 个 MCP 工具描述
+- `docs/mcp-tools-reference.md` 完整文档（包含使用场景）
+
+### Stage 15.3: 移除语义分析类工具
+
+**任务**：
+- 移除 `query_successful_prompts` MCP 工具（需要质量评分，属语义分析）
+- 简化 `query_project_state` 为仅返回文件列表（移除"未完成任务"分析）
+- 标记 `analyze_errors` 为 deprecated（推荐使用 `query_errors`）
+
+**迁移指南**：
+```markdown
+# 迁移 query_successful_prompts
+改用 @prompt-advisor subagent（Phase 16）
+
+# 迁移 analyze_errors
+改用 query_errors（Phase 14）
+```
+
+**交付物**：
+- 更新 `cmd/mcp_tools.go`（移除/简化工具）
+- 迁移文档（`docs/mcp-migration-guide.md`）
+
+### Stage 15.4: MCP 工具文档优化
+
+**任务**：
+- 创建 `docs/mcp-tools-reference.md` 完整参考
+- 为每个工具添加使用场景和示例
+- 说明 MCP vs Subagent 的选择标准
+
+**交付物**：
+```markdown
+# docs/mcp-tools-reference.md
+
+## query_errors
+**用途**：查询工具错误历史
+**范围**：项目级（默认）/ 会话级（scope=session）
+**使用场景**：
+- 快速定位最近错误
+- 检索特定工具的失败记录
+- 为 @error-analyst 提供数据输入
+
+**示例**：
+Claude: "Show me the last 10 errors"
+→ 调用 query_errors(limit=10, scope="session")
+```
+
+**Phase 15 完成标准**：
+- ✅ 补全 3 个缺失的 MCP 工具
+- ✅ 所有工具描述 ≤100 字符
+- ✅ 移除 2 个语义分析类工具
+- ✅ 完整的 MCP 工具参考文档
+- ✅ MCP 集成测试通过
+
+---
+
+## Phase 16: Subagent 实现（Subagent Implementation）
+
+**目标**：实现语义分析层 Subagents，提供端到端的元认知分析能力
+
+**代码量**：~800 行（配置 + 文档）
+
+**优先级**：高（完成语义层，实现完整架构）
+
+**状态**：待实施
+
+**设计原则**：
+- ✅ Subagents 负责语义理解、推理、建议生成
+- ✅ 调用 MCP 工具获取数据，不直接调用 CLI
+- ✅ 支持多轮对话和上下文关联
+- ✅ 可嵌套调用其他 Subagents
+
+### Stage 16.1: @meta-coach 核心 Subagent
+
+**任务**：
+- 创建 `.claude/subagents/meta-coach.md`
+- 实现工作流优化、元认知反思、分层建议生成
+- 支持调用所有 MCP 工具和嵌套 Subagents
+
+**交付物**：
+```markdown
+# .claude/subagents/meta-coach.md
+---
+name: meta-coach
+description: 元认知分析和工作流优化顾问
+allowed_tools: [all MCP tools, @error-analyst, @workflow-tuner]
+---
+
+你是 meta-coach，负责分析用户在 Claude Code 中的工作模式并提供优化建议。
+
+## 核心能力
+1. 调用 MCP 工具获取会话/项目数据
+2. 分析工作模式和效率瓶颈
+3. 提供分层建议（立即/可选/长期）
+4. 协助实施优化（创建 Hooks/Commands/Subagents）
+
+## 工作流程
+1. 询问用户分析目标（工作流/错误/效率）
+2. 调用相应 MCP 工具获取数据
+3. 分析并生成建议（必要时调用专用 Subagents）
+4. 与用户确认并协助实施
+
+## 示例对话
+User: "帮我分析这个会话的错误模式"
+@meta-coach:
+1. 调用 query_errors(scope="session")
+2. 发现 3 个 Read 工具重复失败
+3. 调用 @error-analyst 深度分析
+4. 建议：添加文件存在检查 Hook
+```
+
+**测试**：
+```bash
+# 在 Claude Code 中测试
+User: "@meta-coach 分析当前会话的工作效率"
+# 验证 Subagent 调用 MCP 工具并生成建议
+```
+
+### Stage 16.2: @error-analyst 专用 Subagent
+
+**任务**：
+- 创建错误深度分析 Subagent
+- 分析错误模式、根本原因、系统性问题
+- 生成修复建议和预防措施
+
+**交付物**：
+```markdown
+# .claude/subagents/error-analyst.md
+---
+name: error-analyst
+description: 错误模式深度分析专家
+allowed_tools: [query_errors, query_context, query_file_access]
+---
+
+你是 error-analyst，专注于分析错误模式和根本原因。
+
+## 分析流程
+1. 调用 query_errors 获取错误列表
+2. 使用 query_context 获取错误上下文
+3. 分析错误类型：配置问题/依赖缺失/代码错误/架构问题
+4. 生成分类报告和修复优先级
+
+## 输出格式
+- 错误分类（配置/依赖/代码/架构）
+- 根本原因分析
+- 修复优先级（P0/P1/P2）
+- 预防建议
+```
+
+### Stage 16.3: @workflow-tuner 工作流优化 Subagent
+
+**任务**：
+- 创建工作流自动化建议 Subagent
+- 检测重复模式，建议创建 Hooks/Slash Commands
+- 生成自动化配置草稿
+
+**交付物**：
+```markdown
+# .claude/subagents/workflow-tuner.md
+---
+name: workflow-tuner
+description: 工作流自动化顾问
+allowed_tools: [query_workflow_patterns, query_file_hotspots, query_tool_sequences]
+---
+
+你是 workflow-tuner，帮助用户自动化重复工作流。
+
+## 检测模式
+1. 调用 query_tool_sequences 检测重复序列（如 Read→Edit→Bash）
+2. 调用 query_file_hotspots 识别频繁修改文件
+3. 分析是否值得自动化（出现次数 ≥5）
+
+## 建议类型
+- Slash Command：固定流程（如代码审查）
+- Hook：自动触发（如提交前测试）
+- Subagent：复杂决策（如智能重构）
+
+## 输出
+- 自动化建议（类型、触发条件、优先级）
+- 配置草稿（.md 文件内容）
+- 实施步骤
+```
+
+### Stage 16.4: 集成测试和文档
+
+**任务**：
+- 测试 Subagent 嵌套调用（@meta-coach → @error-analyst）
+- 验证 MCP 工具调用正确性
+- 创建完整使用文档
+
+**交付物**：
+- `docs/subagents-guide.md`：Subagent 使用指南
+- `docs/subagents-development.md`：创建自定义 Subagent 指南
+- 集成测试脚本
+
+**测试场景**：
+```bash
+# 测试 1: 端到端错误分析
+User: "@meta-coach 分析最近的错误"
+验证: meta-coach → query_errors → @error-analyst → 分类报告
+
+# 测试 2: 工作流优化建议
+User: "@workflow-tuner 有什么可以自动化的？"
+验证: workflow-tuner → query_tool_sequences → 建议列表
+
+# 测试 3: 嵌套调用
+User: "@meta-coach 全面分析项目健康度"
+验证: meta-coach → @error-analyst + @workflow-tuner → 综合报告
+```
+
+**Phase 16 完成标准**：
+- ✅ @meta-coach 核心 Subagent 实现
+- ✅ @error-analyst 专用 Subagent 实现
+- ✅ @workflow-tuner 专用 Subagent 实现
+- ✅ 嵌套调用测试通过
+- ✅ 完整的 Subagent 使用文档
+- ✅ 至少 3 个端到端测试场景通过
+
+**架构完整性**：
+```
+数据层（meta-cc CLI）
+  ↓ 提供结构化数据
+MCP 层（14 个工具）
+  ↓ 供 Claude/Subagents 调用
+Subagent 层（@meta-coach, @error-analyst, @workflow-tuner）
+  ↓ 语义理解 + 建议生成
+用户
+  ↓ 获得元认知洞察和优化建议
 ```
 
 ---
@@ -1694,262 +1968,42 @@ timeline        ~120 行   ~50 行   -58%
 ## 测试策略
 
 ### 单元测试
-- 每个 Stage 必须有对应的单元测试
-- 测试覆盖率目标：≥ 80%
-- 使用 `go test ./...` 运行所有测试
+- 每个 Stage 对应单元测试，覆盖率 ≥80%
+- 使用 `go test ./...` 运行
 
 ### 集成测试
 - 每个 Phase 结束后运行集成测试
-- 使用真实的会话文件 fixture
-- 验证命令端到端流程
+- 使用真实会话文件 fixture（`tests/fixtures/`）
 
-### Claude Code 验证测试
-```bash
-# 测试环境准备
-mkdir -p test-workspace/.claude/commands
-cp .claude/commands/*.md test-workspace/.claude/commands/
-
-# 非交互模式测试
-cd test-workspace
-claude -p "Test /meta-stats command and verify output"
-
-# 交互模式手动测试（每个 Phase 结束）
-# 在 Claude Code 中打开 test-workspace 项目
-# 手动输入 /meta-stats 和 /meta-errors
-```
-
-### 测试数据管理
-- 测试 fixture 存放在 `tests/fixtures/`
-- 使用真实的（脱敏的）Claude Code 会话文件
-- 包含多种场景：正常会话、错误重复、工具密集使用等
+### Claude Code 验证
+- Slash Commands: 在 Claude Code 中手动测试
+- MCP Server: 验证工具调用和输出正确性
+- Subagents: 测试多轮对话和嵌套调用
 
 ---
 
-## 项目里程碑
+## 关键里程碑
 
-```plantuml
-@startuml
-!theme plain
-
-gantt
-    title meta-cc 开发时间表
-    dateFormat YYYY-MM-DD
-
-    section Phase 0
-    项目初始化         :p0, 2025-01-01, 2d
-
-    section Phase 1
-    会话文件定位       :p1, after p0, 3d
-
-    section Phase 2
-    JSONL 解析器      :p2, after p1, 3d
-
-    section Phase 3
-    数据提取命令       :p3, after p2, 3d
-
-    section Phase 4
-    统计分析命令       :p4, after p3, 2d
-
-    section Phase 5
-    错误模式分析       :p5, after p4, 3d
-
-    section Phase 6
-    Slash Commands   :p6, after p5, 2d
-
-    section 里程碑
-    MVP 完成          :milestone, after p6, 0d
-
-@enduml
-```
-
-**预计总开发时间**：18 天（约 2.5 周）
-
-**关键里程碑**：
-- Day 2: 项目骨架完成，可构建
-- Day 5: 会话文件定位完成
-- Day 8: 解析器完成
-- Day 11: 数据提取功能完成
-- Day 13: 统计分析完成
-- Day 16: 错误分析完成
-- Day 18: **MVP 完成，业务闭环**
-
----
-
-## README.md 维护策略
-
-每个 Phase 完成后，README.md 应包含：
-
-1. **安装**：如何构建和安装 meta-cc
-2. **快速开始**：最简单的使用示例
-3. **命令参考**：当前已实现的所有命令
-4. **集成指南**：如何在 Claude Code 中使用（Phase 6 后）
-5. **故障排查**：常见问题和解决方案
-6. **开发指南**：如何运行测试、贡献代码
-
-**模板结构**：
-```markdown
-# meta-cc
-
-## 安装
-...
-
-## 快速开始
-...
-
-## 命令参考
-### parse extract
-...
-
-### parse stats
-...
-
-## Claude Code 集成
-...
-
-## 开发
-...
-```
-
----
-
-## 风险和缓解措施
-
-| 风险 | 影响 | 缓解措施 |
-|------|------|----------|
-| Claude Code 会话文件格式变化 | 高 | 使用真实文件测试，版本化 fixture |
-| 环境变量不可用 | 中 | 提供多种定位方式（参数、路径推断） |
-| 测试覆盖不足 | 中 | TDD 强制要求，每个 Stage 先写测试 |
-| Phase 代码量超标 | 低 | 每个 Stage 结束检查行数，及时拆分 |
-| Claude Code 集成失败 | 高 | Phase 6 前在测试环境充分验证 |
+| Phase | 里程碑 | 说明 |
+|-------|--------|------|
+| 0-6 | MVP 完成 | 可在 Claude Code 中使用（Slash Commands） |
+| 7 | MCP 原生实现 | 14 个 MCP 工具可用 |
+| 8-9 | 核心查询完成 | 应对大会话，分页/分片/投影 |
+| 10-13 | 高级功能 | 聚合统计、项目级查询、输出简化 |
+| 14 | 架构重构 | Pipeline 抽象，代码减少 72% |
+| 15-16 | **完整架构** | MCP 优化 + Subagent 语义层 |
 
 ---
 
 ## 总结
 
-本计划将 meta-cc 项目分为 6 个核心 Phase，每个 Phase 不超过 500 行代码，采用 TDD 方法开发。Phase 6 完成后即可在 Claude Code 中使用，实现业务闭环。后续 Phase 7-10 为可选扩展功能。
+meta-cc 项目采用 TDD 和渐进式交付：
+- Phase 0-6 (MVP): 业务闭环，可用
+- Phase 7-9: 核心能力完善
+- Phase 10-13: 高级功能和优化
+- **Phase 14-16: 架构重构和语义层实现（完整三层架构）**
 
-**下一步**：~~开始 Phase 0.1 - Go 模块初始化~~
-
----
-
-## 实施总结（Phase 0-7）
-
-### 完整集成完成情况
-
-**✅ 已完成的 Phases**：
-- Phase 0: 项目初始化（Go 模块、测试框架、构建脚本）
-- Phase 1: 会话文件定位（多策略定位，基于 cwd 自动检测）
-- Phase 2: JSONL 解析器（Entry 解析、ToolCall 提取）
-- Phase 3: 数据提取命令（parse extract、输出格式化、过滤器）
-- Phase 4: 统计分析（parse stats、会话指标、工具频率）
-- Phase 5: 错误模式分析（analyze errors、签名检测、模式识别）
-- Phase 6: Claude Code 集成（Slash Commands、集成测试、文档）
-- Phase 7: MCP Server 实现（原生 JSON-RPC 2.0 协议，3 个工具）
-
-**📊 项目统计**：
-- 总代码行数：~2,750 行（Go 源码 + 测试）
-- 单元测试：66 个（100% 通过）
-- 测试覆盖率：96-97%（核心模块）
-- Slash Commands：2 个（`/meta-stats`, `/meta-errors`）
-- MCP Tools：3 个（`get_session_stats`, `analyze_errors`, `extract_tools`）
-- 文档：README.md + troubleshooting.md + 集成测试脚本
-
-**🎯 真实项目验证**：
-- meta-cc: 2,563 turns, 971 tool calls, 0% error rate
-- NarrativeForge: 2,032 turns, 750 tool calls, 0% error rate
-- claude-tmux: 299 turns, 108 tool calls, 0% error rate
-
-### 关键技术发现
-
-**1. 会话定位机制**
-- ❌ Claude Code 不提供 `CC_SESSION_ID` / `CC_PROJECT_HASH` 环境变量
-- ✅ 使用 `os.Getwd()` + 路径哈希实现自动检测
-- ✅ 路径哈希算法：简单替换 `/` 为 `-`（与 Claude Code 一致）
-- ✅ 最新会话选择：按文件修改时间排序
-
-**2. JSONL 结构理解**
-- Entry 类型：`user`, `assistant`, `file-history-snapshot`
-- Tool 调用模式：`tool_use` → `tool_result` 配对（通过 `tool_use_id`）
-- 错误识别：`ToolResult.Status` 字段（可能为空字符串表示成功）
-
-**3. 错误模式检测**
-- 签名算法：SHA256(tool_name + error_text[:100])，取前 16 字符
-- 模式阈值：≥3 次出现视为重复错误
-- 时间跨度：计算首次/最后出现的时间差
-
-**4. Slash Commands 集成**
-- 执行环境：Bash 工具的 cwd = 项目根目录
-- 无需参数：meta-cc 自动检测机制完美适配
-- 错误处理：检查 meta-cc 是否安装，提供友好提示
-
-**5. MCP Server 实现** (Phase 7)
-- 协议：JSON-RPC 2.0（MCP 规范 2024-11-05）
-- 传输：stdio（标准输入/输出）
-- 架构：直接在 Go 中实现，无需 Node.js/Shell 包装器
-- 工具数量：3 个（stats, errors, tools）
-- 命令调用：内部复用 CLI 逻辑（通过 os.Stdout 重定向）
-
-### 架构优势验证
-
-**✅ 职责分离有效**：
-- CLI 工具：纯数据处理，无 LLM 调用，性能优异
-- Claude 集成：语义理解、建议生成（通过 Slash Commands）
-- 数据流清晰：JSONL → meta-cc → JSON → Claude → 用户
-
-**✅ TDD 开发成功**：
-- 每个 Stage 先写测试，后写实现
-- 测试覆盖率高，代码质量好
-- 重构容易，回归测试保护
-
-**✅ 渐进式实施**：
-- Phase 0-6 完成 MVP，业务闭环
-- 索引功能（Phase 7+）作为可选优化
-- 每个 Phase 独立可用，增量交付
-
-### 下一步计划（可选扩展）
-
-**Phase 7: 索引优化**（1 周）
-- SQLite 全量/增量索引
-- 跨会话查询命令
-- 性能优化（大会话支持）
-
-**Phase 8: 高级分析**（1-2 周）
-- 工具序列模式检测
-- 时间线可视化
-- 性能指标分析
-
-**Phase 9: Subagent 集成**（1-2 周）
-- @meta-coach 对话式分析
-- 工作流优化建议
-- 自动创建 Hooks/Commands
-
-**Phase 10: MCP Server**（1-2 周）
-- MCP 协议实现
-- 工具定义和注册
-- Claude Code MCP 集成
-
----
-
-## 经验总结
-
-**成功要素**：
-1. **文档驱动**：详细的 plan.md 和 proposal.md 指导实施
-2. **TDD 方法**：测试先行，确保质量
-3. **真实验证**：使用真实项目数据测试
-4. **渐进交付**：每个 Phase 独立可用
-5. **灵活适配**：发现环境变量不存在后快速调整策略
-
-**待改进项**：
-1. CSV 输出格式未实现（优先级低）
-2. 索引功能作为可选扩展
-3. 更多 Slash Commands（如 `/meta-timeline`）
-4. 性能优化（大会话文件 >10MB）
-
-**核心价值实现**：
-- ✅ 零配置使用（自动检测）
-- ✅ 多项目支持（--project 参数）
-- ✅ 准确分析（0% 错误，3 个项目验证）
-- ✅ Claude Code 原生集成（Slash Commands）
-- ✅ 完整文档（README + troubleshooting）
-
-**🎉 MVP 里程碑达成！**
+**三层架构完成标志**：
+```
+数据层（CLI）→ MCP 层（14 工具）→ Subagent 层（@meta-coach 等）
+```
