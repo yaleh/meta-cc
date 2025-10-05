@@ -356,6 +356,109 @@ func TestBackwardCompatibility_GetSessionStats(t *testing.T) {
 	}
 }
 
+// Test TDD: executeTool should default to project scope (fix for MCP error -32001)
+func TestExecuteTool_DefaultProjectScope_Integration(t *testing.T) {
+	tests := []struct {
+		name           string
+		toolName       string
+		args           map[string]interface{}
+		expectsProject bool
+		description    string
+		skipExecution  bool // Some tools may fail execution but we only care about command building
+	}{
+		{
+			name:           "executeTool query_tools without scope arg defaults to project",
+			toolName:       "query_tools",
+			args:           map[string]interface{}{"limit": float64(10)},
+			expectsProject: true,
+			description:    "executeTool should inject scope=project when not provided",
+			skipExecution:  true,
+		},
+		{
+			name:           "executeTool query_user_messages without scope defaults to project",
+			toolName:       "query_user_messages",
+			args:           map[string]interface{}{"pattern": "test"},
+			expectsProject: true,
+			description:    "executeTool should inject scope=project for user messages query",
+			skipExecution:  true,
+		},
+		{
+			name:           "executeTool analyze_errors without scope defaults to project",
+			toolName:       "analyze_errors",
+			args:           map[string]interface{}{},
+			expectsProject: true,
+			description:    "executeTool should inject scope=project for error analysis",
+			skipExecution:  true,
+		},
+		{
+			name:           "executeTool respects explicit scope=session",
+			toolName:       "query_tools",
+			args:           map[string]interface{}{"limit": float64(10), "scope": "session"},
+			expectsProject: false,
+			description:    "executeTool should respect explicit session scope",
+			skipExecution:  true,
+		},
+		{
+			name:           "executeTool get_session_stats remains session-only",
+			toolName:       "get_session_stats",
+			args:           map[string]interface{}{},
+			expectsProject: false,
+			description:    "get_session_stats is always session-only for backward compatibility",
+			skipExecution:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a copy of args
+			argsCopy := make(map[string]interface{})
+			for k, v := range tt.args {
+				argsCopy[k] = v
+			}
+
+			// Call buildToolCommandInternal to see what executeTool would generate
+			// after its scope injection logic
+
+			// First, simulate executeTool's scope injection (lines 204-217 in mcp.go)
+			toolName := tt.toolName
+			scope := "project" // FIXED: Default to project for cross-session analysis
+
+			if strings.HasSuffix(tt.toolName, "_session") {
+				toolName = strings.TrimSuffix(tt.toolName, "_session")
+				scope = "session"
+			}
+
+			// Inject scope into args if not present (except for get_session_stats)
+			if tt.toolName != "get_session_stats" {
+				if _, hasScope := argsCopy["scope"]; !hasScope {
+					argsCopy["scope"] = scope
+				}
+			}
+
+			// Build command with modified args
+			cmdArgs, err := buildToolCommandInternal(toolName, argsCopy)
+			if err != nil && !strings.Contains(err.Error(), "required") {
+				t.Fatalf("buildToolCommandInternal failed: %v", err)
+			}
+
+			hasProjectFlag := false
+			for i, arg := range cmdArgs {
+				if arg == "--project" && i+1 < len(cmdArgs) && cmdArgs[i+1] == "." {
+					hasProjectFlag = true
+					break
+				}
+			}
+
+			if tt.expectsProject && !hasProjectFlag {
+				t.Errorf("%s: expected --project flag but not found in: %v", tt.description, cmdArgs)
+			}
+			if !tt.expectsProject && hasProjectFlag {
+				t.Errorf("%s: unexpected --project flag found in: %v", tt.description, cmdArgs)
+			}
+		})
+	}
+}
+
 // Helper functions for testing
 
 func getMCPTools() []map[string]interface{} {

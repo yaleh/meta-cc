@@ -54,8 +54,14 @@ func (l *SessionLocator) FromSessionID(sessionID string) (string, error) {
 // 2. 定位 ~/.claude/projects/{hash}/
 // 3. 返回该目录下最新的 .jsonl 文件
 func (l *SessionLocator) FromProjectPath(projectPath string) (string, error) {
+	// 解析相对路径为绝对路径（如 "." -> "/home/yale/work/meta-cc"）
+	absPath, err := filepath.Abs(projectPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve project path: %w", err)
+	}
+
 	// 计算项目哈希
-	projectHash := pathToHash(projectPath)
+	projectHash := pathToHash(absPath)
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -79,6 +85,44 @@ func (l *SessionLocator) FromProjectPath(projectPath string) (string, error) {
 
 	// 返回最新的会话文件
 	return findNewestFile(sessions)
+}
+
+// AllSessionsFromProject 通过项目路径查找所有会话文件
+// 1. 将项目路径转换为哈希（/ → -）
+// 2. 定位 ~/.claude/projects/{hash}/
+// 3. 返回该目录下所有 .jsonl 文件的路径
+func (l *SessionLocator) AllSessionsFromProject(projectPath string) ([]string, error) {
+	// 解析相对路径为绝对路径（如 "." -> "/home/yale/work/meta-cc"）
+	absPath, err := filepath.Abs(projectPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve project path: %w", err)
+	}
+
+	// 计算项目哈希
+	projectHash := pathToHash(absPath)
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	if _, err := os.Stat(sessionDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("no sessions found for project: %s (hash: %s)", projectPath, projectHash)
+	}
+
+	// 查找所有 .jsonl 文件
+	sessions, err := filepath.Glob(filepath.Join(sessionDir, "*.jsonl"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to search session files: %w", err)
+	}
+
+	if len(sessions) == 0 {
+		return nil, fmt.Errorf("no session files found in: %s", sessionDir)
+	}
+
+	// 返回所有会话文件
+	return sessions, nil
 }
 
 // pathToHash 将项目路径转换为哈希目录名

@@ -201,20 +201,16 @@ func categorizeErrorType(err error) string {
 func executeTool(name string, args map[string]interface{}) (string, error) {
 	// Phase 12 Revision: Map _session suffix to scope parameter
 	toolName := name
-	scope := "session" // Default to session for backward compatibility
+	scope := "project" // Phase 13: Default to project for cross-session analysis
 
 	// Handle legacy _session suffix tools
 	if strings.HasSuffix(name, "_session") {
 		toolName = strings.TrimSuffix(name, "_session")
 		scope = "session"
-		// Inject scope into args if not present
-		if _, hasScope := args["scope"]; !hasScope {
-			args["scope"] = scope
-		}
-	} else if name != "get_session_stats" {
-		// Non-_session tools default to project scope (Phase 12 design)
-		// But we maintain session default for backward compatibility
-		// Users can explicitly set scope=project in args
+	}
+
+	// Inject scope into args if not present (except for get_session_stats)
+	if name != "get_session_stats" {
 		if _, hasScope := args["scope"]; !hasScope {
 			args["scope"] = scope
 		}

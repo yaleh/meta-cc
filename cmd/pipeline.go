@@ -36,27 +36,55 @@ func NewSessionPipeline(opts GlobalOptions) *SessionPipeline {
 	}
 }
 
-// Load locates and loads the session JSONL file
+// Load locates and loads the session JSONL file(s)
+// If ProjectPath is set and SessionOnly is false, loads ALL sessions from the project.
+// Otherwise, loads only the latest (or specified) session.
 func (p *SessionPipeline) Load(loadOpts LoadOptions) error {
-	// 1. Locate session file
 	loc := locator.NewSessionLocator()
 
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   p.opts.SessionID,
-		ProjectPath: p.opts.ProjectPath,
-		SessionOnly: p.opts.SessionOnly,
-	})
-	if err != nil {
-		return fmt.Errorf("session location failed: %w", err)
-	}
+	// Determine if we should load multiple sessions (project-level mode)
+	shouldLoadAllSessions := p.opts.ProjectPath != "" && !p.opts.SessionOnly && p.opts.SessionID == ""
 
-	p.session = sessionPath
+	if shouldLoadAllSessions {
+		// Project-level mode: load ALL sessions from project
+		sessionPaths, err := loc.AllSessionsFromProject(p.opts.ProjectPath)
+		if err != nil {
+			return fmt.Errorf("failed to locate project sessions: %w", err)
+		}
 
-	// 2. Parse JSONL
-	sessionParser := parser.NewSessionParser(sessionPath)
-	p.entries, err = sessionParser.ParseEntries()
-	if err != nil {
-		return fmt.Errorf("JSONL parsing failed: %w", err)
+		// Parse and merge all sessions
+		var allEntries []parser.SessionEntry
+		for _, sessionPath := range sessionPaths {
+			sessionParser := parser.NewSessionParser(sessionPath)
+			entries, err := sessionParser.ParseEntries()
+			if err != nil {
+				return fmt.Errorf("JSONL parsing failed for %s: %w", sessionPath, err)
+			}
+			allEntries = append(allEntries, entries...)
+		}
+
+		p.entries = allEntries
+		p.session = fmt.Sprintf("<project:%s (%d sessions)>", p.opts.ProjectPath, len(sessionPaths))
+
+	} else {
+		// Session-level mode: load single session (latest or specified)
+		sessionPath, err := loc.Locate(locator.LocateOptions{
+			SessionID:   p.opts.SessionID,
+			ProjectPath: p.opts.ProjectPath,
+			SessionOnly: p.opts.SessionOnly,
+		})
+		if err != nil {
+			return fmt.Errorf("session location failed: %w", err)
+		}
+
+		p.session = sessionPath
+
+		// Parse JSONL
+		sessionParser := parser.NewSessionParser(sessionPath)
+		p.entries, err = sessionParser.ParseEntries()
+		if err != nil {
+			return fmt.Errorf("JSONL parsing failed: %w", err)
+		}
 	}
 
 	return nil
