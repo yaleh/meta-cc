@@ -1,13 +1,15 @@
 ---
 name: meta-query-tools
-description: 快速查询工具调用，支持按工具名、状态过滤（Phase 8 增强）
+description: 快速查询当前项目最新会话的工具调用（Phase 13：默认项目级）
 allowed_tools: [Bash]
 argument-hint: [tool-name] [status] [limit]
 ---
 
 # meta-query-tools: 工具调用快速查询
 
-使用 Phase 8 query 命令快速查询工具调用，无需记住复杂语法。
+Phase 13 更新：默认分析当前项目的最新会话。
+
+使用 query 命令快速查询工具调用，无需记住复杂语法。
 
 ## 用法
 

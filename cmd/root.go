@@ -14,6 +14,7 @@ var (
 	sessionID    string
 	projectPath  string
 	outputFormat string
+	sessionOnly  bool // Phase 13: Force session-only analysis (opt-out of project default)
 
 	// Phase 9.1: Pagination and size estimation flags
 	limitFlag        int
@@ -75,7 +76,8 @@ func init() {
 
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&sessionID, "session", "", "Session ID (or use $CC_SESSION_ID)")
-	rootCmd.PersistentFlags().StringVar(&projectPath, "project", "", "Project path")
+	rootCmd.PersistentFlags().StringVar(&projectPath, "project", "", "Project path (defaults to current directory)")
+	rootCmd.PersistentFlags().BoolVar(&sessionOnly, "session-only", false, "Analyze current session only (opt-out of project-level default)")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "jsonl", "Output format: jsonl|tsv")
 
 	// Phase 9.1: Pagination and size estimation flags

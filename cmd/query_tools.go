@@ -55,7 +55,9 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 	loc := locator.NewSessionLocator()
 	sessionPath, err := loc.Locate(locator.LocateOptions{
 		SessionID:   sessionID,
-		ProjectPath: projectPath,
+		ProjectPath: projectPath, // from global parameter
+		SessionOnly: sessionOnly,  // Phase 13: opt-out of project default
+
 	})
 	if err != nil {
 		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)

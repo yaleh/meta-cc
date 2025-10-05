@@ -1,12 +1,14 @@
 ---
 name: meta-stats
-description: 显示当前 Claude Code 会话的统计信息（Turn 数量、工具使用频率、错误率、会话时长等）
+description: 显示当前项目最新会话的统计信息（Phase 13：默认项目级，可用 --session-only 切换到仅当前会话）
 allowed_tools: [Bash]
 ---
 
 # meta-stats：会话统计分析
 
-运行以下命令获取当前会话的统计信息：
+Phase 13 更新：默认分析当前项目的最新会话。使用 `--session-only` 标志切换到仅分析当前会话。
+
+运行以下命令获取会话的统计信息：
 
 ```bash
 # 检查 meta-cc 是否安装

@@ -1,15 +1,15 @@
 ---
 name: meta-timeline
-description: 生成当前会话的时间线视图，显示工具使用和错误的时序分布 (Phase 8 增强：支持分页)
+description: 生成当前项目最新会话的时间线视图（Phase 13：默认项目级）
 allowed_tools: [Bash]
 argument-hint: [limit]
 ---
 
 # meta-timeline：会话时间线视图
 
-**Phase 8 增强**: 现在使用 `query tools` 命令，支持高效分页，避免大会话上下文溢出。
+**Phase 13 更新**: 默认分析当前项目的最新会话。使用 `query tools` 命令，支持高效分页。
 
-生成当前会话的时间线，可视化展示工具使用和错误分布。
+生成会话的时间线，可视化展示工具使用和错误分布。
 
 ```bash
 # 检查 meta-cc 是否安装

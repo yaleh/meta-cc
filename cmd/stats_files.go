@@ -61,7 +61,9 @@ func runStatsFiles(cmd *cobra.Command, args []string) error {
 	loc := locator.NewSessionLocator()
 	sessionPath, err := loc.Locate(locator.LocateOptions{
 		SessionID:   sessionID,
-		ProjectPath: projectPath,
+		ProjectPath: projectPath, // from global parameter
+		SessionOnly: sessionOnly,  // Phase 13: opt-out of project default
+
 	})
 	if err != nil {
 		return fmt.Errorf("failed to locate session: %w", err)

@@ -1,13 +1,15 @@
 ---
 name: meta-errors
-description: 分析当前 Claude Code 会话中的错误模式，检测重复出现的错误（可选参数：window-size）
+description: 分析当前项目最新会话中的错误模式（Phase 13：默认项目级，可选参数：window-size）
 allowed_tools: [Bash]
 argument-hint: [window-size]
 ---
 
 # meta-errors：错误模式分析
 
-分析当前会话中的错误模式，检测重复出现的错误（出现 3 次以上）。
+Phase 13 更新：默认分析当前项目的最新会话。使用 `meta-cc --session-only analyze errors` 切换到仅当前会话。
+
+分析会话中的错误模式，检测重复出现的错误（出现 3 次以上）。
 
 ```bash
 # 检查 meta-cc 是否安装

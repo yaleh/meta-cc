@@ -1,13 +1,15 @@
 ---
 name: meta-query-messages
-description: 搜索用户消息，支持正则表达式匹配（Phase 8 增强）
+description: 搜索当前项目最新会话的用户消息（Phase 13：默认项目级）
 allowed_tools: [Bash]
 argument-hint: [pattern] [limit]
 ---
 
 # meta-query-messages: 用户消息搜索
 
-使用 Phase 8 query 命令搜索用户消息，支持正则表达式模式匹配。
+Phase 13 更新：默认分析当前项目的最新会话。
+
+使用 query 命令搜索用户消息，支持正则表达式模式匹配。
 
 ## 用法
 
