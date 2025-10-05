@@ -76,8 +76,8 @@ get_jsonl_files() {
         fi
         echo "$path"
     elif [ -d "$path" ]; then
-        # Project scope: all .jsonl files in directory
-        local files=$(find "$path" -maxdepth 1 -name "*.jsonl" -type f | sort -r | head -1)
+        # Project scope: get latest .jsonl file by modification time
+        local files=$(ls -t "$path"/*.jsonl 2>/dev/null | head -1)
         if [ -z "$files" ]; then
             error "No .jsonl files found in directory: $path"
         fi
@@ -288,7 +288,85 @@ cmd_errors() {
 }
 
 cmd_query_tools() {
-    error "Command 'query-tools' not implemented yet"
+    if [ $# -lt 1 ]; then
+        error "Usage: $SCRIPT_NAME query-tools <path> [filter] [limit]"
+    fi
+
+    local path="$1"
+    local filter="${2:-}"
+    local limit="${3:-20}"
+    local jsonl_file=$(get_jsonl_files "$path")
+
+    info "Processing: $jsonl_file"
+    info "Filter: ${filter:-all}, Limit: $limit"
+
+    # Step 1: Extract all tool_use entries with their context
+    local tool_use_map=$(jq -c '
+        select(.type == "assistant") |
+        .uuid as $uuid |
+        .timestamp as $ts |
+        .message.content[]? |
+        select(.type == "tool_use") |
+        {
+            id: .id,
+            UUID: $uuid,
+            Timestamp: $ts,
+            ToolName: .name,
+            Input: .input
+        }
+    ' "$jsonl_file")
+
+    # Step 2: Extract all tool_result entries
+    local tool_result_map=$(jq -c '
+        select(.type == "user") |
+        .message.content[]? |
+        select(.type == "tool_result") |
+        {
+            tool_use_id: .tool_use_id,
+            Output: (.content // ""),
+            Error: (if .is_error == true then (.content // "error") else "" end),
+            Status: (if .is_error == true then "error" else "" end)
+        }
+    ' "$jsonl_file")
+
+    # Step 3: Merge tool_use and tool_result by ID
+    # This is complex in bash, so we'll use jq to do the join
+    local merged=$(jq -n \
+        --argjson tool_uses "$(echo "$tool_use_map" | jq -s '.')" \
+        --argjson tool_results "$(echo "$tool_result_map" | jq -s '.')" \
+        '
+        # Create lookup map for tool_results by tool_use_id
+        ($tool_results | map({key: .tool_use_id, value: .}) | from_entries) as $result_map |
+        # Iterate over tool_uses and merge with results
+        $tool_uses | map(
+            . as $use |
+            ($result_map[$use.id] // {Output: "", Error: "", Status: ""}) as $result |
+            {
+                UUID: $use.UUID,
+                ToolName: $use.ToolName,
+                Input: $use.Input,
+                Output: $result.Output,
+                Status: $result.Status,
+                Error: $result.Error,
+                Timestamp: $use.Timestamp
+            }
+        )
+    ')
+
+    # Apply filter if provided
+    if [ -n "$filter" ]; then
+        merged=$(echo "$merged" | jq -c --arg filter "$filter" '
+            map(select(.ToolName == $filter)) | .[]
+        ')
+    else
+        merged=$(echo "$merged" | jq -c '.[]')
+    fi
+
+    # Apply limit
+    local result=$(echo "$merged" | head -n "$limit")
+
+    # Output as JSONL (one object per line)
+    echo "$result"
 }
 
 cmd_query_messages() {
