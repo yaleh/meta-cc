@@ -1,0 +1,303 @@
+#!/bin/bash
+# validate-meta-cc.sh - Unix-based validation script for meta-cc
+# Validates meta-cc output by processing raw JSONL files with traditional Unix tools
+#
+# Usage:
+#   ./validate-meta-cc.sh <command> <path> [args...]
+#
+# Where <path> can be:
+#   - A directory (project scope): Process all .jsonl files in directory
+#   - A file (session scope): Process single .jsonl file
+#
+# Commands:
+#   stats <path>                   - Calculate session statistics
+#   errors <path> [window]         - Analyze error patterns
+#   query-tools <path> [filter]    - Query tool calls
+#   query-messages <path> [pattern]- Search user messages
+#   timeline <path> [limit]        - Generate timeline view
+
+set -euo pipefail
+
+VERSION="1.0.0"
+SCRIPT_NAME=$(basename "$0")
+
+# Color output helpers
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Helper functions
+error() {
+    echo -e "${RED}❌ Error: $1${NC}" >&2
+    exit 1
+}
+
+warn() {
+    echo -e "${YELLOW}⚠️  Warning: $1${NC}" >&2
+}
+
+info() {
+    echo -e "${BLUE}ℹ️  $1${NC}" >&2
+}
+
+success() {
+    echo -e "${GREEN}✅ $1${NC}" >&2
+}
+
+# Check if required tools are available
+check_dependencies() {
+    local missing_tools=()
+
+    for tool in jq grep sed awk bc; do
+        if ! command -v "$tool" &> /dev/null; then
+            missing_tools+=("$tool")
+        fi
+    done
+
+    if [ ${#missing_tools[@]} -gt 0 ]; then
+        error "Missing required tools: ${missing_tools[*]}"
+    fi
+}
+
+# Determine scope (session vs project) and get JSONL files
+get_jsonl_files() {
+    local path="$1"
+
+    if [ ! -e "$path" ]; then
+        error "Path does not exist: $path"
+    fi
+
+    if [ -f "$path" ]; then
+        # Session scope: single file
+        if [[ "$path" != *.jsonl ]]; then
+            error "File must be a .jsonl file: $path"
+        fi
+        echo "$path"
+    elif [ -d "$path" ]; then
+        # Project scope: all .jsonl files in directory
+        local files=$(find "$path" -maxdepth 1 -name "*.jsonl" -type f | sort -r | head -1)
+        if [ -z "$files" ]; then
+            error "No .jsonl files found in directory: $path"
+        fi
+        echo "$files"
+    else
+        error "Invalid path type: $path"
+    fi
+}
+
+# Show usage
+usage() {
+    cat <<EOF
+Usage: $SCRIPT_NAME <command> <path> [args...]
+
+Validate meta-cc output using traditional Unix tools.
+
+ARGUMENTS:
+  <path>        Path to session file (.jsonl) or project directory
+
+COMMANDS:
+  stats <path>
+      Calculate session statistics
+
+  errors <path> [window]
+      Analyze error patterns
+      Args: window - Number of recent turns to analyze (default: 20)
+
+  query-tools <path> [filter] [limit]
+      Query tool calls
+      Args: filter - Tool name or status (default: all)
+            limit - Max results (default: 20)
+
+  query-messages <path> [pattern] [limit]
+      Search user messages with regex
+      Args: pattern - Regex pattern (default: .*)
+            limit - Max results (default: 10)
+
+  timeline <path> [limit]
+      Generate timeline view
+      Args: limit - Number of recent turns (default: 50)
+
+EXAMPLES:
+  # Session scope (single file)
+  $SCRIPT_NAME stats ~/.claude/projects/abc-def/session-123.jsonl
+
+  # Project scope (directory - uses latest session)
+  $SCRIPT_NAME stats ~/.claude/projects/abc-def
+  $SCRIPT_NAME errors . 30
+  $SCRIPT_NAME query-tools . Bash 10
+
+OPTIONS:
+  -h, --help    Show this help message
+  -v, --version Show version
+
+EOF
+}
+
+# Main command dispatcher
+main() {
+    # Check dependencies first
+    check_dependencies
+
+    # Parse arguments
+    if [ $# -eq 0 ]; then
+        usage
+        exit 0
+    fi
+
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -v|--version)
+            echo "$SCRIPT_NAME version $VERSION"
+            exit 0
+            ;;
+        stats)
+            shift
+            cmd_stats "$@"
+            ;;
+        errors)
+            shift
+            cmd_errors "$@"
+            ;;
+        query-tools)
+            shift
+            cmd_query_tools "$@"
+            ;;
+        query-messages)
+            shift
+            cmd_query_messages "$@"
+            ;;
+        timeline)
+            shift
+            cmd_timeline "$@"
+            ;;
+        *)
+            error "Unknown command: $1. Use --help for usage."
+            ;;
+    esac
+}
+
+# Command implementations
+
+# stats - Calculate session statistics
+cmd_stats() {
+    if [ $# -lt 1 ]; then
+        error "Usage: $SCRIPT_NAME stats <path>"
+    fi
+
+    local path="$1"
+    local jsonl_file=$(get_jsonl_files "$path")
+
+    info "Processing: $jsonl_file"
+
+    # Extract all message entries (filter by type: "user" or "assistant")
+    local entries=$(jq -c 'select(.type == "user" or .type == "assistant")' "$jsonl_file")
+
+    # Count turns
+    local total_turns=$(echo "$entries" | wc -l)
+    local user_turns=$(echo "$entries" | jq -s '[.[] | select(.type == "user")] | length')
+    local assistant_turns=$(echo "$entries" | jq -s '[.[] | select(.type == "assistant")] | length')
+
+    # Calculate duration (first to last timestamp)
+    local first_ts=$(echo "$entries" | head -1 | jq -r '.timestamp // empty')
+    local last_ts=$(echo "$entries" | tail -1 | jq -r '.timestamp // empty')
+    local duration_seconds=0
+
+    if [ -n "$first_ts" ] && [ -n "$last_ts" ]; then
+        local first_epoch=$(date -d "$first_ts" +%s 2>/dev/null || echo 0)
+        local last_epoch=$(date -d "$last_ts" +%s 2>/dev/null || echo 0)
+        duration_seconds=$((last_epoch - first_epoch))
+    fi
+
+    # Extract tool calls from assistant message content blocks
+    local tool_calls=$(echo "$entries" | jq -c '
+        select(.type == "assistant") |
+        .message.content[]? |
+        select(.type == "tool_use" or .type == "tool_result") |
+        {
+            type: .type,
+            name: (.name // .tool_name // "unknown"),
+            id: .id,
+            status: (if .is_error == true then "error" elif .error then "error" else "success" end)
+        }
+    ')
+
+    local tool_call_count=$(echo "$tool_calls" | jq -s '[.[] | select(.type == "tool_use")] | length')
+    local error_count=$(echo "$tool_calls" | jq -s '[.[] | select(.status == "error")] | length')
+    local error_rate=0
+
+    if [ "$tool_call_count" -gt 0 ]; then
+        error_rate=$(echo "scale=2; ($error_count * 100) / $tool_call_count" | bc)
+    fi
+
+    # Calculate tool frequency
+    local tool_frequency=$(echo "$tool_calls" | jq -s '
+        [.[] | select(.type == "tool_use")] |
+        group_by(.name) |
+        map({
+            key: .[0].name,
+            value: length
+        }) |
+        sort_by(.value) |
+        reverse
+    ')
+
+    # Calculate top tools with percentages
+    local top_tools=$(echo "$tool_calls" | jq -s --argjson total "$tool_call_count" '
+        [.[] | select(.type == "tool_use")] |
+        group_by(.name) |
+        map({
+            Name: .[0].name,
+            Count: length,
+            Percentage: (if $total > 0 then ((length / $total) * 100 | floor) else 0 end)
+        }) |
+        sort_by(.Count) |
+        reverse
+    ')
+
+    # Output JSONL format
+    jq -n \
+        --argjson turn_count "$total_turns" \
+        --argjson user_turn_count "$user_turns" \
+        --argjson assistant_turn_count "$assistant_turns" \
+        --argjson tool_call_count "$tool_call_count" \
+        --argjson error_count "$error_count" \
+        --argjson error_rate "$error_rate" \
+        --argjson duration_seconds "$duration_seconds" \
+        --argjson tool_frequency "$tool_frequency" \
+        --argjson top_tools "$top_tools" \
+        '{
+            TurnCount: $turn_count,
+            UserTurnCount: $user_turn_count,
+            AssistantTurnCount: $assistant_turn_count,
+            ToolCallCount: $tool_call_count,
+            ErrorCount: $error_count,
+            ErrorRate: $error_rate,
+            DurationSeconds: $duration_seconds,
+            ToolFrequency: ($tool_frequency | from_entries),
+            TopTools: $top_tools
+        }'
+}
+
+cmd_errors() {
+    error "Command 'errors' not implemented yet"
+}
+
+cmd_query_tools() {
+    error "Command 'query-tools' not implemented yet"
+}
+
+cmd_query_messages() {
+    error "Command 'query-messages' not implemented yet"
+}
+
+cmd_timeline() {
+    error "Command 'timeline' not implemented yet"
+}
+
+# Run main
+main "$@"
