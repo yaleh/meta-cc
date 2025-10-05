@@ -27,7 +27,7 @@ type CommandBuilder struct {
 func NewCommandBuilder(parts ...string) *CommandBuilder {
 	return &CommandBuilder{
 		baseCmd:      parts,
-		scope:        "session", // Default to session scope
+		scope:        "project", // Default to project scope (Phase 12: cross-session analysis)
 		filters:      make(map[string]string),
 		params:       make(map[string]string),
 		outputFormat: "jsonl", // Phase 13: default to jsonl
@@ -119,7 +119,7 @@ func (b *CommandBuilder) Build() []string {
 func BuildToolCommand(toolName string, args map[string]interface{}) ([]string, error) {
 	// Extract common parameters
 	outputFormat := getStringArg(args, "output_format", "jsonl")
-	scope := getStringArg(args, "scope", "session") // Phase 12: default to session for backward compat
+	scope := getStringArg(args, "scope", "project") // Phase 12: default to project for cross-session analysis
 
 	// Route to appropriate builder based on tool name
 	switch toolName {

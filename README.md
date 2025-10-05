@@ -788,52 +788,64 @@ If these environment variables are unavailable, meta-cc will automatically fall 
 
 meta-cc integrates with Claude Code in three ways:
 
-- **MCP Server**: Seamless data access (Claude queries autonomously) - **16 tools available** (Phase 12: project-level + session-level)
+- **MCP Server**: Seamless data access (Claude queries autonomously) - **14 tools available** (Phase 13: unified scope parameter)
 - **Slash Commands**: Quick, pre-defined workflows (`/meta-stats`, `/meta-errors`, `/meta-query-tools`)
 - **Subagent** (`@meta-coach`): Interactive, conversational analysis with Phase 10 capabilities
 
 **👉 See the [Integration Guide](./docs/integration-guide.md)** for detailed comparison, decision framework, and best practices.
 
-### Phase 12: Project-Level vs Session-Level Queries
+### Phase 13: Consolidated Scope Parameter Design
 
-Phase 12 introduces **dual-scope querying** for deeper metacognitive insights:
+Phase 13 consolidates the dual-scope approach into a **unified `scope` parameter** for cleaner API:
 
-**Project-Level Tools** (query all sessions):
+**All MCP tools** (except `get_session_stats` for backward compatibility) now support a `scope` parameter:
+- **`scope: "project"`** (default) - Query across all project sessions for meta-cognition insights
+- **`scope: "session"`** - Limit query to current session only
+
+**Example usage**:
+```javascript
+// Project-level analysis (default) - discovers patterns across all sessions
+meta-cc.query_tools({ tool: "Bash", status: "error" })
+// Equivalent to: { scope: "project", tool: "Bash", status: "error" }
+
+// Session-only analysis - focuses on current session
+meta-cc.query_tools({ scope: "session", tool: "Bash", status: "error" })
 ```
-get_stats, analyze_errors, query_tools, query_user_messages,
-query_tool_sequences, query_file_access, query_successful_prompts, query_context
-```
 
-**Session-Level Tools** (query current session only):
-```
-get_session_stats, analyze_errors_session, query_tools_session, query_user_messages_session,
-query_tool_sequences_session, query_file_access_session, query_successful_prompts_session, query_context_session
-```
+**Why project-level default?**
+- **Meta-cognition requires cross-session analysis** to identify long-term patterns
+- Discover recurring errors, workflow evolution, and systematic improvement opportunities
+- Session-level analysis available via explicit `scope: "session"` when needed
 
-**Use project-level tools** to analyze long-term patterns, recurring errors, and workflow evolution.
-**Use session-level tools** for focused debugging, quick summaries, and immediate context.
+**Backward compatibility**:
+- Legacy `_session` suffix tools (e.g., `query_tools_session`) automatically map to `scope: "session"`
+- `get_session_stats` remains session-only for compatibility
 
-**👉 See the [MCP Project Scope Guide](./docs/mcp-project-scope.md)** for detailed usage examples and best practices.
+**👉 See the [MCP Project Scope Guide](./docs/mcp-project-scope.md)** for detailed usage examples and migration guide.
 
 ### MCP Tools Summary
 
-The MCP Server includes **16 tools** across multiple phases:
+The MCP Server includes **14 consolidated tools** with unified scope parameter:
 
-**Phase 8 Tools** (10 tools):
-- Core query tools: `get_session_stats`, `analyze_errors`, `extract_tools`, `query_tools`, `query_user_messages`
-- Advanced queries: `query_context`, `query_tool_sequences`, `query_file_access`, `query_project_state`, `query_successful_prompts`
+**Phase 8 Core Tools** (10 tools with `scope` parameter):
+- `get_session_stats` - Session statistics (backward compat: session-only)
+- `analyze_errors` - Error pattern analysis (default: project-wide)
+- `extract_tools` - Tool call history export (default: project-wide)
+- `query_tools` - Tool usage queries with filters (default: project-wide)
+- `query_user_messages` - Message search with regex (default: project-wide)
+- `query_context` - Error context analysis (default: project-wide)
+- `query_tool_sequences` - Workflow pattern detection (default: project-wide)
+- `query_file_access` - File operation history (default: project-wide)
+- `query_project_state` - Project state timeline (default: project-wide)
+- `query_successful_prompts` - Successful prompt patterns (default: project-wide)
 
-**Phase 10 Tools** (4 tools):
-- `query_tools_advanced` - SQL-like filtering
-- `aggregate_stats` - Statistical aggregation
-- `query_time_series` - Time series analysis
-- `query_files` - File-level statistics
+**Phase 10 Advanced Tools** (4 tools with `scope` parameter):
+- `query_tools_advanced` - SQL-like filtering (default: project-wide)
+- `aggregate_stats` - Statistical aggregation (default: project-wide)
+- `query_time_series` - Time series analysis (default: project-wide)
+- `query_files` - File-level statistics (default: project-wide)
 
-**Phase 12 Tools** (adds dual-scope querying):
-- **8 Project-level tools** (query all sessions): `get_stats`, `analyze_errors`, `query_tools`, etc.
-- **8 Session-level tools** (current session only): `get_session_stats`, `analyze_errors_session`, `query_tools_session`, etc.
-
-**Total**: 16 tools (8 project-level + 8 session-level)
+**Total**: 14 tools (13 with scope parameter + 1 session-only for backward compatibility)
 
 See [MCP Usage Guide](./docs/mcp-usage.md) and [MCP Project Scope Guide](./docs/mcp-project-scope.md) for complete documentation.
 

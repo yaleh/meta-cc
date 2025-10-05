@@ -4,11 +4,12 @@ package cmd
 // Phase 12 Revision: Consolidate _session tools into scope parameter
 func getConsolidatedToolsList() []map[string]interface{} {
 	// Common scope property for all tools (except get_session_stats for backward compat)
+	// Phase 12: Default to 'project' for cross-session meta-cognition analysis
 	scopeProperty := map[string]interface{}{
 		"type":        "string",
 		"enum":        []string{"session", "project"},
-		"default":     "session",
-		"description": "Query scope: 'session' for current session only, 'project' for all sessions in project",
+		"default":     "project",
+		"description": "Query scope: 'project' (default) enables cross-session pattern discovery, 'session' limits to current session only. Project-level analysis is recommended for meta-cognition insights.",
 	}
 
 	outputFormatProperty := map[string]interface{}{
@@ -33,7 +34,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		// Core analysis tools with scope parameter
 		{
 			"name":        "analyze_errors",
-			"description": "Analyze error patterns (repeated failures, tool-specific errors). Use for investigating error trends or debugging recurring issues. Supports project-wide analysis or session-only via scope parameter.",
+			"description": "Analyze error patterns across project history (repeated failures, tool-specific errors, temporal trends). Default project-level scope enables discovery of persistent issues across sessions. Use for meta-cognition: identifying systematic workflow problems, debugging recurring issues, or tracking error resolution over time.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -44,7 +45,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		},
 		{
 			"name":        "extract_tools",
-			"description": "Extract tool call history with pagination. Use for bulk data export or analyzing tool usage patterns. Supports project-wide or session-only scope.",
+			"description": "Extract tool call history across all project sessions with pagination. Default project-level scope provides complete workflow timeline for pattern analysis. Use for meta-cognition: discovering tool usage evolution, identifying workflow optimization opportunities, or exporting data for external analysis.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -62,7 +63,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		// Query tools with scope parameter
 		{
 			"name":        "query_tools",
-			"description": "Query tool call history with filters (tool name, status, time range). Use for investigating specific tool usage patterns or debugging errors. Supports filtering by tool name and execution status.",
+			"description": "Query tool call history across project with filters (tool name, status). Default project-level scope reveals cross-session usage patterns and trends. Use for meta-cognition: analyzing tool effectiveness over time, identifying frequently failing operations, or understanding workflow evolution. Supports filtering by tool name and execution status.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -87,7 +88,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		},
 		{
 			"name":        "query_user_messages",
-			"description": "Search user messages using regex patterns. Use for finding specific prompts, reviewing conversation history, or analyzing prompt patterns. Returns user messages matching the pattern with context.",
+			"description": "Search user messages across all project sessions using regex patterns. Default project-level scope enables discovery of recurring prompt patterns and intent evolution. Use for meta-cognition: analyzing how your questions change over time, identifying successful prompt strategies, or reviewing conversation context across sessions.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -108,7 +109,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		},
 		{
 			"name":        "query_context",
-			"description": "Query context around specific errors (turns before/after error occurrence). Use for understanding error context and debugging specific failure patterns.",
+			"description": "Query context around specific errors across project history (turns before/after error occurrence). Default project-level scope helps identify if error patterns recur in similar contexts across sessions. Use for meta-cognition: understanding systematic causes of errors, recognizing environmental triggers, or comparing error contexts over time.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -129,7 +130,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		},
 		{
 			"name":        "query_tool_sequences",
-			"description": "Query repeated tool call sequences (workflow patterns). Use for identifying common workflows, automation opportunities, or inefficient tool usage patterns.",
+			"description": "Query repeated tool call sequences across project history (workflow patterns like 'Read->Edit->Bash'). Default project-level scope reveals your evolved workflow habits and automation opportunities. Use for meta-cognition: discovering repetitive patterns worth automating, identifying inefficient workflows, or understanding how your tool usage evolves.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -149,7 +150,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		},
 		{
 			"name":        "query_file_access",
-			"description": "Query file operation history (read/edit/write operations on specific files). Use for tracking file modification history or understanding file-level workflows.",
+			"description": "Query file operation history across project (read/edit/write operations on specific files). Default project-level scope shows complete file evolution timeline. Use for meta-cognition: identifying frequently churned files, understanding refactoring patterns, or tracking file modification frequency over time.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -165,7 +166,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		},
 		{
 			"name":        "query_project_state",
-			"description": "Query current project state from session (active files, pending tasks, recent changes). Use for understanding project status or generating contextual recommendations.",
+			"description": "Query project state evolution across all sessions (active files, task progression, change patterns). Default project-level scope provides comprehensive project timeline. Use for meta-cognition: understanding how project focus shifts over time, tracking long-term progress, or identifying stalled initiatives.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -176,7 +177,7 @@ func getConsolidatedToolsList() []map[string]interface{} {
 		},
 		{
 			"name":        "query_successful_prompts",
-			"description": "Query historically successful prompt patterns (prompts that led to successful outcomes). Use for learning effective prompting strategies or generating prompt suggestions.",
+			"description": "Query historically successful prompt patterns across all project sessions (prompts that led to successful outcomes). Default project-level scope identifies your most effective prompting strategies over time. Use for meta-cognition: learning what prompt patterns work best for you, improving future interactions, or generating prompt templates.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{

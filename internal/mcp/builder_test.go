@@ -71,10 +71,10 @@ func TestCommandBuilderDefaults(t *testing.T) {
 		expected []string
 	}{
 		{
-			name: "default scope is session",
+			name: "default scope is project",
 			builder: NewCommandBuilder("query", "tools").
 				WithOutputFormat("jsonl"),
-			expected: []string{"query", "tools", "--output", "jsonl"},
+			expected: []string{"--project", ".", "query", "tools", "--output", "jsonl"},
 		},
 		{
 			name: "default output format is jsonl",
@@ -87,7 +87,7 @@ func TestCommandBuilderDefaults(t *testing.T) {
 			builder: NewCommandBuilder("query", "tools").
 				WithLimit(0).
 				WithOutputFormat("jsonl"),
-			expected: []string{"query", "tools", "--output", "jsonl"},
+			expected: []string{"--project", ".", "query", "tools", "--output", "jsonl"},
 		},
 	}
 

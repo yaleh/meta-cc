@@ -113,7 +113,8 @@ func handleToolsCall(req jsonRPCRequest) {
 	output, err := executeTool(params.Name, params.Arguments)
 	if err != nil {
 		code := categorizeError(err)
-		sendError(req.ID, code, categorizeMessage(err), err.Error())
+		errType := categorizeErrorType(err)
+		sendErrorWithType(req.ID, code, errType, categorizeMessage(err), err.Error())
 		return
 	}
 
@@ -173,6 +174,26 @@ func categorizeMessage(err error) string {
 		return "Invalid parameter value"
 	default:
 		return "Tool execution failed"
+	}
+}
+
+// categorizeErrorType provides string error type codes for better error categorization
+// This complements the numeric JSON-RPC error codes with semantic type identifiers
+func categorizeErrorType(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	errMsg := err.Error()
+	switch {
+	case strings.Contains(errMsg, "session location failed") || strings.Contains(errMsg, "not found"):
+		return "SESSION_NOT_FOUND"
+	case strings.Contains(errMsg, "no results") || strings.Contains(errMsg, "empty"):
+		return "NO_RESULTS"
+	case strings.Contains(errMsg, "required") || strings.Contains(errMsg, "invalid"):
+		return "INVALID_PARAMS"
+	default:
+		return "EXECUTION_FAILED"
 	}
 }
 
@@ -292,6 +313,23 @@ func sendError(id interface{}, code int, message string, data interface{}) {
 		ID:      id,
 		Error: map[string]interface{}{
 			"code":    code,
+			"message": message,
+			"data":    data,
+		},
+	}
+	jsonData, _ := json.Marshal(resp)
+	fmt.Println(string(jsonData))
+}
+
+// sendErrorWithType sends an error response with both numeric code and string type
+// Phase 14 enhancement: Adds semantic error type for better error categorization
+func sendErrorWithType(id interface{}, code int, errType string, message string, data interface{}) {
+	resp := jsonRPCResponse{
+		JSONRPC: "2.0",
+		ID:      id,
+		Error: map[string]interface{}{
+			"code":    code,
+			"type":    errType, // Semantic error type (e.g., "SESSION_NOT_FOUND")
 			"message": message,
 			"data":    data,
 		},

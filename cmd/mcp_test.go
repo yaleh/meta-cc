@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -15,11 +16,11 @@ func TestExecuteTool_ScopeParameter(t *testing.T) {
 		description    string
 	}{
 		{
-			name:           "query_tools default scope is session",
+			name:           "query_tools default scope is project",
 			toolName:       "query_tools",
 			args:           map[string]interface{}{"limit": float64(10)},
-			expectsProject: false,
-			description:    "Default scope is session for backward compatibility",
+			expectsProject: true,
+			description:    "Default scope is project for cross-session analysis",
 		},
 		{
 			name:           "query_tools with scope=project should include --project flag",
@@ -36,11 +37,11 @@ func TestExecuteTool_ScopeParameter(t *testing.T) {
 			description:    "Explicit session scope without --project flag",
 		},
 		{
-			name:           "analyze_errors default scope is session",
+			name:           "analyze_errors default scope is project",
 			toolName:       "analyze_errors",
 			args:           map[string]interface{}{},
-			expectsProject: false,
-			description:    "Default scope is session",
+			expectsProject: true,
+			description:    "Default scope is project",
 		},
 		{
 			name:           "analyze_errors with scope=project",
@@ -57,11 +58,11 @@ func TestExecuteTool_ScopeParameter(t *testing.T) {
 			description:    "Project scope for message search",
 		},
 		{
-			name:           "query_user_messages default scope is session",
+			name:           "query_user_messages default scope is project",
 			toolName:       "query_user_messages",
 			args:           map[string]interface{}{"pattern": "test"},
-			expectsProject: false,
-			description:    "Default to session scope",
+			expectsProject: true,
+			description:    "Default to project scope",
 		},
 	}
 
@@ -163,10 +164,10 @@ func TestBuildToolCommand_HelperFunctions(t *testing.T) {
 		expected []string
 	}{
 		{
-			name:     "limit parameter extraction with default session scope",
+			name:     "limit parameter extraction with default project scope",
 			toolName: "query_tools",
 			args:     map[string]interface{}{"limit": float64(50)},
-			expected: []string{"query", "tools", "--limit", "50", "--output", "jsonl"},
+			expected: []string{"--project", ".", "query", "tools", "--limit", "50", "--output", "jsonl"},
 		},
 		{
 			name:     "limit parameter with explicit project scope",
@@ -175,16 +176,16 @@ func TestBuildToolCommand_HelperFunctions(t *testing.T) {
 			expected: []string{"--project", ".", "query", "tools", "--limit", "50", "--output", "jsonl"},
 		},
 		{
-			name:     "limit with default value (session scope)",
+			name:     "limit with default value (project scope)",
 			toolName: "query_tools",
 			args:     map[string]interface{}{},
-			expected: []string{"query", "tools", "--limit", "20", "--output", "jsonl"},
+			expected: []string{"--project", ".", "query", "tools", "--limit", "20", "--output", "jsonl"},
 		},
 		{
-			name:     "pattern parameter with default session scope",
+			name:     "pattern parameter with default project scope",
 			toolName: "query_user_messages",
 			args:     map[string]interface{}{"pattern": "test.*bug"},
-			expected: []string{"query", "user-messages", "--match", "test.*bug", "--limit", "10", "--output", "jsonl"},
+			expected: []string{"--project", ".", "query", "user-messages", "--match", "test.*bug", "--limit", "10", "--output", "jsonl"},
 		},
 		{
 			name:     "pattern parameter with explicit project scope",
@@ -254,6 +255,82 @@ func TestMCPErrorHandling(t *testing.T) {
 			}
 			if tt.expectError && err != nil && !strings.Contains(err.Error(), tt.errorMsg) {
 				t.Errorf("error message should contain '%s', got: %v", tt.errorMsg, err)
+			}
+		})
+	}
+}
+
+// Test string error codes for better error categorization (Phase 14 enhancement)
+func TestErrorCategorization_StringCodes(t *testing.T) {
+	tests := []struct {
+		name         string
+		err          error
+		expectedCode int
+		expectedType string
+		expectedMsg  string
+	}{
+		{
+			name:         "session not found error",
+			err:          fmt.Errorf("session location failed: no sessions found"),
+			expectedCode: ErrNotFound,
+			expectedType: "SESSION_NOT_FOUND",
+			expectedMsg:  "Session not found",
+		},
+		{
+			name:         "query no results error",
+			err:          fmt.Errorf("no results found for query"),
+			expectedCode: ErrNoResults,
+			expectedType: "NO_RESULTS",
+			expectedMsg:  "Query returned no results",
+		},
+		{
+			name:         "missing required parameter",
+			err:          fmt.Errorf("pattern parameter is required"),
+			expectedCode: ErrInvalidParams,
+			expectedType: "INVALID_PARAMS",
+			expectedMsg:  "Missing required parameter",
+		},
+		{
+			name:         "invalid parameter value",
+			err:          fmt.Errorf("invalid filter expression"),
+			expectedCode: ErrInvalidParams,
+			expectedType: "INVALID_PARAMS",
+			expectedMsg:  "Invalid parameter value",
+		},
+		{
+			name:         "generic execution failure",
+			err:          fmt.Errorf("command execution failed"),
+			expectedCode: ErrExecutionFailed,
+			expectedType: "EXECUTION_FAILED",
+			expectedMsg:  "Tool execution failed",
+		},
+		{
+			name:         "nil error",
+			err:          nil,
+			expectedCode: 0,
+			expectedType: "",
+			expectedMsg:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test numeric code
+			code := categorizeError(tt.err)
+			if code != tt.expectedCode {
+				t.Errorf("categorizeError() code = %d, want %d", code, tt.expectedCode)
+			}
+
+			// Test string type
+			errType := categorizeErrorType(tt.err)
+			if errType != tt.expectedType {
+				t.Errorf("categorizeErrorType() = %s, want %s", errType, tt.expectedType)
+			}
+
+			// Test message
+			msg := categorizeMessage(tt.err)
+			if msg != tt.expectedMsg {
+				t.Errorf("categorizeMessage() = %s, want %s", msg, tt.expectedMsg)
 			}
 		})
 	}
