@@ -4,17 +4,7 @@
 
 基于 [技术方案](./proposals/meta-cognition-proposal.md) 的分阶段实施计划。
 
-**核心约束**：
-- 每个 Phase：代码修改量 ≤ 500 行
-- 每个 Stage：代码修改量 ≤ 200 行
-- 开发方法：测试驱动开发（TDD）
-- 交付要求：每个 Phase 更新 README.md，说明当前 build 使用方法
-- 验证策略：使用真实 Claude Code 会话历史进行测试
-
-**测试环境**：
-- 测试 fixture：`tests/fixtures/` （包含样本和错误会话文件）
-- 真实验证项目：meta-cc, NarrativeForge, claude-tmux
-- 集成测试：`tests/integration/slash_commands_test.sh`
+**核心约束与设计原则**：详见 [设计原则文档](./principles.md)
 
 **项目状态**：
 - ✅ **Phase 0-7 已完成**（完整集成里程碑达成）
