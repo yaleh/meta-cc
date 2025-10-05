@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -91,8 +92,8 @@ func handleToolsList(req jsonRPCRequest) {
 				"properties": map[string]interface{}{
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -105,8 +106,8 @@ func handleToolsList(req jsonRPCRequest) {
 				"properties": map[string]interface{}{
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -120,8 +121,8 @@ func handleToolsList(req jsonRPCRequest) {
 				"properties": map[string]interface{}{
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -139,8 +140,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -167,8 +168,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -190,8 +191,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 				"required": []string{"pattern"},
@@ -214,8 +215,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 				"required": []string{"error_signature"},
@@ -238,8 +239,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -256,8 +257,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 				"required": []string{"file"},
@@ -271,8 +272,8 @@ func handleToolsList(req jsonRPCRequest) {
 				"properties": map[string]interface{}{
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -295,8 +296,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -319,8 +320,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 				"required": []string{"where"},
@@ -349,8 +350,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -379,8 +380,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -408,8 +409,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -437,8 +438,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -460,8 +461,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 				"required": []string{"pattern"},
@@ -484,8 +485,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -502,8 +503,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 				"required": []string{"file"},
@@ -527,8 +528,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 			},
@@ -550,8 +551,8 @@ func handleToolsList(req jsonRPCRequest) {
 					},
 					"output_format": map[string]interface{}{
 						"type":    "string",
-						"enum":    []string{"json", "md"},
-						"default": "json",
+						"enum":    []string{"jsonl", "tsv"},
+						"default": "jsonl",
 					},
 				},
 				"required": []string{"error_signature"},
@@ -594,71 +595,101 @@ func handleToolsCall(req jsonRPCRequest) {
 	sendResponse(req.ID, result)
 }
 
-func executeTool(name string, args map[string]interface{}) (string, error) {
-	outputFormat := "json"
+// Phase 14: Helper functions to reduce duplication
+func getOutputFormat(args map[string]interface{}) string {
 	if format, ok := args["output_format"].(string); ok {
-		outputFormat = format
+		return format
 	}
+	return "jsonl" // Phase 13: default to jsonl
+}
+
+func addLimitFlag(cmdArgs []string, args map[string]interface{}, defaultLimit string) []string {
+	if limit, ok := args["limit"].(float64); ok {
+		return append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
+	}
+	return append(cmdArgs, "--limit", defaultLimit)
+}
+
+func addToolFilter(cmdArgs []string, args map[string]interface{}) []string {
+	if tool, ok := args["tool"].(string); ok && tool != "" {
+		return append(cmdArgs, "--tool", tool)
+	}
+	return cmdArgs
+}
+
+func addStatusFilter(cmdArgs []string, args map[string]interface{}) []string {
+	if status, ok := args["status"].(string); ok && status != "" {
+		return append(cmdArgs, "--status", status)
+	}
+	return cmdArgs
+}
+
+func buildToolCommand(name string, args map[string]interface{}) ([]string, error) {
+	outputFormat := getOutputFormat(args)
+
+	// Phase 12: Determine if this is a project-level or session-level tool
+	isProjectLevel := !strings.HasSuffix(name, "_session") && name != "get_session_stats"
 
 	var cmdArgs []string
 
-	switch name {
-	case "get_session_stats":
-		cmdArgs = []string{"parse", "stats", "--output", outputFormat}
-	case "analyze_errors":
-		cmdArgs = []string{"analyze", "errors", "--output", outputFormat}
-	case "extract_tools":
-		cmdArgs = []string{"query", "tools", "--output", outputFormat}
+	switch {
+	// Backward compatibility: get_session_stats retains original behavior (session-only)
+	case name == "get_session_stats":
+		cmdArgs = []string{"parse", "stats"}
 
-		// Add default limit to prevent overflow
-		if limit, ok := args["limit"].(float64); ok {
-			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
-		} else {
-			cmdArgs = append(cmdArgs, "--limit", "100") // Default 100
+	case strings.HasPrefix(name, "analyze_errors"):
+		cmdArgs = []string{"analyze", "errors"}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
 		}
-	case "query_tools":
-		cmdArgs = []string{"query", "tools", "--output", outputFormat}
 
-		if tool, ok := args["tool"].(string); ok && tool != "" {
-			cmdArgs = append(cmdArgs, "--tool", tool)
+	case name == "extract_tools":
+		cmdArgs = []string{"query", "tools"}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
 		}
-		if status, ok := args["status"].(string); ok && status != "" {
-			cmdArgs = append(cmdArgs, "--status", status)
+		cmdArgs = addLimitFlag(cmdArgs, args, "100") // Default 100 to prevent overflow
+
+	case strings.HasPrefix(name, "query_tools"):
+		cmdArgs = []string{"query", "tools"}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
 		}
-		if limit, ok := args["limit"].(float64); ok {
-			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
-		} else {
-			cmdArgs = append(cmdArgs, "--limit", "20")
-		}
-	case "query_user_messages":
+		cmdArgs = addToolFilter(cmdArgs, args)
+		cmdArgs = addStatusFilter(cmdArgs, args)
+		cmdArgs = addLimitFlag(cmdArgs, args, "20")
+
+	case strings.HasPrefix(name, "query_user_messages"):
 		pattern, ok := args["pattern"].(string)
 		if !ok || pattern == "" {
-			return "", fmt.Errorf("pattern parameter is required")
+			return nil, fmt.Errorf("pattern parameter is required")
 		}
-
-		cmdArgs = []string{"query", "user-messages", "--match", pattern, "--output", outputFormat}
-
-		if limit, ok := args["limit"].(float64); ok {
-			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
-		} else {
-			cmdArgs = append(cmdArgs, "--limit", "10")
+		cmdArgs = []string{"query", "user-messages", "--match", pattern}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
 		}
-	case "query_context":
+		cmdArgs = addLimitFlag(cmdArgs, args, "10")
+
+	case strings.HasPrefix(name, "query_context"):
 		errorSignature, ok := args["error_signature"].(string)
 		if !ok || errorSignature == "" {
-			return "", fmt.Errorf("error_signature parameter is required")
+			return nil, fmt.Errorf("error_signature parameter is required")
 		}
-
-		cmdArgs = []string{"query", "context", "--error-signature", errorSignature, "--output", outputFormat}
-
+		cmdArgs = []string{"query", "context", "--error-signature", errorSignature}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
+		}
 		if window, ok := args["window"].(float64); ok {
 			cmdArgs = append(cmdArgs, "--window", fmt.Sprintf("%.0f", window))
 		} else {
 			cmdArgs = append(cmdArgs, "--window", "3")
 		}
-	case "query_tool_sequences":
-		cmdArgs = []string{"query", "tool-sequences", "--output", outputFormat}
 
+	case strings.HasPrefix(name, "query_tool_sequences"):
+		cmdArgs = []string{"query", "tool-sequences"}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
+		}
 		if minOccurrences, ok := args["min_occurrences"].(float64); ok {
 			cmdArgs = append(cmdArgs, "--min-occurrences", fmt.Sprintf("%.0f", minOccurrences))
 		} else {
@@ -667,180 +698,115 @@ func executeTool(name string, args map[string]interface{}) (string, error) {
 		if pattern, ok := args["pattern"].(string); ok && pattern != "" {
 			cmdArgs = append(cmdArgs, "--pattern", pattern)
 		}
-	case "query_file_access":
+
+	case strings.HasPrefix(name, "query_file_access"):
 		file, ok := args["file"].(string)
 		if !ok || file == "" {
-			return "", fmt.Errorf("file parameter is required")
+			return nil, fmt.Errorf("file parameter is required")
+		}
+		cmdArgs = []string{"query", "file-access", "--file", file}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
 		}
 
-		cmdArgs = []string{"query", "file-access", "--file", file, "--output", outputFormat}
-	case "query_project_state":
-		cmdArgs = []string{"query", "project-state", "--output", outputFormat}
-	case "query_successful_prompts":
-		cmdArgs = []string{"query", "successful-prompts", "--output", outputFormat}
+	case name == "query_project_state":
+		cmdArgs = []string{"query", "project-state"}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
+		}
 
+	case strings.HasPrefix(name, "query_successful_prompts"):
+		cmdArgs = []string{"query", "successful-prompts"}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
+		}
 		if minQualityScore, ok := args["min_quality_score"].(float64); ok {
 			cmdArgs = append(cmdArgs, "--min-quality-score", fmt.Sprintf("%.2f", minQualityScore))
 		}
-		if limit, ok := args["limit"].(float64); ok {
-			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
-		} else {
-			cmdArgs = append(cmdArgs, "--limit", "10")
-		}
+		cmdArgs = addLimitFlag(cmdArgs, args, "10")
 
 	// Phase 10: Advanced Query Tools
-	case "query_tools_advanced":
+	case name == "query_tools_advanced":
 		where, ok := args["where"].(string)
 		if !ok || where == "" {
-			return "", fmt.Errorf("where parameter is required")
+			return nil, fmt.Errorf("where parameter is required")
 		}
-
-		cmdArgs = []string{"query", "tools", "--filter", where, "--output", outputFormat}
-
-		if limit, ok := args["limit"].(float64); ok {
-			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
-		} else {
-			cmdArgs = append(cmdArgs, "--limit", "20")
+		cmdArgs = []string{"query", "tools", "--filter", where}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
 		}
+		cmdArgs = addLimitFlag(cmdArgs, args, "20")
 
-	case "aggregate_stats":
-		cmdArgs = []string{"stats", "aggregate", "--output", outputFormat}
-
+	case name == "aggregate_stats":
+		cmdArgs = []string{"stats", "aggregate"}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
+		}
 		if groupBy, ok := args["group_by"].(string); ok && groupBy != "" {
 			cmdArgs = append(cmdArgs, "--group-by", groupBy)
 		} else {
 			cmdArgs = append(cmdArgs, "--group-by", "tool")
 		}
-
 		if metrics, ok := args["metrics"].(string); ok && metrics != "" {
 			cmdArgs = append(cmdArgs, "--metrics", metrics)
 		} else {
 			cmdArgs = append(cmdArgs, "--metrics", "count,error_rate")
 		}
-
 		if where, ok := args["where"].(string); ok && where != "" {
 			cmdArgs = append(cmdArgs, "--filter", where)
 		}
 
-	case "query_time_series":
-		cmdArgs = []string{"stats", "time-series", "--output", outputFormat}
-
+	case name == "query_time_series":
+		cmdArgs = []string{"stats", "time-series"}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
+		}
 		if metric, ok := args["metric"].(string); ok && metric != "" {
 			cmdArgs = append(cmdArgs, "--metric", metric)
 		} else {
 			cmdArgs = append(cmdArgs, "--metric", "tool-calls")
 		}
-
 		if interval, ok := args["interval"].(string); ok && interval != "" {
 			cmdArgs = append(cmdArgs, "--interval", interval)
 		} else {
 			cmdArgs = append(cmdArgs, "--interval", "hour")
 		}
-
 		if where, ok := args["where"].(string); ok && where != "" {
 			cmdArgs = append(cmdArgs, "--filter", where)
 		}
 
-	case "query_files":
-		cmdArgs = []string{"stats", "files", "--output", outputFormat}
-
+	case name == "query_files":
+		cmdArgs = []string{"stats", "files"}
+		if isProjectLevel {
+			cmdArgs = append([]string{"--project", "."}, cmdArgs...)
+		}
 		if sortBy, ok := args["sort_by"].(string); ok && sortBy != "" {
 			cmdArgs = append(cmdArgs, "--sort-by", sortBy)
 		} else {
 			cmdArgs = append(cmdArgs, "--sort-by", "total_ops")
 		}
-
 		if top, ok := args["top"].(float64); ok {
 			cmdArgs = append(cmdArgs, "--top", fmt.Sprintf("%.0f", top))
 		} else {
 			cmdArgs = append(cmdArgs, "--top", "20")
 		}
-
 		if where, ok := args["where"].(string); ok && where != "" {
 			cmdArgs = append(cmdArgs, "--filter", where)
 		}
 
-	// Phase 12 Stage 12.3: Session-level tools with _session suffix (NO --project flag)
-	case "analyze_errors_session":
-		cmdArgs = []string{"analyze", "errors", "--output", outputFormat}
-
-	case "query_tools_session":
-		cmdArgs = []string{"query", "tools", "--output", outputFormat}
-
-		if tool, ok := args["tool"].(string); ok && tool != "" {
-			cmdArgs = append(cmdArgs, "--tool", tool)
-		}
-		if status, ok := args["status"].(string); ok && status != "" {
-			cmdArgs = append(cmdArgs, "--status", status)
-		}
-		if limit, ok := args["limit"].(float64); ok {
-			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
-		} else {
-			cmdArgs = append(cmdArgs, "--limit", "20")
-		}
-
-	case "query_user_messages_session":
-		pattern, ok := args["pattern"].(string)
-		if !ok || pattern == "" {
-			return "", fmt.Errorf("pattern parameter is required")
-		}
-
-		cmdArgs = []string{"query", "user-messages", "--match", pattern, "--output", outputFormat}
-
-		if limit, ok := args["limit"].(float64); ok {
-			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
-		} else {
-			cmdArgs = append(cmdArgs, "--limit", "10")
-		}
-
-	case "query_context_session":
-		errorSignature, ok := args["error_signature"].(string)
-		if !ok || errorSignature == "" {
-			return "", fmt.Errorf("error_signature parameter is required")
-		}
-
-		cmdArgs = []string{"query", "context", "--error-signature", errorSignature, "--output", outputFormat}
-
-		if window, ok := args["window"].(float64); ok {
-			cmdArgs = append(cmdArgs, "--window", fmt.Sprintf("%.0f", window))
-		} else {
-			cmdArgs = append(cmdArgs, "--window", "3")
-		}
-
-	case "query_tool_sequences_session":
-		cmdArgs = []string{"query", "tool-sequences", "--output", outputFormat}
-
-		if minOccurrences, ok := args["min_occurrences"].(float64); ok {
-			cmdArgs = append(cmdArgs, "--min-occurrences", fmt.Sprintf("%.0f", minOccurrences))
-		} else {
-			cmdArgs = append(cmdArgs, "--min-occurrences", "3")
-		}
-		if pattern, ok := args["pattern"].(string); ok && pattern != "" {
-			cmdArgs = append(cmdArgs, "--pattern", pattern)
-		}
-
-	case "query_file_access_session":
-		file, ok := args["file"].(string)
-		if !ok || file == "" {
-			return "", fmt.Errorf("file parameter is required")
-		}
-
-		cmdArgs = []string{"query", "file-access", "--file", file, "--output", outputFormat}
-
-	case "query_successful_prompts_session":
-		cmdArgs = []string{"query", "successful-prompts", "--output", outputFormat}
-
-		if minQualityScore, ok := args["min_quality_score"].(float64); ok {
-			cmdArgs = append(cmdArgs, "--min-quality-score", fmt.Sprintf("%.2f", minQualityScore))
-		}
-		if limit, ok := args["limit"].(float64); ok {
-			cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))
-		} else {
-			cmdArgs = append(cmdArgs, "--limit", "10")
-		}
-
 	default:
-		return "", fmt.Errorf("unknown tool: %s", name)
+		return nil, fmt.Errorf("unknown tool: %s", name)
+	}
+
+	// Add output format at the end
+	cmdArgs = append(cmdArgs, "--output", outputFormat)
+	return cmdArgs, nil
+}
+
+func executeTool(name string, args map[string]interface{}) (string, error) {
+	cmdArgs, err := buildToolCommand(name, args)
+	if err != nil {
+		return "", err
 	}
 
 	// Execute meta-cc command internally
