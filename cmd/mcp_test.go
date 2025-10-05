@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// Test Phase 12: Project-level vs Session-level tool execution
-func TestExecuteTool_ProjectLevel(t *testing.T) {
+// Test Phase 12 Revision: Scope parameter replaces _session suffix
+func TestExecuteTool_ScopeParameter(t *testing.T) {
 	tests := []struct {
 		name           string
 		toolName       string
@@ -15,55 +15,62 @@ func TestExecuteTool_ProjectLevel(t *testing.T) {
 		description    string
 	}{
 		{
-			name:           "query_tools should include --project flag",
+			name:           "query_tools default scope is session",
 			toolName:       "query_tools",
 			args:           map[string]interface{}{"limit": float64(10)},
-			expectsProject: true,
-			description:    "Project-level tool without _session suffix",
-		},
-		{
-			name:           "query_tools_session should NOT include --project flag",
-			toolName:       "query_tools_session",
-			args:           map[string]interface{}{"limit": float64(10)},
 			expectsProject: false,
-			description:    "Session-level tool with _session suffix",
+			description:    "Default scope is session for backward compatibility",
 		},
 		{
-			name:           "analyze_errors should include --project flag",
+			name:           "query_tools with scope=project should include --project flag",
+			toolName:       "query_tools",
+			args:           map[string]interface{}{"limit": float64(10), "scope": "project"},
+			expectsProject: true,
+			description:    "Explicit project scope adds --project flag",
+		},
+		{
+			name:           "query_tools with scope=session should NOT include --project flag",
+			toolName:       "query_tools",
+			args:           map[string]interface{}{"limit": float64(10), "scope": "session"},
+			expectsProject: false,
+			description:    "Explicit session scope without --project flag",
+		},
+		{
+			name:           "analyze_errors default scope is session",
 			toolName:       "analyze_errors",
 			args:           map[string]interface{}{},
-			expectsProject: true,
-			description:    "Project-level error analysis",
-		},
-		{
-			name:           "analyze_errors_session should NOT include --project flag",
-			toolName:       "analyze_errors_session",
-			args:           map[string]interface{}{},
 			expectsProject: false,
-			description:    "Session-level error analysis",
+			description:    "Default scope is session",
 		},
 		{
-			name:           "query_user_messages should include --project flag",
+			name:           "analyze_errors with scope=project",
+			toolName:       "analyze_errors",
+			args:           map[string]interface{}{"scope": "project"},
+			expectsProject: true,
+			description:    "Project scope adds --project flag",
+		},
+		{
+			name:           "query_user_messages with scope=project",
+			toolName:       "query_user_messages",
+			args:           map[string]interface{}{"pattern": "test", "scope": "project"},
+			expectsProject: true,
+			description:    "Project scope for message search",
+		},
+		{
+			name:           "query_user_messages default scope is session",
 			toolName:       "query_user_messages",
 			args:           map[string]interface{}{"pattern": "test"},
-			expectsProject: true,
-			description:    "Project-level message search",
-		},
-		{
-			name:           "query_user_messages_session should NOT include --project flag",
-			toolName:       "query_user_messages_session",
-			args:           map[string]interface{}{"pattern": "test"},
 			expectsProject: false,
-			description:    "Session-level message search",
+			description:    "Default to session scope",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Build command args internally
-			cmdArgs, err := buildToolCommand(tt.toolName, tt.args)
+			cmdArgs, err := buildToolCommandInternal(tt.toolName, tt.args)
 			if err != nil {
-				t.Fatalf("buildToolCommand failed: %v", err)
+				t.Fatalf("buildToolCommandInternal failed: %v", err)
 			}
 
 			hasProjectFlag := false
@@ -147,7 +154,7 @@ func TestMCPToolSchemas_OutputFormat(t *testing.T) {
 	}
 }
 
-// Test Phase 14: Helper functions reduce duplication
+// Test Phase 14: Command builder with scope parameter
 func TestBuildToolCommand_HelperFunctions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -156,35 +163,47 @@ func TestBuildToolCommand_HelperFunctions(t *testing.T) {
 		expected []string
 	}{
 		{
-			name:     "limit parameter extraction",
+			name:     "limit parameter extraction with default session scope",
 			toolName: "query_tools",
 			args:     map[string]interface{}{"limit": float64(50)},
+			expected: []string{"query", "tools", "--limit", "50", "--output", "jsonl"},
+		},
+		{
+			name:     "limit parameter with explicit project scope",
+			toolName: "query_tools",
+			args:     map[string]interface{}{"limit": float64(50), "scope": "project"},
 			expected: []string{"--project", ".", "query", "tools", "--limit", "50", "--output", "jsonl"},
 		},
 		{
-			name:     "limit with default value",
-			toolName: "query_tools_session",
+			name:     "limit with default value (session scope)",
+			toolName: "query_tools",
 			args:     map[string]interface{}{},
 			expected: []string{"query", "tools", "--limit", "20", "--output", "jsonl"},
 		},
 		{
-			name:     "pattern parameter (required)",
+			name:     "pattern parameter with default session scope",
 			toolName: "query_user_messages",
 			args:     map[string]interface{}{"pattern": "test.*bug"},
+			expected: []string{"query", "user-messages", "--match", "test.*bug", "--limit", "10", "--output", "jsonl"},
+		},
+		{
+			name:     "pattern parameter with explicit project scope",
+			toolName: "query_user_messages",
+			args:     map[string]interface{}{"pattern": "test.*bug", "scope": "project"},
 			expected: []string{"--project", ".", "query", "user-messages", "--match", "test.*bug", "--limit", "10", "--output", "jsonl"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmdArgs, err := buildToolCommand(tt.toolName, tt.args)
+			cmdArgs, err := buildToolCommandInternal(tt.toolName, tt.args)
 			if err != nil {
-				t.Fatalf("buildToolCommand failed: %v", err)
+				t.Fatalf("buildToolCommandInternal failed: %v", err)
 			}
 
 			// Compare slices
 			if !equalSlices(cmdArgs, tt.expected) {
-				t.Errorf("buildToolCommand(%s, %v)\ngot:  %v\nwant: %v",
+				t.Errorf("buildToolCommandInternal(%s, %v)\ngot:  %v\nwant: %v",
 					tt.toolName, tt.args, cmdArgs, tt.expected)
 			}
 		})
@@ -242,9 +261,9 @@ func TestMCPErrorHandling(t *testing.T) {
 
 // Test backward compatibility: get_session_stats retains original behavior
 func TestBackwardCompatibility_GetSessionStats(t *testing.T) {
-	cmdArgs, err := buildToolCommand("get_session_stats", map[string]interface{}{})
+	cmdArgs, err := buildToolCommandInternal("get_session_stats", map[string]interface{}{})
 	if err != nil {
-		t.Fatalf("buildToolCommand failed: %v", err)
+		t.Fatalf("buildToolCommandInternal failed: %v", err)
 	}
 
 	// Should NOT have --project flag (session-only for backward compatibility)
@@ -263,22 +282,8 @@ func TestBackwardCompatibility_GetSessionStats(t *testing.T) {
 // Helper functions for testing
 
 func getMCPTools() []map[string]interface{} {
-	// We can't easily test handleToolsList without refactoring
-	// So we'll manually construct expected schema based on current implementation
-	tools := []map[string]interface{}{
-		{
-			"name": "query_tools",
-			"inputSchema": map[string]interface{}{
-				"properties": map[string]interface{}{
-					"output_format": map[string]interface{}{
-						"enum":    []string{"jsonl", "tsv"},
-						"default": "jsonl",
-					},
-				},
-			},
-		},
-	}
-	return tools
+	// Use the actual consolidated tool list from Phase 12 revision
+	return getConsolidatedToolsList()
 }
 
 func equalSlices(a, b []string) bool {
