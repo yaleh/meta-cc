@@ -330,15 +330,19 @@ cmd_query_tools() {
     ' "$jsonl_file")
 
     # Step 3: Merge tool_use and tool_result by ID
-    # This is complex in bash, so we'll use jq to do the join
+    # Use temp files to avoid "Argument list too long" error
+    local tmpdir=$(mktemp -d)
+    echo "$tool_use_map" | jq -s '.' > "$tmpdir/tool_uses.json"
+    echo "$tool_result_map" | jq -s '.' > "$tmpdir/tool_results.json"
+
     local merged=$(jq -n \
-        --argjson tool_uses "$(echo "$tool_use_map" | jq -s '.')" \
-        --argjson tool_results "$(echo "$tool_result_map" | jq -s '.')" \
+        --slurpfile tool_uses "$tmpdir/tool_uses.json" \
+        --slurpfile tool_results "$tmpdir/tool_results.json" \
         '
         # Create lookup map for tool_results by tool_use_id
-        ($tool_results | map({key: .tool_use_id, value: .}) | from_entries) as $result_map |
+        ($tool_results[0] | map({key: .tool_use_id, value: .}) | from_entries) as $result_map |
         # Iterate over tool_uses and merge with results
-        $tool_uses | map(
+        $tool_uses[0] | map(
             . as $use |
             ($result_map[$use.id] // {Output: "", Error: "", Status: ""}) as $result |
             {
@@ -352,6 +356,8 @@ cmd_query_tools() {
             }
         )
     ')
+
+    rm -rf "$tmpdir"
 
     # Apply filter if provided
     if [ -n "$filter" ]; then
@@ -422,7 +428,16 @@ cmd_query_messages() {
 }
 
 cmd_timeline() {
-    error "Command 'timeline' not implemented yet"
+    if [ $# -lt 1 ]; then
+        error "Usage: $SCRIPT_NAME timeline <path> [limit]"
+    fi
+
+    local path="$1"
+    local limit="${2:-50}"
+
+    # Timeline is essentially query-tools with limit
+    # For validation purposes, we just return the tool calls in order
+    cmd_query_tools "$path" "" "$limit"
 }
 
 # Run main
