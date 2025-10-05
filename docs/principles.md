@@ -22,7 +22,7 @@
 
 ---
 
-## 二、架构设计原则（Phase 14 增强）
+## 二、架构设计原则
 
 ### 1. 职责最小化原则
 
@@ -36,18 +36,6 @@ meta-cc 仅负责 Claude Code 会话历史知识的提取，不做分析决策�
 - ❌ 分析：不做语义分析、不做决策（如窗口大小、聚合方式）
 - ❌ 过滤：不预判用户需求，复杂过滤交给 jq/awk
 
-**实际应用示例：**
-
-```bash
-# ❌ 错误：meta-cc 预判分析范围（违反职责最小化）
-meta-cc analyze errors --window 50 --aggregate
-# 输出：{"pattern1": {count: 5}, "pattern2": {count: 3}}
-
-# ✅ 正确：meta-cc 仅提取，LLM/工具负责决策
-meta-cc query errors | jq '.[length-50:] | group_by(.Signature) | map({pattern: .[0].Signature, count: length})'
-# meta-cc 输出全部错误，jq 负责窗口选择和聚合
-```
-
 ### 2. Pipeline 模式
 
 抽象通用数据处理流程，消除跨命令重复代码。
@@ -56,10 +44,6 @@ meta-cc query errors | jq '.[length-50:] | group_by(.Signature) | map({pattern: 
 ```
 定位会话 → 加载 JSONL → 提取数据 → 输出格式化
 ```
-
-**效果：**
-- ~345 行重复代码 → 120 行共享 Pipeline
-- 代码重复率从 30% 降至 <5%
 
 ### 3. 输出确定性
 
@@ -81,7 +65,7 @@ meta-cc query errors | jq '.[length-50:] | group_by(.Signature) | map({pattern: 
 
 ---
 
-## 三、输出格式设计原则（Phase 13）
+## 三、输出格式设计原则
 
 ### 核心原则
 
@@ -96,33 +80,9 @@ meta-cc query errors | jq '.[length-50:] | group_by(.Signature) | map({pattern: 
 - **JSONL**（默认，`--stream`）：机器处理，jq 友好，流式性能
 - **TSV**（`--output tsv`）：轻量级，awk/grep 友好，体积小
 
-### 移除格式（避免冗余和维护负担）
-
-- ❌ JSON (pretty array) → 用 `--stream | jq -s` 替代
-- ❌ CSV → 用 TSV 替代（转换：`tr '\t' ','`）
-- ❌ Markdown → 客户端渲染（Slash Commands 让 Claude 格式化）
-
-### Unix 可组合性示例
-
-```bash
-# meta-cc 提供简单检索（--where, --status, --tool）
-meta-cc query tools --status error --limit 100
-
-# 复杂过滤交给 jq（多条件、计算、转换）
-meta-cc query tools | jq 'select(.Duration > 5000 and .ToolName == "Bash")'
-
-# TSV + awk 处理（轻量场景）
-meta-cc query tools --output tsv | awk -F'\t' '{if ($3 == "error") print $2}'
-
-# 组合使用（meta-cc + jq + awk）
-meta-cc query tools --status error | \
-  jq -r '[.ToolName, .Duration] | @tsv' | \
-  awk '{sum+=$2} END {print "Total:", sum "ms"}'
-```
-
 ---
 
-## 四、MCP Server 设计原则（Phase 12）
+## 四、MCP Server 设计原则
 
 ### 默认查询范围
 
@@ -193,40 +153,15 @@ meta-cc query tools --status error | \
 
 ---
 
-## 七、会话定位策略（已验证实现）
+## 七、会话定位策略
 
-### 实际优先级顺序
+### 优先级顺序
 
-1. ~~环境变量 `CC_SESSION_ID` + `CC_PROJECT_HASH`~~（❌ Claude Code 未提供）
-2. 命令行参数 `--session <id>`（✅ 遍历所有项目查找）
-3. 命令行参数 `--project <path>`（✅ 转换为哈希，返回最新会话）
-4. **自动检测（当前工作目录）**（✅ 默认方式，最常用）
+1. 命令行参数 `--session <id>`（遍历所有项目查找）
+2. 命令行参数 `--project <path>`（转换为哈希，返回最新会话）
+3. **自动检测（当前工作目录）**（默认方式）
 
-### 自动检测机制
-
-```go
-// 策略4: 自动检测（使用当前工作目录）
-cwd, err := os.Getwd()  // 例：/home/yale/work/meta-cc
-if err != nil {
-    return "", fmt.Errorf("failed to get current directory: %w", err)
-}
-
-path, err := l.FromProjectPath(cwd)  // 调用路径哈希转换
-if err == nil {
-    return path, nil  // 返回最新 .jsonl 文件路径
-}
-```
-
-### 路径哈希算法
-
-```go
-func pathToHash(path string) string {
-    return strings.ReplaceAll(path, "/", "-")
-}
-// 例：/home/yale/work/meta-cc → -home-yale-work-meta-cc
-```
-
-### 为什么自动检测有效？
+### 自动检测优势
 
 - ✅ Slash Command 执行时，Bash 工具的 cwd = 项目根目录
 - ✅ 无需传递任何参数，用户体验最佳
@@ -247,22 +182,6 @@ func pathToHash(path string) string {
 - 使用真实的会话文件 fixture
 - 验证命令端到端流程
 
-### Claude Code 验证测试
-
-```bash
-# 测试环境准备
-mkdir -p test-workspace/.claude/commands
-cp .claude/commands/*.md test-workspace/.claude/commands/
-
-# 非交互模式测试
-cd test-workspace
-claude -p "Test /meta-stats command and verify output"
-
-# 交互模式手动测试（每个 Phase 结束）
-# 在 Claude Code 中打开 test-workspace 项目
-# 手动输入 /meta-stats 和 /meta-errors
-```
-
 ### 测试数据管理
 - 测试 fixture 存放在 `tests/fixtures/`
 - 使用真实的（脱敏的）Claude Code 会话文件
@@ -277,35 +196,8 @@ claude -p "Test /meta-stats command and verify output"
 | Claude Code 会话文件格式变化 | 高 | 使用真实文件测试，版本化 fixture |
 | 环境变量不可用 | 中 | 提供多种定位方式（参数、路径推断） |
 | 测试覆盖不足 | 中 | TDD 强制要求，每个 Stage 先写测试 |
-| Phase 代码量超标 | 低 | 每个 Stage 结束检查行数，及时拆分 |
-| Claude Code 集成失败 | 高 | Phase 6 前在测试环境充分验证 |
-
----
-
-## 十、经验总结（基于 Phase 0-9 实践）
-
-### 成功要素
-
-1. **文档驱动**：详细的 plan.md 和 proposal.md 指导实施
-2. **TDD 方法**：测试先行，确保质量
-3. **真实验证**：使用真实项目数据测试
-4. **渐进交付**：每个 Phase 独立可用
-5. **灵活适配**：发现环境变量不存在后快速调整策略
-
-### 待改进项
-
-1. CSV 输出格式未实现（优先级低）
-2. 索引功能作为可选扩展
-3. 更多 Slash Commands（如 `/meta-timeline`）
-4. 性能优化（大会话文件 >10MB）
-
-### 核心价值实现
-
-- ✅ 零配置使用（自动检测）
-- ✅ 多项目支持（--project 参数）
-- ✅ 准确分析（0% 错误，3 个项目验证）
-- ✅ Claude Code 原生集成（Slash Commands + MCP）
-- ✅ 完整文档（README + troubleshooting）
+| 代码量超标 | 低 | 每个 Stage 结束检查行数，及时拆分 |
+| Claude Code 集成失败 | 高 | 在测试环境充分验证 |
 
 ---
 
