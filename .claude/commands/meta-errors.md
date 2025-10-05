@@ -1,57 +1,43 @@
 ---
 name: meta-errors
-description: Analyze error patterns in current session (Phase 14 - simplified query)
+description: 错误模式分析（Phase 14：标准化工具 + 简化查询）
 allowed_tools: [Bash]
 ---
 
-# meta-errors: Error Pattern Analysis
+# meta-errors: 错误模式分析
 
-Phase 14 Update: Uses new simplified `query errors` command. Aggregation done via jq.
-
-Analyze errors in the session by extracting error list and aggregating patterns.
+分析会话中的错误模式，提供优化建议。
 
 ```bash
-# Check if meta-cc is installed
-if ! command -v meta-cc &> /dev/null; then
-    echo "❌ Error: meta-cc not installed or not in PATH"
-    echo ""
-    echo "Please install meta-cc:"
-    echo "  1. Download or build meta-cc binary"
-    echo "  2. Place it in PATH (e.g., /usr/local/bin/meta-cc)"
-    echo "  3. Ensure executable permissions: chmod +x /usr/local/bin/meta-cc"
-    echo ""
-    echo "Details: https://github.com/yale/meta-cc"
-    exit 1
-fi
+# Source shared utilities
+source "$(dirname "$0")/../lib/meta-utils.sh"
+check_meta_cc_installed
 
-# Step 1: Extract all errors using new query errors command
-echo "## Error Data Extraction" >&2
+echo "## 错误数据提取" >&2
 echo "" >&2
 
-# Phase 14: Use new query errors command (outputs JSONL)
-ERRORS_JSONL=$(meta-cc query errors 2>/dev/null)
-EXIT_CODE=$?
+# Phase 14: Use query errors command (JSONL output)
+errors_jsonl=$(meta-cc query errors 2>/dev/null)
+exit_code=$?
 
-if [ $EXIT_CODE -eq 2 ]; then
-    echo "✅ No errors detected in current session." >&2
+if [ $exit_code -eq 2 ]; then
+    echo "✅ 当前会话未检测到错误。" >&2
     exit 0
-elif [ $EXIT_CODE -eq 1 ]; then
-    echo "❌ Error occurred during query." >&2
+elif [ $exit_code -eq 1 ]; then
+    echo "❌ 查询执行失败。" >&2
     exit 1
 fi
 
-# Convert JSONL to JSON array for jq processing
-ERRORS_JSON=$(echo "$ERRORS_JSONL" | jq -s '.')
-ERROR_COUNT=$(echo "$ERRORS_JSON" | jq 'length')
-echo "Detected $ERROR_COUNT error tool call(s)." >&2
+errors_data=$(jsonl_to_json "$errors_jsonl")
+error_count=$(echo "$errors_data" | jq 'length')
+echo "检测到 $error_count 个错误工具调用。" >&2
 echo "" >&2
 
-# Step 2: Aggregate error patterns using jq
-echo "## Error Pattern Analysis"
+# 聚合错误模式
+echo "## 错误模式分析"
 echo ""
 
-# Group by signature and count occurrences
-PATTERNS=$(echo "$ERRORS_JSON" | jq 'if length > 0 then
+patterns=$(echo "$errors_data" | jq 'if length > 0 then
     group_by(.signature) | map({
         signature: .[0].signature,
         tool_name: .[0].tool_name,
@@ -65,165 +51,55 @@ else
     []
 end')
 
-PATTERN_COUNT=$(echo "$PATTERNS" | jq '. | length')
+pattern_count=$(echo "$patterns" | jq 'length')
 
-if [ "$PATTERN_COUNT" -eq 0 ]; then
-    echo "✅ No errors detected in current session."
+if [ "$pattern_count" -eq 0 ]; then
+    echo "✅ 未检测到错误。"
     exit 0
 fi
 
-# Step 3: Format output as Markdown
-echo "# Error Pattern Analysis"
+echo "# 错误模式分析"
 echo ""
-echo "Found $PATTERN_COUNT error pattern(s):"
+echo "发现 $pattern_count 个错误模式："
 echo ""
 
-# Show patterns (limit to top 10 if many)
-if [ "$PATTERN_COUNT" -gt 10 ]; then
-    echo "⚠️  Large error set detected ($PATTERN_COUNT patterns)"
-    echo "Showing top 10 patterns to prevent context overflow."
+# 显示模式（限制 top 10）
+if [ "$pattern_count" -gt 10 ]; then
+    echo "⚠️  检测到大量错误 ($pattern_count 个模式)"
+    echo "显示 Top 10 模式以防止上下文溢出。"
     echo ""
-
-    echo "$PATTERNS" | jq -r '.[:10] | .[] |
-        "\n## Pattern: \(.tool_name)\n" +
-        "- **Signature**: `\(.signature)`\n" +
-        "- **Occurrences**: \(.count) times\n" +
-        "- **Error**: \(.sample_error)\n" +
-        "\n### Context\n" +
-        "- **First Occurrence**: \(.first_seen)\n" +
-        "- **Last Occurrence**: \(.last_seen)\n" +
-        "- **Time Span**: \(.time_span_seconds) seconds\n" +
-        "\n---\n"'
-
-    echo ""
-    echo "💡 Tip: Use 'meta-cc query errors | jq' for custom analysis"
+    patterns_to_show=$(echo "$patterns" | jq '.[:10]')
 else
-    echo "$PATTERNS" | jq -r '.[] |
-        "\n## Pattern: \(.tool_name)\n" +
-        "- **Signature**: `\(.signature)`\n" +
-        "- **Occurrences**: \(.count) times\n" +
-        "- **Error**: \(.sample_error)\n" +
-        "\n### Context\n" +
-        "- **First Occurrence**: \(.first_seen)\n" +
-        "- **Last Occurrence**: \(.last_seen)\n" +
-        "- **Time Span**: \(.time_span_seconds) seconds\n" +
-        "\n---\n"'
+    patterns_to_show="$patterns"
 fi
 
-echo ""
+echo "$patterns_to_show" | jq -r '.[] |
+    "\n## 模式: \(.tool_name)\n" +
+    "- **签名**: `\(.signature)`\n" +
+    "- **次数**: \(.count) 次\n" +
+    "- **错误**: \(.sample_error)\n" +
+    "\n### 上下文\n" +
+    "- **首次出现**: \(.first_seen)\n" +
+    "- **最后出现**: \(.last_seen)\n" +
+    "- **时间跨度**: \(.time_span_seconds) 秒\n" +
+    "\n---\n"'
 
-# Step 4: Provide optimization suggestions
+echo ""
 echo "---"
 echo ""
-echo "## Optimization Suggestions"
+echo "## 优化建议"
 echo ""
-echo "Based on detected error patterns, consider the following optimizations:"
-echo ""
-echo "1. **Investigate Repeated Errors**"
-echo "   - Review error text to identify root causes"
-echo "   - Check affected turns for context"
-echo ""
-echo "2. **Use Claude Code Hooks for Prevention**"
-echo "   - Create pre-tool hooks to check error conditions"
-echo "   - Example: file existence checks, permission validation"
-echo ""
-echo "3. **Adjust Workflow**"
-echo "   - If errors concentrate in one tool, consider alternatives"
-echo "   - Optimize prompts to reduce error frequency"
-echo ""
-echo "4. **View Full Error List**"
-echo "   - Run: \`meta-cc query errors | jq\`"
-echo "   - Analyze each error's specific cause and context"
-echo ""
-
-# Step 5: Show query examples
-echo "## Advanced Query Examples"
-echo ""
-echo "**Last 50 errors:**"
-echo "\`\`\`bash"
-echo "meta-cc query errors | jq '.[-50:]'"
-echo "\`\`\`"
-echo ""
-echo "**Errors by specific tool:**"
-echo "\`\`\`bash"
-echo "meta-cc query errors | jq '[.[] | select(.tool_name == \"Bash\")]'"
-echo "\`\`\`"
-echo ""
-echo "**Count by tool:**"
-echo "\`\`\`bash"
-echo "meta-cc query errors | jq 'group_by(.tool_name) | map({tool: .[0].tool_name, count: length})'"
-echo "\`\`\`"
+echo "1. 调查重复错误 - 查看错误文本识别根本原因"
+echo "2. 使用 Hooks 预检查 - 创建钩子防止错误"
+echo "3. 调整工作流 - 考虑替代工具或优化提示词"
 ```
 
-## Output Content
+## 高级查询
 
-1. **Error Data Extraction**: Count total errors in session
-2. **Error Pattern Analysis**: Group errors by signature and show top patterns
-3. **Optimization Suggestions**: Provide actionable improvement measures
-4. **Advanced Query Examples**: Show how to use jq for custom analysis
-
-## Migration from Phase 13
-
-Phase 14 replaces `analyze errors --window` with `query errors` + jq:
-
-**Old (Phase 13):**
 ```bash
-meta-cc analyze errors --window 50
-```
-
-**New (Phase 14):**
-```bash
+# 最近 50 个错误
 meta-cc query errors | jq '.[-50:]'
+
+# 按工具过滤
+meta-cc query errors | jq '[.[] | select(.tool_name == "Bash")]'
 ```
-
-**Aggregation (Phase 14):**
-```bash
-meta-cc query errors | jq 'group_by(.signature) | map({sig: .[0].signature, count: length})'
-```
-
-## Output Example
-
-```markdown
-## Error Pattern Analysis
-
-# Error Pattern Analysis
-
-Found 2 error pattern(s):
-
-## Pattern: Bash
-
-- **Signature**: `Bash:command not found: xyz`
-- **Occurrences**: 5 times
-- **Error**: command not found: xyz
-
-### Context
-
-- **First Occurrence**: 2025-10-05T10:00:00.000Z
-- **Last Occurrence**: 2025-10-05T10:15:00.000Z
-- **Time Span**: 900 seconds
-
----
-
-## Optimization Suggestions
-
-Based on detected error patterns, consider the following optimizations:
-
-1. **Investigate Repeated Errors**
-   - Review error text to identify root causes
-
-2. **Use Claude Code Hooks for Prevention**
-   - Create pre-tool hooks to check error conditions
-```
-
-## Use Cases
-
-- Identify repeated errors to avoid re-debugging
-- Discover workflow bottlenecks (operations failing frequently)
-- Get optimization suggestions (hooks, alternatives, prompt improvements)
-- Custom analysis using jq for advanced filtering
-
-## Related Commands
-
-- `/meta-stats`: View session statistics
-- `meta-cc query errors`: Extract error list
-- `meta-cc query tools --status error`: Query error tool calls
