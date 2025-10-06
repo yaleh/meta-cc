@@ -31,6 +31,17 @@ func NewToolExecutor() *ToolExecutor {
 
 // ExecuteTool executes a meta-cc command and applies jq filtering
 func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{}) (string, error) {
+	// Handle deprecated tools
+	if toolName == "analyze_errors" {
+		return "", fmt.Errorf("[DEPRECATED] analyze_errors is deprecated. Use query_tools with status='error' filter instead. " +
+			"Example: {\"name\":\"query_tools\",\"arguments\":{\"status\":\"error\",\"jq_filter\":\".[] | select(.Status == \\\"error\\\")\",\"stats_only\":true}}")
+	}
+
+	if toolName == "aggregate_stats" {
+		return "", fmt.Errorf("[DEPRECATED] aggregate_stats is deprecated. Use query_tools with jq_filter and stats_only=true instead. " +
+			"Example: {\"name\":\"query_tools\",\"arguments\":{\"jq_filter\":\"group_by(.ToolName) | map({tool: .[0].ToolName, count: length})\",\"stats_only\":true}}")
+	}
+
 	// Extract common parameters
 	jqFilter := getStringParam(args, "jq_filter", ".[]")
 	statsOnly := getBoolParam(args, "stats_only", false)
@@ -166,18 +177,6 @@ func (e *ToolExecutor) buildCommand(toolName string, args map[string]interface{}
 		}
 		if limit := getIntParam(args, "limit", 0); limit > 0 {
 			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
-		}
-
-	case "aggregate_stats":
-		cmdArgs = append(cmdArgs, "stats", "aggregate")
-		if groupBy := getStringParam(args, "group_by", ""); groupBy != "" {
-			cmdArgs = append(cmdArgs, "--group-by", groupBy)
-		}
-		if metrics := getStringParam(args, "metrics", ""); metrics != "" {
-			cmdArgs = append(cmdArgs, "--metrics", metrics)
-		}
-		if where := getStringParam(args, "where", ""); where != "" {
-			cmdArgs = append(cmdArgs, "--where", where)
 		}
 
 	case "query_time_series":

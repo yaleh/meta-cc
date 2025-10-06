@@ -893,31 +893,109 @@ meta-cc.query_tools({ scope: "session", tool: "Bash", status: "error" })
 
 **👉 See the [MCP Project Scope Guide](./docs/mcp-project-scope.md)** for detailed usage examples and migration guide.
 
-### MCP Tools Summary
+### MCP Tools
 
-The MCP Server includes **14 consolidated tools** with unified scope parameter:
+meta-cc provides **13 standardized MCP tools** for analyzing Claude Code session history. All tools support consistent parameters for filtering, statistics, and output control.
 
-**Phase 8 Core Tools** (10 tools with `scope` parameter):
-- `get_session_stats` - Session statistics (backward compat: session-only)
-- `analyze_errors` - Error pattern analysis (default: project-wide)
-- `extract_tools` - Tool call history export (default: project-wide)
-- `query_tools` - Tool usage queries with filters (default: project-wide)
-- `query_user_messages` - Message search with regex (default: project-wide)
-- `query_context` - Error context analysis (default: project-wide)
-- `query_tool_sequences` - Workflow pattern detection (default: project-wide)
-- `query_file_access` - File operation history (default: project-wide)
-- `query_project_state` - Project state timeline (default: project-wide)
-- `query_successful_prompts` - Successful prompt patterns (default: project-wide)
+#### Standard Parameters
 
-**Phase 10 Advanced Tools** (4 tools with `scope` parameter):
-- `query_tools_advanced` - SQL-like filtering (default: project-wide)
-- `aggregate_stats` - Statistical aggregation (default: project-wide)
-- `query_time_series` - Time series analysis (default: project-wide)
-- `query_files` - File-level statistics (default: project-wide)
+All tools support these core parameters:
 
-**Total**: 14 tools (13 with scope parameter + 1 session-only for backward compatibility)
+- **`scope`**: Query scope - "project" (cross-session, default) or "session" (current only)
+- **`jq_filter`**: jq expression for filtering and transforming results (default: ".[]")
+- **`stats_only`**: Return only statistics, no detailed records (default: false)
+- **`stats_first`**: Return statistics first, then details separated by `---` (default: false)
+- **`max_output_bytes`**: Maximum output size in bytes (default: 51200 / 50KB)
+- **`output_format`**: Output format - "jsonl" or "tsv" (default: "jsonl")
 
-See [MCP Usage Guide](./docs/mcp-usage.md) and [MCP Project Scope Guide](./docs/mcp-project-scope.md) for complete documentation.
+#### Tool Catalog
+
+**Session Statistics**:
+- `get_session_stats` - Get session statistics (default scope: session)
+
+**Tool Analysis**:
+- `query_tools` - Query tool calls with filters (tool, status)
+- `extract_tools` - Extract complete tool call history
+- `query_tools_advanced` - Advanced queries with SQL-like filters
+- `query_tool_sequences` - Detect repeated workflow patterns
+
+**Message & Context**:
+- `query_user_messages` - Search user messages with regex
+- `query_context` - Query context around errors (before/after turns)
+- `query_successful_prompts` - Find successful prompt patterns
+
+**File Operations**:
+- `query_file_access` - Query file operation history
+- `query_files` - File-level operation statistics
+
+**Project & Time**:
+- `query_project_state` - Query project state evolution
+- `query_time_series` - Analyze metrics over time (hour/day/week)
+
+**Deprecated**:
+- `analyze_errors` - [DEPRECATED] Use `query_tools` with `status='error'` instead
+
+#### Quick Examples
+
+**Error Distribution**:
+```json
+{
+  "name": "query_tools",
+  "arguments": {
+    "status": "error",
+    "jq_filter": "group_by(.ToolName) | map({tool: .[0].ToolName, count: length})",
+    "stats_only": true
+  }
+}
+```
+
+**File Hotspots**:
+```json
+{
+  "name": "query_files",
+  "arguments": {
+    "sort_by": "total_ops",
+    "top": 10
+  }
+}
+```
+
+**Workflow Patterns**:
+```json
+{
+  "name": "query_tool_sequences",
+  "arguments": {
+    "min_occurrences": 5,
+    "jq_filter": "sort_by(.Occurrences) | reverse | .[0:10]"
+  }
+}
+```
+
+**Time Series Analysis**:
+```json
+{
+  "name": "query_time_series",
+  "arguments": {
+    "interval": "day",
+    "metric": "error-rate"
+  }
+}
+```
+
+#### Complete Documentation
+
+For comprehensive documentation including:
+- All 13 tools with detailed examples
+- jq expression cookbook (20+ patterns)
+- Best practices and common pitfalls
+- FAQ and troubleshooting
+
+See **[MCP Tools Complete Reference](./docs/mcp-tools-reference.md)**
+
+Also see:
+- [MCP Usage Guide](./docs/mcp-usage.md) - Getting started
+- [MCP Project Scope Guide](./docs/mcp-project-scope.md) - Scope parameter usage
+- [Phase 15 Migration Guide](./docs/mcp-migration-phase15.md) - Upgrading from Phase 14
 
 ### Reference Documentation
 
