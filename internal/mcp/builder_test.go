@@ -151,6 +151,144 @@ func TestBuildToolCommandFromArgs(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name:     "extract_tools with limit",
+			toolName: "extract_tools",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"limit":         float64(100),
+				"output_format": "jsonl",
+			},
+			expected: []string{"--project", ".", "query", "tools", "--limit", "100", "--output", "jsonl"},
+		},
+		{
+			name:     "query_context with error signature",
+			toolName: "query_context",
+			args: map[string]interface{}{
+				"scope":           "project",
+				"error_signature": "file not found",
+				"window":          float64(5),
+				"output_format":   "jsonl",
+			},
+			expected: []string{"--project", ".", "query", "context", "--error-signature", "file not found", "--window", "5", "--output", "jsonl"},
+		},
+		{
+			name:     "query_context missing error_signature",
+			toolName: "query_context",
+			args: map[string]interface{}{
+				"output_format": "jsonl",
+			},
+			expectError: true,
+		},
+		{
+			name:     "query_tool_sequences with pattern",
+			toolName: "query_tool_sequences",
+			args: map[string]interface{}{
+				"scope":           "project",
+				"min_occurrences": float64(3),
+				"pattern":         "Read -> Edit",
+				"output_format":   "jsonl",
+			},
+			expected: []string{"--project", ".", "query", "tool-sequences", "--min-occurrences", "3", "--pattern", "Read -> Edit", "--output", "jsonl"},
+		},
+		{
+			name:     "query_file_access with file",
+			toolName: "query_file_access",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"file":          "main.go",
+				"output_format": "jsonl",
+			},
+			expected: []string{"--project", ".", "query", "file-access", "--file", "main.go", "--output", "jsonl"},
+		},
+		{
+			name:     "query_file_access missing file",
+			toolName: "query_file_access",
+			args: map[string]interface{}{
+				"output_format": "jsonl",
+			},
+			expectError: true,
+		},
+		{
+			name:     "query_project_state",
+			toolName: "query_project_state",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"output_format": "jsonl",
+			},
+			expected: []string{"--project", ".", "query", "project-state", "--output", "jsonl"},
+		},
+		{
+			name:     "query_successful_prompts with quality score",
+			toolName: "query_successful_prompts",
+			args: map[string]interface{}{
+				"scope":             "project",
+				"min_quality_score": 0.75,
+				"limit":             float64(15),
+				"output_format":     "jsonl",
+			},
+			expected: []string{"--project", ".", "query", "successful-prompts", "--min-quality-score", "0.75", "--limit", "15", "--output", "jsonl"},
+		},
+		{
+			name:     "query_tools_advanced with where clause",
+			toolName: "query_tools_advanced",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"where":         "tool='Bash' AND status='error'",
+				"limit":         float64(25),
+				"output_format": "jsonl",
+			},
+			expected: []string{"--project", ".", "query", "tools", "--filter", "tool='Bash' AND status='error'", "--limit", "25", "--output", "jsonl"},
+		},
+		{
+			name:     "query_tools_advanced missing where",
+			toolName: "query_tools_advanced",
+			args: map[string]interface{}{
+				"output_format": "jsonl",
+			},
+			expectError: true,
+		},
+		{
+			name:     "aggregate_stats with group_by",
+			toolName: "aggregate_stats",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"group_by":      "status",
+				"metrics":       "count,error_rate",
+				"output_format": "jsonl",
+			},
+			expected: []string{"--project", ".", "stats", "aggregate", "--group-by", "status", "--metrics", "count,error_rate", "--output", "jsonl"},
+		},
+		{
+			name:     "query_time_series",
+			toolName: "query_time_series",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"metric":        "error-rate",
+				"interval":      "day",
+				"output_format": "jsonl",
+			},
+			expected: []string{"--project", ".", "stats", "time-series", "--metric", "error-rate", "--interval", "day", "--output", "jsonl"},
+		},
+		{
+			name:     "query_files with sort",
+			toolName: "query_files",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"sort_by":       "edit_count",
+				"top":           float64(30),
+				"output_format": "jsonl",
+			},
+			expected: []string{"--project", ".", "stats", "files", "--sort-by", "edit_count", "--top", "30", "--output", "jsonl"},
+		},
+		{
+			name:     "unknown_tool",
+			toolName: "unknown_tool",
+			args: map[string]interface{}{
+				"output_format": "jsonl",
+			},
+			expectError: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -217,6 +355,75 @@ func TestWithExtraFlag(t *testing.T) {
 			for _, flag := range tt.expected {
 				assert.Contains(t, result, flag, "Expected flag %s to be in result", flag)
 			}
+		})
+	}
+}
+
+// TestGetIntArg tests integer parameter extraction
+func TestGetIntArg(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         map[string]interface{}
+		key          string
+		defaultValue int
+		expected     int
+	}{
+		{
+			name: "existing int parameter as float64",
+			args: map[string]interface{}{
+				"limit": float64(20),
+			},
+			key:          "limit",
+			defaultValue: 10,
+			expected:     20,
+		},
+		{
+			name:         "missing parameter uses default",
+			args:         map[string]interface{}{},
+			key:          "limit",
+			defaultValue: 10,
+			expected:     10,
+		},
+		{
+			name: "non-numeric parameter uses default",
+			args: map[string]interface{}{
+				"limit": "20",
+			},
+			key:          "limit",
+			defaultValue: 10,
+			expected:     10,
+		},
+		{
+			name: "zero value",
+			args: map[string]interface{}{
+				"count": float64(0),
+			},
+			key:          "count",
+			defaultValue: 5,
+			expected:     0,
+		},
+		{
+			name: "large value",
+			args: map[string]interface{}{
+				"max": float64(1000),
+			},
+			key:          "max",
+			defaultValue: 100,
+			expected:     1000,
+		},
+		{
+			name: "nil args uses default",
+			args: nil,
+			key:  "limit",
+			defaultValue: 15,
+			expected:     15,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getIntArg(tt.args, tt.key, tt.defaultValue)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
