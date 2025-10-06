@@ -321,13 +321,13 @@ func TestBuildCommandArgs_GetSessionStats(t *testing.T) {
 		expectedArgs []string
 	}{
 		{
-			name: "default_output_format",
-			args: map[string]interface{}{},
+			name:         "default_output_format",
+			args:         map[string]interface{}{},
 			expectedArgs: []string{"parse", "stats", "--output", "json"},
 		},
 		{
-			name: "tsv_output_format",
-			args: map[string]interface{}{"output_format": "tsv"},
+			name:         "tsv_output_format",
+			args:         map[string]interface{}{"output_format": "tsv"},
 			expectedArgs: []string{"parse", "stats", "--output", "tsv"},
 		},
 	}
@@ -656,7 +656,7 @@ func TestBuildCommandArgs_QuerySuccessfulPromptsSession(t *testing.T) {
 			name: "all_parameters",
 			args: map[string]interface{}{
 				"min_quality_score": float64(0.9),
-				"limit":            float64(15),
+				"limit":             float64(15),
 			},
 			contains: []string{"query", "successful-prompts", "--min-quality-score", "0.90", "--limit", "15"},
 		},

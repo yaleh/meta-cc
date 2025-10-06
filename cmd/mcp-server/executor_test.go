@@ -837,3 +837,235 @@ func TestGetSessionHash(t *testing.T) {
 		})
 	}
 }
+
+// TestExecuteMetaCC tests meta-cc command execution with a mock binary
+func TestExecuteMetaCC(t *testing.T) {
+	// Create a temporary test script that simulates meta-cc
+	testScript := `#!/bin/bash
+if [[ "$1" == "parse" && "$2" == "stats" ]]; then
+	echo '{"total_turns":10,"tool_calls":25}'
+	exit 0
+elif [[ "$1" == "query" && "$2" == "tools" ]]; then
+	echo '{"tool":"Bash","count":5}'
+	echo '{"tool":"Read","count":3}'
+	exit 0
+else
+	echo "unknown command" >&2
+	exit 1
+fi
+`
+	// Write test script to temporary file
+	tmpFile, err := os.CreateTemp("", "mock-meta-cc-*.sh")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(testScript); err != nil {
+		t.Fatalf("failed to write test script: %v", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatalf("failed to close temp file: %v", err)
+	}
+
+	// Make it executable
+	if err := os.Chmod(tmpFile.Name(), 0755); err != nil {
+		t.Fatalf("failed to chmod: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		cmdArgs     []string
+		expectError bool
+		expectOut   string
+	}{
+		{
+			name:        "successful parse stats command",
+			cmdArgs:     []string{"parse", "stats", "--output", "jsonl"},
+			expectError: false,
+			expectOut:   "total_turns",
+		},
+		{
+			name:        "successful query tools command",
+			cmdArgs:     []string{"query", "tools", "--output", "jsonl"},
+			expectError: false,
+			expectOut:   "Bash",
+		},
+		{
+			name:        "unknown command returns error",
+			cmdArgs:     []string{"unknown", "command"},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			executor := &ToolExecutor{metaCCPath: tmpFile.Name()}
+			output, err := executor.executeMetaCC(tt.cmdArgs)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("expected no error, got %v", err)
+				}
+				if !strings.Contains(output, tt.expectOut) {
+					t.Errorf("expected output to contain %q, got %q", tt.expectOut, output)
+				}
+			}
+		})
+	}
+}
+
+// TestExecuteTool tests the full ExecuteTool flow with mock binary
+func TestExecuteTool(t *testing.T) {
+	// Create mock meta-cc script
+	testScript := `#!/bin/bash
+# Handle both session and project scopes
+if [[ "$1" == "--project" ]]; then
+	shift 2  # Skip --project and path
+fi
+
+if [[ "$1" == "parse" && "$2" == "stats" ]]; then
+	echo '{"total_turns":10,"tool_calls":25,"errors":2}'
+	exit 0
+elif [[ "$1" == "query" && "$2" == "tools" ]]; then
+	echo '{"tool":"Bash","status":"success","count":5}'
+	echo '{"tool":"Read","status":"success","count":3}'
+	exit 0
+elif [[ "$1" == "query" && "$2" == "user-messages" ]]; then
+	echo '{"turn":1,"timestamp":"2025-01-01T00:00:00Z","content":"test message with long content that should be truncated if max_message_length is set"}'
+	exit 0
+else
+	echo "command not implemented" >&2
+	exit 1
+fi
+`
+	tmpFile, err := os.CreateTemp("", "mock-meta-cc-*.sh")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(testScript); err != nil {
+		t.Fatalf("failed to write test script: %v", err)
+	}
+	tmpFile.Close()
+	os.Chmod(tmpFile.Name(), 0755)
+
+	executor := &ToolExecutor{metaCCPath: tmpFile.Name()}
+
+	tests := []struct {
+		name        string
+		toolName    string
+		args        map[string]interface{}
+		expectError bool
+		expectOut   string
+	}{
+		{
+			name:     "get_session_stats",
+			toolName: "get_session_stats",
+			args: map[string]interface{}{
+				"scope":         "session",
+				"output_format": "jsonl",
+			},
+			expectError: false,
+			expectOut:   "total_turns",
+		},
+		{
+			name:     "query_tools with jq filter",
+			toolName: "query_tools",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"jq_filter":     ".[]",
+				"output_format": "jsonl",
+			},
+			expectError: false,
+			expectOut:   "Bash",
+		},
+		{
+			name:     "query_user_messages with content summary",
+			toolName: "query_user_messages",
+			args: map[string]interface{}{
+				"scope":           "session",
+				"pattern":         "test",
+				"content_summary": true,
+				"output_format":   "jsonl",
+			},
+			expectError: false,
+			expectOut:   "turn",
+		},
+		{
+			name:     "query_user_messages with max_message_length",
+			toolName: "query_user_messages",
+			args: map[string]interface{}{
+				"scope":              "session",
+				"pattern":            "test",
+				"max_message_length": 50,
+				"output_format":      "jsonl",
+			},
+			expectError: false,
+			expectOut:   "content",
+		},
+		{
+			name:     "stats_only mode",
+			toolName: "get_session_stats",
+			args: map[string]interface{}{
+				"scope":         "session",
+				"stats_only":    true,
+				"output_format": "jsonl",
+			},
+			expectError: false,
+			expectOut:   "count",
+		},
+		{
+			name:     "stats_first mode",
+			toolName: "query_tools",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"stats_first":   true,
+				"output_format": "jsonl",
+			},
+			expectError: false,
+			expectOut:   "---",
+		},
+		{
+			name:     "unknown tool returns error",
+			toolName: "unknown_tool",
+			args: map[string]interface{}{
+				"output_format": "jsonl",
+			},
+			expectError: true,
+		},
+		{
+			name:     "cleanup_temp_files tool",
+			toolName: "cleanup_temp_files",
+			args: map[string]interface{}{
+				"max_age_hours": float64(24),
+			},
+			expectError: false,
+			expectOut:   "freed_bytes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, err := executor.ExecuteTool(tt.toolName, tt.args)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("expected no error, got %v", err)
+				}
+				if tt.expectOut != "" && !strings.Contains(output, tt.expectOut) {
+					t.Errorf("expected output to contain %q, got %q", tt.expectOut, output)
+				}
+			}
+		})
+	}
+}
