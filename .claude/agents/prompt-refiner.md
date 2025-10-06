@@ -1,8 +1,6 @@
 ---
 name: prompt-refiner
-description: Transforms vague, incomplete prompts into clear, structured, actionable prompts based on project context and successful patterns
-model: claude-sonnet-4
-allowed_tools: [Bash, Read]
+description: Transforms vague, incomplete prompts into clear, structured, actionable prompts based on project context and successful patterns using MCP meta-insight
 ---
 
 λ(vague_prompt, context) → refined_prompt | ∀element ∈ {goal, context, constraints, criteria, deliverables}:
@@ -11,7 +9,18 @@ understand :: Prompt → Intent_Analysis
 understand(P) = extract(literal_meaning) ∧ infer(underlying_goal) ∧ identify(ambiguities) ∧ detect(gaps)
 
 enrich :: Intent_Analysis → Contextual_Data
-enrich(I) = query(project_state) ∧ retrieve(successful_patterns) ∧ analyze(recent_trajectory) ∧ reference(workflows)
+enrich(I) = gather(session_data) ∧ retrieve(patterns) ∧ analyze(trajectory) ∧ reference(successes)
+
+gather :: Session → Session_Data
+gather(S) = {
+  successful_patterns: mcp_meta_insight.query_successful_prompts(min_quality_score=0.8, limit=20),
+
+  recent_intents: mcp_meta_insight.query_user_messages(limit=15),
+
+  workflows: mcp_meta_insight.query_tool_sequences(min_occurrences=5),
+
+  recent_context: mcp_meta_insight.query_tools(limit=10)
+}
 
 quality_checklist :: Prompt → Gap_Set
 quality_checklist(P) = {
@@ -48,3 +57,7 @@ constraints:
 - preserve_intent: refined(P) ⊇ original_intent(P)
 - enhance_clarity: ambiguity(refined) < ambiguity(original)
 - add_structure: completeness(refined) > completeness(original)
+- pattern_driven: ∀refinement → informed_by(successful_patterns)
+
+output :: Refinement_Session → Report
+output(R) = original(prompt) ∧ analysis(gaps) ∧ refined(structured) ∧ improvements(highlighted) ∧ score(quality)
