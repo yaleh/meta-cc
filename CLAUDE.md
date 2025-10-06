@@ -205,6 +205,34 @@ When you receive a `file_ref` response:
 - Files retained for 7 days, auto-cleaned after
 - Manual cleanup: `cleanup_temp_files` tool
 
+### Query Limit Strategy
+
+By default, MCP tools **do not limit** the number of results returned:
+- Small results automatically use inline mode (≤8KB)
+- Large results automatically use file_ref mode (>8KB), allowing you to use Read/Grep/Bash for retrieval
+
+**When to explicitly use the `limit` parameter**:
+
+1. **User explicitly requests a specific number** (e.g., "show me the last 10 errors")
+2. **Sample data only** (e.g., "give me a few examples")
+3. **Quick exploration** (view a small subset first, then expand if needed)
+
+**Examples**:
+
+```
+User: "List all errors in this project"
+→ query_tools(status="error")  # No limit, uses file_ref mode
+
+User: "Show me the last 5 errors"
+→ query_tools(status="error", limit=5)  # Explicit limit, likely inline mode
+```
+
+**Design Philosophy**:
+- meta-cc-mcp does not pre-judge how much data you need
+- You decide based on conversation context whether to use `limit`
+- Hybrid output mode ensures large results won't consume excessive tokens
+- For exploratory queries, omit `limit` and let file_ref mode handle the data
+
 ## Integration Patterns
 
 For choosing between integration methods, see [docs/integration-guide.md](docs/integration-guide.md).

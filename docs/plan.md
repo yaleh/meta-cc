@@ -2354,13 +2354,87 @@ meta-cc-mcp 自动选择输出模式：
 - 更新的 `.claude/agents/meta-coach.md`（+50 行）
 - 使用示例和最佳实践
 
+### Stage 16.5: 移除默认 Limit 与文档同步（~30 行）
+
+**任务**：
+- 移除 MCP 工具描述中的默认 limit 值
+- 对齐接口描述与实际行为（无默认 limit，依赖混合输出模式）
+- 更新文档说明设计理念
+
+**背景**：
+- 当前工具描述中有"default: 20/10"，但实际 executor 行为是 limit=0（无限制）
+- 描述与实际行为不一致，会误导 Claude
+- Phase 16 混合输出模式提供了技术基础，可以安全地移除默认限制
+
+**代码修改**：
+```go
+// cmd/mcp-server/tools.go (~4 行修改)
+
+// 修改前
+"limit": {
+    Type:        "number",
+    Description: "Max results (default: 20)",
+},
+
+// 修改后
+"limit": {
+    Type:        "number",
+    Description: "Max results (no limit by default, rely on hybrid output mode)",
+},
+```
+
+应用到以下工具：
+- `query_tools` (Line 78-81)
+- `query_user_messages` (Line 103-106)
+- `query_successful_prompts` (Line 182-185)
+- `query_tools_advanced` (Line 203-206)
+
+**可选优化**（保持一致性）：
+```go
+// query_files 的 top 参数
+"top": {
+    Type:        "number",
+    Description: "Top N files (no limit by default)",
+},
+```
+
+**文档更新**：
+- `docs/principles.md`：添加"默认查询范围与输出控制"章节
+- `CLAUDE.md`：添加"Query Limit Strategy"指导
+- `docs/mcp-tools-reference.md`：更新工具参数说明
+
+**设计理念**：
+- meta-cc-mcp **不预判**用户需要多少数据
+- 让 Claude 根据对话上下文**自主决定**是否需要 limit
+- 混合输出模式确保大结果不会消耗过多 token
+- 小查询（≤8KB）→ inline 模式
+- 大查询（>8KB）→ file_ref 模式，Claude 可使用 Read/Grep/Bash 检索
+
+**测试**：
+```bash
+# 验证无 limit 参数时返回全部结果（file_ref 模式）
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_tools","arguments":{}}}' | ./meta-cc-mcp
+# 预期：mode=file_ref（因为无 limit，返回所有数据）
+
+# 验证显式 limit 参数仍然有效
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_tools","arguments":{"limit":10}}}' | ./meta-cc-mcp
+# 预期：mode=inline, data=[10条记录]
+```
+
+**交付物**：
+- `cmd/mcp-server/tools.go`（~4 行修改）
+- `docs/principles.md`（+30 行）
+- `CLAUDE.md`（+25 行）
+- `docs/mcp-tools-reference.md`（更新参数说明）
+
 **Phase 16 完成标准**：
 - ✅ 临时文件输出引擎实现（FileRefOutput, WriteToTempFile）
 - ✅ 混合模式决策逻辑（8KB 阈值，自动选择）
 - ✅ 文件生命周期管理（启动清理 + 可选清理工具）
+- ✅ 默认 limit 移除，接口描述与实际行为一致
 - ✅ 所有单元测试通过（文件创建、元数据、清理）
-- ✅ 集成测试通过（小查询 inline，大查询 file_ref）
-- ✅ 文档完整（MCP 工具参考 + Subagent 更新）
+- ✅ 集成测试通过（小查询 inline，大查询 file_ref，无 limit 参数返回全部）
+- ✅ 文档完整（MCP 工具参考 + Subagent 更新 + Query Limit Strategy）
 - ✅ Claude 可成功检索临时文件（Read/Grep/Bash 验证）
 
 **应用价值**：
