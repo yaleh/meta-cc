@@ -191,7 +191,7 @@ func (e *ToolExecutor) buildCommand(toolName string, args map[string]interface{}
 			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
 		}
 		if minQuality := getFloatParam(args, "min_quality_score", 0); minQuality > 0 {
-			cmdArgs = append(cmdArgs, "--min-quality", fmt.Sprintf("%.2f", minQuality))
+			cmdArgs = append(cmdArgs, "--min-quality-score", fmt.Sprintf("%.2f", minQuality))
 		}
 
 	case "query_tools_advanced":
@@ -253,7 +253,12 @@ func (e *ToolExecutor) executeMetaCC(cmdArgs []string) (string, error) {
 	cmd.Dir, _ = os.Getwd()
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("meta-cc error: %s", stderr.String())
+		stderrMsg := strings.TrimSpace(stderr.String())
+		if stderrMsg == "" {
+			// If stderr is empty, include command details for debugging
+			return "", fmt.Errorf("meta-cc error: command failed with exit code (stderr empty)\nCommand: %s %s", e.metaCCPath, strings.Join(cmdArgs, " "))
+		}
+		return "", fmt.Errorf("meta-cc error: %s\nCommand: %s %s", stderrMsg, e.metaCCPath, strings.Join(cmdArgs, " "))
 	}
 
 	return stdout.String(), nil

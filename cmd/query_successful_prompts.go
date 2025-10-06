@@ -56,10 +56,15 @@ func runQuerySuccessfulPrompts(cmd *cobra.Command, args []string) error {
 		return outputSuccessfulPromptsMarkdown(cmd, result)
 	}
 
-	// JSON output (default)
-	encoder := json.NewEncoder(cmd.OutOrStdout())
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(result)
+	// JSONL output (default) - output each prompt as a separate line
+	for _, prompt := range result.Prompts {
+		jsonBytes, err := json.Marshal(prompt)
+		if err != nil {
+			return fmt.Errorf("failed to marshal prompt: %w", err)
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(jsonBytes))
+	}
+	return nil
 }
 
 // SuccessfulPromptsResult represents successful prompts query result

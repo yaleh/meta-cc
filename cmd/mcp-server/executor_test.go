@@ -715,7 +715,7 @@ func TestBuildCommandAdditional(t *testing.T) {
 			args:         map[string]interface{}{"limit": float64(10), "min_quality_score": 0.85},
 			scope:        "project",
 			outputFormat: "jsonl",
-			wantArgs:     []string{"--project", ".", "query", "successful-prompts", "--limit", "10", "--min-quality", "0.85", "--output", "jsonl"},
+			wantArgs:     []string{"--project", ".", "query", "successful-prompts", "--limit", "10", "--min-quality-score", "0.85", "--output", "jsonl"},
 		},
 		{
 			name:         "query_tools_advanced",
