@@ -70,14 +70,6 @@ func getToolDefinitions() []Tool {
 			},
 		},
 		{
-			Name:        "analyze_errors",
-			Description: "[DEPRECATED] Use query_tools with status='error' filter instead.",
-			InputSchema: ToolSchema{
-				Type:       "object",
-				Properties: MergeParameters(map[string]Property{}),
-			},
-		},
-		{
 			Name:        "query_tools",
 			Description: "Query tool calls with filters. Default scope: project.",
 			InputSchema: ToolSchema{

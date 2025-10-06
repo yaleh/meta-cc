@@ -96,9 +96,9 @@ func TestHandleToolsList(t *testing.T) {
 		t.Fatalf("expected tools to be a slice, got %T", toolsInterface)
 	}
 
-	// Should have 12 tools (after removing aggregate_stats and extract_tools)
-	if len(toolsSlice) != 12 {
-		t.Errorf("expected 12 tools, got %d", len(toolsSlice))
+	// Should have 11 tools (after removing aggregate_stats, extract_tools, and analyze_errors)
+	if len(toolsSlice) != 11 {
+		t.Errorf("expected 11 tools, got %d", len(toolsSlice))
 	}
 }
 
@@ -203,63 +203,6 @@ func TestWriteError(t *testing.T) {
 
 	if resp.Error.Message != "Invalid Request" {
 		t.Errorf("expected message='Invalid Request', got %s", resp.Error.Message)
-	}
-}
-
-func TestHandleToolsCall_DeprecatedTools(t *testing.T) {
-	tests := []struct {
-		name        string
-		toolName    string
-		expectErr   bool
-		errContains string
-	}{
-		{
-			name:        "analyze_errors deprecated",
-			toolName:    "analyze_errors",
-			expectErr:   true,
-			errContains: "DEPRECATED",
-		},
-		{
-			name:        "aggregate_stats deprecated",
-			toolName:    "aggregate_stats",
-			expectErr:   true,
-			errContains: "DEPRECATED",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := JSONRPCRequest{
-				JSONRPC: "2.0",
-				ID:      1,
-				Method:  "tools/call",
-				Params: map[string]interface{}{
-					"name":      tt.toolName,
-					"arguments": map[string]interface{}{},
-				},
-			}
-
-			var buf bytes.Buffer
-			origStdout := outputWriter
-			outputWriter = &buf
-			defer func() { outputWriter = origStdout }()
-
-			handleToolsCall(req)
-
-			var resp JSONRPCResponse
-			if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
-				t.Fatalf("failed to parse response: %v", err)
-			}
-
-			if tt.expectErr {
-				if resp.Error == nil {
-					t.Error("expected error for deprecated tool")
-				}
-				if !strings.Contains(resp.Error.Message, tt.errContains) {
-					t.Errorf("expected error to contain %s, got %s", tt.errContains, resp.Error.Message)
-				}
-			}
-		})
 	}
 }
 

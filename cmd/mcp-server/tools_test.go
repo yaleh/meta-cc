@@ -128,11 +128,6 @@ func TestToolDescriptionLength(t *testing.T) {
 	tools := getToolDefinitions()
 
 	for _, tool := range tools {
-		// Skip aggregate_stats (will be removed in Stage 15.2)
-		if tool.Name == "aggregate_stats" {
-			continue
-		}
-
 		if len(tool.Description) > 100 {
 			t.Errorf("tool %s description too long: %d chars (max: 100)\nDescription: %s",
 				tool.Name, len(tool.Description), tool.Description)
@@ -157,11 +152,6 @@ func TestToolDescriptionConsistency(t *testing.T) {
 
 	for _, tool := range tools {
 		if strings.Contains(tool.Description, "DEPRECATED") {
-			continue
-		}
-
-		// Skip aggregate_stats (will be removed in Stage 15.2)
-		if tool.Name == "aggregate_stats" {
 			continue
 		}
 
