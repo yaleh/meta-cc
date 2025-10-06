@@ -255,7 +255,7 @@ func TestBuildCommand(t *testing.T) {
 			scope:        "project",
 			outputFormat: "jsonl",
 			expectNil:    false,
-			expectArgs:   []string{"--project", ".", "query", "user-messages", "--pattern", "test.*pattern", "--limit", "10", "--output", "jsonl"},
+			expectArgs:   []string{"--project", ".", "query", "user-messages", "--match", "test.*pattern", "--limit", "10", "--output", "jsonl"},
 		},
 		{
 			name:         "unknown tool",
@@ -321,28 +321,28 @@ func TestExecuteTool_JQFilterParameter(t *testing.T) {
 
 func TestExecuteTool_StatsParameters(t *testing.T) {
 	tests := []struct {
-		name          string
-		args          map[string]interface{}
-		expectStats   bool
-		expectFirst   bool
+		name        string
+		args        map[string]interface{}
+		expectStats bool
+		expectFirst bool
 	}{
 		{
-			name:         "stats_only true",
-			args:         map[string]interface{}{"stats_only": true},
-			expectStats:  true,
-			expectFirst:  false,
+			name:        "stats_only true",
+			args:        map[string]interface{}{"stats_only": true},
+			expectStats: true,
+			expectFirst: false,
 		},
 		{
-			name:         "stats_first true",
-			args:         map[string]interface{}{"stats_first": true},
-			expectStats:  false,
-			expectFirst:  true,
+			name:        "stats_first true",
+			args:        map[string]interface{}{"stats_first": true},
+			expectStats: false,
+			expectFirst: true,
 		},
 		{
-			name:         "both false",
-			args:         map[string]interface{}{},
-			expectStats:  false,
-			expectFirst:  false,
+			name:        "both false",
+			args:        map[string]interface{}{},
+			expectStats: false,
+			expectFirst: false,
 		},
 	}
 

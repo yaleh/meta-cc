@@ -13,7 +13,7 @@
 - ✅ 47 个单元测试全部通过（Phase 9 新增测试）
 - ✅ 3 个真实项目验证通过（0% 错误率）
 - ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`，已集成 Phase 9）
-- ✅ MCP Server 原生实现（`meta-cc mcp`，10 个工具）
+- ✅ MCP Server 独立可执行文件（`meta-cc-mcp`，13 个工具）
 - ✅ 支持 5 种输出格式（JSON, Markdown, CSV, TSV, Summary）
 
 ---
@@ -1044,12 +1044,14 @@ claude -p "Run /meta-errors 30 and check if error patterns are detected"
 **背景**：
 - Phase 6 后发现需要通过 MCP 直接暴露 meta-cc 功能
 - 初期尝试使用 Node.js/Shell 包装器，但增加了不必要的依赖
-- 最终在 meta-cc 中直接实现 MCP 协议（`meta-cc mcp` 命令）
+- Phase 7 实现了 MCP 协议（`meta-cc mcp` 子命令）
+- Phase 14 重构为独立可执行文件（`meta-cc-mcp`）
 
-**架构变更**：
+**架构演进**：
 ```
 之前: Claude Code → MCP Client → Node.js Wrapper → meta-cc CLI
-现在: Claude Code → MCP Client → meta-cc mcp (原生实现)
+Phase 7: Claude Code → MCP Client → meta-cc mcp (子命令)
+Phase 14+: Claude Code → MCP Client → meta-cc-mcp (独立可执行文件)
 ```
 
 ### Stage 7.1: MCP 协议实现
@@ -1064,13 +1066,13 @@ claude -p "Run /meta-errors 30 and check if error patterns are detected"
 - MCP 请求/响应结构体
 - 工具调用路由逻辑
 
-**测试**：
+**测试** (Phase 7，现已改为 meta-cc-mcp)：
 ```bash
 # 手动测试 MCP 初始化
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./meta-cc mcp
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./meta-cc-mcp
 
 # 测试工具列表
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ./meta-cc mcp
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ./meta-cc-mcp
 ```
 
 ### Stage 7.2: MCP 工具定义
@@ -1107,19 +1109,19 @@ func executeTool(name string, args map[string]interface{}) (string, error) {
 - 验证 MCP 工具在 Claude Code 中可用
 - 测试所有 3 个工具的功能
 
-**验证步骤**：
+**验证步骤** (Phase 14+ 使用 meta-cc-mcp)：
 ```bash
-# 添加 MCP 服务器
-claude mcp add meta-insight /home/yale/work/meta-cc/meta-cc mcp
+# 添加 MCP 服务器（Phase 14+ 使用独立可执行文件）
+claude mcp add meta-insight /usr/local/bin/meta-cc-mcp
 
 # 验证连接
 claude mcp list
 # 预期输出：
-# meta-insight: /path/to/meta-cc mcp - ✓ Connected
+# meta-insight: /usr/local/bin/meta-cc-mcp - ✓ Connected
 
 # 在 Claude Code 中测试
 # 使用 mcp__meta-insight__get_session_stats 工具
-# 使用 mcp__meta-insight__analyze_errors 工具
+# 使用 mcp__meta-insight__query_tools 工具（Phase 14+ analyze_errors 已废弃）
 # 使用 mcp__meta-insight__extract_tools 工具
 ```
 
@@ -1127,9 +1129,9 @@ claude mcp list
 - MCP 集成验证脚本
 - 文档更新（README.md 添加 MCP 使用说明）
 
-**Phase 7 完成标准**：
-- ✅ `meta-cc mcp` 命令正确处理 JSON-RPC 请求
-- ✅ 3 个 MCP 工具全部可用
+**Phase 7 完成标准** (现已演进至 Phase 14)：
+- ✅ MCP 服务器正确处理 JSON-RPC 请求
+- ✅ 13 个 MCP 工具全部可用（Phase 15）
 - ✅ `claude mcp list` 显示连接成功
 - ✅ 在 Claude Code 会话中可以调用 MCP 工具
 - ✅ 文档更新完整
@@ -1137,13 +1139,14 @@ claude mcp list
 **关键技术点**：
 - JSON-RPC 2.0 协议实现
 - stdio 输入输出处理
-- 内部命令调用（通过修改 os.Stdout 捕获输出）
+- Phase 7: 内部命令调用（通过修改 os.Stdout 捕获输出）
+- Phase 14: 独立可执行文件，直接执行 meta-cc CLI
 - MCP 协议版本：2024-11-05
 
-**验证结果**（当前会话）：
+**验证结果**（Phase 14+）：
 ```bash
 $ claude mcp list
-meta-insight: /home/yale/work/meta-cc/meta-cc mcp - ✓ Connected
+meta-insight: /usr/local/bin/meta-cc-mcp - ✓ Connected
 
 $ # 在 Claude Code 中成功使用
 mcp__meta-insight__get_session_stats → 返回会话统计

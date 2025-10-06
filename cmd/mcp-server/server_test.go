@@ -208,9 +208,9 @@ func TestWriteError(t *testing.T) {
 
 func TestHandleToolsCall_DeprecatedTools(t *testing.T) {
 	tests := []struct {
-		name     string
-		toolName string
-		expectErr bool
+		name        string
+		toolName    string
+		expectErr   bool
 		errContains string
 	}{
 		{
@@ -293,8 +293,8 @@ func TestHandleToolsCall_MissingToolName(t *testing.T) {
 
 func TestHandleRequest_AllMethods(t *testing.T) {
 	tests := []struct {
-		name    string
-		method  string
+		name      string
+		method    string
 		expectErr bool
 	}{
 		{

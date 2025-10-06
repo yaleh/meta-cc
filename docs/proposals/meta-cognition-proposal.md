@@ -708,25 +708,26 @@ deactivate CC
 @enduml
 ```
 
-**MCP Server 配置**（实际实现）
+**MCP Server 配置**（Phase 14+ 独立可执行文件）
 
 添加 MCP Server：
 ```bash
-# 直接使用 meta-cc 二进制（无需 Node.js）
-claude mcp add meta-insight /path/to/meta-cc mcp
+# Phase 14+: 使用独立可执行文件 meta-cc-mcp（无需 Node.js）
+claude mcp add meta-insight /usr/local/bin/meta-cc-mcp
 
 # 验证连接
 claude mcp list
-# 输出：meta-insight: /path/to/meta-cc mcp - ✓ Connected
+# 输出：meta-insight: /usr/local/bin/meta-cc-mcp - ✓ Connected
 ```
 
-**实现文件**: `cmd/mcp.go` (~250 行)
+**实现文件**: `cmd/mcp-server/` (~600 行, Phase 14 重构)
 
 **关键特性**:
 - ✅ 原生 Go 实现（零外部依赖）
 - ✅ JSON-RPC 2.0 协议
 - ✅ stdio 传输层
-- ✅ 内部命令复用（通过 os.Stdout 重定向）
+- ✅ Phase 7: 内部命令复用（`cmd/mcp.go`，已移除）
+- ✅ Phase 14+: 独立可执行文件，直接调用 meta-cc CLI
 - ✅ MCP 协议版本：2024-11-05
 
 **工具定义示例**

@@ -412,9 +412,9 @@ func TestGetIntArg(t *testing.T) {
 			expected:     1000,
 		},
 		{
-			name: "nil args uses default",
-			args: nil,
-			key:  "limit",
+			name:         "nil args uses default",
+			args:         nil,
+			key:          "limit",
 			defaultValue: 15,
 			expected:     15,
 		},

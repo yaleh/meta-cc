@@ -52,3 +52,40 @@ func TestSessionOnlyFlag(t *testing.T) {
 	// 2. Session is located via environment or auto-detection only
 	// 3. Does not use project path defaulting
 }
+
+// Test Phase 14: meta-cc mcp subcommand should not exist (legacy removed)
+// The MCP server is now a separate executable: meta-cc-mcp
+func TestMCPSubcommandDoesNotExist(t *testing.T) {
+	// Get all subcommands from rootCmd
+	commands := rootCmd.Commands()
+
+	// Check that "mcp" subcommand does NOT exist
+	for _, cmd := range commands {
+		if cmd.Name() == "mcp" {
+			t.Errorf("Phase 14: 'mcp' subcommand should not exist. Use meta-cc-mcp executable instead.")
+			t.Errorf("Found legacy mcp subcommand at: %s", cmd.Use)
+		}
+	}
+}
+
+// Test Phase 14: Verify expected subcommands exist (regression test)
+func TestExpectedSubcommandsExist(t *testing.T) {
+	expectedCommands := []string{
+		"parse",
+		"query",
+		"analyze",
+	}
+
+	commands := rootCmd.Commands()
+	commandMap := make(map[string]bool)
+
+	for _, cmd := range commands {
+		commandMap[cmd.Name()] = true
+	}
+
+	for _, expected := range expectedCommands {
+		if !commandMap[expected] {
+			t.Errorf("Expected subcommand '%s' not found", expected)
+		}
+	}
+}
