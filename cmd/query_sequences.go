@@ -3,20 +3,18 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/locator"
 	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/internal/query"
 )
 
 var (
-	sequencesMinOccur     int
-	sequencesPattern      string
-	sequencesSuccessOnly  bool
-	sequencesWithMetrics  bool
+	sequencesMinOccur    int
+	sequencesPattern     string
+	sequencesSuccessOnly bool
+	sequencesWithMetrics bool
 )
 
 // querySequencesCmd represents the tool-sequences query command
@@ -48,25 +46,15 @@ func init() {
 }
 
 func runQuerySequences(cmd *cobra.Command, args []string) error {
-	// Locate session file
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,
-		ProjectPath: projectPath,
-	})
-	if err != nil {
+	// Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
 		return fmt.Errorf("failed to locate session: %w", err)
 	}
 
-	// Read and parse session file
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return fmt.Errorf("failed to read session file: %w", err)
-	}
-
 	// Apply time filter
-	entries, err = applyTimeFilter(entries)
+	entries := p.GetEntries()
+	entries, err := applyTimeFilter(entries)
 	if err != nil {
 		return fmt.Errorf("failed to apply time filter: %w", err)
 	}
@@ -88,16 +76,16 @@ func runQuerySequences(cmd *cobra.Command, args []string) error {
 
 	// Output result
 	if outputFormat == "md" {
-		return outputSequencesMarkdown(result)
+		return outputSequencesMarkdown(cmd, result)
 	}
 
 	// JSON output (default)
-	encoder := json.NewEncoder(os.Stdout)
+	encoder := json.NewEncoder(cmd.OutOrStdout())
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(result)
 }
 
-func outputSequencesMarkdown(result *query.ToolSequenceQuery) error {
+func outputSequencesMarkdown(cmd *cobra.Command, result *query.ToolSequenceQuery) error {
 	var sb strings.Builder
 
 	sb.WriteString("# Tool Sequence Patterns\n\n")
@@ -131,7 +119,7 @@ func outputSequencesMarkdown(result *query.ToolSequenceQuery) error {
 		}
 	}
 
-	fmt.Print(sb.String())
+	fmt.Fprint(cmd.OutOrStdout(), sb.String())
 	return nil
 }
 
@@ -277,11 +265,11 @@ func determineSequenceContext(pattern string) string {
 	lower := strings.ToLower(pattern)
 
 	contexts := map[string][]string{
-		"代码修改工作流":     {"read", "grep", "edit"},
-		"测试驱动开发循环":    {"bash", "read", "edit", "bash"},
-		"文件创建和验证":     {"write", "read"},
-		"探索性代码阅读":     {"grep", "read", "read"},
-		"调试和错误修复":     {"bash", "read", "edit"},
+		"代码修改工作流":  {"read", "grep", "edit"},
+		"测试驱动开发循环": {"bash", "read", "edit", "bash"},
+		"文件创建和验证":  {"write", "read"},
+		"探索性代码阅读":  {"grep", "read", "read"},
+		"调试和错误修复":  {"bash", "read", "edit"},
 	}
 
 	for context, keywords := range contexts {

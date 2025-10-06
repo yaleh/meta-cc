@@ -13,15 +13,22 @@ GOCLEAN := $(GOCMD) clean
 GOMOD := $(GOCMD) mod
 BUILD_DIR := build
 BINARY_NAME := meta-cc
+MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build test clean install cross-compile help
+.PHONY: all build build-cli build-mcp test clean install cross-compile lint fmt vet help
 
-all: test build
+all: lint test build
 
-build:
+build: build-cli build-mcp
+
+build-cli:
 	@echo "Building $(BINARY_NAME) $(VERSION)..."
 	$(GOBUILD) $(LDFLAGS) -o $(BINARY_NAME) .
+
+build-mcp:
+	@echo "Building $(MCP_BINARY_NAME) $(VERSION)..."
+	$(GOBUILD) -o $(MCP_BINARY_NAME) ./cmd/mcp-server
 
 test:
 	@echo "Running tests..."
@@ -36,6 +43,7 @@ clean:
 	@echo "Cleaning..."
 	$(GOCLEAN)
 	rm -f $(BINARY_NAME)
+	rm -f $(MCP_BINARY_NAME)
 	rm -rf $(BUILD_DIR)
 	rm -f coverage.out coverage.html
 
@@ -60,11 +68,34 @@ deps:
 	$(GOMOD) download
 	$(GOMOD) tidy
 
+lint: fmt vet
+	@echo "Running static analysis..."
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run ./...; \
+	else \
+		echo "golangci-lint not found. Install with:"; \
+		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
+		echo "Skipping lint checks..."; \
+	fi
+
+fmt:
+	@echo "Formatting code..."
+	@gofmt -l -w .
+
+vet:
+	@echo "Running go vet..."
+	@$(GOCMD) vet ./...
+
 help:
 	@echo "Available targets:"
-	@echo "  make build           - Build for current platform"
+	@echo "  make build           - Build both meta-cc and meta-cc-mcp"
+	@echo "  make build-cli       - Build meta-cc CLI only"
+	@echo "  make build-mcp       - Build meta-cc-mcp MCP server only"
 	@echo "  make test            - Run tests"
 	@echo "  make test-coverage   - Run tests with coverage report"
+	@echo "  make lint            - Run static analysis (fmt + vet + golangci-lint)"
+	@echo "  make fmt             - Format code with gofmt"
+	@echo "  make vet             - Run go vet"
 	@echo "  make clean           - Remove build artifacts"
 	@echo "  make install         - Install to GOPATH/bin"
 	@echo "  make cross-compile   - Build for all platforms"

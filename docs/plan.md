@@ -4,27 +4,17 @@
 
 基于 [技术方案](./proposals/meta-cognition-proposal.md) 的分阶段实施计划。
 
-**核心约束**：
-- 每个 Phase：代码修改量 ≤ 500 行
-- 每个 Stage：代码修改量 ≤ 200 行
-- 开发方法：测试驱动开发（TDD）
-- 交付要求：每个 Phase 更新 README.md，说明当前 build 使用方法
-- 验证策略：使用真实 Claude Code 会话历史进行测试
-
-**测试环境**：
-- 测试 fixture：`tests/fixtures/` （包含样本和错误会话文件）
-- 真实验证项目：meta-cc, NarrativeForge, claude-tmux
-- 集成测试：`tests/integration/slash_commands_test.sh`
+**核心约束与设计原则**：详见 [设计原则文档](./principles.md)
 
 **项目状态**：
-- ✅ **Phase 0-7 已完成**（完整集成里程碑达成）
-- ✅ **Phase 8 已完成**（stages 8.1-8.12: 查询命令基础 + Prompt 优化）
-- ✅ **Phase 9 已完成**（上下文长度应对，86.4% 压缩率）🎉 **NEW**
-- ✅ 47 个单元测试全部通过（Phase 9 新增测试）
+- ✅ **Phase 0-9 已完成**（核心查询 + 上下文管理）
+- ✅ **Phase 14 已完成**（架构重构 + MCP 独立可执行文件）
+- ✅ **Phase 15 已完成**（MCP 输出控制 + 工具标准化）🎉 **NEW**
+- ✅ 47 个单元测试全部通过
 - ✅ 3 个真实项目验证通过（0% 错误率）
-- ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`，已集成 Phase 9）
-- ✅ MCP Server 原生实现（`meta-cc mcp`，10 个工具）
-- ✅ 支持 5 种输出格式（JSON, Markdown, CSV, TSV, Summary）
+- ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`）
+- ✅ MCP Server 独立可执行文件（`meta-cc-mcp`，13 个工具，支持输出大小控制）
+- ✅ MCP 输出压缩率 80%+（10.7k → ~1-2k tokens）
 
 ---
 
@@ -78,26 +68,43 @@ card "Phase 11" as P11 #lightyellow {
   - Cookbook 文档
 }
 
-card "Phase 12" as P12 #lightgray {
-  **查询语言增强**
-  - SQL-like 语法
-  - 查询解析器
-  - 关联查询
-  - 性能优化
+card "Phase 12" as P12 #lightgreen {
+  **MCP 项目级查询**
+  - 项目级工具（默认）
+  - 会话级工具（_session）
+  - --project . 支持
+  - 跨会话分析
 }
 
-card "Phase 13" as P13 #lightgray {
-  **索引功能**
-  - SQLite 索引
-  - 跨会话查询
-  - 索引维护
+card "Phase 13" as P13 #lightgreen {
+  **输出格式简化**
+  - JSONL/TSV 双格式
+  - 格式一致性
+  - 错误处理标准化
 }
 
-card "Phase 14" as P14 #lightgray {
-  **Subagent 增强**
-  - @meta-coach 迭代分析
-  - 自动化建议
-  - 工作流优化
+card "Phase 14" as P14 #yellow {
+  **架构重构与职责清晰化**
+  - Pipeline 模式抽象
+  - errors 命令简化
+  - 输出排序标准化
+  - 代码重复消除
+}
+
+card "Phase 15" as P15 #lightgreen {
+  **MCP 输出控制与标准化**
+  - 输出大小控制
+  - 消息内容截断
+  - 工具参数统一
+  - 工具描述优化
+}
+
+card "Phase 16" as P16 #lightgreen {
+  **Subagent 实现**
+  - @meta-coach 核心
+  - @error-analyst 专用
+  - @workflow-tuner 专用
+  - 嵌套调用测试
 }
 
 P0 -down-> P8
@@ -107,6 +114,8 @@ P10 -down-> P11
 P11 -down-> P12
 P12 -down-> P13
 P13 -down-> P14
+P14 -down-> P15
+P15 -down-> P16
 
 note right of P0
   **业务闭环完成**
@@ -118,19 +127,21 @@ note right of P9
   应对大会话场景
 end note
 
-note right of P14
-  **完整生态系统**
-  高级分析能力
+note right of P16
+  **完整架构实现**
+  数据层 + MCP + Subagent
 end note
 
 @enduml
 ```
 
 **Phase 优先级分类**：
-- ✅ **已完成** (Phase 0-7): MVP 核心功能
-- 🔵 **高优先级** (Phase 8-9): 核心查询和上下文管理
+- ✅ **已完成** (Phase 0-9): MVP + 核心查询 + 上下文管理
 - 🟡 **中优先级** (Phase 10-11): 高级查询和可组合性
-- ⚪ **低优先级** (Phase 12-14): 便利性和生态增强
+- 🟡 **中优先级** (Phase 12-13): MCP 项目级 + 输出简化
+- ✅ **已完成** (Phase 14): 架构重构 + MCP 独立可执行文件
+- ✅ **已完成** (Phase 15): MCP 输出控制 + 工具标准化
+- 🟢 **高优先级** (Phase 16): Subagent 语义层实现
 
 ---
 
@@ -1034,12 +1045,14 @@ claude -p "Run /meta-errors 30 and check if error patterns are detected"
 **背景**：
 - Phase 6 后发现需要通过 MCP 直接暴露 meta-cc 功能
 - 初期尝试使用 Node.js/Shell 包装器，但增加了不必要的依赖
-- 最终在 meta-cc 中直接实现 MCP 协议（`meta-cc mcp` 命令）
+- Phase 7 实现了 MCP 协议（`meta-cc mcp` 子命令）
+- Phase 14 重构为独立可执行文件（`meta-cc-mcp`）
 
-**架构变更**：
+**架构演进**：
 ```
 之前: Claude Code → MCP Client → Node.js Wrapper → meta-cc CLI
-现在: Claude Code → MCP Client → meta-cc mcp (原生实现)
+Phase 7: Claude Code → MCP Client → meta-cc mcp (子命令)
+Phase 14+: Claude Code → MCP Client → meta-cc-mcp (独立可执行文件)
 ```
 
 ### Stage 7.1: MCP 协议实现
@@ -1054,13 +1067,13 @@ claude -p "Run /meta-errors 30 and check if error patterns are detected"
 - MCP 请求/响应结构体
 - 工具调用路由逻辑
 
-**测试**：
+**测试** (Phase 7，现已改为 meta-cc-mcp)：
 ```bash
 # 手动测试 MCP 初始化
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./meta-cc mcp
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./meta-cc-mcp
 
 # 测试工具列表
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ./meta-cc mcp
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ./meta-cc-mcp
 ```
 
 ### Stage 7.2: MCP 工具定义
@@ -1097,19 +1110,19 @@ func executeTool(name string, args map[string]interface{}) (string, error) {
 - 验证 MCP 工具在 Claude Code 中可用
 - 测试所有 3 个工具的功能
 
-**验证步骤**：
+**验证步骤** (Phase 14+ 使用 meta-cc-mcp)：
 ```bash
-# 添加 MCP 服务器
-claude mcp add meta-insight /home/yale/work/meta-cc/meta-cc mcp
+# 添加 MCP 服务器（Phase 14+ 使用独立可执行文件）
+claude mcp add meta-insight /usr/local/bin/meta-cc-mcp
 
 # 验证连接
 claude mcp list
 # 预期输出：
-# meta-insight: /path/to/meta-cc mcp - ✓ Connected
+# meta-insight: /usr/local/bin/meta-cc-mcp - ✓ Connected
 
 # 在 Claude Code 中测试
 # 使用 mcp__meta-insight__get_session_stats 工具
-# 使用 mcp__meta-insight__analyze_errors 工具
+# 使用 mcp__meta-insight__query_tools 工具（Phase 14+ analyze_errors 已废弃）
 # 使用 mcp__meta-insight__extract_tools 工具
 ```
 
@@ -1117,9 +1130,9 @@ claude mcp list
 - MCP 集成验证脚本
 - 文档更新（README.md 添加 MCP 使用说明）
 
-**Phase 7 完成标准**：
-- ✅ `meta-cc mcp` 命令正确处理 JSON-RPC 请求
-- ✅ 3 个 MCP 工具全部可用
+**Phase 7 完成标准** (现已演进至 Phase 14)：
+- ✅ MCP 服务器正确处理 JSON-RPC 请求
+- ✅ 13 个 MCP 工具全部可用（Phase 15）
 - ✅ `claude mcp list` 显示连接成功
 - ✅ 在 Claude Code 会话中可以调用 MCP 工具
 - ✅ 文档更新完整
@@ -1127,13 +1140,14 @@ claude mcp list
 **关键技术点**：
 - JSON-RPC 2.0 协议实现
 - stdio 输入输出处理
-- 内部命令调用（通过修改 os.Stdout 捕获输出）
+- Phase 7: 内部命令调用（通过修改 os.Stdout 捕获输出）
+- Phase 14: 独立可执行文件，直接执行 meta-cc CLI
 - MCP 协议版本：2024-11-05
 
-**验证结果**（当前会话）：
+**验证结果**（Phase 14+）：
 ```bash
 $ claude mcp list
-meta-insight: /home/yale/work/meta-cc/meta-cc mcp - ✓ Connected
+meta-insight: /usr/local/bin/meta-cc-mcp - ✓ Connected
 
 $ # 在 Claude Code 中成功使用
 mcp__meta-insight__get_session_stats → 返回会话统计
@@ -1143,9 +1157,7 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 ---
 
-## 未来 Phase（新增）
-
-### Phase 8: 查询命令基础 & 集成改进（Query Foundation & Integration Improvements）
+## Phase 8: 查询命令基础 & 集成改进（Query Foundation & Integration Improvements）
 
 **目标**：实现 `meta-cc query` 命令组的核心查询能力，并更新现有集成（包括 MCP Server）以使用 Phase 8 功能
 
@@ -1363,330 +1375,881 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 
 ---
 
-### Phase 12: 查询语言增强（Query Language）
+### Phase 12: MCP 项目级查询（MCP Project Scope）
 
-**目标**：实现 SQL-like 查询语法，提升查询表达能力
+**目标**：扩展 MCP Server 支持项目级和会话级查询，默认提供跨会话分析能力
 
 **代码量**：~300 行
 
-**优先级**：低（便利性）
+**优先级**：高（核心功能，元认知需要跨会话分析）
+
+**设计原则**：
+- ✅ 默认查询范围为**项目级**（所有会话）
+- ✅ 工具名带 `_session` 后缀表示**仅查询当前会话**
+- ✅ 保持 API 清晰：无后缀 = 项目级，`_session` = 会话级
+- ✅ 利用 `--project .` 标志实现跨会话查询
 
 **Stage 划分**：
-- Stage 12.1: 查询表达式解析器
-- Stage 12.2: 查询优化器（简化）
-- Stage 12.3: 关联查询（跨 turn 过滤）
-- Stage 12.4: 查询性能优化
+- Stage 12.1: 添加项目级工具定义（`query_tools`, `query_user_messages`, `get_stats` 等）
+- Stage 12.2: 实现 `executeTool()` 项目级查询逻辑（添加 `--project .`）
+- Stage 12.3: 添加会话级工具（`_session` 后缀）
+- Stage 12.4: 更新 MCP 配置和文档
 
 **交付物**：
-- 支持 SQL-like 语法：`WHERE tool = 'Bash' AND status = 'error'`
-- 比较操作符：`==, !=, >, <, >=, <=`
-- 逻辑操作符：`AND, OR, NOT`
-- 集合操作符：`IN, NOT IN, LIKE, REGEXP`
+- `query_tools`：项目级工具调用查询（默认）
+- `query_tools_session`：当前会话工具调用查询
+- `query_user_messages`：项目级用户消息搜索
+- `query_user_messages_session`：当前会话用户消息搜索
+- `get_stats`：项目级统计信息
+- `get_session_stats`：当前会话统计（已存在，保持兼容）
+- 更新后的 `.claude/mcp-servers/meta-cc.json`
+- `docs/mcp-project-scope.md`：使用指南
+
+**工具映射表**：
+| 项目级（默认） | 会话级 | 说明 |
+|--------------|--------|------|
+| `get_stats` | `get_session_stats` | 统计信息 |
+| `analyze_errors` | `analyze_errors_session` | 错误分析 |
+| `query_tools` | `query_tools_session` | 工具调用查询 |
+| `query_user_messages` | `query_user_messages_session` | 用户消息搜索 |
+| `query_tool_sequences` | `query_tool_sequences_session` | 工作流模式 |
+| `query_file_access` | `query_file_access_session` | 文件操作历史 |
+| `query_successful_prompts` | `query_successful_prompts_session` | 优质提示词 |
+| `query_context` | `query_context_session` | 错误上下文 |
+
+**应用场景**：
+- 跨会话分析工作模式（如"我在这个项目中如何使用 agents？"）
+- 项目级错误模式识别（发现重复出现的问题）
+- 当前会话快速分析（聚焦当前对话上下文）
+- 提示词质量跨会话对比
+
+**验证测试**：
+- 测试 `query_tools` 返回多会话数据
+- 测试 `query_tools_session` 仅返回当前会话数据
+- 验证 `--project .` 正确传递到 CLI
+- 测试工具命名一致性
+
+**兼容性**：
+- ✅ 保持 `get_session_stats` 不变（向后兼容）
+- ✅ 新工具采用统一命名约定
+- ✅ 文档清晰说明默认行为
 
 ---
 
-### Phase 13: 索引功能（可选）
+### Phase 13: 输出格式简化与一致性（Output Format Simplification）
 
-**目标**：SQLite 索引构建，支持跨会话查询
+**目标**：简化输出格式为 JSONL 和 TSV 两种核心格式，强化格式一致性和错误处理
 
-**代码量**：~500 行
+**代码量**：~400 行
 
-**优先级**：低（性能优化）
+**优先级**：高（核心体验改进，Unix 哲学对齐）
+
+**状态**：待实施
+
+**设计原则**：
+- ✅ **双格式原则**：仅保留 JSONL（机器处理）和 TSV（CLI 工具友好）
+- ✅ **格式一致性**：所有场景（正常/异常）都输出有效格式
+- ✅ **数据日志分离**：stdout=数据，stderr=诊断日志
+- ✅ **Unix 可组合性**：meta-cc 提供简单检索，复杂过滤交给 jq/awk/grep
+- ✅ **无自动降级**：移除格式降级逻辑，客户端负责渲染
+
+**核心改变**：
+```
+移除格式：JSON (pretty), CSV, Markdown
+保留格式：JSONL (默认), TSV
+客户端渲染：Claude Code 自行将 JSONL 转为 Markdown 展示
+```
 
 **Stage 划分**：
-- Stage 13.1: SQLite schema 设计
-- Stage 13.2: 索引构建（index build, index update）
-- Stage 13.3: 索引查询（query sessions --since）
-- Stage 13.4: 索引维护和清理
+- Stage 13.1: 移除冗余格式（JSON, CSV, Markdown）
+- Stage 13.2: 增强 TSV 支持所有数据类型（泛型投影）
+- Stage 13.3: 统一错误处理（格式化错误输出）
+- Stage 13.4: 更新文档和集成配置
 
 **交付物**：
-- `meta-cc index build`：全量索引
-- `meta-cc index update`：增量索引
-- `meta-cc query sessions --since "7 days ago"`
-- 索引文件管理
+- 移除的格式处理代码：
+  - `pkg/output/json.go` (保留 `FormatJSON` 用于错误)
+  - `pkg/output/csv.go`
+  - `pkg/output/markdown.go`
+- 增强的 TSV 格式化器：
+  - `pkg/output/tsv.go`（支持所有数据类型）
+  - 泛型字段投影机制
+- 统一的错误处理：
+  - JSONL 格式错误对象（stdout）
+  - TSV 格式错误消息（stderr）
+  - Cobra 错误拦截（`cmd/root.go`）
+- 更新的全局参数：
+  - `--stream`（默认，JSONL 输出）
+  - `--output tsv`（TSV 输出）
+  - 移除 `--output json|csv|md`
+- 文档更新：
+  - `docs/cli-composability.md`：格式选择指南
+  - `README.md`：输出格式章节
+  - Slash Commands 更新（使用 JSONL）
+
+**应用场景**：
+- **JSONL 默认**：所有命令输出 JSONL，Claude Code/MCP 直接消费
+- **TSV 轻量**：用户需要 awk/grep 处理时使用 `--output tsv`
+- **jq 管道**：`meta-cc query tools | jq 'select(.Status == "error")'`
+- **Markdown 渲染**：Slash Commands 接收 JSONL 后让 Claude 格式化
+
+**Unix 可组合性原则**：
+```bash
+# meta-cc 提供简单检索
+meta-cc query tools --status error --limit 100
+
+# 复杂过滤交给 jq
+meta-cc query tools | jq 'select(.Duration > 5000 and .ToolName == "Bash")'
+
+# TSV + awk 处理
+meta-cc query tools --output tsv | awk -F'\t' '{if ($3 == "error") print $2}'
+```
+
+**格式一致性保证**：
+```bash
+# 正常查询
+meta-cc query tools --limit 5
+# 输出：5 行 JSONL
+
+# 无结果
+meta-cc query tools --where "tool='NonExistent'"
+# stdout: (empty)
+# stderr: Warning: No results found
+# exit: 2
+
+# 参数错误（JSONL 格式）
+meta-cc query tools --where "invalid syntax"
+# stdout: {"error":"invalid where condition","code":"INVALID_FILTER",...}
+# exit: 1
+
+# 参数错误（TSV 格式）
+meta-cc query tools --where "invalid syntax" --output tsv
+# stdout: (empty)
+# stderr: Error: invalid where condition
+# exit: 1
+```
+
+**验证测试**：
+- 所有命令默认输出 JSONL
+- TSV 支持所有数据类型（ToolCall, AggregatedStats, TimeSeriesData）
+- 错误场景输出格式一致
+- jq/awk 管道处理验证
+- Slash Commands 更新后正常工作
 
 ---
 
-### Phase 14: Subagent 高级功能（可选）
+## Phase 14: 架构重构与 MCP 增强（Architecture Refactoring & MCP Enhancement）
 
-**目标**：增强 `@meta-coach` 的多轮调用能力
+**目标**：重构命令实现以消除代码重复，**拆分 MCP 为独立可执行文件并增强查询能力**
 
-**代码量**：~150 行（主要是配置）
+**代码量**：~900 行（重构 + MCP 增强 + Subagent）
 
-**优先级**：低（用户体验）
+**优先级**：高（核心架构改进，解决 MCP 输出过大问题）
 
-**Stage 划分**：
-- Stage 14.1: @meta-coach 增强提示词
-- Stage 14.2: 迭代分析工作流示例
-- Stage 14.3: 自动化建议实施
-- Stage 14.4: 文档和最佳实践
+**状态**：待实施
+
+**背景与问题**：
+- **问题 1**：MCP 输出过大（返回大量原始 JSONL，消耗 LLM tokens）
+- **问题 2**：`aggregate_stats` 失败（error -32603），无聚合能力
+- **问题 3**：MCP 职责不清（CLI 内嵌 MCP，违反职责最小化）
+
+**解决方案**：
+- ✅ **拆分可执行文件**：meta-cc（CLI）+ meta-cc-mcp（MCP Server）
+- ✅ **引入 gojq 库**：MCP 使用 jq 表达式过滤/聚合（LLM 熟悉的语法）
+- ✅ **输出控制**：max_output_bytes（默认 50KB）+ 统计模式
+- ✅ **保留 @meta-query**：处理复杂 Unix 管道场景
+
+**设计原则**：
+- ✅ **职责最小化**：CLI 仅提取数据，MCP 负责过滤/聚合
+- ✅ **Pipeline 模式**：抽象通用数据处理流程
+- ✅ **输出确定性**：所有输出按稳定字段排序
+- ✅ **延迟决策**：jq_filter 由 Claude 生成，MCP 仅执行
+
+### 架构调整策略
+
+**新架构层次**：
+```
+用户交互层
+  ├─ Claude 自主调用 MCP（jq 过滤/统计）
+  ├─ @meta-query Subagent → 复杂 Unix 管道
+  └─ @meta-coach → 语义分析
+
+集成层
+  ├─ meta-cc-mcp（独立可执行文件）
+  │   ├─ 调用 meta-cc CLI
+  │   ├─ gojq 过滤/聚合
+  │   └─ 输出控制（50KB 限制）
+  └─ @meta-query Subagent（CLI + Unix 管道）
+
+核心数据层
+  └─ meta-cc CLI（数据提取，JSONL）
+```
+
+**职责划分**：
+
+| 层级 | 职责 | 示例 |
+|------|------|------|
+| **meta-cc CLI** | 数据提取 | `query tools --project . --output jsonl` |
+| **meta-cc-mcp** | jq 过滤/统计 | jq_filter + stats_only + 输出限制 |
+| **@meta-query** | Unix 管道聚合 | `meta-cc \| jq ... \| sort \| uniq -c` |
+| **@meta-coach** | 语义分析 | 基于 MCP/Subagent 数据生成建议 |
+
+**关键改变**：
+- ✅ **拆分可执行文件**：meta-cc（CLI）+ meta-cc-mcp（MCP）
+- ✅ **MCP 增强**：使用 gojq 库实现 jq 过滤/聚合
+- ✅ **CLI 保持纯粹**：仅数据提取，无过滤/聚合
+- ✅ **80/20 原则**：MCP 覆盖 80% 场景，@meta-query 处理 20% 复杂场景
+
+### Stage 14.1: Pipeline 抽象层
+
+**任务**：
+- 提取通用 `SessionPipeline` 类型
+- 实现 `Load()`, `ExtractEntries()`, `BuildIndex()` 方法
+- 统一会话定位和 JSONL 解析逻辑
+- **支持多会话加载**（已在 Phase 13 实现，此处完善测试）
 
 **交付物**：
-- 更新 `.claude/agents/meta-coach.md`
-- 添加迭代分析示例
-- 工作流优化建议模板
+```go
+// cmd/pipeline.go (~150 行，已存在）
+type SessionPipeline struct {
+    opts    GlobalOptions
+    session string
+    entries []parser.SessionEntry
+}
+
+func NewSessionPipeline(opts GlobalOptions) *SessionPipeline
+func (p *SessionPipeline) Load(loadOpts LoadOptions) error  // 支持项目级多会话加载
+func (p *SessionPipeline) GetEntries() []parser.SessionEntry
+func (p *SessionPipeline) FilterEntries(filter EntryFilter) []parser.SessionEntry
+```
+
+**测试**：
+```bash
+go test ./cmd -run TestSessionPipeline -v
+# 验证 Pipeline 单元测试覆盖率 ≥90%
+# 验证多会话加载功能（TestSessionPipeline_LoadProjectLevel）
+```
+
+### Stage 14.2: errors 命令简化
+
+**任务**：
+- 移除 `analyze errors` 命令的窗口过滤逻辑
+- 简化错误签名：`{tool}:{error_prefix}` 替代 SHA256
+- 移除模式计数和分组（交给 `jq`）
+- `query errors` 输出简单错误列表（JSONL）
+
+**改进对比**：
+```bash
+# 改进前（meta-cc 决策分析范围）
+meta-cc analyze errors --window 50
+# 输出: 聚合后的错误模式（包含计数、首次/最后出现）
+
+# 改进后（meta-cc 仅提取，jq 决策）
+meta-cc query errors | jq '.[length-50:]' | jq 'group_by(.Signature)'
+# meta-cc 输出全部错误，jq 负责窗口选择和聚合
+```
+
+**交付物**：
+- `cmd/query_errors.go` (~80 行，vs 原 `analyze errors` 317 行）
+- `query errors` 命令文档更新
+- 迁移指南（从 `analyze errors` 到 `query errors`）
+
+**测试**：
+```bash
+# 验证输出与 analyze errors 等价（经 jq 处理后）
+meta-cc query errors | jq 'group_by(.Signature)' > /tmp/new.json
+meta-cc analyze errors --window 0 > /tmp/old.json
+diff /tmp/new.json /tmp/old.json
+```
+
+### Stage 14.3: 输出排序标准化
+
+**任务**：
+- 为所有 `query` 命令添加默认排序
+- `query tools` → 按 `Timestamp` 排序
+- `query messages` → 按 `turn_sequence` 排序
+- `query errors` → 按 `Timestamp` 排序
+
+**交付物**：
+```go
+// pkg/output/sort.go (~50 行)
+func SortByTimestamp(data interface{}) interface{}
+func SortByTurnSequence(data interface{}) interface{}
+func SortByUUID(data interface{}) interface{}
+```
+
+**测试**：
+```bash
+# 验证输出确定性（多次运行结果一致）
+for i in {1..10}; do
+  meta-cc query tools > /tmp/run-$i.jsonl
+done
+# 所有文件应完全相同
+diff /tmp/run-*.jsonl
+```
+
+### Stage 14.4: 拆分 MCP 为独立可执行文件
+
+**任务**：
+- 创建 `cmd/mcp-server/` 目录和 `meta-cc-mcp` 可执行文件
+- 集成 gojq 库（github.com/itchyny/gojq）
+- 实现 jq_filter 参数支持
+- 实现统计模式（stats_only, stats_first）
+- 实现输出长度控制（max_output_bytes，默认 50KB）
+
+**架构变更**：
+```
+改进前：
+  meta-cc CLI（包含 MCP 子命令）
+
+改进后：
+  meta-cc CLI（纯数据提取）
+  meta-cc-mcp（独立 MCP server）
+      ├─ 调用 meta-cc CLI
+      ├─ 使用 gojq 过滤/聚合
+      └─ 输出长度控制
+```
+
+**交付物**：
+- `cmd/mcp-server/main.go` (~300 行)
+- MCP 工具参数标准化：jq_filter, stats_only, stats_first, max_output_bytes
+- 依赖：`go get github.com/itchyny/gojq@latest`
+
+**测试**：
+```bash
+# 构建两个可执行文件
+make build  # 生成 meta-cc 和 meta-cc-mcp
+
+# 测试 MCP jq 过滤
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_tools","arguments":{"jq_filter":".[] | select(.Status == \"error\")","stats_only":true}}}' | ./meta-cc-mcp
+
+# 预期输出：
+# {"tool":"Bash","count":311}
+# {"tool":"Read","count":62}
+```
+
+### Stage 14.5: 创建 @meta-query Subagent
+
+**任务**：
+- 创建 `.claude/subagents/meta-query.md`
+- 处理复杂 Unix 管道场景（MCP 无法完成的多步聚合）
+- 可被 @meta-coach 调用
+
+**核心能力**：
+1. 组织 meta-cc CLI + Unix 管道（jq/awk/sort/uniq）
+2. 返回紧凑的聚合结果
+
+**使用决策**：
+- 单步 jq 可完成 → 使用 MCP（meta-cc-mcp）
+- 多步 Unix 管道 → 使用 @meta-query
+
+**交付物**：
+- `.claude/subagents/meta-query.md` (~150 行)
+- 示例场景：错误统计、Top-N 查询、文件操作历史
+
+**测试**：
+```bash
+User: "@meta-query 统计本项目错误，按工具分组"
+验证: 返回 "311 Bash, 62 Read..." 统计结果
+```
+
+### Stage 14.6: 代码重复消除
+
+**任务**：
+- 统一输出逻辑到 `output.Format()`
+- 重构 5 个命令使用 `SessionPipeline`
+- 移除重复的会话定位和解析代码
+
+**改进前后代码量**：
+```
+命令            改进前    改进后    减少
+-----------------------------------------
+parse stats     ~170 行   ~60 行   -65%
+query tools     ~307 行   ~80 行   -74%
+query messages  ~280 行   ~70 行   -75%
+analyze errors  ~317 行   ~80 行   -75%
+timeline        ~120 行   ~50 行   -58%
+-----------------------------------------
+总计            1194 行   340 行   -72%
+```
+
+**测试**：
+```bash
+make test
+git diff --stat HEAD~1 HEAD | grep "deletions"
+```
+
+**Phase 14 完成标准**：
+- ✅ Pipeline 抽象层实现（覆盖率 ≥90%）
+- ✅ **meta-cc-mcp 独立可执行文件创建**
+- ✅ **gojq 集成，支持 jq_filter/stats_only/stats_first**
+- ✅ **@meta-query Subagent 创建**
+- ✅ 所有 query 命令输出稳定排序
+- ✅ 代码重复消除（减少 ≥60%）
+- ✅ 所有单元测试和集成测试通过
+
+**向后兼容性**：
+- ⚠️ `analyze errors` 标记为 deprecated
+- ⚠️ `--window` 参数移除（文档说明用 jq_filter 替代）
+- ⚠️ `meta-cc mcp` 子命令移除（改用 meta-cc-mcp 可执行文件）
+
+---
+
+## Phase 15: MCP 输出控制与工具标准化（MCP Output Control & Tools Standardization）
+
+**目标**：实现 MCP 输出大小控制，统一工具参数，优化工具描述
+
+**代码量**：~350 行（输出控制 ~150 行 + 参数标准化 ~200 行）
+
+**优先级**：高（解决 MCP 上下文溢出问题，与 Phase 14 配合完成 MCP 增强）
+
+**状态**：✅ 已完成
+
+**背景**：
+- Phase 14 已引入 gojq 和 meta-cc-mcp 独立可执行文件
+- **问题发现**：MCP 查询返回大量内容（如包含会话摘要的用户消息，~10.7k tokens）
+- 需统一所有 MCP 工具参数（jq_filter, stats_only, stats_first, max_output_bytes）
+- 需实现消息级内容截断，防止上下文溢出
+- 移除冗余聚合类工具（由 jq_filter + stats_only 替代）
+
+### Stage 15.1: MCP 输出大小控制
+
+**任务**：
+- 实现 `max_message_length` 参数（消息内容截断，默认 500 字符）
+- 实现 `content_summary` 模式（仅返回 turn/timestamp/preview）
+- 更新工具描述，添加输出大小警告
+- 优化 `TruncateMessageContent()` 函数
+
+**根本原因**：
+```
+用户消息可能包含会话摘要（数千行历史对话）
+→ jq_filter ".[]" 返回完整对象（包括巨大的 content 字段）
+→ max_output_bytes 仅在最后截断（为时已晚）
+→ MCP 返回 ~10.7k tokens，填满上下文
+```
+
+**解决方案**：
+```go
+// cmd/mcp-server/filters.go (新增 ~80 行)
+func TruncateMessageContent(jsonl string, maxLen int) string {
+    lines := strings.Split(jsonl, "\n")
+    var result []string
+    for _, line := range lines {
+        if line == "" {
+            continue
+        }
+        var obj map[string]interface{}
+        json.Unmarshal([]byte(line), &obj)
+        if content, ok := obj["content"].(string); ok && len(content) > maxLen {
+            obj["content"] = content[:maxLen] + "...[truncated]"
+        }
+        truncated, _ := json.Marshal(obj)
+        result = append(result, string(truncated))
+    }
+    return strings.Join(result, "\n")
+}
+```
+
+**参数标准化**：
+```json
+{
+  "scope": "string",                  // project/session
+  "jq_filter": "string",              // jq 表达式（默认 ".[]"）
+  "stats_only": "boolean",            // 仅返回统计（默认 false）
+  "stats_first": "boolean",           // 先统计后详情（默认 false）
+  "max_output_bytes": "number",       // 总输出限制（默认 51200）
+  "max_message_length": "number",     // 单条消息内容限制（默认 500）NEW
+  "content_summary": "boolean"        // 摘要模式（默认 false）NEW
+}
+```
+
+**工具描述增强**：
+```json
+{
+  "name": "query_user_messages",
+  "description": "Search user messages with regex. ⚠️ Messages may contain large summaries. Use limit=5 and max_message_length=500 to avoid context overflow.",
+  "inputSchema": {
+    "max_message_length": {
+      "type": "number",
+      "description": "Max chars per message content (default: 500, prevents huge summaries)",
+      "default": 500
+    },
+    "content_summary": {
+      "type": "boolean",
+      "description": "Return only turn/timestamp/preview (100 chars), skip full content",
+      "default": false
+    }
+  }
+}
+```
+
+**交付物**：
+- `cmd/mcp-server/filters.go`：消息截断逻辑 (~80 行)
+- `cmd/mcp-server/executor.go`：参数处理 (~50 行)
+- `cmd/mcp-server/executor_test.go`：截断测试 (~70 行)
+- 更新所有 MCP 工具描述（添加输出大小警告）
+
+**测试**：
+```bash
+# 测试消息内容截断
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_user_messages","arguments":{"pattern":"meta-cc-mcp","max_message_length":100}}}' | ./meta-cc-mcp
+# 预期：content 字段最多 100 字符 + "...[truncated]"
+
+# 测试摘要模式
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_user_messages","arguments":{"pattern":"meta-cc-mcp","content_summary":true}}}' | ./meta-cc-mcp
+# 预期：仅返回 {"turn":23062,"timestamp":"...","preview":"..."}
+```
+
+**性能指标**：
+- 10.7k tokens → ~1-2k tokens（使用 max_message_length=500）
+- 压缩率：~81-91%
+- 搜索能力：保持完整（截断不影响正则匹配）
+
+### Stage 15.2: 统一 MCP 工具参数
+
+**任务**：
+- 为所有 MCP 工具添加标准参数（Stage 15.1 已定义）
+- 移除复杂聚合参数：group_by, metrics, window
+- 移除聚合类工具：aggregate_stats, analyze_errors（已在 Phase 14 标记废弃）
+
+**Claude 使用示例**：
+```
+User: "统计本项目所有错误，按工具分组"
+
+Claude 调用：
+query_tools({
+  "jq_filter": ".[] | select(.Status == \"error\") | .ToolName",
+  "stats_only": true
+})
+
+返回：
+{"tool":"Bash","count":311}
+{"tool":"Read","count":62}
+```
+
+**交付物**：
+- 更新所有 MCP 工具的 inputSchema
+- 创建 `docs/mcp-migration-guide.md`
+- 移除聚合类工具定义
+
+**测试**：
+```bash
+echo '{"jsonrpc":"2.0","method":"tools/list"}' | ./meta-cc-mcp | jq '.result.tools[0].inputSchema.properties | keys'
+# 验证包含 jq_filter, stats_only, stats_first, max_output_bytes, max_message_length, content_summary
+```
+
+### Stage 15.3: 简化 MCP 工具描述
+
+**任务**：
+- 精简所有 MCP 工具描述至 100 字符以内
+- 分离"用途说明"和"使用场景"（后者移到文档）
+- 统一描述格式：`<动作> <对象> <范围说明>`
+
+**改进对比**：
+```go
+// 改进前（200+ 字符）
+"description": "Analyze error patterns across project history (repeated failures, tool-specific errors, temporal trends). Default project-level scope enables discovery of persistent issues across sessions. Use for meta-cognition: identifying systematic workflow problems, debugging recurring issues, or tracking error resolution over time."
+
+// 改进后（简洁）
+"description": "Query errors across project history. Default scope: project (cross-session analysis)."
+```
+
+**交付物**：
+- 更新所有 14 个 MCP 工具描述
+- `docs/mcp-tools-reference.md` 完整文档（包含使用场景）
+
+### Stage 15.4: MCP 工具文档优化
+
+**任务**：
+- 创建 `docs/mcp-tools-reference.md` 完整参考
+- 为每个工具添加使用场景和示例
+- 说明 MCP vs Subagent 的选择标准
+
+**交付物**：
+```markdown
+# docs/mcp-tools-reference.md
+
+## query_errors
+**用途**：查询工具错误历史
+**范围**：项目级（默认）/ 会话级（scope=session）
+**使用场景**：
+- 快速定位最近错误
+- 检索特定工具的失败记录
+- 为 @error-analyst 提供数据输入
+
+**示例**：
+Claude: "Show me the last 10 errors"
+→ 调用 query_errors(limit=10, scope="session")
+```
+
+**MCP 工具最终列表**（标准化后）：
+
+| 工具名 | 职责 | 支持参数 |
+|--------|------|----------|
+| `get_session_stats` | 会话统计 | - |
+| `query_tools` | 工具调用查询 | jq_filter, stats_only, stats_first, max_output_bytes |
+| `query_tools_session` | 会话级工具查询 | jq_filter, stats_only, stats_first, max_output_bytes |
+| `query_user_messages` | 用户消息搜索 | jq_filter, stats_only, stats_first, max_output_bytes |
+| `query_user_messages_session` | 会话级消息搜索 | jq_filter, stats_only, stats_first, max_output_bytes |
+| `query_context` | 错误上下文查询 | jq_filter, max_output_bytes |
+| `query_file_access` | 文件操作历史 | jq_filter, max_output_bytes |
+| `query_tool_sequences` | 工具序列查询 | jq_filter, stats_only, max_output_bytes |
+| `extract_tools` | 工具提取（遗留） | limit, max_output_bytes |
+
+**移除的工具**：
+- ❌ `aggregate_stats`（由 jq_filter + stats_only 替代）
+- ❌ `analyze_errors`（由 jq_filter + stats_only 替代）
+
+**Phase 15 完成标准**：
+- ✅ MCP 输出大小控制实现（max_message_length, content_summary）
+- ✅ 输出压缩率 ≥80%（10.7k → ~1-2k tokens）
+- ✅ 移除 2 个聚合类 MCP 工具
+- ✅ 所有工具参数标准化（支持 jq_filter/stats_only/max_message_length）
+- ✅ 所有工具描述 ≤100 字符
+- ✅ 完整的 MCP 迁移文档
+- ✅ 完整的 MCP 工具参考文档
+- ✅ MCP 集成测试通过（包括输出大小控制测试）
+
+**应用价值**：
+- 解决 MCP 上下文溢出问题（查询包含会话摘要的消息时）
+- 提升 Claude 使用 MCP 工具的稳定性（减少 token 消耗 80%+）
+- 保持搜索能力完整性（截断不影响正则匹配）
+
+---
+
+## Phase 16: Subagent 实现（Subagent Implementation）
+
+**目标**：实现语义分析层 Subagents，提供端到端的元认知分析能力，**完成三层架构**
+
+**代码量**：~1000 行（配置 + 文档，包含 @meta-query）
+
+**优先级**：高（完成语义层，实现完整架构）
+
+**状态**：部分完成（Phase 14 已创建 @meta-query，此 Phase 完善其他 Subagents）
+
+**设计原则**：
+- ✅ Subagents 负责语义理解、推理、建议生成
+- ✅ **@meta-query 调用 CLI + 管道进行聚合**（Phase 14 已实现）
+- ✅ **其他 Subagents 调用 MCP 工具获取原始数据**
+- ✅ **@meta-coach 等高级 Subagents 调用 @meta-query 获取聚合数据**
+- ✅ 支持多轮对话和上下文关联
+- ✅ 可嵌套调用其他 Subagents
+
+### Stage 16.1: 更新 @meta-coach 核心 Subagent
+
+**任务**：
+- 更新 `.claude/subagents/meta-coach.md`
+- 集成 MCP 新参数（jq_filter, stats_only）和 @meta-query
+- 更新数据获取策略
+
+**数据获取策略**：
+
+| 场景 | 优先方式 | 理由 |
+|------|----------|------|
+| 统计摘要 | MCP（stats_only=true） | 一步完成，无需管道 |
+| 简单过滤 | MCP（jq_filter） | gojq 内置支持 |
+| 复杂管道 | @meta-query | 多步 Unix 工具组合 |
+| 详细记录 | MCP | 获取完整上下文 |
+
+**交付物**：
+- 更新 `.claude/subagents/meta-coach.md`（~100 行）
+- 示例场景：
+  - 场景 1：错误统计（使用 MCP stats_only）
+  - 场景 2：复杂聚合（使用 @meta-query）
+  - 场景 3：详细分析（使用 MCP jq_filter）
+
+**测试**：
+```bash
+User: "@meta-coach 分析本项目的错误模式"
+验证: @meta-coach → MCP(stats_only=true) → 生成建议
+```
+
+### Stage 16.2: @error-analyst 专用 Subagent
+
+**任务**：
+- 创建错误深度分析 Subagent
+- 分析错误模式、根本原因、系统性问题
+- 生成修复建议和预防措施
+
+**交付物**：
+```markdown
+# .claude/subagents/error-analyst.md
+---
+name: error-analyst
+description: 错误模式深度分析专家
+allowed_tools: [query_errors, query_context, query_file_access]
+---
+
+你是 error-analyst，专注于分析错误模式和根本原因。
+
+## 分析流程
+1. 调用 query_errors 获取错误列表
+2. 使用 query_context 获取错误上下文
+3. 分析错误类型：配置问题/依赖缺失/代码错误/架构问题
+4. 生成分类报告和修复优先级
+
+## 输出格式
+- 错误分类（配置/依赖/代码/架构）
+- 根本原因分析
+- 修复优先级（P0/P1/P2）
+- 预防建议
+```
+
+### Stage 16.3: @workflow-tuner 工作流优化 Subagent
+
+**任务**：
+- 创建工作流自动化建议 Subagent
+- 检测重复模式，建议创建 Hooks/Slash Commands
+- 生成自动化配置草稿
+
+**交付物**：
+```markdown
+# .claude/subagents/workflow-tuner.md
+---
+name: workflow-tuner
+description: 工作流自动化顾问
+allowed_tools: [query_workflow_patterns, query_file_hotspots, query_tool_sequences]
+---
+
+你是 workflow-tuner，帮助用户自动化重复工作流。
+
+## 检测模式
+1. 调用 query_tool_sequences 检测重复序列（如 Read→Edit→Bash）
+2. 调用 query_file_hotspots 识别频繁修改文件
+3. 分析是否值得自动化（出现次数 ≥5）
+
+## 建议类型
+- Slash Command：固定流程（如代码审查）
+- Hook：自动触发（如提交前测试）
+- Subagent：复杂决策（如智能重构）
+
+## 输出
+- 自动化建议（类型、触发条件、优先级）
+- 配置草稿（.md 文件内容）
+- 实施步骤
+```
+
+### Stage 16.4: 集成测试和文档
+
+**任务**：
+- 测试 Subagent 嵌套调用（@meta-coach → @error-analyst）
+- 验证 MCP 工具调用正确性
+- 创建完整使用文档
+
+**交付物**：
+- `docs/subagents-guide.md`：Subagent 使用指南
+- `docs/subagents-development.md`：创建自定义 Subagent 指南
+- 集成测试脚本
+
+**测试场景**：
+```bash
+# 测试 1: 端到端错误分析
+User: "@meta-coach 分析最近的错误"
+验证: meta-coach → query_errors → @error-analyst → 分类报告
+
+# 测试 2: 工作流优化建议
+User: "@workflow-tuner 有什么可以自动化的？"
+验证: workflow-tuner → query_tool_sequences → 建议列表
+
+# 测试 3: 嵌套调用
+User: "@meta-coach 全面分析项目健康度"
+验证: meta-coach → @error-analyst + @workflow-tuner → 综合报告
+```
+
+**Phase 16 完成标准**：
+- ✅ @meta-coach 核心 Subagent 更新（集成 MCP 新参数和 @meta-query）
+- ✅ @error-analyst 专用 Subagent 实现
+- ✅ @workflow-tuner 专用 Subagent 实现
+- ✅ 嵌套调用测试通过
+- ✅ 完整的 Subagent 使用文档
+- ✅ 至少 4 个端到端测试场景通过
+
+**架构完整性**：
+```
+数据层（meta-cc CLI）
+  ↓ JSONL 数据提取
+
+集成层（双路径）
+  ├─ meta-cc-mcp（MCP Server）
+  │   ├─ 调用 meta-cc CLI
+  │   ├─ gojq 过滤/聚合
+  │   └─ 输出控制（50KB）
+  │
+  └─ @meta-query Subagent
+      └─ CLI + Unix 管道聚合
+
+Subagent 层（语义分析）
+  ├─ @meta-coach（调用 MCP + @meta-query）
+  ├─ @error-analyst（调用 MCP）
+  └─ @workflow-tuner（调用 @meta-query）
+
+用户
+  ↓ 元认知洞察和优化建议
+```
+
+**关键改进**：
+- ✅ CLI 职责单一（仅数据提取）
+- ✅ MCP 使用 gojq 实现过滤/聚合（80% 场景）
+- ✅ @meta-query 处理复杂管道（20% 场景）
+- ✅ Subagent 层专注语义分析
 
 ---
 
 ## 测试策略
 
 ### 单元测试
-- 每个 Stage 必须有对应的单元测试
-- 测试覆盖率目标：≥ 80%
-- 使用 `go test ./...` 运行所有测试
+- 每个 Stage 对应单元测试，覆盖率 ≥80%
+- 使用 `go test ./...` 运行
 
 ### 集成测试
 - 每个 Phase 结束后运行集成测试
-- 使用真实的会话文件 fixture
-- 验证命令端到端流程
+- 使用真实会话文件 fixture（`tests/fixtures/`）
 
-### Claude Code 验证测试
-```bash
-# 测试环境准备
-mkdir -p test-workspace/.claude/commands
-cp .claude/commands/*.md test-workspace/.claude/commands/
-
-# 非交互模式测试
-cd test-workspace
-claude -p "Test /meta-stats command and verify output"
-
-# 交互模式手动测试（每个 Phase 结束）
-# 在 Claude Code 中打开 test-workspace 项目
-# 手动输入 /meta-stats 和 /meta-errors
-```
-
-### 测试数据管理
-- 测试 fixture 存放在 `tests/fixtures/`
-- 使用真实的（脱敏的）Claude Code 会话文件
-- 包含多种场景：正常会话、错误重复、工具密集使用等
+### Claude Code 验证
+- Slash Commands: 在 Claude Code 中手动测试
+- MCP Server: 验证工具调用和输出正确性
+- Subagents: 测试多轮对话和嵌套调用
 
 ---
 
-## 项目里程碑
+## 关键里程碑
 
-```plantuml
-@startuml
-!theme plain
-
-gantt
-    title meta-cc 开发时间表
-    dateFormat YYYY-MM-DD
-
-    section Phase 0
-    项目初始化         :p0, 2025-01-01, 2d
-
-    section Phase 1
-    会话文件定位       :p1, after p0, 3d
-
-    section Phase 2
-    JSONL 解析器      :p2, after p1, 3d
-
-    section Phase 3
-    数据提取命令       :p3, after p2, 3d
-
-    section Phase 4
-    统计分析命令       :p4, after p3, 2d
-
-    section Phase 5
-    错误模式分析       :p5, after p4, 3d
-
-    section Phase 6
-    Slash Commands   :p6, after p5, 2d
-
-    section 里程碑
-    MVP 完成          :milestone, after p6, 0d
-
-@enduml
-```
-
-**预计总开发时间**：18 天（约 2.5 周）
-
-**关键里程碑**：
-- Day 2: 项目骨架完成，可构建
-- Day 5: 会话文件定位完成
-- Day 8: 解析器完成
-- Day 11: 数据提取功能完成
-- Day 13: 统计分析完成
-- Day 16: 错误分析完成
-- Day 18: **MVP 完成，业务闭环**
-
----
-
-## README.md 维护策略
-
-每个 Phase 完成后，README.md 应包含：
-
-1. **安装**：如何构建和安装 meta-cc
-2. **快速开始**：最简单的使用示例
-3. **命令参考**：当前已实现的所有命令
-4. **集成指南**：如何在 Claude Code 中使用（Phase 6 后）
-5. **故障排查**：常见问题和解决方案
-6. **开发指南**：如何运行测试、贡献代码
-
-**模板结构**：
-```markdown
-# meta-cc
-
-## 安装
-...
-
-## 快速开始
-...
-
-## 命令参考
-### parse extract
-...
-
-### parse stats
-...
-
-## Claude Code 集成
-...
-
-## 开发
-...
-```
-
----
-
-## 风险和缓解措施
-
-| 风险 | 影响 | 缓解措施 |
-|------|------|----------|
-| Claude Code 会话文件格式变化 | 高 | 使用真实文件测试，版本化 fixture |
-| 环境变量不可用 | 中 | 提供多种定位方式（参数、路径推断） |
-| 测试覆盖不足 | 中 | TDD 强制要求，每个 Stage 先写测试 |
-| Phase 代码量超标 | 低 | 每个 Stage 结束检查行数，及时拆分 |
-| Claude Code 集成失败 | 高 | Phase 6 前在测试环境充分验证 |
+| Phase | 里程碑 | 说明 |
+|-------|--------|------|
+| 0-6 | MVP 完成 | 可在 Claude Code 中使用（Slash Commands） |
+| 7 | MCP 原生实现 | 14 个 MCP 工具可用 |
+| 8-9 | 核心查询完成 | 应对大会话，分页/分片/投影 |
+| 10-13 | 高级功能 | 聚合统计、项目级查询、输出简化 |
+| 14 | **架构重构 + MCP 增强** | Pipeline 抽象 + meta-cc-mcp 独立可执行文件 + gojq 集成 |
+| 15 | **MCP 输出控制与标准化** | 消息内容截断 + 统一参数 + 工具描述优化（80%+ 压缩率）|
+| 16 | **完整三层架构** | CLI（数据）→ MCP/Subagent（聚合）→ @meta-coach（语义） |
 
 ---
 
 ## 总结
 
-本计划将 meta-cc 项目分为 6 个核心 Phase，每个 Phase 不超过 500 行代码，采用 TDD 方法开发。Phase 6 完成后即可在 Claude Code 中使用，实现业务闭环。后续 Phase 7-10 为可选扩展功能。
+meta-cc 项目采用 TDD 和渐进式交付：
+- Phase 0-6 (MVP): 业务闭环，可用
+- Phase 7-9: 核心能力完善
+- Phase 10-13: 高级功能和优化
+- **Phase 14-16: 架构重构和 MCP 增强（完整三层架构）**
 
-**下一步**：~~开始 Phase 0.1 - Go 模块初始化~~
+**完整架构标志**：
+```
+数据层（meta-cc CLI）
+  ↓ JSONL 数据提取
 
----
+集成层（双路径）
+  ├─ meta-cc-mcp（gojq 过滤/聚合，80% 场景）
+  └─ @meta-query Subagent（Unix 管道聚合，20% 场景）
 
-## 实施总结（Phase 0-7）
+语义层（Subagent）
+  └─ @meta-coach, @error-analyst, @workflow-tuner
+```
 
-### 完整集成完成情况
-
-**✅ 已完成的 Phases**：
-- Phase 0: 项目初始化（Go 模块、测试框架、构建脚本）
-- Phase 1: 会话文件定位（多策略定位，基于 cwd 自动检测）
-- Phase 2: JSONL 解析器（Entry 解析、ToolCall 提取）
-- Phase 3: 数据提取命令（parse extract、输出格式化、过滤器）
-- Phase 4: 统计分析（parse stats、会话指标、工具频率）
-- Phase 5: 错误模式分析（analyze errors、签名检测、模式识别）
-- Phase 6: Claude Code 集成（Slash Commands、集成测试、文档）
-- Phase 7: MCP Server 实现（原生 JSON-RPC 2.0 协议，3 个工具）
-
-**📊 项目统计**：
-- 总代码行数：~2,750 行（Go 源码 + 测试）
-- 单元测试：66 个（100% 通过）
-- 测试覆盖率：96-97%（核心模块）
-- Slash Commands：2 个（`/meta-stats`, `/meta-errors`）
-- MCP Tools：3 个（`get_session_stats`, `analyze_errors`, `extract_tools`）
-- 文档：README.md + troubleshooting.md + 集成测试脚本
-
-**🎯 真实项目验证**：
-- meta-cc: 2,563 turns, 971 tool calls, 0% error rate
-- NarrativeForge: 2,032 turns, 750 tool calls, 0% error rate
-- claude-tmux: 299 turns, 108 tool calls, 0% error rate
-
-### 关键技术发现
-
-**1. 会话定位机制**
-- ❌ Claude Code 不提供 `CC_SESSION_ID` / `CC_PROJECT_HASH` 环境变量
-- ✅ 使用 `os.Getwd()` + 路径哈希实现自动检测
-- ✅ 路径哈希算法：简单替换 `/` 为 `-`（与 Claude Code 一致）
-- ✅ 最新会话选择：按文件修改时间排序
-
-**2. JSONL 结构理解**
-- Entry 类型：`user`, `assistant`, `file-history-snapshot`
-- Tool 调用模式：`tool_use` → `tool_result` 配对（通过 `tool_use_id`）
-- 错误识别：`ToolResult.Status` 字段（可能为空字符串表示成功）
-
-**3. 错误模式检测**
-- 签名算法：SHA256(tool_name + error_text[:100])，取前 16 字符
-- 模式阈值：≥3 次出现视为重复错误
-- 时间跨度：计算首次/最后出现的时间差
-
-**4. Slash Commands 集成**
-- 执行环境：Bash 工具的 cwd = 项目根目录
-- 无需参数：meta-cc 自动检测机制完美适配
-- 错误处理：检查 meta-cc 是否安装，提供友好提示
-
-**5. MCP Server 实现** (Phase 7)
-- 协议：JSON-RPC 2.0（MCP 规范 2024-11-05）
-- 传输：stdio（标准输入/输出）
-- 架构：直接在 Go 中实现，无需 Node.js/Shell 包装器
-- 工具数量：3 个（stats, errors, tools）
-- 命令调用：内部复用 CLI 逻辑（通过 os.Stdout 重定向）
-
-### 架构优势验证
-
-**✅ 职责分离有效**：
-- CLI 工具：纯数据处理，无 LLM 调用，性能优异
-- Claude 集成：语义理解、建议生成（通过 Slash Commands）
-- 数据流清晰：JSONL → meta-cc → JSON → Claude → 用户
-
-**✅ TDD 开发成功**：
-- 每个 Stage 先写测试，后写实现
-- 测试覆盖率高，代码质量好
-- 重构容易，回归测试保护
-
-**✅ 渐进式实施**：
-- Phase 0-6 完成 MVP，业务闭环
-- 索引功能（Phase 7+）作为可选优化
-- 每个 Phase 独立可用，增量交付
-
-### 下一步计划（可选扩展）
-
-**Phase 7: 索引优化**（1 周）
-- SQLite 全量/增量索引
-- 跨会话查询命令
-- 性能优化（大会话支持）
-
-**Phase 8: 高级分析**（1-2 周）
-- 工具序列模式检测
-- 时间线可视化
-- 性能指标分析
-
-**Phase 9: Subagent 集成**（1-2 周）
-- @meta-coach 对话式分析
-- 工作流优化建议
-- 自动创建 Hooks/Commands
-
-**Phase 10: MCP Server**（1-2 周）
-- MCP 协议实现
-- 工具定义和注册
-- Claude Code MCP 集成
-
----
-
-## 经验总结
-
-**成功要素**：
-1. **文档驱动**：详细的 plan.md 和 proposal.md 指导实施
-2. **TDD 方法**：测试先行，确保质量
-3. **真实验证**：使用真实项目数据测试
-4. **渐进交付**：每个 Phase 独立可用
-5. **灵活适配**：发现环境变量不存在后快速调整策略
-
-**待改进项**：
-1. CSV 输出格式未实现（优先级低）
-2. 索引功能作为可选扩展
-3. 更多 Slash Commands（如 `/meta-timeline`）
-4. 性能优化（大会话文件 >10MB）
-
-**核心价值实现**：
-- ✅ 零配置使用（自动检测）
-- ✅ 多项目支持（--project 参数）
-- ✅ 准确分析（0% 错误，3 个项目验证）
-- ✅ Claude Code 原生集成（Slash Commands）
-- ✅ 完整文档（README + troubleshooting）
-
-**🎉 MVP 里程碑达成！**
+**关键设计原则实现**：
+- ✅ **职责最小化**：CLI 仅提取数据，MCP 负责过滤/聚合
+- ✅ **延迟决策**：jq_filter 由 Claude 生成，MCP 仅执行
+- ✅ **架构分离**：meta-cc（CLI）+ meta-cc-mcp（MCP）独立可执行文件
+- ✅ **LLM 友好**：jq 语法 Claude 熟悉，gojq 库处理高效
+- ✅ **80/20 原则**：MCP 覆盖常见场景，@meta-query 处理复杂场景

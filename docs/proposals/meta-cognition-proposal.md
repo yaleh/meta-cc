@@ -168,31 +168,116 @@ endif
 **参考文档：**
 - [设置和配置](https://docs.claude.com/en/docs/claude-code/settings)
 
-### 2.2 命令结构
+**架构设计原则**（Phase 14 增强）：
+
+```
+核心职责边界：
+1. 职责最小化原则 - meta-cc 仅负责 Claude Code 会话历史知识的提取
+   - ✅ 提取：Turn、ToolCall、Error 等结构化数据
+   - ✅ 检测：基于规则的模式识别（重复错误签名、工具序列）
+   - ❌ 分析：不做语义分析、不做决策（如窗口大小、聚合方式）
+   - ❌ 过滤：不预判用户需求，复杂过滤交给 jq/awk
+
+2. Pipeline 模式 - 抽象通用数据处理流程
+   - 定位会话 → 加载 JSONL → 提取数据 → 输出格式化
+   - 消除跨命令重复代码（~345 行重复 → 120 行共享 Pipeline）
+
+3. 输出确定性 - 所有输出按稳定字段排序
+   - query tools → 按 Timestamp 排序
+   - query messages → 按 turn_sequence 排序
+   - 解决 Go map 迭代随机性问题
+
+4. 延迟决策 - 将分析决策推给下游工具/LLM
+   - ❌ meta-cc 不应实现：窗口过滤、错误聚合、模式计数
+   - ✅ 交给 jq/awk：`meta-cc query errors | jq '.[length-50:]'`
+   - ✅ 交给 Claude：Slash Commands 从 JSONL 生成语义建议
+```
+
+**实际应用示例**：
+
+```bash
+# 错误：meta-cc 预判分析范围（违反职责最小化）
+meta-cc analyze errors --window 50 --aggregate
+# 输出：{"pattern1": {count: 5}, "pattern2": {count: 3}}
+
+# 正确：meta-cc 仅提取，LLM/工具负责决策
+meta-cc query errors | jq '.[length-50:] | group_by(.Signature) | map({pattern: .[0].Signature, count: length})'
+# meta-cc 输出全部错误，jq 负责窗口选择和聚合
+```
+
+### 2.2 命令结构与输出格式原则
+
+**输出格式设计原则**（Phase 13）：
+
+```
+核心原则：
+1. 双格式原则 - 仅保留 JSONL 和 TSV
+2. 格式一致性 - 所有场景输出有效格式（包括错误）
+3. 数据日志分离 - stdout=数据, stderr=日志
+4. Unix 可组合性 - meta-cc 提供简单检索，复杂过滤交给 jq/awk/grep
+5. 客户端渲染 - 移除 Markdown，由 Claude Code 自行渲染
+```
+
+**格式选择**：
+- **JSONL**（默认，`--stream`）：机器处理，jq 友好，流式性能
+- **TSV**（`--output tsv`）：轻量级，awk/grep 友好，体积小
+
+**移除格式**（避免冗余和维护负担）：
+- ❌ JSON (pretty array) → 用 `--stream | jq -s` 替代
+- ❌ CSV → 用 TSV 替代（转换：`tr '\t' ','`）
+- ❌ Markdown → 客户端渲染（Slash Commands 让 Claude 格式化）
+
+**命令结构**：
 
 ```bash
 meta-cc - Claude Code Meta-Cognition Tool
 
 全局选项:
-  --session <id>          会话ID（或读取 $CC_SESSION_ID）
+  --session <id>          会话ID（或自动检测）
   --project <path>        项目路径（自动转换为哈希目录）
-  --output <json|md|csv>  输出格式（默认：json）
+  --stream                JSONL 输出（默认）
+  --output tsv            TSV 输出
+  --fields <list>         字段投影（逗号分隔）
+  --limit <n>             限制结果数量
+  --offset <n>            跳过前 N 条
 
 COMMANDS:
   parse       解析会话文件（核心功能）
-    dump      导出完整 JSONL 为结构化格式
     extract   提取特定数据（turns/tools/errors）
     stats     会话统计信息
 
-  query       数据查询（需先建索引，可选）
-    sessions  列出项目下所有会话
-    turns     查询轮次
-    tools     工具使用统计
+  query       数据查询（无需索引）
+    tools     查询工具调用
+    messages  查询用户消息
+    context   查询上下文
+    sequences 查询工具序列
 
   analyze     模式分析（基于规则，无 LLM）
     errors    错误模式检测
-    tools     工具使用模式
-    timeline  时间线分析
+    sequences 工具序列模式
+
+  stats       统计分析
+    aggregate 聚合统计
+    timeseries 时间序列
+    files     文件级统计
+```
+
+**Unix 可组合性示例**：
+
+```bash
+# meta-cc 提供简单检索（--where, --status, --tool）
+meta-cc query tools --status error --limit 100
+
+# 复杂过滤交给 jq（多条件、计算、转换）
+meta-cc query tools | jq 'select(.Duration > 5000 and .ToolName == "Bash")'
+
+# TSV + awk 处理（轻量场景）
+meta-cc query tools --output tsv | awk -F'\t' '{if ($3 == "error") print $2}'
+
+# 组合使用（meta-cc + jq + awk）
+meta-cc query tools --status error | \
+  jq -r '[.ToolName, .Duration] | @tsv' | \
+  awk '{sum+=$2} END {print "Total:", sum "ms"}'
 ```
 
 ### 2.3 核心命令示例
@@ -623,25 +708,26 @@ deactivate CC
 @enduml
 ```
 
-**MCP Server 配置**（实际实现）
+**MCP Server 配置**（Phase 14+ 独立可执行文件）
 
 添加 MCP Server：
 ```bash
-# 直接使用 meta-cc 二进制（无需 Node.js）
-claude mcp add meta-insight /path/to/meta-cc mcp
+# Phase 14+: 使用独立可执行文件 meta-cc-mcp（无需 Node.js）
+claude mcp add meta-insight /usr/local/bin/meta-cc-mcp
 
 # 验证连接
 claude mcp list
-# 输出：meta-insight: /path/to/meta-cc mcp - ✓ Connected
+# 输出：meta-insight: /usr/local/bin/meta-cc-mcp - ✓ Connected
 ```
 
-**实现文件**: `cmd/mcp.go` (~250 行)
+**实现文件**: `cmd/mcp-server/` (~600 行, Phase 14 重构)
 
 **关键特性**:
 - ✅ 原生 Go 实现（零外部依赖）
 - ✅ JSON-RPC 2.0 协议
 - ✅ stdio 传输层
-- ✅ 内部命令复用（通过 os.Stdout 重定向）
+- ✅ Phase 7: 内部命令复用（`cmd/mcp.go`，已移除）
+- ✅ Phase 14+: 独立可执行文件，直接调用 meta-cc CLI
 - ✅ MCP 协议版本：2024-11-05
 
 **工具定义示例**

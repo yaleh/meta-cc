@@ -1,0 +1,54 @@
+Phase 12: MCP Project-Level Query Implementation - Planning Summary
+===================================================================
+
+DELIVERABLES:
+- 8 project-level MCP tools (query all sessions, no suffix)
+- 8 session-level MCP tools (current session only, _session suffix)
+- Execution logic with --project . flag support
+- Updated MCP configuration
+- Comprehensive documentation (docs/mcp-project-scope.md)
+
+CODE BUDGET: ~300 lines total
+- Stage 12.1: ~80 lines (project-level tool definitions)
+- Stage 12.2: ~100 lines (execution logic)
+- Stage 12.3: ~80 lines (session-level tools)
+- Stage 12.4: ~40 lines (configuration/docs)
+
+TESTING STRATEGY:
+- TDD approach: Write tests FIRST for each stage
+- Stage-level: Unit tests after each stage
+- Phase-level: All unit tests + integration tests
+- Halt protocol: Stop if tests fail after 3 attempts
+
+KEY DESIGN PRINCIPLES:
+1. Default behavior: Project-level (all sessions)
+2. Explicit scoping: _session suffix for current session
+3. Backward compatibility: get_session_stats unchanged
+4. Consistent naming: Clear, predictable tool names
+
+TOOL MAPPING:
+Project-Level        | Session-Level
+---------------------|-------------------------
+query_tools          | query_tools_session
+query_user_messages  | query_user_messages_session
+get_stats            | get_session_stats (EXISTING)
+analyze_errors       | analyze_errors_session
+query_tool_sequences | query_tool_sequences_session
+query_file_access    | query_file_access_session
+query_successful_prompts | query_successful_prompts_session
+query_context        | query_context_session
+
+FILES CREATED:
+✓ plans/12/README.md (169 lines) - Quick start guide
+✓ plans/12/plan.md (1901 lines) - Detailed implementation plan
+✓ plans/12/SUMMARY.txt (this file) - Quick reference
+
+NEXT STEPS:
+1. Review planning documents
+2. Begin Stage 12.1 TDD: Write tests for project-level tool definitions
+3. Implement Stage 12.1: Define 8 project-level tools
+4. Run unit tests, iterate until pass
+5. Proceed to Stage 12.2
+
+IMPLEMENTATION ORDER:
+Stage 12.1 → Stage 12.2 → Stage 12.3 → Stage 12.4 → Integration Tests

@@ -9,18 +9,20 @@ import (
 type LocateOptions struct {
 	SessionID   string // 命令行参数 --session
 	ProjectPath string // 命令行参数 --project
+	SessionOnly bool   // Phase 13: 强制仅分析当前会话（禁用项目级默认行为）
 }
 
 // Locate 统一的会话文件定位入口
+// Phase 13: 默认使用项目级分析（--project .），除非设置 --session-only
 // 按优先级尝试以下策略：
 //
-//	1. 环境变量 CC_SESSION_ID + CC_PROJECT_HASH
-//	2. 命令行参数 --session
-//	3. 命令行参数 --project
-//	4. 自动检测（使用当前工作目录）
+//  1. 环境变量 CC_SESSION_ID + CC_PROJECT_HASH (仅当 --session-only 时)
+//  2. 命令行参数 --session
+//  3. 命令行参数 --project
+//  4. 默认：当前工作目录（Phase 13: 项目级默认）
 func (l *SessionLocator) Locate(opts LocateOptions) (string, error) {
-	// 策略1: 环境变量
-	if os.Getenv("CC_SESSION_ID") != "" {
+	// 策略1: 环境变量（仅在 --session-only 模式下）
+	if !opts.SessionOnly && os.Getenv("CC_SESSION_ID") != "" {
 		path, err := l.FromEnv()
 		if err == nil {
 			return path, nil
@@ -38,26 +40,33 @@ func (l *SessionLocator) Locate(opts LocateOptions) (string, error) {
 		return "", fmt.Errorf("session ID %q not found: %w", opts.SessionID, err)
 	}
 
-	// 策略3: --project 参数
-	if opts.ProjectPath != "" {
-		path, err := l.FromProjectPath(opts.ProjectPath)
+	// Phase 13: 默认使用当前工作目录作为项目路径（除非明确指定 --project）
+	projectPath := opts.ProjectPath
+	if projectPath == "" && !opts.SessionOnly {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("failed to get current directory: %w", err)
+		}
+		projectPath = cwd
+	}
+
+	// 策略3: --project 参数或默认项目路径
+	if projectPath != "" {
+		path, err := l.FromProjectPath(projectPath)
 		if err == nil {
 			return path, nil
 		}
 		// 明确指定了 project 但找不到，直接返回错误
-		return "", fmt.Errorf("no sessions found for project %q: %w", opts.ProjectPath, err)
+		return "", fmt.Errorf("no sessions found for project %q: %w", projectPath, err)
 	}
 
-	// 策略4: 自动检测（使用当前工作目录）
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current directory: %w", err)
+	// 策略4: --session-only 模式下的后备策略（环境变量检测）
+	if opts.SessionOnly && os.Getenv("CC_SESSION_ID") != "" {
+		path, err := l.FromEnv()
+		if err == nil {
+			return path, nil
+		}
 	}
 
-	path, err := l.FromProjectPath(cwd)
-	if err == nil {
-		return path, nil
-	}
-
-	return "", fmt.Errorf("failed to locate session file: tried env vars, session ID, project path, and auto-detection")
+	return "", fmt.Errorf("failed to locate session file: tried session ID, project path, and env vars")
 }

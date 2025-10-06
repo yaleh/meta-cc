@@ -168,3 +168,91 @@ func TestParseSession_FilterNonMessageTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestParseEntriesFromContent_ValidContent(t *testing.T) {
+	content := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":"Hello"},"uuid":"user1"}
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"role":"assistant","content":"Hi"},"uuid":"asst1"}`
+
+	entries, err := ParseEntriesFromContent(content)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Errorf("Expected 2 entries, got %d", len(entries))
+	}
+
+	if entries[0].Type != "user" {
+		t.Errorf("Expected first entry type 'user', got '%s'", entries[0].Type)
+	}
+
+	if entries[1].Type != "assistant" {
+		t.Errorf("Expected second entry type 'assistant', got '%s'", entries[1].Type)
+	}
+}
+
+func TestParseEntriesFromContent_EmptyContent(t *testing.T) {
+	entries, err := ParseEntriesFromContent("")
+
+	if err != nil {
+		t.Fatalf("Expected no error for empty content, got: %v", err)
+	}
+
+	if len(entries) != 0 {
+		t.Errorf("Expected 0 entries for empty content, got %d", len(entries))
+	}
+}
+
+func TestParseEntriesFromContent_SkipEmptyLines(t *testing.T) {
+	content := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":"Test"},"uuid":"user1"}
+
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"role":"assistant","content":"Response"},"uuid":"asst1"}
+
+`
+
+	entries, err := ParseEntriesFromContent(content)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Errorf("Expected 2 entries (empty lines skipped), got %d", len(entries))
+	}
+}
+
+func TestParseEntriesFromContent_InvalidJSON(t *testing.T) {
+	content := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":"Test"},"uuid":"user1"}
+invalid json line
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"role":"assistant","content":"Response"},"uuid":"asst1"}`
+
+	_, err := ParseEntriesFromContent(content)
+
+	if err == nil {
+		t.Error("Expected error for invalid JSON line")
+	}
+}
+
+func TestParseEntriesFromContent_FilterNonMessageTypes(t *testing.T) {
+	content := `{"type":"file-history-snapshot","messageId":"abc","snapshot":{}}
+{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":"Test"},"uuid":"user1"}
+{"type":"some-other-type","data":"ignored"}
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"role":"assistant","content":"Response"},"uuid":"asst1"}`
+
+	entries, err := ParseEntriesFromContent(content)
+
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Errorf("Expected 2 message entries (non-message types filtered), got %d", len(entries))
+	}
+
+	for _, entry := range entries {
+		if !entry.IsMessage() {
+			t.Errorf("Expected only message types, got '%s'", entry.Type)
+		}
+	}
+}

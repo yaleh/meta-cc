@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/filter"
-	"github.com/yale/meta-cc/internal/locator"
+	internalOutput "github.com/yale/meta-cc/internal/output"
 	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/pkg/output"
 )
@@ -50,32 +50,26 @@ func init() {
 }
 
 func runQueryTools(cmd *cobra.Command, args []string) error {
-	// Step 1: Locate and parse session
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,
-		ProjectPath: projectPath,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to locate session: %w", err)
+	// Step 1: Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
+		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
 	}
 
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return fmt.Errorf("failed to parse session: %w", err)
-	}
-
-	// Step 2: Extract tool calls
-	toolCalls := parser.ExtractToolCalls(entries)
+	// Step 2: Extract tool calls using pipeline
+	toolCalls := p.ExtractToolCalls()
 
 	// Step 3: Apply filters
 	filtered, err := applyToolFilters(toolCalls)
 	if err != nil {
-		return err
+		return internalOutput.OutputError(err, internalOutput.ErrFilterError, outputFormat)
 	}
 
-	// Step 4: Sort if requested
+	// Step 4: Apply default deterministic sorting (by timestamp)
+	// This ensures same query always produces same output order
+	output.SortByTimestamp(filtered)
+
+	// Step 4b: Apply custom sort if requested (overrides default)
 	if querySortBy != "" {
 		sortToolCalls(filtered, querySortBy, queryReverse)
 	}
@@ -84,11 +78,11 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 	if estimateSizeFlag {
 		estimate, err := output.EstimateToolCallsSize(filtered, outputFormat)
 		if err != nil {
-			return fmt.Errorf("failed to estimate size: %w", err)
+			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 		}
 
-		// Output estimate as JSON
-		estimateStr, _ := output.FormatJSON(estimate)
+		// Output estimate as JSONL
+		estimateStr, _ := output.FormatJSONL(estimate)
 		fmt.Fprintln(cmd.OutOrStdout(), estimateStr)
 		return nil
 	}
@@ -114,13 +108,17 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 	if chunkSizeFlag > 0 {
 		// Validate output directory is specified
 		if outputDirFlag == "" {
-			return fmt.Errorf("--output-dir is required when using --chunk-size")
+			return internalOutput.OutputError(
+				fmt.Errorf("--output-dir is required when using --chunk-size"),
+				internalOutput.ErrInvalidArgument,
+				outputFormat,
+			)
 		}
 
 		// Create chunks
 		metadata, err := output.ChunkToolCalls(paginated, chunkSizeFlag, outputDirFlag, outputFormat)
 		if err != nil {
-			return fmt.Errorf("failed to create chunks: %w", err)
+			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 		}
 
 		// Output chunk summary to stderr (not stdout)
@@ -138,54 +136,71 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 	if summaryFirstFlag {
 		summaryOutput, err := output.FormatSummaryFirst(paginated, topNFlag, outputFormat)
 		if err != nil {
-			return fmt.Errorf("failed to generate summary: %w", err)
+			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
+		}
+
+		// Check for empty results first
+		if len(paginated) == 0 {
+			return internalOutput.WarnNoResults(outputFormat)
 		}
 
 		// Print summary followed by details
 		fmt.Fprintln(cmd.OutOrStdout(), summaryOutput.Summary)
 		fmt.Fprintln(cmd.OutOrStdout(), summaryOutput.Details)
+
 		return nil
 	}
 
-	// Step 9: Apply field projection if requested
+	// Step 9: Handle streaming output if requested
+	if queryStream {
+		// Check for empty results first
+		if len(paginated) == 0 {
+			return internalOutput.WarnNoResults(outputFormat)
+		}
+
+		streamWriter := output.NewStreamWriter(cmd.OutOrStdout())
+		for _, tool := range paginated {
+			if err := streamWriter.WriteRecord(tool); err != nil {
+				return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
+			}
+		}
+		return nil
+	}
+
+	// Step 10: Apply field projection if requested
 	projectionConfig := output.ParseProjectionConfig(fieldsFlag, ifErrorIncludeFlag)
 
 	// If projection is requested, project the fields
 	if len(projectionConfig.Fields) > 0 {
+		// Check for empty results first
+		if len(paginated) == 0 {
+			return internalOutput.WarnNoResults(outputFormat)
+		}
+
 		projected, err := output.ProjectToolCalls(paginated, projectionConfig)
 		if err != nil {
-			return fmt.Errorf("failed to project fields: %w", err)
+			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 		}
 
 		// Format projected output
 		outputStr, formatErr := output.FormatProjectedOutput(projected, outputFormat)
 		if formatErr != nil {
-			return fmt.Errorf("failed to format projected output: %w", formatErr)
+			return internalOutput.OutputError(formatErr, internalOutput.ErrInternalError, outputFormat)
 		}
 
 		fmt.Fprintln(cmd.OutOrStdout(), outputStr)
 		return nil
 	}
 
-	// Step 10: Format output (non-chunked, non-projected, non-summary mode)
-	var outputStr string
-	var formatErr error
-
-	switch outputFormat {
-	case "json":
-		outputStr, formatErr = output.FormatJSON(paginated)
-	case "md", "markdown":
-		outputStr, formatErr = output.FormatMarkdown(paginated)
-	case "csv":
-		outputStr, formatErr = output.FormatCSV(paginated)
-	case "tsv":
-		outputStr = output.FormatTSV(paginated)
-	default:
-		return fmt.Errorf("unsupported output format: %s", outputFormat)
+	// Step 11: Format output (non-chunked, non-projected, non-summary mode)
+	// Check for empty results first
+	if len(paginated) == 0 {
+		return internalOutput.WarnNoResults(outputFormat)
 	}
 
+	outputStr, formatErr := internalOutput.FormatOutput(paginated, outputFormat)
 	if formatErr != nil {
-		return fmt.Errorf("failed to format output: %w", formatErr)
+		return internalOutput.OutputError(formatErr, internalOutput.ErrInternalError, outputFormat)
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
@@ -260,10 +275,13 @@ func applyToolFilters(toolCalls []parser.ToolCall) ([]parser.ToolCall, error) {
 }
 
 func sortToolCalls(toolCalls []parser.ToolCall, sortBy string, reverse bool) {
-	sort.Slice(toolCalls, func(i, j int) bool {
+	// Use stable sort to preserve relative order for equal values
+	sort.SliceStable(toolCalls, func(i, j int) bool {
 		var less bool
 
 		switch sortBy {
+		case "timestamp":
+			less = toolCalls[i].Timestamp < toolCalls[j].Timestamp
 		case "tool":
 			less = toolCalls[i].ToolName < toolCalls[j].ToolName
 		case "status":
@@ -271,8 +289,8 @@ func sortToolCalls(toolCalls []parser.ToolCall, sortBy string, reverse bool) {
 		case "uuid":
 			less = toolCalls[i].UUID < toolCalls[j].UUID
 		default:
-			// Default: sort by tool name
-			less = toolCalls[i].ToolName < toolCalls[j].ToolName
+			// Default: sort by timestamp (deterministic)
+			less = toolCalls[i].Timestamp < toolCalls[j].Timestamp
 		}
 
 		if reverse {

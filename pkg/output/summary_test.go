@@ -105,7 +105,7 @@ func TestFormatSummaryFirstJSON(t *testing.T) {
 		{UUID: "3", ToolName: "Edit", Status: "error", Error: "error"},
 	}
 
-	output, err := FormatSummaryFirst(tools, 2, "json")
+	output, err := FormatSummaryFirst(tools, 2, "jsonl")
 	if err != nil {
 		t.Fatalf("FormatSummaryFirst failed: %v", err)
 	}
@@ -145,20 +145,20 @@ func TestFormatSummaryFirstAllRecords(t *testing.T) {
 	}
 }
 
-func TestFormatSummaryFirstMarkdown(t *testing.T) {
+func TestFormatSummaryFirstTSV(t *testing.T) {
 	tools := []parser.ToolCall{
 		{UUID: "1", ToolName: "Read", Status: "success", Error: ""},
 		{UUID: "2", ToolName: "Bash", Status: "success", Error: ""},
 	}
 
-	output, err := FormatSummaryFirst(tools, 5, "md")
+	output, err := FormatSummaryFirst(tools, 5, "tsv")
 	if err != nil {
 		t.Fatalf("FormatSummaryFirst failed: %v", err)
 	}
 
-	// Verify markdown table format
-	if !strings.Contains(output.Details, "|") {
-		t.Error("Markdown details should contain table separators")
+	// Verify TSV format (tab-separated)
+	if !strings.Contains(output.Details, "\t") {
+		t.Error("TSV details should contain tab separators")
 	}
 }
 

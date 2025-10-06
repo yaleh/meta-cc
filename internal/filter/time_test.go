@@ -87,11 +87,11 @@ func TestTimeFilter_Apply(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		filter     TimeFilter
-		wantCount  int
-		wantFirst  string
-		wantLast   string
+		name      string
+		filter    TimeFilter
+		wantCount int
+		wantFirst string
+		wantLast  string
 	}{
 		{
 			name: "since 3 minutes ago",

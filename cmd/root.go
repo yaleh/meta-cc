@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/yale/meta-cc/internal/output"
 )
 
 var (
@@ -12,6 +14,7 @@ var (
 	sessionID    string
 	projectPath  string
 	outputFormat string
+	sessionOnly  bool // Phase 13: Force session-only analysis (opt-out of project default)
 
 	// Phase 9.1: Pagination and size estimation flags
 	limitFlag        int
@@ -23,8 +26,8 @@ var (
 	outputDirFlag string
 
 	// Phase 9.3: Field projection flags
-	fieldsFlag          string
-	ifErrorIncludeFlag  string
+	fieldsFlag         string
+	ifErrorIncludeFlag string
 
 	// Phase 9.4: Compact output format flags
 	summaryFirstFlag bool
@@ -43,13 +46,35 @@ var rootCmd = &cobra.Command{
 	Short: "Meta-Cognition tool for Claude Code",
 	Long: `meta-cc analyzes Claude Code session history to provide
 metacognitive insights and workflow optimization.`,
+	SilenceErrors: true, // We handle errors ourselves
+	SilenceUsage:  true, // Don't show usage on errors
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
 }
 
 func Execute() error {
-	return rootCmd.Execute()
+	err := rootCmd.Execute()
+	if err != nil {
+		// Check if it's an ExitCodeError
+		if exitErr, ok := err.(*output.ExitCodeError); ok {
+			// ExitCodeError already has the message printed by Cobra
+			// We just need to exit with the appropriate code
+			os.Exit(exitErr.Code)
+		}
+		// For other errors, Cobra will handle them (exit 1)
+		return err
+	}
+	return nil
+}
+
+// getGlobalOptions returns GlobalOptions from global flags
+func getGlobalOptions() GlobalOptions {
+	return GlobalOptions{
+		SessionID:   sessionID,
+		ProjectPath: projectPath,
+		SessionOnly: sessionOnly,
+	}
 }
 
 func init() {
@@ -60,8 +85,9 @@ func init() {
 
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&sessionID, "session", "", "Session ID (or use $CC_SESSION_ID)")
-	rootCmd.PersistentFlags().StringVar(&projectPath, "project", "", "Project path")
-	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "json", "Output format: json|md|csv|tsv")
+	rootCmd.PersistentFlags().StringVar(&projectPath, "project", "", "Project path (defaults to current directory)")
+	rootCmd.PersistentFlags().BoolVar(&sessionOnly, "session-only", false, "Analyze current session only (opt-out of project-level default)")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "jsonl", "Output format: jsonl|tsv")
 
 	// Phase 9.1: Pagination and size estimation flags
 	rootCmd.PersistentFlags().IntVar(&limitFlag, "limit", 0, "Limit output to N records (0 = no limit)")

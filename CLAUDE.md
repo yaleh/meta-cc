@@ -85,9 +85,36 @@ The CLI outputs high-density structured data (tool usage stats, error patterns, 
 
 ## Development Workflow
 
-### Current Phase: Planning & Design
+### Build and Test Requirements
 
-The project is currently in the **specification phase**. No code has been implemented yet.
+**IMPORTANT**: All development MUST use the Makefile for building and testing:
+
+```bash
+# Build the project (runs lint + test + build)
+make all
+
+# Build only (no lint or tests)
+make build
+
+# Run tests
+make test
+
+# Run static analysis (fmt + vet + golangci-lint)
+make lint
+
+# Run tests with coverage
+make test-coverage
+```
+
+**Before committing code**:
+1. Run `make all` to ensure code passes linting, tests, and builds
+2. Fix any issues reported by static analysis
+3. Ensure all tests pass
+
+**Automated checks**:
+- `make fmt` - Auto-format code with gofmt
+- `make vet` - Run go vet for suspicious constructs
+- `make lint` - Run golangci-lint (optional but recommended)
 
 ### Phase Planning and Organization
 
@@ -109,12 +136,14 @@ meta-cc/
    - Each Stage represents a cohesive unit of functionality
 
 2. **Stage-Level Testing** (after each Stage)
-   - Run all unit tests immediately after completing a Stage
-   - Fix any errors until all unit tests pass
-   - **CRITICAL**: If unit tests fail after multiple fix attempts, **HALT Phase development** and output a warning
+   - Run `make all` immediately after completing a Stage
+   - This runs: static analysis (lint) → tests → build
+   - Fix any errors until all checks pass
+   - **CRITICAL**: If checks fail after multiple fix attempts, **HALT Phase development** and output a warning
 
 3. **Phase-Level Testing** (after each Phase)
-   - Run all unit tests AND end-to-end (e2e) tests
+   - Run `make all` to verify all checks pass
+   - Run `make test-coverage` to ensure coverage is maintained
    - Fix any errors until all tests pass
    - **CRITICAL**: If tests fail after multiple fix attempts, **HALT Phase development** and output a warning
 

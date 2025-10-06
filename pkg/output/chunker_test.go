@@ -85,9 +85,9 @@ func TestSplitIntoChunks(t *testing.T) {
 func TestWriteChunk(t *testing.T) {
 	tools := generateToolCalls(10)
 	tempDir := t.TempDir()
-	outputFile := filepath.Join(tempDir, "test-chunk.json")
+	outputFile := filepath.Join(tempDir, "test-chunk.jsonl")
 
-	err := WriteChunk(tools, "json", outputFile)
+	err := WriteChunk(tools, "jsonl", outputFile)
 	if err != nil {
 		t.Fatalf("WriteChunk failed: %v", err)
 	}
@@ -115,28 +115,28 @@ func TestWriteChunk(t *testing.T) {
 
 func TestGenerateManifest(t *testing.T) {
 	tempDir := t.TempDir()
-	manifestPath := filepath.Join(tempDir, "manifest.json")
+	manifestPath := filepath.Join(tempDir, "manifest.jsonl")
 
 	metadata := []ChunkMetadata{
 		{
-			Index:      0,
-			File:       "chunk_0001.json",
-			Records:    100,
-			SizeBytes:  12345,
+			Index:       0,
+			File:        "chunk_0001.jsonl",
+			Records:     100,
+			SizeBytes:   12345,
 			TotalChunks: 3,
 		},
 		{
-			Index:      1,
-			File:       "chunk_0002.json",
-			Records:    100,
-			SizeBytes:  12340,
+			Index:       1,
+			File:        "chunk_0002.jsonl",
+			Records:     100,
+			SizeBytes:   12340,
 			TotalChunks: 3,
 		},
 		{
-			Index:      2,
-			File:       "chunk_0003.json",
-			Records:    50,
-			SizeBytes:  6170,
+			Index:       2,
+			File:        "chunk_0003.jsonl",
+			Records:     50,
+			SizeBytes:   6170,
 			TotalChunks: 3,
 		},
 	}
@@ -182,7 +182,7 @@ func TestChunkToolCallsIntegration(t *testing.T) {
 	tools := generateToolCalls(2000)
 	tempDir := t.TempDir()
 
-	metadata, err := ChunkToolCalls(tools, 100, tempDir, "json")
+	metadata, err := ChunkToolCalls(tools, 100, tempDir, "jsonl")
 	if err != nil {
 		t.Fatalf("ChunkToolCalls failed: %v", err)
 	}
@@ -235,7 +235,7 @@ func TestChunkToolCallsIntegration(t *testing.T) {
 	}
 
 	// Verify manifest exists
-	manifestPath := filepath.Join(tempDir, "manifest.json")
+	manifestPath := filepath.Join(tempDir, "manifest.jsonl")
 	if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
 		t.Errorf("manifest file does not exist")
 	}
@@ -245,17 +245,17 @@ func TestChunkFileNaming(t *testing.T) {
 	tools := generateToolCalls(50)
 	tempDir := t.TempDir()
 
-	metadata, err := ChunkToolCalls(tools, 10, tempDir, "json")
+	metadata, err := ChunkToolCalls(tools, 10, tempDir, "jsonl")
 	if err != nil {
 		t.Fatalf("ChunkToolCalls failed: %v", err)
 	}
 
 	expectedNames := []string{
-		"chunk_0001.json",
-		"chunk_0002.json",
-		"chunk_0003.json",
-		"chunk_0004.json",
-		"chunk_0005.json",
+		"chunk_0001.jsonl",
+		"chunk_0002.jsonl",
+		"chunk_0003.jsonl",
+		"chunk_0004.jsonl",
+		"chunk_0005.jsonl",
 	}
 
 	for i, meta := range metadata {
@@ -270,7 +270,7 @@ func TestChunkDifferentFormats(t *testing.T) {
 	tools := generateToolCalls(30)
 	tempDir := t.TempDir()
 
-	formats := []string{"json", "md", "csv"}
+	formats := []string{"jsonl", "tsv", "tsv"}
 
 	for _, format := range formats {
 		t.Run(format, func(t *testing.T) {

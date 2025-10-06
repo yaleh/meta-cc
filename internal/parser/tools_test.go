@@ -80,16 +80,16 @@ func TestExtractToolCalls_MultipleCallsSameEntry(t *testing.T) {
 					{
 						Type: "tool_use",
 						ToolUse: &ToolUse{
-							ID:   "tool_1",
-							Name: "Read",
+							ID:    "tool_1",
+							Name:  "Read",
 							Input: map[string]interface{}{"file": "a.txt"},
 						},
 					},
 					{
 						Type: "tool_use",
 						ToolUse: &ToolUse{
-							ID:   "tool_2",
-							Name: "Grep",
+							ID:    "tool_2",
+							Name:  "Grep",
 							Input: map[string]interface{}{"pattern": "error"},
 						},
 					},
@@ -146,8 +146,8 @@ func TestExtractToolCalls_UnmatchedToolUse(t *testing.T) {
 					{
 						Type: "tool_use",
 						ToolUse: &ToolUse{
-							ID:   "orphan_tool",
-							Name: "Bash",
+							ID:    "orphan_tool",
+							Name:  "Bash",
 							Input: map[string]interface{}{},
 						},
 					},
@@ -201,5 +201,79 @@ func TestExtractToolCalls_NoToolCalls(t *testing.T) {
 
 	if len(toolCalls) != 0 {
 		t.Errorf("Expected 0 tool calls, got %d", len(toolCalls))
+	}
+}
+
+// TestExtractToolCallsWithIsError tests that tool calls with is_error=true are correctly extracted
+// This test documents the bug: ToolResult doesn't parse is_error field
+func TestExtractToolCallsWithIsError(t *testing.T) {
+	// Simulating a real session where MCP tool failed with is_error=true
+	entries := []SessionEntry{
+		{
+			Type:      "assistant",
+			UUID:      "adac9d46-e2a9-4318-8faa-4b90e8883d00",
+			Timestamp: "2025-10-05T00:59:13.857Z",
+			Message: &Message{
+				Role: "assistant",
+				Content: []ContentBlock{
+					{
+						Type: "tool_use",
+						ToolUse: &ToolUse{
+							ID:   "toolu_123",
+							Name: "mcp__meta-insight__query_user_messages_session",
+							Input: map[string]interface{}{
+								"limit":         5,
+								"output_format": "json",
+								"pattern":       ".",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Type:      "user",
+			UUID:      "4634e9c4-5804-4c1e-904d-52cec719e08f",
+			Timestamp: "2025-10-05T00:59:14.756Z",
+			Message: &Message{
+				Role: "user",
+				Content: []ContentBlock{
+					{
+						Type: "tool_result",
+						ToolResult: &ToolResult{
+							ToolUseID: "toolu_123",
+							Content:   "MCP error -32603: Tool execution failed",
+							IsError:   true,                                      // Simulating is_error=true from JSONL
+							Error:     "MCP error -32603: Tool execution failed", // Should be populated by UnmarshalJSON
+						},
+					},
+				},
+			},
+		},
+	}
+
+	toolCalls := ExtractToolCalls(entries)
+
+	if len(toolCalls) != 1 {
+		t.Fatalf("Expected 1 tool call, got %d", len(toolCalls))
+	}
+
+	tc := toolCalls[0]
+
+	// Verify basic extraction
+	if tc.ToolName != "mcp__meta-insight__query_user_messages_session" {
+		t.Errorf("Expected tool name 'mcp__meta-insight__query_user_messages_session', got %q", tc.ToolName)
+	}
+
+	if tc.Output != "MCP error -32603: Tool execution failed" {
+		t.Errorf("Expected Output to contain error message, got %q", tc.Output)
+	}
+
+	// THIS IS THE KEY TEST: When is_error=true, Error field should be populated
+	// Currently this will FAIL because ToolResult doesn't have IsError field
+	if tc.Error == "" {
+		t.Errorf("BUG: Expected Error field to be populated when is_error=true in JSONL, got empty string")
+		t.Logf("Current ToolCall: %+v", tc)
+		t.Logf("This test documents the bug: ToolResult struct doesn't parse 'is_error' field from JSONL")
 	}
 }

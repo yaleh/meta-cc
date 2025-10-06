@@ -3,11 +3,9 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/locator"
 	"github.com/yale/meta-cc/internal/parser"
 )
 
@@ -40,24 +38,14 @@ func init() {
 }
 
 func runQuerySuccessfulPrompts(cmd *cobra.Command, args []string) error {
-	// Locate session file
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,
-		ProjectPath: projectPath,
-	})
-	if err != nil {
+	// Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
 		return fmt.Errorf("failed to locate session: %w", err)
 	}
 
-	// Read and parse session file
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return fmt.Errorf("failed to read session file: %w", err)
-	}
-
 	// Build successful prompts result
+	entries := p.GetEntries()
 	result, err := buildSuccessfulPrompts(entries, successfulPromptsMinQuality, queryLimit)
 	if err != nil {
 		return fmt.Errorf("failed to build successful prompts: %w", err)
@@ -65,11 +53,11 @@ func runQuerySuccessfulPrompts(cmd *cobra.Command, args []string) error {
 
 	// Output result
 	if outputFormat == "md" {
-		return outputSuccessfulPromptsMarkdown(result)
+		return outputSuccessfulPromptsMarkdown(cmd, result)
 	}
 
 	// JSON output (default)
-	encoder := json.NewEncoder(os.Stdout)
+	encoder := json.NewEncoder(cmd.OutOrStdout())
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(result)
 }
@@ -81,12 +69,12 @@ type SuccessfulPromptsResult struct {
 
 // SuccessfulPrompt represents a successful prompt with metadata
 type SuccessfulPrompt struct {
-	TurnSequence    int              `json:"turn_sequence"`
-	UserPrompt      string           `json:"user_prompt"`
-	Context         PromptContext    `json:"context"`
-	Outcome         PromptOutcome    `json:"outcome"`
-	QualityScore    float64          `json:"quality_score"`
-	PatternFeatures PatternFeatures  `json:"pattern_features"`
+	TurnSequence    int             `json:"turn_sequence"`
+	UserPrompt      string          `json:"user_prompt"`
+	Context         PromptContext   `json:"context"`
+	Outcome         PromptOutcome   `json:"outcome"`
+	QualityScore    float64         `json:"quality_score"`
+	PatternFeatures PatternFeatures `json:"pattern_features"`
 }
 
 // PromptContext represents the context when prompt was given
@@ -97,10 +85,10 @@ type PromptContext struct {
 
 // PromptOutcome represents the outcome of the prompt
 type PromptOutcome struct {
-	Status           string   `json:"status"`
-	TurnsToComplete  int      `json:"turns_to_complete"`
-	ErrorCount       int      `json:"error_count"`
-	Deliverables     []string `json:"deliverables,omitempty"`
+	Status          string   `json:"status"`
+	TurnsToComplete int      `json:"turns_to_complete"`
+	ErrorCount      int      `json:"error_count"`
+	Deliverables    []string `json:"deliverables,omitempty"`
 }
 
 // PatternFeatures represents structural features of the prompt
@@ -186,8 +174,8 @@ func buildSuccessfulPrompts(entries []parser.SessionEntry, minQuality float64, l
 // analyzePromptOutcome analyzes the outcome of a user prompt
 func analyzePromptOutcome(entries []parser.SessionEntry, userEntryIdx int, turnIndex map[string]int) (PromptOutcome, int) {
 	outcome := PromptOutcome{
-		Status:      "unknown",
-		ErrorCount:  0,
+		Status:       "unknown",
+		ErrorCount:   0,
 		Deliverables: []string{},
 	}
 
@@ -396,7 +384,7 @@ func min(a, b float64) float64 {
 	return b
 }
 
-func outputSuccessfulPromptsMarkdown(result *SuccessfulPromptsResult) error {
+func outputSuccessfulPromptsMarkdown(cmd *cobra.Command, result *SuccessfulPromptsResult) error {
 	var sb strings.Builder
 
 	sb.WriteString("# Successful Prompt Patterns\n\n")
@@ -441,6 +429,6 @@ func outputSuccessfulPromptsMarkdown(result *SuccessfulPromptsResult) error {
 		sb.WriteString("---\n\n")
 	}
 
-	fmt.Print(sb.String())
+	fmt.Fprint(cmd.OutOrStdout(), sb.String())
 	return nil
 }

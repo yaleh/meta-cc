@@ -1,12 +1,14 @@
 ---
 name: meta-stats
-description: 显示当前 Claude Code 会话的统计信息（Turn 数量、工具使用频率、错误率、会话时长等）
+description: 显示当前项目最新会话的统计信息（Phase 13：默认项目级，可用 --session-only 切换到仅当前会话）
 allowed_tools: [Bash]
 ---
 
 # meta-stats：会话统计分析
 
-运行以下命令获取当前会话的统计信息：
+Phase 13 更新：默认分析当前项目的最新会话。使用 `--session-only` 标志切换到仅分析当前会话。
+
+运行以下命令获取会话的统计信息：
 
 ```bash
 # 检查 meta-cc 是否安装
@@ -22,43 +24,45 @@ if ! command -v meta-cc &> /dev/null; then
     exit 1
 fi
 
-# Phase 9: Adaptive output strategy based on size estimation
-# Step 1: Estimate output size
-ESTIMATE=$(meta-cc parse stats --estimate-size --output json 2>/dev/null)
+# Phase 13: JSONL output (default), Claude renders to Markdown
+echo "📊 Session Statistics" >&2
+echo "" >&2
 
-if [ $? -eq 0 ]; then
-    SIZE_KB=$(echo "$ESTIMATE" | grep -o '"estimated_kb":[0-9.]*' | cut -d: -f2)
+# Basic session stats (JSONL output, logs to stderr)
+stats_json=$(meta-cc parse stats 2>/dev/null)
 
-    # Step 2: Choose output strategy based on size
-    if [ -z "$SIZE_KB" ]; then
-        # Fallback: estimation failed, use default
-        meta-cc parse stats --output md
-    elif (( $(echo "$SIZE_KB < 50" | bc -l 2>/dev/null || echo 0) )); then
-        # Small session (<50KB): full markdown output
-        echo "📊 Session Statistics (Full Report)"
-        echo ""
-        meta-cc parse stats --output md
-    elif (( $(echo "$SIZE_KB < 200" | bc -l 2>/dev/null || echo 0) )); then
-        # Medium session (50-200KB): TSV with key fields
-        echo "📊 Session Statistics (Compact Format)"
-        echo ""
-        echo "Estimated size: ${SIZE_KB} KB"
-        echo ""
-        meta-cc parse stats --output md
-    else
-        # Large session (>200KB): Summary mode
-        echo "📊 Session Statistics (Summary - Large Session)"
-        echo ""
-        echo "⚠️  Large session detected (${SIZE_KB} KB)"
-        echo "Showing summary to prevent context overflow."
-        echo ""
-        meta-cc parse stats --output md
-        echo ""
-        echo "💡 Tip: Use 'meta-cc parse stats --output tsv' for ultra-compact output"
-    fi
+# Parse JSONL and render as Markdown
+echo "$stats_json" | jq -r '
+"# Session Statistics\n" +
+"- **Total Turns**: \(.TurnCount)\n" +
+"- **Tool Calls**: \(.ToolCallCount)\n" +
+"- **Error Count**: \(.ErrorCount)\n" +
+"- **Error Rate**: \(.ErrorRate)%\n" +
+"- **Session Duration**: \(.DurationSeconds / 60 | floor) minutes\n" +
+"\n## Tool Usage Frequency\n" +
+"| Tool | Count | Percentage |\n" +
+"|------|-------|------------|\n" +
+((.TopTools // []) | .[] | "| \(.Name) | \(.Count) | \(.Percentage)% |") +
+"\n"'
+
+# Phase 10: Aggregated statistics by tool
+echo "" >&2
+echo "## Aggregated Statistics by Tool" >&2
+echo "" >&2
+agg_json=$(meta-cc stats aggregate --group-by tool --metrics "count,error_rate" 2>/dev/null || echo "[]")
+echo "$agg_json" | jq -s -r '
+if length > 0 then
+  "| Tool | Count | Error Rate |\n" +
+  "|------|-------|------------|\n" +
+  (.[] | .[] | "| \(.group_value) | \(.metrics.count) | \(.metrics.error_rate * 100 | tostring + "%" |) ")
 else
-    # Fallback: estimation command not supported or failed
-    meta-cc parse stats --output md
+  "⚠️  No aggregation data available"
+end'
+
+# Phase 11: Exit code handling
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 2 ]; then
+    echo "ℹ️  No data available for aggregation" >&2
 fi
 ```
 

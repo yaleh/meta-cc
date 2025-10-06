@@ -5,8 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/analyzer"
-	"github.com/yale/meta-cc/internal/locator"
-	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/pkg/output"
 )
 
@@ -35,24 +33,14 @@ func init() {
 }
 
 func runAnalyzeIdle(cmd *cobra.Command, args []string) error {
-	// Step 1: Locate session file
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,
-		ProjectPath: projectPath,
-	})
-	if err != nil {
+	// Step 1: Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
 		return fmt.Errorf("failed to locate session file: %w", err)
 	}
 
-	// Step 2: Parse session file
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return fmt.Errorf("failed to parse session file: %w", err)
-	}
-
-	// Step 3: Detect idle periods
+	// Step 2: Detect idle periods
+	entries := p.GetEntries()
 	result := analyzer.DetectIdlePeriods(entries, idleThresholdMin)
 
 	// Step 4: Format and output
@@ -60,12 +48,12 @@ func runAnalyzeIdle(cmd *cobra.Command, args []string) error {
 	var formatErr error
 
 	switch outputFormat {
-	case "json":
-		outputStr, formatErr = output.FormatJSON(result)
-	case "md", "markdown":
-		outputStr, formatErr = formatIdlePeriodsMarkdown(result)
+	case "jsonl":
+		outputStr, formatErr = output.FormatJSONL(result)
+	case "tsv":
+		outputStr, formatErr = output.FormatTSV(result)
 	default:
-		return fmt.Errorf("unsupported output format: %s (analyze idle-periods supports json and md)", outputFormat)
+		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
 	}
 
 	if formatErr != nil {

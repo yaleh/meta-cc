@@ -56,4 +56,3 @@ func TempSessionFile(t *testing.T, content string) string {
 
 	return tmpFile.Name()
 }
-

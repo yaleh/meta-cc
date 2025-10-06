@@ -2,6 +2,15 @@
 
 Meta-Cognition tool for Claude Code - analyze session history for workflow optimization.
 
+## Recent Milestones
+
+### Agent Formalization (v0.11.1) - October 2025
+- **92% size reduction** across 5 agent files (3074 → 244 lines)
+- **100% behavioral semantics preserved** using lambda calculus formal specifications
+- **Zero regressions** - all tests pass with 70-100% coverage
+- Replaces verbose prose with mathematically precise function definitions
+- See [Formalization Summary](.claude/agents/FORMALIZATION_SUMMARY.md) for details
+
 ## Features
 
 - 🔍 Parse Claude Code session history (JSONL format)
@@ -45,7 +54,7 @@ make cross-compile
 # Global options
 ./meta-cc --session <session-id>    # Specify session ID
 ./meta-cc --project <path>          # Specify project path
-./meta-cc --output json|md|csv|tsv  # Output format
+./meta-cc --output jsonl|tsv        # Output format (JSONL default, TSV for CLI tools)
 
 # Phase 9: Context-Length Management Options
 ./meta-cc --limit N                 # Limit output to N records
@@ -57,9 +66,31 @@ make cross-compile
 ./meta-cc --summary-first --top N   # Summary + top N details
 ```
 
-## JSON Output Format Reference
+## Output Format Philosophy
 
-Understanding meta-cc's JSON output structure is crucial for processing data with tools like `jq`.
+meta-cc follows the **Unix philosophy** with two core output formats:
+
+### JSONL (Default - JSON Lines)
+- **Machine-readable**: One JSON object per line
+- **Composable**: Pipe to `jq` for complex filtering
+- **Consistent**: All commands output JSONL by default
+- **Integration-ready**: Perfect for Slash Commands and MCP Server
+- **Streaming-friendly**: Process large datasets incrementally
+
+### TSV (Tab-Separated Values)
+- **CLI-friendly**: Easy to process with `awk`, `grep`, `cut`
+- **Compact**: Smaller than JSON for large datasets
+- **Human-readable**: Can be viewed directly or with `column -t`
+- **No escaping issues**: Simpler than CSV (no quote handling)
+
+### Removed Formats (Phase 13)
+- **JSON (pretty)**: Use `jq '.'` for pretty-printing JSONL
+- **CSV**: Use TSV instead (simpler, no quoting issues)
+- **Markdown**: Let Claude Code render JSONL to Markdown
+
+## JSONL Output Format Reference
+
+Understanding meta-cc's JSONL output structure is crucial for processing data with tools like `jq`.
 
 ### Command Output Types
 
@@ -75,51 +106,57 @@ Understanding meta-cc's JSON output structure is crucial for processing data wit
 #### parse stats (returns Object)
 
 ```bash
-# ✅ Correct
-meta-cc parse stats --output json | jq '.TurnCount'
-meta-cc parse stats --output json | jq '.ErrorRate'
+# ✅ Correct (JSONL - default format)
+meta-cc parse stats | jq '.TurnCount'
+meta-cc parse stats | jq '.ErrorRate'
+
+# ✅ Also correct (explicit JSONL)
+meta-cc parse stats --output jsonl | jq '.TurnCount'
 
 # ❌ Wrong - no wrapper object
-meta-cc parse stats --output json | jq '.stats.TurnCount'
+meta-cc parse stats | jq '.stats.TurnCount'
 ```
 
 #### parse extract --type tools (returns Array)
 
 ```bash
-# ✅ Correct
-meta-cc parse extract --type tools --output json | jq 'length'
-meta-cc parse extract --type tools --output json | jq '.[]'
-meta-cc parse extract --type tools --output json | jq '.[0]'
-meta-cc parse extract --type tools --output json | jq -r '.[] | .ToolName'
+# ✅ Correct (JSONL - default format, outputs one JSON object per line)
+meta-cc parse extract --type tools | jq -s 'length'    # Count all
+meta-cc parse extract --type tools | jq '.'             # Show each line
+meta-cc parse extract --type tools | jq -r '.ToolName' # Extract field
+
+# ✅ Also correct (convert JSONL to array with -s)
+meta-cc parse extract --type tools | jq -s '.[0]'     # First tool
+meta-cc parse extract --type tools | jq -s '.[]'      # All tools
 
 # ❌ Wrong - assumes object wrapper
-meta-cc parse extract --type tools --output json | jq '.tools'
-meta-cc parse extract --type tools --output json | jq '.tools[]'
+meta-cc parse extract --type tools | jq '.tools'
+meta-cc parse extract --type tools | jq '.tools[]'
 ```
 
 #### parse extract --type turns (returns Array)
 
 ```bash
-# ✅ Correct
-meta-cc parse extract --type turns --output json | jq 'length'
-meta-cc parse extract --type turns --output json | jq '.[] | select(.type == "user")'
-meta-cc parse extract --type turns --output json | jq -r '.[] | .timestamp'
+# ✅ Correct (JSONL - default format)
+meta-cc parse extract --type turns | jq -s 'length'
+meta-cc parse extract --type turns | jq 'select(.type == "user")'
+meta-cc parse extract --type turns | jq -r '.timestamp'
 
 # ❌ Wrong - assumes object wrapper
-meta-cc parse extract --type turns --output json | jq '.turns'
+meta-cc parse extract --type turns | jq '.turns'
 ```
 
 #### analyze errors (returns Array)
 
 ```bash
-# ✅ Correct
-meta-cc analyze errors --output json | jq 'length'
-meta-cc analyze errors --output json | jq '.[]'
-meta-cc analyze errors --output json | jq 'if type == "array" then length else 0 end'
+# ✅ Correct (JSONL - default format, one error pattern per line)
+meta-cc analyze errors | jq -s 'length'
+meta-cc analyze errors | jq '.'
+meta-cc analyze errors | jq -s 'if type == "array" then length else 0 end'
 
 # ❌ Wrong - assumes object wrapper
-meta-cc analyze errors --output json | jq '.ErrorPatterns'
-meta-cc analyze errors --output json | jq '.ErrorPatterns | length'
+meta-cc analyze errors | jq '.ErrorPatterns'
+meta-cc analyze errors | jq '.ErrorPatterns | length'
 ```
 
 ### Detailed Output Structures
@@ -328,53 +365,51 @@ jq 'if type == "array" then length else 0 end'
 Always check the type when uncertain:
 
 ```bash
-# Safe array length
-meta-cc analyze errors --output json | \
-  jq 'if type == "array" then length else 0 end'
+# Safe array length (JSONL - use -s to slurp into array)
+meta-cc analyze errors | jq -s 'if type == "array" then length else 0 end'
 
 # Safe object property access
-meta-cc parse stats --output json | \
-  jq 'if type == "object" then .TurnCount else null end'
+meta-cc parse stats | jq 'if type == "object" then .TurnCount else null end'
 ```
 
 #### Combining Commands
 
 ```bash
-# Get tool usage stats
-meta-cc parse extract --type tools --output json | \
-  jq -r '.[] | .ToolName' | \
+# Get tool usage stats (JSONL format)
+meta-cc parse extract --type tools | \
+  jq -r '.ToolName' | \
   sort | uniq -c | sort -rn
 
 # Find repeated Bash commands
-meta-cc parse extract --type tools --output json | \
-  jq -r '.[] | select(.ToolName == "Bash") | .Input.command' | \
+meta-cc parse extract --type tools | \
+  jq 'select(.ToolName == "Bash") | .Input.command' | jq -r | \
   sort | uniq -c | sort -rn
 
 # Calculate error rate manually
-TOTAL=$(meta-cc parse extract --type tools --output json | jq 'length')
-ERRORS=$(meta-cc parse extract --type tools --output json | \
-  jq '[.[] | select(.Status == "error")] | length')
+TOTAL=$(meta-cc parse extract --type tools | jq -s 'length')
+ERRORS=$(meta-cc parse extract --type tools | \
+  jq 'select(.Status == "error")' | jq -s 'length')
 echo "scale=2; $ERRORS * 100 / $TOTAL" | bc
 ```
 
 #### Common Patterns
 
 ```bash
-# Pattern 1: Filter and count
-meta-cc parse extract --type tools --output json | \
-  jq '[.[] | select(.ToolName == "Edit")] | length'
+# Pattern 1: Filter and count (JSONL)
+meta-cc parse extract --type tools | \
+  jq 'select(.ToolName == "Edit")' | jq -s 'length'
 
 # Pattern 2: Extract specific fields
-meta-cc parse extract --type tools --output json | \
-  jq -r '.[] | "\(.ToolName): \(.Input.command // "N/A")"'
+meta-cc parse extract --type tools | \
+  jq -r '"\(.ToolName): \(.Input.command // "N/A")"'
 
-# Pattern 3: Group by field
-meta-cc parse extract --type tools --output json | \
-  jq 'group_by(.ToolName) | map({tool: .[0].ToolName, count: length})'
+# Pattern 3: Group by field (slurp JSONL into array first)
+meta-cc parse extract --type tools | jq -s \
+  'group_by(.ToolName) | map({tool: .[0].ToolName, count: length})'
 
 # Pattern 4: Time-based filtering (for turns)
-meta-cc parse extract --type turns --output json | \
-  jq '.[] | select(.timestamp > "2025-10-02T12:00:00Z")'
+meta-cc parse extract --type turns | \
+  jq 'select(.timestamp > "2025-10-02T12:00:00Z")'
 ```
 
 ### Troubleshooting
@@ -512,6 +547,8 @@ Expected output:
 
 ### Available Slash Commands
 
+meta-cc provides **4 core Slash Commands** for quick analysis:
+
 #### `/meta-stats` - Session Statistics
 
 Display statistical information about the current Claude Code session.
@@ -599,6 +636,73 @@ Based on detected error patterns, consider the following:
 - Discover workflow bottlenecks (frequent failures)
 - Get optimization recommendations (hooks, alternatives, prompt improvements)
 - Focus on recent errors (using window parameter)
+
+#### `/meta-timeline` - Session Timeline
+
+Generate a chronological timeline view of the session.
+
+**Usage**:
+```
+/meta-timeline           # Default: last 50 turns
+/meta-timeline 20        # Last 20 turns
+```
+
+**Use cases**:
+- Visualize session flow and tool usage patterns
+- Identify time distribution of errors
+- Understand workflow sequences
+
+#### `/meta-help` - Help and Usage Guide
+
+Display comprehensive help for all meta-cc features, including Slash Commands, MCP Server, and @meta-coach subagent.
+
+**Usage**:
+```
+/meta-help
+```
+
+**Use cases**:
+- Learn available commands and features
+- Get quick reference for integration methods
+- Troubleshoot common issues
+
+---
+
+### Recommended Usage Patterns
+
+meta-cc offers **three integration tiers** for different use cases:
+
+#### 🚀 Quick Statistics → Slash Commands (Lowest Priority)
+
+For fast, pre-defined analyses:
+```
+/meta-stats              # Session overview
+/meta-errors             # Error patterns
+/meta-timeline           # Chronological view
+```
+
+#### 🔍 Natural Queries → MCP Server (Core Integration)
+
+Ask Claude directly - MCP tools are called automatically:
+```
+"Show me all Bash errors in this project"
+"Find user messages mentioning 'refactor'"
+"Analyze tool usage trends across sessions"
+"Compare error rates between different workflow phases"
+```
+
+Available MCP tools: 14 tools including `query_tools`, `analyze_errors`, `query_user_messages`, `aggregate_stats`, and more.
+
+#### 🎓 Deep Analysis → @meta-coach Subagent (Highest Value)
+
+For interactive coaching and workflow optimization:
+```
+@meta-coach Why do my tests keep failing?
+@meta-coach Help me optimize my workflow
+@meta-coach Analyze my efficiency bottlenecks
+```
+
+The @meta-coach subagent combines MCP data access with LLM reasoning to provide personalized guidance.
 
 ### Troubleshooting
 
@@ -690,21 +794,22 @@ chmod -R u+r ~/.claude/projects/
 
 ### Advanced Usage
 
-#### Combining Slash Commands and CLI
+#### Combining Integration Tiers
 
 ```bash
-# Step 1: Quick view in Claude Code using /meta-stats
+# Step 1: Quick view in Claude Code using Slash Command
+/meta-stats
 # /meta-stats
 
-# Step 2: If high error rate found, analyze with /meta-errors
-# /meta-errors
+# Step 2: If high error rate found, use natural query (MCP)
+"Show me the top 10 most frequent errors in this project"
 
-# Step 3: Export detailed error data for deep analysis
-meta-cc parse extract --type tools --filter "status=error" --output csv > errors.csv
+# Step 3: For deep analysis, use @meta-coach
+@meta-coach Why do I have so many Bash errors?
 
-# Step 4: Generate complete report
-meta-cc parse stats --output md > session-report.md
-meta-cc analyze errors --output md >> session-report.md
+# Step 4: Export data for offline analysis (CLI)
+meta-cc query errors --output jsonl > errors.jsonl
+meta-cc query tools --status error --output tsv > error-tools.tsv
 ```
 
 #### Creating Custom Slash Commands
@@ -753,11 +858,144 @@ If these environment variables are unavailable, meta-cc will automatically fall 
 
 meta-cc integrates with Claude Code in three ways:
 
-- **MCP Server**: Seamless data access (Claude queries autonomously)
-- **Slash Commands**: Quick, pre-defined workflows (`/meta-stats`)
-- **Subagent** (`@meta-coach`): Interactive, conversational analysis
+- **MCP Server**: Seamless data access (Claude queries autonomously) - **14 tools available** (Phase 13: unified scope parameter)
+- **Slash Commands**: Quick, pre-defined workflows (`/meta-stats`, `/meta-errors`, `/meta-timeline`, `/meta-help`) - 4 core commands
+- **Subagent** (`@meta-coach`): Interactive, conversational analysis with Phase 10 capabilities
 
 **👉 See the [Integration Guide](./docs/integration-guide.md)** for detailed comparison, decision framework, and best practices.
+
+### Phase 13: Consolidated Scope Parameter Design
+
+Phase 13 consolidates the dual-scope approach into a **unified `scope` parameter** for cleaner API:
+
+**All MCP tools** (except `get_session_stats` for backward compatibility) now support a `scope` parameter:
+- **`scope: "project"`** (default) - Query across all project sessions for meta-cognition insights
+- **`scope: "session"`** - Limit query to current session only
+
+**Example usage**:
+```javascript
+// Project-level analysis (default) - discovers patterns across all sessions
+meta-cc.query_tools({ tool: "Bash", status: "error" })
+// Equivalent to: { scope: "project", tool: "Bash", status: "error" }
+
+// Session-only analysis - focuses on current session
+meta-cc.query_tools({ scope: "session", tool: "Bash", status: "error" })
+```
+
+**Why project-level default?**
+- **Meta-cognition requires cross-session analysis** to identify long-term patterns
+- Discover recurring errors, workflow evolution, and systematic improvement opportunities
+- Session-level analysis available via explicit `scope: "session"` when needed
+
+**Backward compatibility**:
+- Legacy `_session` suffix tools (e.g., `query_tools_session`) automatically map to `scope: "session"`
+- `get_session_stats` remains session-only for compatibility
+
+**👉 See the [MCP Project Scope Guide](./docs/mcp-project-scope.md)** for detailed usage examples and migration guide.
+
+### MCP Tools
+
+meta-cc provides **13 standardized MCP tools** for analyzing Claude Code session history. All tools support consistent parameters for filtering, statistics, and output control.
+
+#### Standard Parameters
+
+All tools support these core parameters:
+
+- **`scope`**: Query scope - "project" (cross-session, default) or "session" (current only)
+- **`jq_filter`**: jq expression for filtering and transforming results (default: ".[]")
+- **`stats_only`**: Return only statistics, no detailed records (default: false)
+- **`stats_first`**: Return statistics first, then details separated by `---` (default: false)
+- **`max_output_bytes`**: Maximum output size in bytes (default: 51200 / 50KB)
+- **`output_format`**: Output format - "jsonl" or "tsv" (default: "jsonl")
+
+#### Tool Catalog
+
+**Session Statistics**:
+- `get_session_stats` - Get session statistics (default scope: session)
+
+**Tool Analysis**:
+- `query_tools` - Query tool calls with filters (tool, status)
+- `extract_tools` - Extract complete tool call history
+- `query_tools_advanced` - Advanced queries with SQL-like filters
+- `query_tool_sequences` - Detect repeated workflow patterns
+
+**Message & Context**:
+- `query_user_messages` - Search user messages with regex
+- `query_context` - Query context around errors (before/after turns)
+- `query_successful_prompts` - Find successful prompt patterns
+
+**File Operations**:
+- `query_file_access` - Query file operation history
+- `query_files` - File-level operation statistics
+
+**Project & Time**:
+- `query_project_state` - Query project state evolution
+- `query_time_series` - Analyze metrics over time (hour/day/week)
+
+**Deprecated**:
+- `analyze_errors` - [DEPRECATED] Use `query_tools` with `status='error'` instead
+
+#### Quick Examples
+
+**Error Distribution**:
+```json
+{
+  "name": "query_tools",
+  "arguments": {
+    "status": "error",
+    "jq_filter": "group_by(.ToolName) | map({tool: .[0].ToolName, count: length})",
+    "stats_only": true
+  }
+}
+```
+
+**File Hotspots**:
+```json
+{
+  "name": "query_files",
+  "arguments": {
+    "sort_by": "total_ops",
+    "top": 10
+  }
+}
+```
+
+**Workflow Patterns**:
+```json
+{
+  "name": "query_tool_sequences",
+  "arguments": {
+    "min_occurrences": 5,
+    "jq_filter": "sort_by(.Occurrences) | reverse | .[0:10]"
+  }
+}
+```
+
+**Time Series Analysis**:
+```json
+{
+  "name": "query_time_series",
+  "arguments": {
+    "interval": "day",
+    "metric": "error-rate"
+  }
+}
+```
+
+#### Complete Documentation
+
+For comprehensive documentation including:
+- All 13 tools with detailed examples
+- jq expression cookbook (20+ patterns)
+- Best practices and common pitfalls
+- FAQ and troubleshooting
+
+See **[MCP Tools Complete Reference](./docs/mcp-tools-reference.md)**
+
+Also see:
+- [MCP Usage Guide](./docs/mcp-usage.md) - Getting started
+- [MCP Project Scope Guide](./docs/mcp-project-scope.md) - Scope parameter usage
+- [Phase 15 Migration Guide](./docs/mcp-migration-phase15.md) - Upgrading from Phase 14
 
 ### Reference Documentation
 
@@ -814,7 +1052,188 @@ make help            # Show help message
 - macOS (amd64, arm64/Apple Silicon)
 - Windows (amd64)
 
-## Phase 9: Context-Length Management (New!)
+## Unix Composability (Phase 11)
+
+Phase 11 optimizes meta-cc for seamless integration with Unix pipelines and standard tools following Unix philosophy principles.
+
+### Key Features
+
+1. **JSONL Streaming Output**: Stream data as JSON Lines for efficient pipeline processing
+2. **Standard Exit Codes**: Unix-compliant exit codes (0=success, 1=error, 2=no results)
+3. **Clean I/O Separation**: Logs to stderr, data to stdout - no pipeline interference
+4. **Tool Integration**: Works seamlessly with jq, grep, awk, sed, and other Unix tools
+
+### JSONL Streaming Output
+
+Stream data for efficient pipeline processing:
+
+```bash
+# Basic streaming
+meta-cc query tools --stream
+
+# Pipeline with jq
+meta-cc query tools --stream | jq 'select(.Status == "error")'
+
+# Pipeline with grep
+meta-cc query tools --stream | jq -r '.Error' | grep -i "permission"
+
+# Pipeline with awk
+meta-cc query tools --stream | \
+  jq -r '[.ToolName, .Duration] | @tsv' | \
+  awk '{sum+=$2} END {print "Total:", sum "ms"}'
+```
+
+**JSONL Format**:
+```
+{"uuid":"1","tool":"Bash","status":"success",...}
+{"uuid":"2","tool":"Edit","status":"success",...}
+{"uuid":"3","tool":"Read","status":"error",...}
+```
+
+### Standard Exit Codes
+
+meta-cc follows Unix conventions for exit codes:
+
+| Exit Code | Meaning | Example |
+|-----------|---------|---------|
+| 0 | Success (with results) | `meta-cc query tools --limit 10` |
+| 1 | Error (parsing, I/O, etc.) | `meta-cc query tools --where "invalid syntax"` |
+| 2 | Success (no results) | `meta-cc query tools --where "tool='NonExistent'"` |
+
+**Usage in scripts**:
+```bash
+if meta-cc query tools --where "status='error'"; then
+  echo "Errors found!"
+  # Handle errors...
+else
+  EXIT_CODE=$?
+  if [ $EXIT_CODE -eq 2 ]; then
+    echo "No errors (good!)"
+  else
+    echo "Query failed"
+    exit 1
+  fi
+fi
+```
+
+### stderr/stdout Separation
+
+meta-cc separates logs and data for clean pipeline processing:
+
+- **stdout**: Command output data (JSON, Markdown, TSV)
+- **stderr**: Diagnostic messages (logs, warnings, errors)
+
+```bash
+# Redirect data only
+meta-cc query tools --output json > data.json
+
+# Redirect logs only
+meta-cc query tools --output json 2> debug.log
+
+# Separate both
+meta-cc query tools --output json > data.json 2> debug.log
+
+# Suppress logs in pipelines
+meta-cc query tools --stream 2>/dev/null | jq '.ToolName'
+```
+
+### Common Pipeline Patterns
+
+**Error Analysis**:
+```bash
+# Find top error patterns
+meta-cc query tools --where "status='error'" --stream | \
+  jq -r '.Error' | \
+  grep -oP '(permission|timeout|not found)' | \
+  sort | uniq -c | sort -rn
+```
+
+**Performance Profiling**:
+```bash
+# Average duration by tool
+meta-cc stats aggregate --group-by tool --metrics avg_duration | \
+  jq -r '.[] | [.group_value, .metrics.avg_duration] | @tsv' | \
+  column -t
+```
+
+**Tool Usage Statistics**:
+```bash
+# Tool distribution
+meta-cc query tools --stream | \
+  jq -r '.ToolName' | \
+  sort | uniq -c | sort -rn | \
+  awk '{print $2 ": " $1}'
+```
+
+**File Modification Tracking**:
+```bash
+# Most edited files with error rates
+meta-cc stats files --sort-by edit_count --top 10 | \
+  jq -r '.[] | [.file_path, .edit_count, (.error_rate * 100 | tostring + "%")] | @tsv' | \
+  column -t
+```
+
+### Unix Philosophy
+
+Phase 11 embraces Unix principles:
+
+- **Do one thing well**: Each command has a single, focused purpose
+- **Text streams**: All data flows as structured text (JSON/JSONL)
+- **Composability**: Tools chain together via pipes
+- **Consistent interface**: Uniform command structure and behavior
+
+### See Also
+
+- [Cookbook](docs/cookbook.md) - 10+ practical analysis patterns
+- [CLI Composability Guide](docs/cli-composability.md) - Integration with jq, grep, awk
+- [Examples and Usage](docs/examples-usage.md) - Getting started guide
+
+---
+
+## Phase 10: Advanced Query Capabilities (New!)
+
+Phase 10 introduces SQL-like filtering, aggregation, time series analysis, and file-level statistics for deeper insights.
+
+### Key Features
+
+1. **Advanced Filtering**: SQL-like expressions with AND/OR/NOT, IN, BETWEEN, LIKE, REGEXP
+2. **Aggregation Statistics**: Group-by with metrics (count, error_rate, percentiles)
+3. **Time Series Analysis**: Analyze metrics over time (hour/day/week intervals)
+4. **File-Level Statistics**: Track file operations and identify hotspots
+
+### Quick Examples
+
+```bash
+# Advanced filtering with SQL-like expressions
+meta-cc query tools --filter "tool='Bash' AND status='error'"
+meta-cc query tools --filter "tool IN ('Bash', 'Edit', 'Write')"
+meta-cc query tools --filter "duration BETWEEN 500 AND 2000"
+
+# Aggregation statistics
+meta-cc stats aggregate --group-by tool --metrics "count,error_rate"
+meta-cc stats aggregate --group-by status --metrics count
+
+# Time series analysis
+meta-cc stats time-series --metric tool-calls --interval hour
+meta-cc stats time-series --metric error-rate --interval day
+
+# File-level statistics
+meta-cc stats files --sort-by edit_count --top 10
+meta-cc stats files --sort-by error_count --filter "error_count>0"
+```
+
+### Enhanced Integration
+
+Phase 10 features are fully integrated with:
+- **Slash Commands**: `/meta-stats`, `/meta-errors`, `/meta-timeline` now use Phase 10 capabilities
+- **MCP Server**: 4 new tools (`query_tools_advanced`, `aggregate_stats`, `query_time_series`, `query_files`)
+- **@meta-coach**: Updated with Phase 10 analysis workflows and best practices
+
+See [Phase 10 MCP Tools](#phase-10-mcp-tools) below for details.
+
+---
+
+## Phase 9: Context-Length Management
 
 Phase 9 introduces powerful features to handle large sessions (>1000 turns) and prevent context overflow.
 

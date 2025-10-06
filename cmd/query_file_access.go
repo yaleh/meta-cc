@@ -3,12 +3,9 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/locator"
-	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/internal/query"
 )
 
@@ -42,25 +39,15 @@ func init() {
 }
 
 func runQueryFileAccess(cmd *cobra.Command, args []string) error {
-	// Locate session file
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,
-		ProjectPath: projectPath,
-	})
-	if err != nil {
+	// Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
 		return fmt.Errorf("failed to locate session: %w", err)
 	}
 
-	// Read and parse session file
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return fmt.Errorf("failed to read session file: %w", err)
-	}
-
 	// Apply time filter
-	entries, err = applyTimeFilter(entries)
+	entries := p.GetEntries()
+	entries, err := applyTimeFilter(entries)
 	if err != nil {
 		return fmt.Errorf("failed to apply time filter: %w", err)
 	}
@@ -73,16 +60,16 @@ func runQueryFileAccess(cmd *cobra.Command, args []string) error {
 
 	// Output result
 	if outputFormat == "md" {
-		return outputFileAccessMarkdown(result)
+		return outputFileAccessMarkdown(cmd, result)
 	}
 
 	// JSON output (default)
-	encoder := json.NewEncoder(os.Stdout)
+	encoder := json.NewEncoder(cmd.OutOrStdout())
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(result)
 }
 
-func outputFileAccessMarkdown(result *query.FileAccessQuery) error {
+func outputFileAccessMarkdown(cmd *cobra.Command, result *query.FileAccessQuery) error {
 	var sb strings.Builder
 
 	sb.WriteString("# File Access History\n\n")
@@ -112,6 +99,6 @@ func outputFileAccessMarkdown(result *query.FileAccessQuery) error {
 		}
 	}
 
-	fmt.Print(sb.String())
+	fmt.Fprint(cmd.OutOrStdout(), sb.String())
 	return nil
 }

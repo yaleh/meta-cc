@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/filter"
-	"github.com/yale/meta-cc/internal/locator"
+	internalOutput "github.com/yale/meta-cc/internal/output"
 	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/internal/stats"
 	"github.com/yale/meta-cc/pkg/output"
@@ -55,24 +55,14 @@ func init() {
 }
 
 func runStatsTimeSeries(cmd *cobra.Command, args []string) error {
-	// Step 1: Locate and parse session
-	loc := locator.NewSessionLocator()
-	sessionPath, err := loc.Locate(locator.LocateOptions{
-		SessionID:   sessionID,
-		ProjectPath: projectPath,
-	})
-	if err != nil {
+	// Step 1: Initialize and load session using pipeline
+	p := NewSessionPipeline(getGlobalOptions())
+	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
 		return fmt.Errorf("failed to locate session: %w", err)
 	}
 
-	sessionParser := parser.NewSessionParser(sessionPath)
-	entries, err := sessionParser.ParseEntries()
-	if err != nil {
-		return fmt.Errorf("failed to parse session: %w", err)
-	}
-
 	// Step 2: Extract tool calls
-	toolCalls := parser.ExtractToolCalls(entries)
+	toolCalls := p.ExtractToolCalls()
 
 	// Step 3: Apply filter if provided
 	if timeSeriesFilter != "" {
@@ -117,14 +107,12 @@ func runStatsTimeSeries(cmd *cobra.Command, args []string) error {
 	// Step 5: Format output
 	var outputStr string
 	switch outputFormat {
-	case "json":
-		outputStr, err = output.FormatJSON(points)
-	case "md", "markdown":
-		outputStr, err = output.FormatMarkdown(points)
-	case "csv":
-		outputStr, err = output.FormatCSV(points)
+	case "jsonl":
+		outputStr, err = output.FormatJSONL(points)
+	case "tsv":
+		outputStr, err = output.FormatTSV(points)
 	default:
-		outputStr, err = output.FormatJSON(points)
+		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
 	}
 
 	if err != nil {
@@ -132,5 +120,11 @@ func runStatsTimeSeries(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
+
+	// Check for empty results and return appropriate exit code
+	if len(points) == 0 {
+		return internalOutput.NewExitCodeError(internalOutput.ExitNoResults, "No results found")
+	}
+
 	return nil
 }
