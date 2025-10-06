@@ -360,3 +360,58 @@ func TestExecuteTool_StatsParameters(t *testing.T) {
 		})
 	}
 }
+
+func TestExecuteTool_MessageTruncationParameters(t *testing.T) {
+	tests := []struct {
+		name          string
+		args          map[string]interface{}
+		expectMaxLen  int
+		expectSummary bool
+	}{
+		{
+			name:          "default max_message_length",
+			args:          map[string]interface{}{},
+			expectMaxLen:  DefaultMaxMessageLength,
+			expectSummary: false,
+		},
+		{
+			name: "custom max_message_length",
+			args: map[string]interface{}{
+				"max_message_length": float64(1000),
+			},
+			expectMaxLen:  1000,
+			expectSummary: false,
+		},
+		{
+			name: "content_summary enabled",
+			args: map[string]interface{}{
+				"content_summary": true,
+			},
+			expectMaxLen:  DefaultMaxMessageLength,
+			expectSummary: true,
+		},
+		{
+			name: "both parameters set",
+			args: map[string]interface{}{
+				"max_message_length": float64(200),
+				"content_summary":    true,
+			},
+			expectMaxLen:  200,
+			expectSummary: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			maxLen := getIntParam(tt.args, "max_message_length", DefaultMaxMessageLength)
+			summary := getBoolParam(tt.args, "content_summary", false)
+
+			if maxLen != tt.expectMaxLen {
+				t.Errorf("expected max_message_length=%d, got %d", tt.expectMaxLen, maxLen)
+			}
+			if summary != tt.expectSummary {
+				t.Errorf("expected content_summary=%v, got %v", tt.expectSummary, summary)
+			}
+		})
+	}
+}

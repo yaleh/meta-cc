@@ -96,9 +96,9 @@ func TestHandleToolsList(t *testing.T) {
 		t.Fatalf("expected tools to be a slice, got %T", toolsInterface)
 	}
 
-	// Should have 13 tools (after removing aggregate_stats)
-	if len(toolsSlice) != 13 {
-		t.Errorf("expected 13 tools, got %d", len(toolsSlice))
+	// Should have 12 tools (after removing aggregate_stats and extract_tools)
+	if len(toolsSlice) != 12 {
+		t.Errorf("expected 12 tools, got %d", len(toolsSlice))
 	}
 }
 
@@ -345,5 +345,38 @@ func TestHandleRequest_AllMethods(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestQueryUserMessagesHasOutputWarning(t *testing.T) {
+	tools := getToolDefinitions()
+
+	var queryUserMessagesTool *Tool
+	for _, tool := range tools {
+		if tool.Name == "query_user_messages" {
+			queryUserMessagesTool = &tool
+			break
+		}
+	}
+
+	if queryUserMessagesTool == nil {
+		t.Fatal("query_user_messages tool not found")
+	}
+
+	// Check that description mentions output size concern
+	desc := strings.ToLower(queryUserMessagesTool.Description)
+	hasWarning := strings.Contains(desc, "large") ||
+		strings.Contains(desc, "truncat") ||
+		strings.Contains(desc, "may contain")
+
+	if !hasWarning {
+		t.Errorf("query_user_messages description should warn about large outputs.\nCurrent: %s",
+			queryUserMessagesTool.Description)
+	}
+
+	// Verify max_message_length parameter exists
+	props := queryUserMessagesTool.InputSchema.Properties
+	if _, hasParam := props["max_message_length"]; !hasParam {
+		t.Error("query_user_messages should have max_message_length parameter")
 	}
 }

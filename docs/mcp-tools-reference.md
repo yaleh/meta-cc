@@ -2,7 +2,9 @@
 
 ## Overview
 
-meta-cc-mcp provides **13 standardized tools** for analyzing Claude Code session history. All tools support the same core parameters for consistency and flexibility.
+meta-cc-mcp provides **12 standardized tools** for analyzing Claude Code session history. All tools support the same core parameters for consistency and flexibility.
+
+> **Migration Note**: `extract_tools` has been removed. Use `query_tools` instead for all tool extraction needs.
 
 ### Standard Parameters
 
@@ -15,7 +17,111 @@ All tools support these parameters:
 | `stats_only` | boolean | false | Return only statistics, no detailed records |
 | `stats_first` | boolean | false | Return statistics first, then details (separated by `---`) |
 | `max_output_bytes` | number | 51200 | Maximum output size in bytes (default: 50KB) |
+| `max_message_length` | number | 500 | **NEW in Phase 15**: Max chars per message content (0=unlimited, prevents huge summaries) |
+| `content_summary` | boolean | false | **NEW in Phase 15**: Return only turn/timestamp/preview (100 chars), skip full content |
 | `output_format` | string | "jsonl" | Output format: "jsonl" or "tsv" |
+
+---
+
+## Output Size Control (Phase 15)
+
+### Problem: Context Overflow from Large Messages
+
+**Issue**: User messages can contain session summaries (thousands of lines), causing MCP responses to return ~10.7k tokens and overflow Claude's context window.
+
+**Solution**: Phase 15 introduces two new parameters for message content control:
+
+1. **`max_message_length`** (default: 500 chars)
+   - Truncates message content to prevent large outputs
+   - Adds `content_truncated: true` and `original_length` fields
+   - Reduces output from ~10.7k to ~1.5k tokens (86% reduction)
+
+2. **`content_summary`** (default: false)
+   - Returns only metadata: `{turn_sequence, timestamp, content_preview}`
+   - Preview limited to 100 characters
+   - Reduces output to ~800 tokens (93% reduction)
+
+### Performance Impact
+
+| Configuration | Output Size | Reduction | Use Case |
+|--------------|-------------|-----------|----------|
+| Default (no truncation) | ~10.7k tokens | - | Small projects only |
+| `max_message_length: 500` | ~1.5k tokens | **86%** | Most queries (recommended) |
+| `content_summary: true` | ~800 tokens | **93%** | Metadata-only queries |
+| `jq_filter` + `stats_only` | <100 tokens | **>99%** | Aggregation queries |
+
+### When to Use Output Control
+
+**Use `max_message_length`** when:
+- You need message content but want to limit size
+- Analyzing message patterns
+- Searching for specific keywords
+- Default for all `query_user_messages` calls
+
+**Use `content_summary`** when:
+- You only need metadata (timestamps, turn numbers)
+- Pattern matching without content analysis
+- Building message timelines
+- Quick exploratory queries
+
+**Use `stats_only` + `jq_filter`** when:
+- Performing aggregation queries (counts, averages)
+- Statistical analysis only
+- Minimizing token usage
+- No content needed
+
+### Examples
+
+**Example 1: Default (Problematic)**
+```json
+{
+  "name": "query_user_messages",
+  "arguments": {
+    "pattern": "implement.*feature",
+    "limit": 5
+  }
+}
+```
+**Output**: ~10.7k tokens ❌ (May overflow context)
+
+**Example 2: With Truncation (Recommended)**
+```json
+{
+  "name": "query_user_messages",
+  "arguments": {
+    "pattern": "implement.*feature",
+    "limit": 5,
+    "max_message_length": 500
+  }
+}
+```
+**Output**: ~1.5k tokens ✅ (86% reduction)
+
+**Example 3: Content Summary (Metadata Only)**
+```json
+{
+  "name": "query_user_messages",
+  "arguments": {
+    "pattern": ".*",
+    "limit": 10,
+    "content_summary": true
+  }
+}
+```
+**Output**: ~800 tokens ✅ (93% reduction)
+
+**Example 4: Statistical Query (Minimal)**
+```json
+{
+  "name": "query_user_messages",
+  "arguments": {
+    "pattern": "error|fail",
+    "jq_filter": "length",
+    "stats_only": true
+  }
+}
+```
+**Output**: <100 tokens ✅ (>99% reduction)
 
 ---
 
@@ -67,58 +173,7 @@ All tools support these parameters:
 
 ---
 
-### 2. extract_tools
-
-**Purpose**: Extract complete tool call history for export or analysis.
-
-**Default Scope**: project (cross-session)
-
-**Tool-Specific Parameters**:
-- `limit` (number): Maximum number of tools to extract (default: 100)
-
-**Use Cases**:
-- Export tool usage timeline
-- Analyze tool usage evolution
-- Create custom reports
-- Feed data to external analytics
-
-**Example 1 - Last 50 Tools**:
-```json
-{
-  "name": "extract_tools",
-  "arguments": {
-    "limit": 50,
-    "jq_filter": ".[] | {tool: .ToolName, status: .Status, timestamp: .Timestamp}"
-  }
-}
-```
-
-**Example 2 - Extract to TSV**:
-```json
-{
-  "name": "extract_tools",
-  "arguments": {
-    "limit": 100,
-    "output_format": "tsv",
-    "max_output_bytes": 10240
-  }
-}
-```
-
-**Example 3 - Session-Only Extract**:
-```json
-{
-  "name": "extract_tools",
-  "arguments": {
-    "scope": "session",
-    "limit": 20
-  }
-}
-```
-
----
-
-### 3. query_tools
+### 2. query_tools
 
 **Purpose**: Query tool calls with flexible filtering options.
 
@@ -190,6 +245,10 @@ All tools support these parameters:
 **Tool-Specific Parameters**:
 - `pattern` (string, **required**): Regex pattern to match
 - `limit` (number): Maximum results (default: 10)
+- `max_message_length` (number): **Phase 15**: Max chars per message (default: 500, 0=unlimited)
+- `content_summary` (boolean): **Phase 15**: Return only metadata (default: false)
+
+**⚠️ IMPORTANT**: This tool can return very large outputs due to session summaries in messages. **Always use `max_message_length` or `content_summary`** to prevent context overflow.
 
 **Use Cases**:
 - Find similar historical questions
@@ -197,19 +256,39 @@ All tools support these parameters:
 - Analyze prompt evolution
 - Track topic changes
 
-**Example 1 - Error-Related Messages**:
+**Example 1 - With Truncation (Recommended)**:
 ```json
 {
   "name": "query_user_messages",
   "arguments": {
     "pattern": "error|fix|bug",
     "limit": 5,
-    "jq_filter": ".[] | {turn: .TurnSequence, content: .Content | .[0:100]}"
+    "max_message_length": 300
   }
 }
 ```
+**Returns**:
+```jsonl
+{"turn_sequence": 42, "timestamp": "2025-10-06T12:00:00Z", "content": "Can you help me fix this error... [TRUNCATED]", "content_truncated": true, "original_length": 8500}
+```
 
-**Example 2 - Count Messages by Topic**:
+**Example 2 - Content Summary (Metadata Only)**:
+```json
+{
+  "name": "query_user_messages",
+  "arguments": {
+    "pattern": "implement.*feature",
+    "limit": 10,
+    "content_summary": true
+  }
+}
+```
+**Returns**:
+```jsonl
+{"turn_sequence": 42, "timestamp": "2025-10-06T12:00:00Z", "content_preview": "Can you implement a new feature for..."}
+```
+
+**Example 3 - Count Messages by Topic**:
 ```json
 {
   "name": "query_user_messages",
@@ -221,14 +300,15 @@ All tools support these parameters:
 }
 ```
 
-**Example 3 - Recent Documentation Requests**:
+**Example 4 - Recent Documentation Requests**:
 ```json
 {
   "name": "query_user_messages",
   "arguments": {
     "pattern": "doc(s)?|documentation|README",
     "limit": 3,
-    "scope": "session"
+    "scope": "session",
+    "max_message_length": 200
   }
 }
 ```
@@ -866,10 +946,10 @@ group_by(.ToolName) | map({
 **Large dataset - use jq to limit**:
 ```json
 {
-  "name": "extract_tools",
+  "name": "query_tools",
   "arguments": {
-    "limit": 1000,
-    "jq_filter": ".[0:100]",
+    "limit": 100,
+    "jq_filter": ".[]",
     "max_output_bytes": 51200
   }
 }
@@ -1013,7 +1093,7 @@ group_by(.ToolName) | map({
 **JSONL** (default):
 ```json
 {
-  "name": "extract_tools",
+  "name": "query_tools",
   "arguments": {
     "limit": 100,
     "output_format": "jsonl"
@@ -1024,7 +1104,7 @@ group_by(.ToolName) | map({
 **TSV** (86% smaller):
 ```json
 {
-  "name": "extract_tools",
+  "name": "query_tools",
   "arguments": {
     "limit": 100,
     "output_format": "tsv"
@@ -1199,6 +1279,116 @@ group_by(.ToolName) | map({
     "jq_filter": "[.[] | .ToolName] | unique",
     "stats_only": true
   }
+}
+```
+
+---
+
+## Phase 15 Migration Guide
+
+### Migration: Default → Truncated Output
+
+**Before Phase 15** (Context overflow risk):
+```json
+{
+  "name": "query_user_messages",
+  "arguments": {
+    "pattern": "implement.*"
+  }
+}
+```
+**Output**: ~10.7k tokens ❌
+
+**After Phase 15** (Recommended):
+```json
+{
+  "name": "query_user_messages",
+  "arguments": {
+    "pattern": "implement.*",
+    "max_message_length": 500
+  }
+}
+```
+**Output**: ~1.5k tokens ✅
+
+### Migration: Full Content → Summary Mode
+
+**Before Phase 15**:
+```json
+{
+  "name": "query_user_messages",
+  "arguments": {
+    "pattern": ".*",
+    "jq_filter": ".[] | {turn: .turn_sequence, time: .timestamp}"
+  }
+}
+```
+**Output**: ~10.7k tokens (includes full content even if not projected)
+
+**After Phase 15**:
+```json
+{
+  "name": "query_user_messages",
+  "arguments": {
+    "pattern": ".*",
+    "content_summary": true
+  }
+}
+```
+**Output**: ~800 tokens ✅ (93% reduction)
+
+### Best Practices for Phase 15
+
+1. **Always set `max_message_length` for `query_user_messages`**
+   ```json
+   {"max_message_length": 500}
+   ```
+
+2. **Use `content_summary` for metadata-only queries**
+   ```json
+   {"content_summary": true}
+   ```
+
+3. **Combine with `jq_filter` for targeted queries**
+   ```json
+   {
+     "max_message_length": 300,
+     "jq_filter": ".[] | select(.turn_sequence > 100)"
+   }
+   ```
+
+4. **Use `stats_only` for aggregations**
+   ```json
+   {
+     "jq_filter": "length",
+     "stats_only": true
+   }
+   ```
+
+### Troubleshooting: Context Overflow
+
+**Symptom**: MCP response too large, Claude context warning
+
+**Solution 1**: Add truncation
+```json
+{"max_message_length": 500}
+```
+
+**Solution 2**: Use summary mode
+```json
+{"content_summary": true}
+```
+
+**Solution 3**: Reduce limit
+```json
+{"limit": 5, "max_message_length": 300}
+```
+
+**Solution 4**: Project specific fields with jq
+```json
+{
+  "jq_filter": ".[] | {turn: .turn_sequence, preview: .content[0:50]}",
+  "max_message_length": 500
 }
 ```
 

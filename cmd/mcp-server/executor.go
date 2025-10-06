@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -50,6 +52,10 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 	scope := getStringParam(args, "scope", "project")
 	outputFormat := getStringParam(args, "output_format", "jsonl")
 
+	// Extract message truncation parameters (for query_user_messages)
+	maxMessageLength := getIntParam(args, "max_message_length", DefaultMaxMessageLength)
+	contentSummary := getBoolParam(args, "content_summary", false)
+
 	// Build meta-cc command
 	cmdArgs := e.buildCommand(toolName, args, scope, outputFormat)
 	if cmdArgs == nil {
@@ -66,6 +72,14 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 	filtered, err := ApplyJQFilter(rawOutput, jqFilter)
 	if err != nil {
 		return "", fmt.Errorf("jq filter error: %w", err)
+	}
+
+	// Apply message truncation for query_user_messages
+	if toolName == "query_user_messages" {
+		filtered, err = e.applyMessageFilters(filtered, maxMessageLength, contentSummary)
+		if err != nil {
+			return "", fmt.Errorf("message filter error: %w", err)
+		}
 	}
 
 	// Generate stats if requested
@@ -109,12 +123,6 @@ func (e *ToolExecutor) buildCommand(toolName string, args map[string]interface{}
 		if status := getStringParam(args, "status", ""); status != "" {
 			cmdArgs = append(cmdArgs, "--status", status)
 		}
-		if limit := getIntParam(args, "limit", 0); limit > 0 {
-			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
-		}
-
-	case "extract_tools":
-		cmdArgs = append(cmdArgs, "extract", "tools")
 		if limit := getIntParam(args, "limit", 0); limit > 0 {
 			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
 		}
@@ -229,6 +237,46 @@ func (e *ToolExecutor) executeMetaCC(cmdArgs []string) (string, error) {
 	}
 
 	return stdout.String(), nil
+}
+
+// applyMessageFilters applies content truncation or summary mode to user messages
+func (e *ToolExecutor) applyMessageFilters(jsonlData string, maxMessageLength int, contentSummary bool) (string, error) {
+	// Parse JSONL to array of messages
+	lines := strings.Split(strings.TrimSpace(jsonlData), "\n")
+	var messages []interface{}
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		var obj interface{}
+		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+			return "", fmt.Errorf("invalid JSON: %w", err)
+		}
+		messages = append(messages, obj)
+	}
+
+	// Apply filters
+	var filtered []interface{}
+	if contentSummary {
+		filtered = ApplyContentSummary(messages)
+	} else {
+		filtered = TruncateMessageContent(messages, maxMessageLength)
+	}
+
+	// Convert back to JSONL
+	var output strings.Builder
+	for _, msg := range filtered {
+		jsonBytes, err := json.Marshal(msg)
+		if err != nil {
+			return "", err
+		}
+		output.Write(jsonBytes)
+		output.WriteString("\n")
+	}
+
+	return output.String(), nil
 }
 
 // Helper functions

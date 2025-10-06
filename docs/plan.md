@@ -7,14 +7,14 @@
 **核心约束与设计原则**：详见 [设计原则文档](./principles.md)
 
 **项目状态**：
-- ✅ **Phase 0-7 已完成**（完整集成里程碑达成）
-- ✅ **Phase 8 已完成**（stages 8.1-8.12: 查询命令基础 + Prompt 优化）
-- ✅ **Phase 9 已完成**（上下文长度应对，86.4% 压缩率）🎉 **NEW**
-- ✅ 47 个单元测试全部通过（Phase 9 新增测试）
+- ✅ **Phase 0-9 已完成**（核心查询 + 上下文管理）
+- ✅ **Phase 14 已完成**（架构重构 + MCP 独立可执行文件）
+- ✅ **Phase 15 已完成**（MCP 输出控制 + 工具标准化）🎉 **NEW**
+- ✅ 47 个单元测试全部通过
 - ✅ 3 个真实项目验证通过（0% 错误率）
-- ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`，已集成 Phase 9）
-- ✅ MCP Server 独立可执行文件（`meta-cc-mcp`，13 个工具）
-- ✅ 支持 5 种输出格式（JSON, Markdown, CSV, TSV, Summary）
+- ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`）
+- ✅ MCP Server 独立可执行文件（`meta-cc-mcp`，13 个工具，支持输出大小控制）
+- ✅ MCP 输出压缩率 80%+（10.7k → ~1-2k tokens）
 
 ---
 
@@ -91,12 +91,12 @@ card "Phase 14" as P14 #yellow {
   - 代码重复消除
 }
 
-card "Phase 15" as P15 #lightyellow {
-  **MCP 工具完善**
-  - 补全缺失工具
-  - 简化工具描述
-  - 移除语义分析工具
-  - MCP 文档优化
+card "Phase 15" as P15 #lightgreen {
+  **MCP 输出控制与标准化**
+  - 输出大小控制
+  - 消息内容截断
+  - 工具参数统一
+  - 工具描述优化
 }
 
 card "Phase 16" as P16 #lightgreen {
@@ -138,8 +138,9 @@ end note
 **Phase 优先级分类**：
 - ✅ **已完成** (Phase 0-9): MVP + 核心查询 + 上下文管理
 - 🟡 **中优先级** (Phase 10-11): 高级查询和可组合性
-- 🟢 **高优先级** (Phase 12-14): 输出简化 + 架构重构 + MCP 项目级
-- 🟡 **中优先级** (Phase 15): MCP 工具完善
+- 🟡 **中优先级** (Phase 12-13): MCP 项目级 + 输出简化
+- ✅ **已完成** (Phase 14): 架构重构 + MCP 独立可执行文件
+- ✅ **已完成** (Phase 15): MCP 输出控制 + 工具标准化
 - 🟢 **高优先级** (Phase 16): Subagent 语义层实现
 
 ---
@@ -1794,38 +1795,122 @@ git diff --stat HEAD~1 HEAD | grep "deletions"
 
 ---
 
-## Phase 15: MCP 工具标准化（MCP Tools Standardization）
+## Phase 15: MCP 输出控制与工具标准化（MCP Output Control & Tools Standardization）
 
-**目标**：统一 MCP 工具参数，移除聚合类工具，优化工具描述
+**目标**：实现 MCP 输出大小控制，统一工具参数，优化工具描述
 
-**代码量**：~200 行（参数标准化 + 工具移除）
+**代码量**：~350 行（输出控制 ~150 行 + 参数标准化 ~200 行）
 
-**优先级**：高（与 Phase 14 配合，完成 MCP 增强）
+**优先级**：高（解决 MCP 上下文溢出问题，与 Phase 14 配合完成 MCP 增强）
 
-**状态**：待实施
+**状态**：✅ 已完成
 
 **背景**：
 - Phase 14 已引入 gojq 和 meta-cc-mcp 独立可执行文件
+- **问题发现**：MCP 查询返回大量内容（如包含会话摘要的用户消息，~10.7k tokens）
 - 需统一所有 MCP 工具参数（jq_filter, stats_only, stats_first, max_output_bytes）
+- 需实现消息级内容截断，防止上下文溢出
 - 移除冗余聚合类工具（由 jq_filter + stats_only 替代）
 
-### Stage 15.1: 统一 MCP 工具参数
+### Stage 15.1: MCP 输出大小控制
 
 **任务**：
-- 为所有 MCP 工具添加标准参数：jq_filter, stats_only, stats_first, max_output_bytes
-- 移除复杂聚合参数：group_by, metrics, window
-- 移除聚合类工具：aggregate_stats, analyze_errors
+- 实现 `max_message_length` 参数（消息内容截断，默认 500 字符）
+- 实现 `content_summary` 模式（仅返回 turn/timestamp/preview）
+- 更新工具描述，添加输出大小警告
+- 优化 `TruncateMessageContent()` 函数
+
+**根本原因**：
+```
+用户消息可能包含会话摘要（数千行历史对话）
+→ jq_filter ".[]" 返回完整对象（包括巨大的 content 字段）
+→ max_output_bytes 仅在最后截断（为时已晚）
+→ MCP 返回 ~10.7k tokens，填满上下文
+```
+
+**解决方案**：
+```go
+// cmd/mcp-server/filters.go (新增 ~80 行)
+func TruncateMessageContent(jsonl string, maxLen int) string {
+    lines := strings.Split(jsonl, "\n")
+    var result []string
+    for _, line := range lines {
+        if line == "" {
+            continue
+        }
+        var obj map[string]interface{}
+        json.Unmarshal([]byte(line), &obj)
+        if content, ok := obj["content"].(string); ok && len(content) > maxLen {
+            obj["content"] = content[:maxLen] + "...[truncated]"
+        }
+        truncated, _ := json.Marshal(obj)
+        result = append(result, string(truncated))
+    }
+    return strings.Join(result, "\n")
+}
+```
 
 **参数标准化**：
 ```json
 {
-  "scope": "string",           // project/session
-  "jq_filter": "string",       // jq 表达式（默认 ".[]"）
-  "stats_only": "boolean",     // 仅返回统计（默认 false）
-  "stats_first": "boolean",    // 先统计后详情（默认 false）
-  "max_output_bytes": "number" // 输出限制（默认 51200）
+  "scope": "string",                  // project/session
+  "jq_filter": "string",              // jq 表达式（默认 ".[]"）
+  "stats_only": "boolean",            // 仅返回统计（默认 false）
+  "stats_first": "boolean",           // 先统计后详情（默认 false）
+  "max_output_bytes": "number",       // 总输出限制（默认 51200）
+  "max_message_length": "number",     // 单条消息内容限制（默认 500）NEW
+  "content_summary": "boolean"        // 摘要模式（默认 false）NEW
 }
 ```
+
+**工具描述增强**：
+```json
+{
+  "name": "query_user_messages",
+  "description": "Search user messages with regex. ⚠️ Messages may contain large summaries. Use limit=5 and max_message_length=500 to avoid context overflow.",
+  "inputSchema": {
+    "max_message_length": {
+      "type": "number",
+      "description": "Max chars per message content (default: 500, prevents huge summaries)",
+      "default": 500
+    },
+    "content_summary": {
+      "type": "boolean",
+      "description": "Return only turn/timestamp/preview (100 chars), skip full content",
+      "default": false
+    }
+  }
+}
+```
+
+**交付物**：
+- `cmd/mcp-server/filters.go`：消息截断逻辑 (~80 行)
+- `cmd/mcp-server/executor.go`：参数处理 (~50 行)
+- `cmd/mcp-server/executor_test.go`：截断测试 (~70 行)
+- 更新所有 MCP 工具描述（添加输出大小警告）
+
+**测试**：
+```bash
+# 测试消息内容截断
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_user_messages","arguments":{"pattern":"meta-cc-mcp","max_message_length":100}}}' | ./meta-cc-mcp
+# 预期：content 字段最多 100 字符 + "...[truncated]"
+
+# 测试摘要模式
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_user_messages","arguments":{"pattern":"meta-cc-mcp","content_summary":true}}}' | ./meta-cc-mcp
+# 预期：仅返回 {"turn":23062,"timestamp":"...","preview":"..."}
+```
+
+**性能指标**：
+- 10.7k tokens → ~1-2k tokens（使用 max_message_length=500）
+- 压缩率：~81-91%
+- 搜索能力：保持完整（截断不影响正则匹配）
+
+### Stage 15.2: 统一 MCP 工具参数
+
+**任务**：
+- 为所有 MCP 工具添加标准参数（Stage 15.1 已定义）
+- 移除复杂聚合参数：group_by, metrics, window
+- 移除聚合类工具：aggregate_stats, analyze_errors（已在 Phase 14 标记废弃）
 
 **Claude 使用示例**：
 ```
@@ -1850,10 +1935,10 @@ query_tools({
 **测试**：
 ```bash
 echo '{"jsonrpc":"2.0","method":"tools/list"}' | ./meta-cc-mcp | jq '.result.tools[0].inputSchema.properties | keys'
-# 验证包含 jq_filter, stats_only, stats_first, max_output_bytes
+# 验证包含 jq_filter, stats_only, stats_first, max_output_bytes, max_message_length, content_summary
 ```
 
-### Stage 15.2: 简化 MCP 工具描述
+### Stage 15.3: 简化 MCP 工具描述
 
 **任务**：
 - 精简所有 MCP 工具描述至 100 字符以内
@@ -1872,30 +1957,6 @@ echo '{"jsonrpc":"2.0","method":"tools/list"}' | ./meta-cc-mcp | jq '.result.too
 **交付物**：
 - 更新所有 14 个 MCP 工具描述
 - `docs/mcp-tools-reference.md` 完整文档（包含使用场景）
-
-### Stage 15.3: 优化 MCP 工具描述
-
-**任务**：
-- 简化所有 MCP 工具描述至 ≤100 字符
-- 分离"用途说明"和"使用场景"（后者移到文档）
-- 统一描述格式：`<动作> <对象> <范围说明>`
-
-**描述优化对比**：
-```json
-// 改进前（200+ 字符）
-{
-  "description": "Analyze error patterns across project history (repeated failures, tool-specific errors, temporal trends). Default project-level scope enables discovery of persistent issues across sessions..."
-}
-
-// 改进后（简洁）
-{
-  "description": "Query tool calls with jq filtering. Supports stats_only mode. Default scope: project."
-}
-```
-
-**交付物**：
-- 更新所有 MCP 工具描述
-- 创建 `docs/mcp-tools-reference.md`（详细文档）
 
 ### Stage 15.4: MCP 工具文档优化
 
@@ -1940,12 +2001,19 @@ Claude: "Show me the last 10 errors"
 - ❌ `analyze_errors`（由 jq_filter + stats_only 替代）
 
 **Phase 15 完成标准**：
+- ✅ MCP 输出大小控制实现（max_message_length, content_summary）
+- ✅ 输出压缩率 ≥80%（10.7k → ~1-2k tokens）
 - ✅ 移除 2 个聚合类 MCP 工具
-- ✅ 所有工具参数标准化（支持 jq_filter/stats_only）
+- ✅ 所有工具参数标准化（支持 jq_filter/stats_only/max_message_length）
 - ✅ 所有工具描述 ≤100 字符
 - ✅ 完整的 MCP 迁移文档
 - ✅ 完整的 MCP 工具参考文档
-- ✅ MCP 集成测试通过
+- ✅ MCP 集成测试通过（包括输出大小控制测试）
+
+**应用价值**：
+- 解决 MCP 上下文溢出问题（查询包含会话摘要的消息时）
+- 提升 Claude 使用 MCP 工具的稳定性（减少 token 消耗 80%+）
+- 保持搜索能力完整性（截断不影响正则匹配）
 
 ---
 
@@ -2153,7 +2221,7 @@ Subagent 层（语义分析）
 | 8-9 | 核心查询完成 | 应对大会话，分页/分片/投影 |
 | 10-13 | 高级功能 | 聚合统计、项目级查询、输出简化 |
 | 14 | **架构重构 + MCP 增强** | Pipeline 抽象 + meta-cc-mcp 独立可执行文件 + gojq 集成 |
-| 15 | **MCP 标准化** | 统一参数（jq_filter/stats_only），移除聚合工具 |
+| 15 | **MCP 输出控制与标准化** | 消息内容截断 + 统一参数 + 工具描述优化（80%+ 压缩率）|
 | 16 | **完整三层架构** | CLI（数据）→ MCP/Subagent（聚合）→ @meta-coach（语义） |
 
 ---

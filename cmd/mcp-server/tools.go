@@ -78,19 +78,6 @@ func getToolDefinitions() []Tool {
 			},
 		},
 		{
-			Name:        "extract_tools",
-			Description: "Extract tool call history. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"limit": {
-						Type:        "number",
-						Description: "Max number of tools (default: 100)",
-					},
-				}),
-			},
-		},
-		{
 			Name:        "query_tools",
 			Description: "Query tool calls with filters. Default scope: project.",
 			InputSchema: ToolSchema{
@@ -113,7 +100,7 @@ func getToolDefinitions() []Tool {
 		},
 		{
 			Name:        "query_user_messages",
-			Description: "Search user messages with regex. Default scope: project.",
+			Description: "Search user messages with regex. May contain large outputs. Default scope: project.",
 			InputSchema: ToolSchema{
 				Type: "object",
 				Properties: MergeParameters(map[string]Property{
@@ -124,6 +111,14 @@ func getToolDefinitions() []Tool {
 					"limit": {
 						Type:        "number",
 						Description: "Max results (default: 10)",
+					},
+					"max_message_length": {
+						Type:        "number",
+						Description: "Max chars per message content (default: 500, prevents huge summaries)",
+					},
+					"content_summary": {
+						Type:        "boolean",
+						Description: "Return only turn/timestamp/preview (100 chars), skip full content",
 					},
 				}),
 				Required: []string{"pattern"},
