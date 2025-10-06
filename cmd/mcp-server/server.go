@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 )
 
@@ -25,6 +26,7 @@ type JSONRPCError struct {
 }
 
 var executor *ToolExecutor
+var outputWriter io.Writer = os.Stdout
 
 func init() {
 	executor = NewToolExecutor()
@@ -104,7 +106,7 @@ func writeResponse(id interface{}, result interface{}) {
 		ID:      id,
 		Result:  result,
 	}
-	json.NewEncoder(os.Stdout).Encode(resp)
+	json.NewEncoder(outputWriter).Encode(resp)
 }
 
 func writeError(id interface{}, code int, message string) {
@@ -116,5 +118,5 @@ func writeError(id interface{}, code int, message string) {
 			Message: message,
 		},
 	}
-	json.NewEncoder(os.Stdout).Encode(resp)
+	json.NewEncoder(outputWriter).Encode(resp)
 }

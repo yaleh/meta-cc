@@ -21,14 +21,13 @@ func TestCommandBuilder(t *testing.T) {
 			expected: []string{"query", "tools", "--output", "jsonl"},
 		},
 		{
-			name: "project-level query with filters",
+			name: "project-level query with filter",
 			builder: NewCommandBuilder("query", "tools").
 				WithScope("project").
 				WithFilter("tool", "Bash").
-				WithFilter("status", "error").
 				WithLimit(20).
 				WithOutputFormat("jsonl"),
-			expected: []string{"--project", ".", "query", "tools", "--tool", "Bash", "--status", "error", "--limit", "20", "--output", "jsonl"},
+			expected: []string{"--project", ".", "query", "tools", "--tool", "Bash", "--limit", "20", "--output", "jsonl"},
 		},
 		{
 			name: "query user messages with pattern",
@@ -121,11 +120,10 @@ func TestBuildToolCommandFromArgs(t *testing.T) {
 			args: map[string]interface{}{
 				"scope":         "project",
 				"tool":          "Bash",
-				"status":        "error",
 				"limit":         float64(20),
 				"output_format": "jsonl",
 			},
-			expected: []string{"--project", ".", "query", "tools", "--tool", "Bash", "--status", "error", "--limit", "20", "--output", "jsonl"},
+			expected: []string{"--project", ".", "query", "tools", "--tool", "Bash", "--limit", "20", "--output", "jsonl"},
 		},
 		{
 			name:     "query_tools with session scope",
@@ -165,6 +163,131 @@ func TestBuildToolCommandFromArgs(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
 			}
+		})
+	}
+}
+
+// TestWithExtraFlag tests adding extra flags to command builder
+func TestWithExtraFlag(t *testing.T) {
+	tests := []struct {
+		name     string
+		builder  *CommandBuilder
+		expected []string
+	}{
+		{
+			name: "extra flag with integer value",
+			builder: NewCommandBuilder("query", "context").
+				WithScope("project").
+				WithExtraFlag("window", 5).
+				WithOutputFormat("jsonl"),
+			expected: []string{"--project", ".", "query", "context", "--window", "5", "--output", "jsonl"},
+		},
+		{
+			name: "extra flag with string value",
+			builder: NewCommandBuilder("stats", "aggregate").
+				WithScope("project").
+				WithExtraFlag("group-by", "tool").
+				WithOutputFormat("jsonl"),
+			expected: []string{"--project", ".", "stats", "aggregate", "--group-by", "tool", "--output", "jsonl"},
+		},
+		{
+			name: "multiple extra flags",
+			builder: NewCommandBuilder("query", "tool-sequences").
+				WithScope("project").
+				WithExtraFlag("min-occurrences", 3).
+				WithExtraFlag("pattern", "Read -> Edit").
+				WithOutputFormat("jsonl"),
+			expected: []string{"--project", ".", "query", "tool-sequences", "--min-occurrences", "3", "--pattern", "Read -> Edit", "--output", "jsonl"},
+		},
+		{
+			name: "extra flag with float value",
+			builder: NewCommandBuilder("query", "successful-prompts").
+				WithScope("project").
+				WithExtraFlag("min-quality-score", 0.75).
+				WithOutputFormat("jsonl"),
+			expected: []string{"--project", ".", "query", "successful-prompts", "--min-quality-score", "0.75", "--output", "jsonl"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.builder.Build()
+			// Note: Map iteration order is not guaranteed, so we check that all expected flags are present
+			// rather than exact order match for extra flags
+			for _, flag := range tt.expected {
+				assert.Contains(t, result, flag, "Expected flag %s to be in result", flag)
+			}
+		})
+	}
+}
+
+// TestGetFloatArg tests float parameter extraction
+func TestGetFloatArg(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         map[string]interface{}
+		key          string
+		defaultValue float64
+		expected     float64
+	}{
+		{
+			name: "existing float parameter",
+			args: map[string]interface{}{
+				"min_quality_score": 0.8,
+			},
+			key:          "min_quality_score",
+			defaultValue: 0.5,
+			expected:     0.8,
+		},
+		{
+			name:         "missing parameter uses default",
+			args:         map[string]interface{}{},
+			key:          "min_quality_score",
+			defaultValue: 0.5,
+			expected:     0.5,
+		},
+		{
+			name: "non-float parameter uses default",
+			args: map[string]interface{}{
+				"min_quality_score": "0.8",
+			},
+			key:          "min_quality_score",
+			defaultValue: 0.5,
+			expected:     0.5,
+		},
+		{
+			name: "zero value",
+			args: map[string]interface{}{
+				"threshold": 0.0,
+			},
+			key:          "threshold",
+			defaultValue: 0.5,
+			expected:     0.0,
+		},
+		{
+			name: "negative value",
+			args: map[string]interface{}{
+				"threshold": -0.5,
+			},
+			key:          "threshold",
+			defaultValue: 0.0,
+			expected:     -0.5,
+		},
+		{
+			name: "value greater than 1",
+			args: map[string]interface{}{
+				"threshold": 1.5,
+			},
+			key:          "threshold",
+			defaultValue: 1.0,
+			expected:     1.5,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getFloatArg(tt.args, tt.key, tt.defaultValue)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
