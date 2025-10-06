@@ -98,7 +98,10 @@ meta-cc 仅负责 Claude Code 会话历史知识的提取，不做分析决策�
   1. 调用 `meta-cc` CLI 获取原始 JSONL
   2. 使用 `gojq` 库应用 jq 表达式过滤
   3. 可选统计聚合（stats_only/stats_first）
-  4. 输出长度控制（max_output_bytes，默认 50KB）
+  4. **混合输出模式**（Phase 16）：
+     - 输出 ≤ 8KB → inline 模式（直接返回数据）
+     - 输出 > 8KB → file_ref 模式（返回临时文件元数据）
+  5. 输出长度控制（max_output_bytes，默认 50KB，仅适用于 inline 模式）
 - ✅ 可执行文件：`meta-cc-mcp`（独立二进制）
 
 ### 查询语法：jq
@@ -118,14 +121,80 @@ meta-cc 仅负责 Claude Code 会话历史知识的提取，不做分析决策�
 .[] | select(.Status == "error") | .ToolName | group_by(.) | map({tool: .[0], count: length})
 ```
 
-### MCP 输出控制
+### MCP 输出控制（Phase 15）
 
 1. **单一格式**：仅支持 JSONL
 2. **默认输出限制**：50KB（max_output_bytes=51200）
+   - **适用范围**：仅适用于 inline 模式（Phase 16 后）
+   - **作用**：截断保护，防止超大输出消耗 token
 3. **截断策略**：保留完整 JSONL 行 + 截断警告
 4. **统计模式**：
    - `stats_only=true`：仅返回统计（如 `{"tool":"Bash","count":311}`）
    - `stats_first=true`：先统计后详情（用 `---` 分隔）
+
+### MCP 输出模式（Phase 16）
+
+**混合输出策略**：根据输出大小自动选择输出模式
+
+1. **Inline 模式**（输出 ≤ 8KB）：
+   - 直接返回 JSONL 数据
+   - 适合小查询结果（如 limit=5-10）
+   - 单轮交互完成
+   - 返回格式：
+     ```json
+     {
+       "mode": "inline",
+       "data": [
+         {"Timestamp": "...", "ToolName": "Bash", "Status": "success"},
+         ...
+       ]
+     }
+     ```
+
+2. **File Reference 模式**（输出 > 8KB）：
+   - 写入临时 JSONL 文件（`/tmp/meta-cc-mcp-*`）
+   - 返回文件元数据（路径、大小、行数、字段列表、摘要）
+   - Claude 使用 Read/Grep/Bash 检索文件
+   - 适合大查询结果（如全项目工具调用历史）
+   - 返回格式：
+     ```json
+     {
+       "mode": "file_ref",
+       "file_ref": {
+         "path": "/tmp/meta-cc-mcp-{session_hash}-{timestamp}-{query_type}.jsonl",
+         "size_bytes": 524288,
+         "line_count": 1523,
+         "fields": ["Timestamp", "ToolName", "Status", "Error"],
+         "summary": {
+           "first_line": {...},
+           "last_line": {...}
+         }
+       }
+     }
+     ```
+
+**文件生命周期管理**：
+- 临时文件位于 `/tmp/meta-cc-mcp-*`
+- 文件命名：`meta-cc-mcp-{session_hash}-{timestamp}-{query_type}.jsonl`
+- 按会话 hash 分组
+- MCP 启动时自动清理 7 天前文件
+- 可选手动清理工具：`cleanup_temp_files`
+
+**使用场景**：
+- 小查询（≤8KB）→ Claude 直接分析 inline 数据
+- 大查询（>8KB）→ Claude 使用 Read/Grep/Bash 检索临时文件
+
+**技术指标**：
+- Inline 阈值：8KB（覆盖 ~80% 查询场景）
+- File Reference 压缩率：>99%（仅返回元数据 ~100 bytes）
+- 临时文件清理周期：7 天
+
+**阈值协同工作**：
+- **8KB（模式切换）**：决定使用 inline 还是 file_ref 模式
+- **50KB（截断保护）**：仅在 inline 模式下生效，防止超大输出
+- **工作流程**：
+  1. 查询结果 ≤ 8KB → inline 模式 → 直接返回（如超 50KB 则截断）
+  2. 查询结果 > 8KB → file_ref 模式 → 写入临时文件，返回元数据（~100 bytes）
 
 ### 默认查询范围
 
@@ -194,6 +263,14 @@ Subagents 分为两类：
 - `content_summary=true`：仅元数据（93% 压缩）
 - `max_message_length=500`：限制消息长度（86% 压缩）
 - `limit=10-20`：限制结果数量
+
+**MCP 输出模式适配**（Phase 16）：
+- 小查询（≤8KB）→ inline 模式，直接分析 data 字段
+- 大查询（>8KB）→ file_ref 模式：
+  1. 检查返回的 `mode` 字段
+  2. 使用 Read 工具查看文件前 100 行（了解结构）
+  3. 使用 Bash + jq/grep/awk 统计/过滤
+  4. 使用 Grep 搜索特定模式
 
 **业务型 Subagent 职责**：
 - @meta-coach：综合分析、语义理解、建议生成

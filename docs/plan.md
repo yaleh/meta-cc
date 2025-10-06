@@ -99,7 +99,15 @@ card "Phase 15" as P15 #lightgreen {
   - 工具描述优化
 }
 
-card "Phase 16" as P16 #lightgreen {
+card "Phase 16" as P16 #yellow {
+  **MCP 输出模式优化**
+  - 混合输出模式
+  - 文件引用机制
+  - 临时文件管理
+  - 8KB 阈值切换
+}
+
+card "Phase 17" as P17 #lightgreen {
   **Subagent 实现**
   - @meta-coach 核心
   - @error-analyst 专用
@@ -116,6 +124,7 @@ P12 -down-> P13
 P13 -down-> P14
 P14 -down-> P15
 P15 -down-> P16
+P16 -down-> P17
 
 note right of P0
   **业务闭环完成**
@@ -127,7 +136,7 @@ note right of P9
   应对大会话场景
 end note
 
-note right of P16
+note right of P17
   **完整架构实现**
   数据层 + MCP + Subagent
 end note
@@ -141,7 +150,8 @@ end note
 - 🟡 **中优先级** (Phase 12-13): MCP 项目级 + 输出简化
 - ✅ **已完成** (Phase 14): 架构重构 + MCP 独立可执行文件
 - ✅ **已完成** (Phase 15): MCP 输出控制 + 工具标准化
-- 🟢 **高优先级** (Phase 16): Subagent 语义层实现
+- 🟢 **高优先级** (Phase 16): MCP 输出模式优化（文件引用机制）
+- 🟢 **高优先级** (Phase 17): Subagent 语义层实现
 
 ---
 
@@ -2017,7 +2027,356 @@ Claude: "Show me the last 10 errors"
 
 ---
 
-## Phase 16: Subagent 实现（Subagent Implementation）
+## Phase 16: MCP 输出模式优化（MCP Output Mode Optimization）
+
+**目标**：实现混合输出模式（inline + file reference），彻底解决大查询结果的上下文溢出问题
+
+**代码量**：~400 行（文件输出引擎 + 决策逻辑 + 生命周期管理 + 文档）
+
+**优先级**：高（核心基础设施优化，为 Subagent 提供稳定数据访问）
+
+**状态**：待实施
+
+**背景与问题**：
+- **问题 1**：简单截断丢失信息（max_output_bytes=51200 后数据完全丢失）
+- **问题 2**：Claude 无法访问被截断的数据（无法迭代检索）
+- **问题 3**：包含大文本字段时压缩效果有限（如 Task.Input/Output）
+- **实际案例**：query_tools 返回包含完整 Task prompt 的记录，即使 max_message_length=500 仍超 8KB
+
+**解决方案**：
+- ✅ **混合输出模式**：根据输出大小自动选择 inline（≤8KB）或 file_ref（>8KB）
+- ✅ **临时文件引用**：大结果写入 JSONL 文件，返回文件元数据
+- ✅ **工具组合**：Claude 使用 Read/Grep/Bash 检索临时文件
+- ✅ **生命周期管理**：MCP 启动时清理旧文件（7 天前）
+
+**设计原则**：
+- ✅ **Token 效率**：file_ref 模式仅返回元数据（~100 bytes），节省 99%+ token
+- ✅ **信息完整性**：临时文件保留全部数据，Claude 可按需检索
+- ✅ **用户体验**：自动选择模式，无需用户干预
+- ✅ **向后兼容**：小查询保持现有行为（inline 模式）
+
+### Stage 16.1: 临时文件输出引擎（~150 行）
+
+**任务**：
+- 实现 `FileRefOutput` 结构体和元数据生成
+- 临时文件创建和写入（JSONL 格式）
+- 文件路径管理（基于 session hash + timestamp + query type）
+- 文件元数据生成（大小、行数、字段列表、摘要）
+
+**交付物**：
+```go
+// cmd/mcp-server/file_output.go (~150 行)
+type FileRefOutput struct {
+    Path        string   `json:"path"`
+    SizeBytes   int64    `json:"size_bytes"`
+    LineCount   int      `json:"line_count"`
+    Fields      []string `json:"fields"`
+    Summary     Summary  `json:"summary"`
+}
+
+type Summary struct {
+    FirstLine     map[string]interface{} `json:"first_line"`
+    LastLine      map[string]interface{} `json:"last_line"`
+    SampleLines   []int                  `json:"sample_lines,omitempty"` // 每 100 行一个样本
+}
+
+func WriteToTempFile(data string, queryType string, sessionHash string) (*FileRefOutput, error)
+func GenerateFileMetadata(filePath string) (*FileRefOutput, error)
+```
+
+**文件命名规则**：
+```
+/tmp/meta-cc-mcp-{session_hash}-{timestamp}-{query_type}.jsonl
+
+示例：
+/tmp/meta-cc-mcp-abc123-20250106-query_tools.jsonl
+```
+
+**文件元数据示例**：
+```json
+{
+  "path": "/tmp/meta-cc-mcp-abc123-20250106-query_tools.jsonl",
+  "size_bytes": 524288,
+  "line_count": 1523,
+  "fields": ["Timestamp", "ToolName", "Status", "Error", "Input", "Output"],
+  "summary": {
+    "first_line": {"Timestamp": "2025-10-01T10:00:00Z", "ToolName": "Bash", "Status": "success"},
+    "last_line": {"Timestamp": "2025-10-06T12:30:00Z", "ToolName": "Read", "Status": "error"}
+  }
+}
+```
+
+**测试**：
+```bash
+# 单元测试
+go test ./cmd/mcp-server -run TestWriteToTempFile -v
+# 验证文件创建、元数据正确性、JSONL 格式有效性
+```
+
+### Stage 16.2: 混合模式决策逻辑（~100 行）
+
+**任务**：
+- 实现输出大小预估（在写入前估算）
+- 动态选择 inline vs file_ref 模式
+- 更新所有 MCP 工具返回格式
+
+**决策逻辑**：
+```go
+// cmd/mcp-server/executor.go
+const MaxInlineBytes = 8192 // 8KB 阈值
+
+func (e *ToolExecutor) ExecuteToolWithAdaptiveOutput(toolName string, args map[string]interface{}) (string, error) {
+    // 1. 执行 meta-cc CLI 获取原始 JSONL
+    rawOutput, err := e.executeMetaCC(cmdArgs)
+    if err != nil {
+        return "", err
+    }
+
+    // 2. 应用 jq 过滤（如有）
+    filtered, err := ApplyJQFilter(rawOutput, jqFilter)
+    if err != nil {
+        return "", err
+    }
+
+    // 3. 决策输出模式
+    if len(filtered) <= MaxInlineBytes {
+        // Inline 模式：直接返回数据
+        return formatInlineOutput(filtered, statsOnly, statsFirst)
+    } else {
+        // File Reference 模式：写入临时文件
+        sessionHash := getSessionHash()
+        fileRef, err := WriteToTempFile(filtered, toolName, sessionHash)
+        if err != nil {
+            return "", err
+        }
+        return formatFileRefOutput(fileRef)
+    }
+}
+```
+
+**返回格式**：
+```json
+// Inline 模式（≤8KB）
+{
+  "mode": "inline",
+  "data": [
+    {"Timestamp": "...", "ToolName": "Bash", "Status": "success"},
+    ...
+  ]
+}
+
+// File Reference 模式（>8KB）
+{
+  "mode": "file_ref",
+  "file_ref": {
+    "path": "/tmp/meta-cc-mcp-abc123-20250106-query_tools.jsonl",
+    "size_bytes": 524288,
+    "line_count": 1523,
+    "fields": ["Timestamp", "ToolName", "Status", "Error"],
+    "summary": {
+      "first_line": {...},
+      "last_line": {...}
+    }
+  }
+}
+```
+
+**测试**：
+```bash
+# 测试小查询（inline 模式）
+echo '{...,"arguments":{"limit":5}}' | ./meta-cc-mcp
+# 预期：mode=inline, data=[...]
+
+# 测试大查询（file_ref 模式）
+echo '{...,"arguments":{"limit":1000}}' | ./meta-cc-mcp
+# 预期：mode=file_ref, file_ref={path:..., line_count:1000}
+```
+
+### Stage 16.3: 文件生命周期管理（~100 行）
+
+**任务**：
+- MCP 启动时清理旧临时文件（7 天前）
+- 按会话 hash 分组管理
+- 提供 cleanup_temp_files MCP 工具（可选）
+
+**清理策略**：
+```go
+// cmd/mcp-server/cleanup.go (~100 行)
+const TempFilePattern = "/tmp/meta-cc-mcp-*"
+const MaxFileAge = 7 * 24 * time.Hour // 7 天
+
+func CleanupOldTempFiles() error {
+    files, err := filepath.Glob(TempFilePattern)
+    if err != nil {
+        return err
+    }
+
+    now := time.Now()
+    for _, file := range files {
+        info, err := os.Stat(file)
+        if err != nil {
+            continue
+        }
+
+        if now.Sub(info.ModTime()) > MaxFileAge {
+            os.Remove(file)
+        }
+    }
+    return nil
+}
+
+// MCP 启动时调用
+func main() {
+    CleanupOldTempFiles() // 清理旧文件
+    startMCPServer()       // 启动 MCP 服务
+}
+```
+
+**可选工具**：
+```json
+{
+  "name": "cleanup_temp_files",
+  "description": "Clean up temporary files created by MCP queries",
+  "inputSchema": {
+    "session_hash": {
+      "type": "string",
+      "description": "Clean files for specific session (optional, cleans all if omitted)"
+    }
+  }
+}
+```
+
+**测试**：
+```bash
+# 测试启动清理
+./meta-cc-mcp  # 应清理 7 天前文件
+
+# 测试会话级清理
+echo '{...,"name":"cleanup_temp_files","arguments":{"session_hash":"abc123"}}' | ./meta-cc-mcp
+# 验证仅删除 abc123 相关文件
+```
+
+### Stage 16.4: 文档和使用示例（~50 行）
+
+**任务**：
+- 更新 `docs/mcp-tools-reference.md`
+- 更新 `.claude/agents/meta-coach.md`
+- 添加文件引用模式使用示例
+
+**文档更新**：
+```markdown
+# docs/mcp-tools-reference.md
+
+## MCP 输出模式
+
+meta-cc-mcp 根据输出大小自动选择输出模式：
+
+### Inline 模式（输出 ≤ 8KB）
+- 直接返回 JSONL 数据
+- 适合小查询结果（如 limit=5-10）
+- 单轮交互完成
+
+### File Reference 模式（输出 > 8KB）
+- 写入临时 JSONL 文件（路径：`/tmp/meta-cc-mcp-*`）
+- 返回文件元数据（路径、大小、行数、字段列表、摘要）
+- Claude 使用 Read/Grep/Bash 检索文件
+- 适合大查询结果（如全项目历史）
+
+## 使用示例
+
+### 场景 1：小查询（Inline 模式）
+User: "Show me the last 5 errors"
+
+Claude 调用:
+query_tools({status: "error", limit: 5})
+
+返回:
+{
+  "mode": "inline",
+  "data": [
+    {"Timestamp": "...", "ToolName": "Bash", "Status": "error", "Error": "..."},
+    ...
+  ]
+}
+
+Claude 分析: 直接分析 data 字段
+
+### 场景 2：大查询（File Reference 模式）
+User: "统计本项目所有错误，按工具分组"
+
+Claude 调用:
+query_tools({status: "error", scope: "project"})
+
+返回:
+{
+  "mode": "file_ref",
+  "file_ref": {
+    "path": "/tmp/meta-cc-mcp-abc123-20250106-query_tools.jsonl",
+    "size_bytes": 524288,
+    "line_count": 1523,
+    "fields": ["Timestamp", "ToolName", "Status", "Error"]
+  }
+}
+
+Claude 后续操作:
+1. Read /tmp/meta-cc-mcp-abc123-20250106-query_tools.jsonl (limit=100, offset=0)
+   查看前 100 行，了解数据结构
+2. Bash: cat /tmp/meta-cc-mcp-abc123-20250106-query_tools.jsonl | jq '.ToolName' | sort | uniq -c
+   统计各工具错误数量
+3. Grep "FileNotFoundError" /tmp/meta-cc-mcp-abc123-20250106-query_tools.jsonl
+   搜索特定错误类型
+```
+
+**@meta-coach 更新**：
+```markdown
+# .claude/agents/meta-coach.md
+
+## MCP 输出模式适配
+
+meta-cc-mcp 自动选择输出模式：
+- 小查询（≤8KB）→ inline 模式（直接分析）
+- 大查询（>8KB）→ file_ref 模式（使用 Read/Grep/Bash 检索）
+
+### 文件引用处理流程
+1. 调用 MCP 工具（如 query_tools）
+2. 检查返回的 mode 字段
+3. 如果 mode=file_ref：
+   - 使用 Read 工具查看文件前 100 行（了解结构）
+   - 使用 Bash + jq/grep/awk 统计/过滤
+   - 使用 Grep 搜索特定模式
+4. 如果 mode=inline：
+   - 直接分析 data 字段
+```
+
+**交付物**：
+- 更新的 `docs/mcp-tools-reference.md`（+150 行）
+- 更新的 `.claude/agents/meta-coach.md`（+50 行）
+- 使用示例和最佳实践
+
+**Phase 16 完成标准**：
+- ✅ 临时文件输出引擎实现（FileRefOutput, WriteToTempFile）
+- ✅ 混合模式决策逻辑（8KB 阈值，自动选择）
+- ✅ 文件生命周期管理（启动清理 + 可选清理工具）
+- ✅ 所有单元测试通过（文件创建、元数据、清理）
+- ✅ 集成测试通过（小查询 inline，大查询 file_ref）
+- ✅ 文档完整（MCP 工具参考 + Subagent 更新）
+- ✅ Claude 可成功检索临时文件（Read/Grep/Bash 验证）
+
+**应用价值**：
+- **Token 效率提升**：大查询从 50KB+ 降至 ~100 bytes（file_ref 元数据）
+- **信息完整性**：不再丢失被截断的数据，Claude 可迭代检索
+- **用户体验**：自动选择模式，无需手动调整参数
+- **工具组合**：复用现有 Read/Grep/Bash 工具，符合 Unix 哲学
+
+**技术指标**：
+- Inline 阈值：8KB（覆盖 ~80% 查询场景）
+- File Reference 压缩率：>99%（仅返回元数据）
+- 临时文件清理周期：7 天
+- 单元测试覆盖率：≥85%
+
+---
+
+## Phase 17: Subagent 实现（Subagent Implementation）
 
 **目标**：实现语义分析层 Subagents，提供端到端的元认知分析能力，**完成三层架构**
 
@@ -2034,7 +2393,7 @@ Claude: "Show me the last 10 errors"
 - ✅ 支持多轮对话和上下文关联（在单个 Subagent 内部）
 - ✅ **@meta-query 是工具型 Agent**，用于 Claude 在对话中执行复杂 Unix 管道（Phase 14 已实现）
 
-### Stage 16.1: 更新 @meta-coach 核心 Subagent
+### Stage 17.1: 更新 @meta-coach 核心 Subagent
 
 **任务**：
 - 更新 `.claude/subagents/meta-coach.md`（已在 Phase 14 更新）
@@ -2069,7 +2428,7 @@ User: "@meta-coach 分析本项目的错误模式"
 验证: @meta-coach → MCP(stats_only=true) → 生成建议（独立完成，无需调用其他 Agent）
 ```
 
-### Stage 16.2: @error-analyst 专用 Subagent
+### Stage 17.2: @error-analyst 专用 Subagent
 
 **任务**：
 - 创建错误深度分析 Subagent
@@ -2113,7 +2472,7 @@ extract(S) = {
 - 预防建议
 ```
 
-### Stage 16.3: @workflow-tuner 工作流优化 Subagent
+### Stage 17.3: @workflow-tuner 工作流优化 Subagent
 
 **任务**：
 - 创建工作流自动化建议 Subagent
@@ -2159,7 +2518,7 @@ extract(S) = {
 - 实施步骤
 ```
 
-### Stage 16.4: 集成测试和文档
+### Stage 17.4: 集成测试和文档
 
 **任务**：
 - 测试各 Subagent 独立运行
@@ -2193,7 +2552,7 @@ User: "@meta-coach 分析最近 100 次错误"
 #     但 Subagents 之间不相互调用
 ```
 
-**Phase 16 完成标准**：
+**Phase 17 完成标准**：
 - ✅ @meta-coach 核心 Subagent 验证（包含 MCP 输出控制说明）
 - ✅ @error-analyst 专用 Subagent 实现（包含输出控制策略）
 - ✅ @workflow-tuner 专用 Subagent 实现（包含输出控制策略）
@@ -2267,7 +2626,8 @@ Subagent 层（各自独立，均调用 MCP）
 | 10-13 | 高级功能 | 聚合统计、项目级查询、输出简化 |
 | 14 | **架构重构 + MCP 增强** | Pipeline 抽象 + meta-cc-mcp 独立可执行文件 + gojq 集成 |
 | 15 | **MCP 输出控制与标准化** | 消息内容截断 + 统一参数 + 工具描述优化（80%+ 压缩率）|
-| 16 | **完整三层架构** | CLI（数据）→ MCP/Subagent（聚合）→ @meta-coach（语义） |
+| 16 | **MCP 输出模式优化** | 混合输出（inline + file_ref）+ 8KB 阈值 + 临时文件管理 |
+| 17 | **完整三层架构** | CLI（数据）→ MCP/Subagent（聚合）→ @meta-coach（语义） |
 
 ---
 
@@ -2277,7 +2637,7 @@ meta-cc 项目采用 TDD 和渐进式交付：
 - Phase 0-6 (MVP): 业务闭环，可用
 - Phase 7-9: 核心能力完善
 - Phase 10-13: 高级功能和优化
-- **Phase 14-16: 架构重构和 MCP 增强（完整三层架构）**
+- **Phase 14-17: 架构重构和 MCP 增强（完整三层架构）**
 
 **完整架构标志**：
 ```
