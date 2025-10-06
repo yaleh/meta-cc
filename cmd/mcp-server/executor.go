@@ -33,6 +33,11 @@ func NewToolExecutor() *ToolExecutor {
 
 // ExecuteTool executes a meta-cc command and applies jq filtering
 func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{}) (string, error) {
+	// Handle cleanup tool separately (no meta-cc command needed)
+	if toolName == "cleanup_temp_files" {
+		return executeCleanupTool(args)
+	}
+
 	// Extract common parameters
 	jqFilter := getStringParam(args, "jq_filter", ".[]")
 	statsOnly := getBoolParam(args, "stats_only", false)
@@ -63,29 +68,65 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 		return "", fmt.Errorf("jq filter error: %w", err)
 	}
 
-	// Apply message truncation for query_user_messages
-	if toolName == "query_user_messages" {
-		filtered, err = e.applyMessageFilters(filtered, maxMessageLength, contentSummary)
-		if err != nil {
-			return "", fmt.Errorf("message filter error: %w", err)
-		}
+	// Parse JSONL to interface array for hybrid mode adaptation
+	parsedData, err := e.parseJSONL(filtered)
+	if err != nil {
+		return "", fmt.Errorf("JSONL parse error: %w", err)
 	}
 
-	// Generate stats if requested
-	var output string
+	// Apply message truncation for query_user_messages
+	if toolName == "query_user_messages" {
+		parsedData = e.applyMessageFiltersToData(parsedData, maxMessageLength, contentSummary)
+	}
+
+	// Handle stats_only and stats_first modes
 	if statsOnly {
-		output, err = GenerateStats(filtered)
+		// Convert back to JSONL for stats generation
+		jsonlData, err := e.dataToJSONL(parsedData)
 		if err != nil {
 			return "", err
 		}
+		output, err := GenerateStats(jsonlData)
+		if err != nil {
+			return "", err
+		}
+		return output, nil
 	} else if statsFirst {
-		stats, _ := GenerateStats(filtered)
-		output = stats + "\n---\n" + filtered
-	} else {
-		output = filtered
+		// Convert back to JSONL for stats generation
+		jsonlData, err := e.dataToJSONL(parsedData)
+		if err != nil {
+			return "", err
+		}
+		stats, _ := GenerateStats(jsonlData)
+
+		// Adapt response for data portion
+		response, err := adaptResponse(parsedData, args, toolName)
+		if err != nil {
+			return "", err
+		}
+
+		// Serialize and prepend stats
+		serialized, err := serializeResponse(response)
+		if err != nil {
+			return "", err
+		}
+
+		return stats + "\n---\n" + serialized, nil
 	}
 
-	// Apply output length limit
+	// Adapt response to hybrid mode (inline or file_ref)
+	response, err := adaptResponse(parsedData, args, toolName)
+	if err != nil {
+		return "", fmt.Errorf("response adaptation error: %w", err)
+	}
+
+	// Serialize response
+	output, err := serializeResponse(response)
+	if err != nil {
+		return "", err
+	}
+
+	// Apply output length limit (for inline mode only)
 	if len(output) > maxOutputBytes {
 		output = output[:maxOutputBytes]
 		output += fmt.Sprintf("\n[OUTPUT TRUNCATED: exceeded %d bytes limit]", maxOutputBytes)
@@ -197,6 +238,10 @@ func (e *ToolExecutor) buildCommand(toolName string, args map[string]interface{}
 			cmdArgs = append(cmdArgs, "--where", where)
 		}
 
+	case "cleanup_temp_files":
+		// Handle cleanup tool directly (no meta-cc command)
+		return nil
+
 	default:
 		return nil
 	}
@@ -225,11 +270,10 @@ func (e *ToolExecutor) executeMetaCC(cmdArgs []string) (string, error) {
 	return stdout.String(), nil
 }
 
-// applyMessageFilters applies content truncation or summary mode to user messages
-func (e *ToolExecutor) applyMessageFilters(jsonlData string, maxMessageLength int, contentSummary bool) (string, error) {
-	// Parse JSONL to array of messages
+// parseJSONL parses JSONL string into array of interfaces
+func (e *ToolExecutor) parseJSONL(jsonlData string) ([]interface{}, error) {
 	lines := strings.Split(strings.TrimSpace(jsonlData), "\n")
-	var messages []interface{}
+	var data []interface{}
 
 	for _, line := range lines {
 		if line == "" {
@@ -238,31 +282,34 @@ func (e *ToolExecutor) applyMessageFilters(jsonlData string, maxMessageLength in
 
 		var obj interface{}
 		if err := json.Unmarshal([]byte(line), &obj); err != nil {
-			return "", fmt.Errorf("invalid JSON: %w", err)
+			return nil, fmt.Errorf("invalid JSON: %w", err)
 		}
-		messages = append(messages, obj)
+		data = append(data, obj)
 	}
 
-	// Apply filters
-	var filtered []interface{}
-	if contentSummary {
-		filtered = ApplyContentSummary(messages)
-	} else {
-		filtered = TruncateMessageContent(messages, maxMessageLength)
-	}
+	return data, nil
+}
 
-	// Convert back to JSONL
+// dataToJSONL converts array of interfaces to JSONL string
+func (e *ToolExecutor) dataToJSONL(data []interface{}) (string, error) {
 	var output strings.Builder
-	for _, msg := range filtered {
-		jsonBytes, err := json.Marshal(msg)
+	for _, record := range data {
+		jsonBytes, err := json.Marshal(record)
 		if err != nil {
 			return "", err
 		}
 		output.Write(jsonBytes)
 		output.WriteString("\n")
 	}
-
 	return output.String(), nil
+}
+
+// applyMessageFiltersToData applies content truncation or summary mode to user messages (data array)
+func (e *ToolExecutor) applyMessageFiltersToData(messages []interface{}, maxMessageLength int, contentSummary bool) []interface{} {
+	if contentSummary {
+		return ApplyContentSummary(messages)
+	}
+	return TruncateMessageContent(messages, maxMessageLength)
 }
 
 // Helper functions

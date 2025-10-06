@@ -105,6 +105,12 @@ func TestAllToolsHaveStandardParameters(t *testing.T) {
 				return
 			}
 
+			// Skip utility tools that don't follow query tool patterns
+			if tool.Name == "cleanup_temp_files" {
+				t.Logf("Skipping utility tool: %s", tool.Name)
+				return
+			}
+
 			// Check all standard parameters exist
 			for _, param := range requiredParams {
 				if _, ok := tool.InputSchema.Properties[param]; !ok {
@@ -155,10 +161,11 @@ func TestToolDescriptionConsistency(t *testing.T) {
 			continue
 		}
 
-		// Should end with "Default scope: project." or "Default scope: session."
+		// Should end with "Default scope: project.", "Default scope: session.", or "Default scope: none."
 		validEndings := []string{
 			"Default scope: project.",
 			"Default scope: session.",
+			"Default scope: none.",
 		}
 
 		hasValidEnding := false

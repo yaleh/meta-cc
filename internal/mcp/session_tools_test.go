@@ -312,3 +312,385 @@ func TestSessionToolExecutionFormat(t *testing.T) {
 		t.Errorf("Expected '--output json' in command args, got: %v", cmdArgs)
 	}
 }
+
+// Test BuildCommandArgs for get_session_stats
+func TestBuildCommandArgs_GetSessionStats(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         map[string]interface{}
+		expectedArgs []string
+	}{
+		{
+			name: "default_output_format",
+			args: map[string]interface{}{},
+			expectedArgs: []string{"parse", "stats", "--output", "json"},
+		},
+		{
+			name: "tsv_output_format",
+			args: map[string]interface{}{"output_format": "tsv"},
+			expectedArgs: []string{"parse", "stats", "--output", "tsv"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := BuildCommandArgs("get_session_stats", tt.args)
+			if len(result) != len(tt.expectedArgs) {
+				t.Errorf("Expected %d args, got %d: %v", len(tt.expectedArgs), len(result), result)
+				return
+			}
+			for i, expected := range tt.expectedArgs {
+				if result[i] != expected {
+					t.Errorf("Arg %d: expected '%s', got '%s'", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
+
+// Test BuildCommandArgs for query_tools_session
+func TestBuildCommandArgs_QueryToolsSession(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     map[string]interface{}
+		contains []string
+	}{
+		{
+			name:     "default_limit",
+			args:     map[string]interface{}{},
+			contains: []string{"query", "tools", "--limit", "20"},
+		},
+		{
+			name:     "custom_limit",
+			args:     map[string]interface{}{"limit": float64(50)},
+			contains: []string{"query", "tools", "--limit", "50"},
+		},
+		{
+			name:     "with_tool_filter",
+			args:     map[string]interface{}{"tool": "Bash"},
+			contains: []string{"query", "tools", "--tool", "Bash"},
+		},
+		{
+			name:     "with_status_filter",
+			args:     map[string]interface{}{"status": "error"},
+			contains: []string{"query", "tools", "--status", "error"},
+		},
+		{
+			name: "all_parameters",
+			args: map[string]interface{}{
+				"tool":   "Read",
+				"status": "success",
+				"limit":  float64(100),
+			},
+			contains: []string{"query", "tools", "--tool", "Read", "--status", "success", "--limit", "100"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := BuildCommandArgs("query_tools_session", tt.args)
+
+			for _, expected := range tt.contains {
+				found := false
+				for _, arg := range result {
+					if arg == expected {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected arg '%s' not found in result: %v", expected, result)
+				}
+			}
+		})
+	}
+}
+
+// Test BuildCommandArgs for query_user_messages_session
+func TestBuildCommandArgs_QueryUserMessagesSession(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     map[string]interface{}
+		contains []string
+		isError  bool
+	}{
+		{
+			name:     "missing_pattern_required",
+			args:     map[string]interface{}{},
+			contains: []string{"error"},
+			isError:  true,
+		},
+		{
+			name:     "empty_pattern",
+			args:     map[string]interface{}{"pattern": ""},
+			contains: []string{"error"},
+			isError:  true,
+		},
+		{
+			name:     "valid_pattern_default_limit",
+			args:     map[string]interface{}{"pattern": "test.*"},
+			contains: []string{"query", "user-messages", "--match", "test.*", "--limit", "10"},
+		},
+		{
+			name:     "valid_pattern_custom_limit",
+			args:     map[string]interface{}{"pattern": "error", "limit": float64(25)},
+			contains: []string{"query", "user-messages", "--match", "error", "--limit", "25"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := BuildCommandArgs("query_user_messages_session", tt.args)
+
+			if tt.isError {
+				if len(result) < 1 || result[0] != "error" {
+					t.Errorf("Expected error response, got: %v", result)
+				}
+				return
+			}
+
+			for _, expected := range tt.contains {
+				found := false
+				for _, arg := range result {
+					if arg == expected {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected arg '%s' not found in result: %v", expected, result)
+				}
+			}
+		})
+	}
+}
+
+// Test BuildCommandArgs for query_context_session
+func TestBuildCommandArgs_QueryContextSession(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     map[string]interface{}
+		contains []string
+		isError  bool
+	}{
+		{
+			name:     "missing_error_signature",
+			args:     map[string]interface{}{},
+			contains: []string{"error"},
+			isError:  true,
+		},
+		{
+			name:     "empty_error_signature",
+			args:     map[string]interface{}{"error_signature": ""},
+			contains: []string{"error"},
+			isError:  true,
+		},
+		{
+			name:     "valid_signature_default_window",
+			args:     map[string]interface{}{"error_signature": "err-123"},
+			contains: []string{"query", "context", "--error-signature", "err-123", "--window", "3"},
+		},
+		{
+			name:     "valid_signature_custom_window",
+			args:     map[string]interface{}{"error_signature": "err-456", "window": float64(5)},
+			contains: []string{"query", "context", "--error-signature", "err-456", "--window", "5"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := BuildCommandArgs("query_context_session", tt.args)
+
+			if tt.isError {
+				if len(result) < 1 || result[0] != "error" {
+					t.Errorf("Expected error response, got: %v", result)
+				}
+				return
+			}
+
+			for _, expected := range tt.contains {
+				found := false
+				for _, arg := range result {
+					if arg == expected {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected arg '%s' not found in result: %v", expected, result)
+				}
+			}
+		})
+	}
+}
+
+// Test BuildCommandArgs for query_tool_sequences_session
+func TestBuildCommandArgs_QueryToolSequencesSession(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     map[string]interface{}
+		contains []string
+	}{
+		{
+			name:     "default_min_occurrences",
+			args:     map[string]interface{}{},
+			contains: []string{"query", "tool-sequences", "--min-occurrences", "3"},
+		},
+		{
+			name:     "custom_min_occurrences",
+			args:     map[string]interface{}{"min_occurrences": float64(5)},
+			contains: []string{"query", "tool-sequences", "--min-occurrences", "5"},
+		},
+		{
+			name:     "with_pattern",
+			args:     map[string]interface{}{"pattern": "Read,Edit,Write"},
+			contains: []string{"query", "tool-sequences", "--pattern", "Read,Edit,Write"},
+		},
+		{
+			name: "all_parameters",
+			args: map[string]interface{}{
+				"min_occurrences": float64(10),
+				"pattern":         "Bash,Grep",
+			},
+			contains: []string{"query", "tool-sequences", "--min-occurrences", "10", "--pattern", "Bash,Grep"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := BuildCommandArgs("query_tool_sequences_session", tt.args)
+
+			for _, expected := range tt.contains {
+				found := false
+				for _, arg := range result {
+					if arg == expected {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected arg '%s' not found in result: %v", expected, result)
+				}
+			}
+		})
+	}
+}
+
+// Test BuildCommandArgs for query_file_access_session
+func TestBuildCommandArgs_QueryFileAccessSession(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     map[string]interface{}
+		contains []string
+		isError  bool
+	}{
+		{
+			name:     "missing_file_parameter",
+			args:     map[string]interface{}{},
+			contains: []string{"error"},
+			isError:  true,
+		},
+		{
+			name:     "empty_file_parameter",
+			args:     map[string]interface{}{"file": ""},
+			contains: []string{"error"},
+			isError:  true,
+		},
+		{
+			name:     "valid_file_parameter",
+			args:     map[string]interface{}{"file": "src/main.go"},
+			contains: []string{"query", "file-access", "--file", "src/main.go"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := BuildCommandArgs("query_file_access_session", tt.args)
+
+			if tt.isError {
+				if len(result) < 1 || result[0] != "error" {
+					t.Errorf("Expected error response, got: %v", result)
+				}
+				return
+			}
+
+			for _, expected := range tt.contains {
+				found := false
+				for _, arg := range result {
+					if arg == expected {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected arg '%s' not found in result: %v", expected, result)
+				}
+			}
+		})
+	}
+}
+
+// Test BuildCommandArgs for query_successful_prompts_session
+func TestBuildCommandArgs_QuerySuccessfulPromptsSession(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     map[string]interface{}
+		contains []string
+	}{
+		{
+			name:     "default_limit",
+			args:     map[string]interface{}{},
+			contains: []string{"query", "successful-prompts", "--limit", "10"},
+		},
+		{
+			name:     "custom_limit",
+			args:     map[string]interface{}{"limit": float64(20)},
+			contains: []string{"query", "successful-prompts", "--limit", "20"},
+		},
+		{
+			name:     "with_min_quality_score",
+			args:     map[string]interface{}{"min_quality_score": float64(0.8)},
+			contains: []string{"query", "successful-prompts", "--min-quality-score", "0.80"},
+		},
+		{
+			name: "all_parameters",
+			args: map[string]interface{}{
+				"min_quality_score": float64(0.9),
+				"limit":            float64(15),
+			},
+			contains: []string{"query", "successful-prompts", "--min-quality-score", "0.90", "--limit", "15"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := BuildCommandArgs("query_successful_prompts_session", tt.args)
+
+			for _, expected := range tt.contains {
+				found := false
+				for _, arg := range result {
+					if arg == expected {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected arg '%s' not found in result: %v", expected, result)
+				}
+			}
+		})
+	}
+}
+
+// Test BuildCommandArgs for unknown tool
+func TestBuildCommandArgs_UnknownTool(t *testing.T) {
+	result := BuildCommandArgs("unknown_tool_name", map[string]interface{}{})
+
+	if len(result) < 1 || result[0] != "error" {
+		t.Errorf("Expected error response for unknown tool, got: %v", result)
+	}
+
+	if !strings.Contains(strings.Join(result, " "), "unknown tool") {
+		t.Errorf("Expected 'unknown tool' in error message, got: %v", result)
+	}
+}

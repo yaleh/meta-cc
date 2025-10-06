@@ -96,9 +96,9 @@ func TestHandleToolsList(t *testing.T) {
 		t.Fatalf("expected tools to be a slice, got %T", toolsInterface)
 	}
 
-	// Should have 11 tools (after removing aggregate_stats, extract_tools, and analyze_errors)
-	if len(toolsSlice) != 11 {
-		t.Errorf("expected 11 tools, got %d", len(toolsSlice))
+	// Should have 12 tools (11 query tools + cleanup_temp_files)
+	if len(toolsSlice) != 12 {
+		t.Errorf("expected 12 tools, got %d", len(toolsSlice))
 	}
 }
 

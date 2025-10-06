@@ -250,6 +250,19 @@ func getToolDefinitions() []Tool {
 				}),
 			},
 		},
+		{
+			Name:        "cleanup_temp_files",
+			Description: "Remove old temporary MCP files. Default scope: none.",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"max_age_days": {
+						Type:        "number",
+						Description: "Max file age in days (default: 7)",
+					},
+				},
+			},
+		},
 	}
 }
 

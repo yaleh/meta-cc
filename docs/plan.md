@@ -99,12 +99,13 @@ card "Phase 15" as P15 #lightgreen {
   - 工具描述优化
 }
 
-card "Phase 16" as P16 #yellow {
-  **MCP 输出模式优化**
+card "Phase 16" as P16 #lightgreen {
+  **MCP 输出模式优化** ✅
   - 混合输出模式
   - 文件引用机制
   - 临时文件管理
   - 8KB 阈值切换
+  [详细文档](mcp-output-modes.md)
 }
 
 card "Phase 17" as P17 #lightgreen {

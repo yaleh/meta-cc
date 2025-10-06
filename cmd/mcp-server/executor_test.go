@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -411,6 +412,427 @@ func TestExecuteTool_MessageTruncationParameters(t *testing.T) {
 			}
 			if summary != tt.expectSummary {
 				t.Errorf("expected content_summary=%v, got %v", tt.expectSummary, summary)
+			}
+		})
+	}
+}
+
+// Test parseJSONL function
+func TestParseJSONL(t *testing.T) {
+	executor := NewToolExecutor()
+	tests := []struct {
+		name      string
+		jsonl     string
+		expectLen int
+		expectErr bool
+	}{
+		{
+			name:      "single line",
+			jsonl:     `{"id":1,"name":"test"}`,
+			expectLen: 1,
+			expectErr: false,
+		},
+		{
+			name: "multiple lines",
+			jsonl: `{"id":1,"name":"test1"}
+{"id":2,"name":"test2"}
+{"id":3,"name":"test3"}`,
+			expectLen: 3,
+			expectErr: false,
+		},
+		{
+			name:      "empty string",
+			jsonl:     "",
+			expectLen: 0,
+			expectErr: false,
+		},
+		{
+			name: "with empty lines",
+			jsonl: `{"id":1}
+
+{"id":2}`,
+			expectLen: 2,
+			expectErr: false,
+		},
+		{
+			name:      "invalid JSON",
+			jsonl:     `{"invalid": json}`,
+			expectLen: 0,
+			expectErr: true,
+		},
+		{
+			name:      "mixed valid and invalid",
+			jsonl:     `{"id":1}\ninvalid\n{"id":2}`,
+			expectLen: 0,
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := executor.parseJSONL(tt.jsonl)
+
+			if tt.expectErr {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if len(result) != tt.expectLen {
+				t.Errorf("expected %d items, got %d", tt.expectLen, len(result))
+			}
+		})
+	}
+}
+
+// Test dataToJSONL function
+func TestDataToJSONL(t *testing.T) {
+	executor := NewToolExecutor()
+	tests := []struct {
+		name      string
+		data      []interface{}
+		expectLen int
+		expectErr bool
+	}{
+		{
+			name: "simple data",
+			data: []interface{}{
+				map[string]interface{}{"id": 1, "name": "test1"},
+				map[string]interface{}{"id": 2, "name": "test2"},
+			},
+			expectLen: 2,
+			expectErr: false,
+		},
+		{
+			name:      "empty data",
+			data:      []interface{}{},
+			expectLen: 0,
+			expectErr: false,
+		},
+		{
+			name:      "nil data",
+			data:      nil,
+			expectLen: 0,
+			expectErr: false,
+		},
+		{
+			name: "complex nested data",
+			data: []interface{}{
+				map[string]interface{}{
+					"id":   1,
+					"meta": map[string]interface{}{"created": "2025-01-01"},
+					"tags": []string{"a", "b"},
+				},
+			},
+			expectLen: 1,
+			expectErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := executor.dataToJSONL(tt.data)
+
+			if tt.expectErr {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			// Count lines in result
+			lines := 0
+			if result != "" {
+				lines = strings.Count(result, "\n")
+				// Add 1 if doesn't end with newline
+				if !strings.HasSuffix(result, "\n") && result != "" {
+					lines++
+				}
+			}
+
+			if lines != tt.expectLen {
+				t.Errorf("expected %d lines, got %d", tt.expectLen, lines)
+			}
+
+			// Verify it can be parsed back
+			if result != "" {
+				parsed, err := executor.parseJSONL(result)
+				if err != nil {
+					t.Errorf("generated JSONL cannot be parsed: %v", err)
+				}
+				if len(parsed) != tt.expectLen {
+					t.Errorf("parsed data length mismatch: expected %d, got %d", tt.expectLen, len(parsed))
+				}
+			}
+		})
+	}
+}
+
+// Test applyMessageFiltersToData function
+func TestApplyMessageFiltersToData(t *testing.T) {
+	executor := NewToolExecutor()
+	tests := []struct {
+		name                string
+		data                []interface{}
+		maxMessageLength    int
+		contentSummary      bool
+		expectTruncated     bool
+		expectSummaryFields bool
+	}{
+		{
+			name: "no truncation needed",
+			data: []interface{}{
+				map[string]interface{}{"content": "short", "turn": float64(1)},
+			},
+			maxMessageLength:    100,
+			contentSummary:      false,
+			expectTruncated:     false,
+			expectSummaryFields: false,
+		},
+		{
+			name: "truncation with long content",
+			data: []interface{}{
+				map[string]interface{}{"content": strings.Repeat("a", 200), "turn": float64(1)},
+			},
+			maxMessageLength:    50,
+			contentSummary:      false,
+			expectTruncated:     true,
+			expectSummaryFields: false,
+		},
+		{
+			name: "content summary mode",
+			data: []interface{}{
+				map[string]interface{}{
+					"content":       "test content",
+					"turn_sequence": float64(1),
+					"timestamp":     "2025-01-01",
+				},
+			},
+			maxMessageLength:    500,
+			contentSummary:      true,
+			expectTruncated:     false,
+			expectSummaryFields: true,
+		},
+		{
+			name:                "empty data",
+			data:                []interface{}{},
+			maxMessageLength:    500,
+			contentSummary:      false,
+			expectTruncated:     false,
+			expectSummaryFields: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := executor.applyMessageFiltersToData(tt.data, tt.maxMessageLength, tt.contentSummary)
+
+			if len(result) != len(tt.data) {
+				t.Errorf("expected %d items, got %d", len(tt.data), len(result))
+				return
+			}
+
+			if len(result) > 0 {
+				item := result[0].(map[string]interface{})
+
+				if tt.expectTruncated {
+					content := item["content"].(string)
+					if len(content) > tt.maxMessageLength+20 { // Allow for truncation marker
+						t.Errorf("content not truncated: length %d > max %d", len(content), tt.maxMessageLength)
+					}
+				}
+
+				if tt.expectSummaryFields {
+					if _, hasPreview := item["content_preview"]; !hasPreview {
+						t.Error("expected content_preview field in summary mode")
+					}
+					if _, hasContent := item["content"]; hasContent {
+						t.Error("should not have full content in summary mode")
+					}
+				}
+			}
+		})
+	}
+}
+
+// Additional buildCommand tests for tools not covered above
+func TestBuildCommandAdditional(t *testing.T) {
+	executor := NewToolExecutor()
+
+	tests := []struct {
+		name         string
+		toolName     string
+		args         map[string]interface{}
+		scope        string
+		outputFormat string
+		wantArgs     []string
+	}{
+		{
+			name:         "query_context",
+			toolName:     "query_context",
+			args:         map[string]interface{}{"error_signature": "file_not_found", "window": float64(3)},
+			scope:        "project",
+			outputFormat: "jsonl",
+			wantArgs:     []string{"--project", ".", "query", "context", "--error-signature", "file_not_found", "--window", "3", "--output", "jsonl"},
+		},
+		{
+			name:         "query_tool_sequences",
+			toolName:     "query_tool_sequences",
+			args:         map[string]interface{}{"pattern": "Read->Edit", "min_occurrences": float64(5)},
+			scope:        "project",
+			outputFormat: "jsonl",
+			wantArgs:     []string{"--project", ".", "analyze", "sequences", "--pattern", "Read->Edit", "--min-occurrences", "5", "--output", "jsonl"},
+		},
+		{
+			name:         "query_file_access",
+			toolName:     "query_file_access",
+			args:         map[string]interface{}{"file": "main.go"},
+			scope:        "project",
+			outputFormat: "jsonl",
+			wantArgs:     []string{"--project", ".", "query", "file-access", "--file", "main.go", "--output", "jsonl"},
+		},
+		{
+			name:         "query_project_state",
+			toolName:     "query_project_state",
+			args:         map[string]interface{}{},
+			scope:        "project",
+			outputFormat: "jsonl",
+			wantArgs:     []string{"--project", ".", "query", "project-state", "--output", "jsonl"},
+		},
+		{
+			name:         "query_successful_prompts",
+			toolName:     "query_successful_prompts",
+			args:         map[string]interface{}{"limit": float64(10), "min_quality_score": 0.85},
+			scope:        "project",
+			outputFormat: "jsonl",
+			wantArgs:     []string{"--project", ".", "query", "successful-prompts", "--limit", "10", "--min-quality", "0.85", "--output", "jsonl"},
+		},
+		{
+			name:         "query_tools_advanced",
+			toolName:     "query_tools_advanced",
+			args:         map[string]interface{}{"where": "tool='Read'", "limit": float64(20)},
+			scope:        "project",
+			outputFormat: "jsonl",
+			wantArgs:     []string{"--project", ".", "query", "tools", "--where", "tool='Read'", "--limit", "20", "--output", "jsonl"},
+		},
+		{
+			name:         "query_time_series",
+			toolName:     "query_time_series",
+			args:         map[string]interface{}{"interval": "hour", "metric": "tool-calls", "where": "status='error'"},
+			scope:        "project",
+			outputFormat: "jsonl",
+			wantArgs:     []string{"--project", ".", "stats", "timeseries", "--interval", "hour", "--metric", "tool-calls", "--where", "status='error'", "--output", "jsonl"},
+		},
+		{
+			name:         "query_files",
+			toolName:     "query_files",
+			args:         map[string]interface{}{"sort_by": "total_ops", "top": float64(10), "where": "ext='go'"},
+			scope:        "project",
+			outputFormat: "jsonl",
+			wantArgs:     []string{"--project", ".", "analyze", "file-churn", "--sort-by", "total_ops", "--top", "10", "--where", "ext='go'", "--output", "jsonl"},
+		},
+		{
+			name:         "cleanup_temp_files",
+			toolName:     "cleanup_temp_files",
+			args:         map[string]interface{}{},
+			scope:        "project",
+			outputFormat: "jsonl",
+			wantArgs:     nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := executor.buildCommand(tt.toolName, tt.args, tt.scope, tt.outputFormat)
+
+			if tt.wantArgs == nil {
+				if result != nil {
+					t.Errorf("expected nil, got %v", result)
+				}
+				return
+			}
+
+			if len(result) != len(tt.wantArgs) {
+				t.Errorf("expected %d args, got %d\nExpected: %v\nGot: %v", len(tt.wantArgs), len(result), tt.wantArgs, result)
+				return
+			}
+
+			for i, arg := range tt.wantArgs {
+				if result[i] != arg {
+					t.Errorf("arg %d mismatch: expected %q, got %q", i, arg, result[i])
+				}
+			}
+		})
+	}
+}
+
+// Test getSessionHash with different environment variables
+func TestGetSessionHash(t *testing.T) {
+	// Save original env vars
+	origSessionID := os.Getenv("CC_SESSION_ID")
+	origProjectHash := os.Getenv("CC_PROJECT_HASH")
+	defer func() {
+		os.Setenv("CC_SESSION_ID", origSessionID)
+		os.Setenv("CC_PROJECT_HASH", origProjectHash)
+	}()
+
+	tests := []struct {
+		name           string
+		sessionID      string
+		projectHash    string
+		expectNotEmpty bool
+	}{
+		{
+			name:           "with session ID",
+			sessionID:      "abc123-def456-ghi789",
+			projectHash:    "",
+			expectNotEmpty: true,
+		},
+		{
+			name:           "with project hash",
+			sessionID:      "",
+			projectHash:    "project-hash-123",
+			expectNotEmpty: true,
+		},
+		{
+			name:           "with both",
+			sessionID:      "session-abc",
+			projectHash:    "project-xyz",
+			expectNotEmpty: true,
+		},
+		{
+			name:           "with neither",
+			sessionID:      "",
+			projectHash:    "",
+			expectNotEmpty: true, // Falls back to default
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("CC_SESSION_ID", tt.sessionID)
+			os.Setenv("CC_PROJECT_HASH", tt.projectHash)
+
+			result := getSessionHash()
+
+			if tt.expectNotEmpty && result == "" {
+				t.Error("expected non-empty session hash")
+			}
+
+			// Check that result is reasonable length (8 chars for session hash prefix)
+			if tt.sessionID != "" && len(result) < 8 {
+				t.Errorf("session hash too short: %s", result)
 			}
 		})
 	}

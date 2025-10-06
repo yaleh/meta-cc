@@ -268,7 +268,7 @@ func TestBuildToolCommandFromArgs(t *testing.T) {
 				"interval":      "day",
 				"output_format": "jsonl",
 			},
-			expected: []string{"--project", ".", "stats", "time-series", "--metric", "error-rate", "--interval", "day", "--output", "jsonl"},
+			expected: []string{"--project", ".", "stats", "time-series", "--interval", "day", "--metric", "error-rate", "--output", "jsonl"},
 		},
 		{
 			name:     "query_files with sort",
@@ -299,7 +299,26 @@ func TestBuildToolCommandFromArgs(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expected, result)
+				// Special case for tests with multiple extraFlags: they have non-deterministic order due to map iteration
+				testsWithMultipleExtraFlags := []string{
+					"query_time_series",
+					"query_files with sort",
+					"query_tool_sequences with pattern",
+					"aggregate_stats",
+				}
+				useElementsMatch := false
+				for _, name := range testsWithMultipleExtraFlags {
+					if tt.name == name {
+						useElementsMatch = true
+						break
+					}
+				}
+
+				if useElementsMatch {
+					assert.ElementsMatch(t, tt.expected, result)
+				} else {
+					assert.Equal(t, tt.expected, result)
+				}
 			}
 		})
 	}
