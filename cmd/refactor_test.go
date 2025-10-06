@@ -15,7 +15,9 @@ func setupTestSessionForRefactor(t *testing.T) (cleanup func()) {
 	sessionID := "test-session-refactor"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
 
 	// Sample session with user message, tool use, and tool result
@@ -24,7 +26,9 @@ func setupTestSessionForRefactor(t *testing.T) (cleanup func()) {
 {"type":"user","timestamp":"2025-10-02T06:07:15.673Z","uuid":"uuid-3","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"file1.txt\nfile2.txt"}]}}
 {"type":"user","timestamp":"2025-10-02T06:07:16.673Z","uuid":"uuid-4","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"Thanks"}]}}
 `
-	os.WriteFile(sessionFile, []byte(fixtureContent), 0644)
+	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 
 	// Set environment variables
 	os.Setenv("CC_SESSION_ID", sessionID)

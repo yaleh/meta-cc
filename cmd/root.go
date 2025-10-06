@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	cfgFile      string
 	sessionID    string
 	projectPath  string
 	outputFormat string
@@ -49,7 +48,7 @@ metacognitive insights and workflow optimization.`,
 	SilenceErrors: true, // We handle errors ourselves
 	SilenceUsage:  true, // Don't show usage on errors
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		_ = cmd.Help()
 	},
 }
 
@@ -107,10 +106,10 @@ func init() {
 	rootCmd.PersistentFlags().IntVar(&topNFlag, "top", 0, "Show only top N detailed records (requires --summary-first, 0 = all)")
 
 	// Bind environment variables
-	viper.BindPFlag("session", rootCmd.PersistentFlags().Lookup("session"))
-	viper.BindPFlag("project", rootCmd.PersistentFlags().Lookup("project"))
-	viper.BindEnv("session", "CC_SESSION_ID")
-	viper.BindEnv("project", "CC_PROJECT_PATH")
+	_ = viper.BindPFlag("session", rootCmd.PersistentFlags().Lookup("session"))
+	_ = viper.BindPFlag("project", rootCmd.PersistentFlags().Lookup("project"))
+	_ = viper.BindEnv("session", "CC_SESSION_ID")
+	_ = viper.BindEnv("project", "CC_PROJECT_PATH")
 }
 
 func initConfig() {

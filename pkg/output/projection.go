@@ -91,9 +91,16 @@ func ParseProjectionConfig(fieldsStr, ifErrorIncludeStr string) ProjectionConfig
 // Uses JSON marshaling/unmarshaling to handle struct-to-map conversion
 func toolCallToMap(tool parser.ToolCall) map[string]interface{} {
 	// Use JSON round-trip for accurate conversion
-	data, _ := json.Marshal(tool)
+	data, err := json.Marshal(tool)
+	if err != nil {
+		// This should never happen for well-formed structs
+		return make(map[string]interface{})
+	}
 	var m map[string]interface{}
-	json.Unmarshal(data, &m)
+	if err := json.Unmarshal(data, &m); err != nil {
+		// This should never happen for valid JSON
+		return make(map[string]interface{})
+	}
 	return m
 }
 

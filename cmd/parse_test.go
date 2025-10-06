@@ -15,14 +15,18 @@ func TestParseExtractCommand_TypeTurns(t *testing.T) {
 	sessionID := "test-session-extract"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
 
 	// Use test fixture content
 	fixtureContent := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","uuid":"uuid-1","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"Hello"}]}}
 {"type":"assistant","timestamp":"2025-10-02T06:07:14.673Z","uuid":"uuid-2","sessionId":"test","message":{"role":"assistant","content":[{"type":"text","text":"Hi there"}]}}
 `
-	os.WriteFile(sessionFile, []byte(fixtureContent), 0644)
+	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	// Set environment variables
@@ -62,13 +66,17 @@ func TestParseExtractCommand_TypeTools(t *testing.T) {
 	sessionID := "test-session-tools"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
 
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T06:07:13.673Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Grep","input":{"pattern":"error"}}]}}
 {"type":"user","timestamp":"2025-10-02T06:07:14.673Z","uuid":"uuid-2","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"match found"}]}}
 `
-	os.WriteFile(sessionFile, []byte(fixtureContent), 0644)
+	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	os.Setenv("CC_SESSION_ID", sessionID)
@@ -134,7 +142,9 @@ func TestParseStatsCommand_JSON(t *testing.T) {
 	sessionID := "test-session-stats"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
 
 	// Create test fixture with tool calls
@@ -144,7 +154,9 @@ func TestParseStatsCommand_JSON(t *testing.T) {
 {"type":"assistant","timestamp":"2025-10-02T10:03:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Read","input":{"file_path":"/test.txt"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:04:00.000Z","uuid":"uuid-5","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","is_error":true,"content":"file not found"}]}}
 `
-	os.WriteFile(sessionFile, []byte(fixtureContent), 0644)
+	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	// Set environment variables
@@ -190,13 +202,17 @@ func TestParseStatsCommand_Markdown(t *testing.T) {
 	sessionID := "test-session-stats-md"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
 
 	fixtureContent := `{"type":"user","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"Hello"}]}}
 {"type":"assistant","timestamp":"2025-10-02T10:05:30.000Z","uuid":"uuid-2","sessionId":"test","message":{"role":"assistant","content":[{"type":"text","text":"Hi"}]}}
 `
-	os.WriteFile(sessionFile, []byte(fixtureContent), 0644)
+	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	os.Setenv("CC_SESSION_ID", sessionID)

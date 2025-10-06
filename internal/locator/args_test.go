@@ -15,9 +15,13 @@ func TestFromSessionID_Success(t *testing.T) {
 	sessionID := "abc123-def456"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
-	os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644)
+	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
+		t.Fatalf("failed to write session file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
@@ -48,18 +52,30 @@ func TestFromSessionID_MultipleProjects(t *testing.T) {
 
 	// 项目1（旧）
 	project1 := filepath.Join(homeDir, ".claude", "projects", "-project1")
-	os.MkdirAll(project1, 0755)
+	if err := os.MkdirAll(project1, 0755); err != nil {
+		t.Fatalf("failed to create project1 dir: %v", err)
+	}
 	file1 := filepath.Join(project1, sessionID+".jsonl")
-	os.WriteFile(file1, []byte("{}"), 0644)
-	os.Chtimes(file1, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000))
+	if err := os.WriteFile(file1, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write file1: %v", err)
+	}
+	if err := os.Chtimes(file1, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000)); err != nil {
+		t.Fatalf("failed to set file1 times: %v", err)
+	}
 	defer os.RemoveAll(project1)
 
 	// 项目2（新）
 	project2 := filepath.Join(homeDir, ".claude", "projects", "-project2")
-	os.MkdirAll(project2, 0755)
+	if err := os.MkdirAll(project2, 0755); err != nil {
+		t.Fatalf("failed to create project2 dir: %v", err)
+	}
 	file2 := filepath.Join(project2, sessionID+".jsonl")
-	os.WriteFile(file2, []byte("{}"), 0644)
-	os.Chtimes(file2, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000))
+	if err := os.WriteFile(file2, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write file2: %v", err)
+	}
+	if err := os.Chtimes(file2, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000)); err != nil {
+		t.Fatalf("failed to set file2 times: %v", err)
+	}
 	defer os.RemoveAll(project2)
 
 	locator := NewSessionLocator()
@@ -82,15 +98,25 @@ func TestFromProjectPath_Success(t *testing.T) {
 	projectHash := "-home-yale-work-testproject"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
 
 	// 创建多个会话文件
 	oldSession := filepath.Join(sessionDir, "old-session.jsonl")
 	newSession := filepath.Join(sessionDir, "new-session.jsonl")
-	os.WriteFile(oldSession, []byte("{}"), 0644)
-	os.WriteFile(newSession, []byte("{}"), 0644)
-	os.Chtimes(oldSession, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000))
-	os.Chtimes(newSession, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000))
+	if err := os.WriteFile(oldSession, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write old session: %v", err)
+	}
+	if err := os.WriteFile(newSession, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write new session: %v", err)
+	}
+	if err := os.Chtimes(oldSession, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000)); err != nil {
+		t.Fatalf("failed to set old session times: %v", err)
+	}
+	if err := os.Chtimes(newSession, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000)); err != nil {
+		t.Fatalf("failed to set new session times: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
@@ -127,11 +153,15 @@ func TestFromProjectPath_RelativePath(t *testing.T) {
 	// Create session directory for current working directory
 	projectHash := pathToHash(cwd)
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
 
 	// Create a test session file
 	testSession := filepath.Join(sessionDir, "test-session.jsonl")
-	os.WriteFile(testSession, []byte("{}"), 0644)
+	if err := os.WriteFile(testSession, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write test session: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
@@ -166,16 +196,24 @@ func TestAllSessionsFromProject_Success(t *testing.T) {
 	projectHash := "-home-yale-work-testproject"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	// Create multiple session files
 	session1 := filepath.Join(sessionDir, "session-1.jsonl")
 	session2 := filepath.Join(sessionDir, "session-2.jsonl")
 	session3 := filepath.Join(sessionDir, "session-3.jsonl")
-	os.WriteFile(session1, []byte("{}"), 0644)
-	os.WriteFile(session2, []byte("{}"), 0644)
-	os.WriteFile(session3, []byte("{}"), 0644)
+	if err := os.WriteFile(session1, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write session1: %v", err)
+	}
+	if err := os.WriteFile(session2, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write session2: %v", err)
+	}
+	if err := os.WriteFile(session3, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write session3: %v", err)
+	}
 
 	locator := NewSessionLocator()
 	sessions, err := locator.AllSessionsFromProject(projectPath)
@@ -225,14 +263,20 @@ func TestAllSessionsFromProject_RelativePath(t *testing.T) {
 
 	projectHash := pathToHash(cwd)
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	// Create test sessions
 	session1 := filepath.Join(sessionDir, "test1.jsonl")
 	session2 := filepath.Join(sessionDir, "test2.jsonl")
-	os.WriteFile(session1, []byte("{}"), 0644)
-	os.WriteFile(session2, []byte("{}"), 0644)
+	if err := os.WriteFile(session1, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write session1: %v", err)
+	}
+	if err := os.WriteFile(session2, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write session2: %v", err)
+	}
 
 	locator := NewSessionLocator()
 

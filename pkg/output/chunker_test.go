@@ -275,7 +275,9 @@ func TestChunkDifferentFormats(t *testing.T) {
 	for _, format := range formats {
 		t.Run(format, func(t *testing.T) {
 			formatDir := filepath.Join(tempDir, format)
-			os.MkdirAll(formatDir, 0755)
+			if err := os.MkdirAll(formatDir, 0755); err != nil {
+				t.Fatalf("failed to create format dir: %v", err)
+			}
 
 			metadata, err := ChunkToolCalls(tools, 10, formatDir, format)
 			if err != nil {

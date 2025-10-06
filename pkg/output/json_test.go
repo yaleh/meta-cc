@@ -204,7 +204,9 @@ func TestFormatJSONL_ProperJSONLFormat(t *testing.T) {
 
 	// Verify first line
 	var first ErrorEntry
-	json.Unmarshal([]byte(lines[0]), &first)
+	if err := json.Unmarshal([]byte(lines[0]), &first); err != nil {
+		t.Fatalf("failed to unmarshal first line: %v", err)
+	}
 	if first.UUID != "uuid-1" || first.ToolName != "Bash" {
 		t.Errorf("first line incorrect: %+v", first)
 	}

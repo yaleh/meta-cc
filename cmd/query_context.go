@@ -34,7 +34,7 @@ Example:
 func init() {
 	queryContextCmd.Flags().StringVar(&contextErrorSig, "error-signature", "", "Error pattern ID to query (required)")
 	queryContextCmd.Flags().IntVar(&contextWindow, "window", 3, "Context window size (turns before/after)")
-	queryContextCmd.MarkFlagRequired("error-signature")
+	_ = queryContextCmd.MarkFlagRequired("error-signature")
 
 	queryCmd.AddCommand(queryContextCmd)
 }

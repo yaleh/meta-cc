@@ -67,37 +67,3 @@ func runAnalyzeSequences(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
 	return nil
 }
-
-func formatSequencesMarkdown(result analyzer.SequenceAnalysis) (string, error) {
-	if len(result.Sequences) == 0 {
-		return "# Tool Sequence Analysis\n\nNo repeated sequences detected.\n", nil
-	}
-
-	var md string
-	md += "# Tool Sequence Analysis\n\n"
-	md += fmt.Sprintf("Found %d repeated sequence(s):\n\n", len(result.Sequences))
-
-	for i, seq := range result.Sequences {
-		md += fmt.Sprintf("## Sequence %d: %s\n\n", i+1, seq.Pattern)
-		md += fmt.Sprintf("- **Length**: %d tools\n", seq.Length)
-		md += fmt.Sprintf("- **Occurrences**: %d times\n", seq.Count)
-		md += fmt.Sprintf("- **Time Span**: %d minutes\n", seq.TimeSpanMin)
-		md += "\n"
-
-		md += "**Occurrences**:\n\n"
-		limit := seq.Count
-		if limit > 5 {
-			limit = 5
-		}
-		for j := 0; j < limit; j++ {
-			occ := seq.Occurrences[j]
-			md += fmt.Sprintf("- Turn %d → %d\n", occ.StartTurn, occ.EndTurn)
-		}
-		if seq.Count > 5 {
-			md += fmt.Sprintf("- ... and %d more\n", seq.Count-5)
-		}
-		md += "\n---\n\n"
-	}
-
-	return md, nil
-}

@@ -16,9 +16,13 @@ func TestFromEnv_Success(t *testing.T) {
 	// 创建测试会话文件
 	homeDir, _ := os.UserHomeDir()
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", "-home-yale-work-myproject")
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, "5b57148c-89dc-4eb5-bc37-8122e194d90d.jsonl")
-	os.WriteFile(sessionFile, []byte("{}"), 0644)
+	if err := os.WriteFile(sessionFile, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write session file: %v", err)
+	}
 	defer os.RemoveAll(filepath.Join(homeDir, ".claude", "projects", "-home-yale-work-myproject"))
 
 	locator := NewSessionLocator()

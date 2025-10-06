@@ -411,7 +411,7 @@ func contains(slice []string, str string) bool {
 
 func atoi(s string) int {
 	var result int
-	fmt.Sscanf(s, "%d", &result)
+	_, _ = fmt.Sscanf(s, "%d", &result)
 	return result
 }
 

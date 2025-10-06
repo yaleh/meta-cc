@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/analyzer"
@@ -226,56 +225,4 @@ func runParseStats(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
 	return nil
-}
-
-// formatStatsMarkdown formats statistics as a Markdown report
-func formatStatsMarkdown(stats analyzer.SessionStats) (string, error) {
-	var sb strings.Builder
-
-	sb.WriteString("# Session Statistics\n\n")
-
-	// Overview section
-	sb.WriteString("## Overview\n\n")
-	sb.WriteString(fmt.Sprintf("- **Total Turns**: %d\n", stats.TurnCount))
-	sb.WriteString(fmt.Sprintf("  - User Turns: %d\n", stats.UserTurnCount))
-	sb.WriteString(fmt.Sprintf("  - Assistant Turns: %d\n", stats.AssistantTurnCount))
-	sb.WriteString(fmt.Sprintf("- **Session Duration**: %d seconds (%.1f minutes)\n",
-		stats.DurationSeconds, float64(stats.DurationSeconds)/60))
-	sb.WriteString("\n")
-
-	// Tool Usage section
-	sb.WriteString("## Tool Usage\n\n")
-	sb.WriteString(fmt.Sprintf("- **Total Tool Calls**: %d\n", stats.ToolCallCount))
-	sb.WriteString(fmt.Sprintf("- **Successful Calls**: %d\n", stats.ToolCallCount-stats.ErrorCount))
-	sb.WriteString(fmt.Sprintf("- **Failed Calls**: %d\n", stats.ErrorCount))
-	sb.WriteString(fmt.Sprintf("- **Error Rate**: %.1f%%\n", stats.ErrorRate))
-	sb.WriteString("\n")
-
-	// Top Tools section
-	if len(stats.TopTools) > 0 {
-		sb.WriteString("### Top Tools\n\n")
-		sb.WriteString("| Tool | Count | Percentage |\n")
-		sb.WriteString("|------|-------|------------|\n")
-
-		for _, tool := range stats.TopTools {
-			percentage := float64(0)
-			if stats.ToolCallCount > 0 {
-				percentage = float64(tool.Count) / float64(stats.ToolCallCount) * 100
-			}
-			sb.WriteString(fmt.Sprintf("| %s | %d | %.1f%% |\n",
-				tool.Name, tool.Count, percentage))
-		}
-		sb.WriteString("\n")
-	}
-
-	// Tool Frequency section
-	if len(stats.ToolFrequency) > 0 {
-		sb.WriteString("### All Tools\n\n")
-		for name, count := range stats.ToolFrequency {
-			sb.WriteString(fmt.Sprintf("- **%s**: %d calls\n", name, count))
-		}
-		sb.WriteString("\n")
-	}
-
-	return sb.String(), nil
 }

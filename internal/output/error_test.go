@@ -20,7 +20,9 @@ func TestOutputError_JSONL(t *testing.T) {
 
 	w.Close()
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("failed to read pipe: %v", err)
+	}
 	os.Stdout = oldStdout
 
 	output := buf.String()
@@ -61,11 +63,13 @@ func TestOutputError_TSV(t *testing.T) {
 	os.Stderr = w
 
 	err := errors.New("test error")
-	OutputError(err, ErrInvalidArgument, "tsv")
+	_ = OutputError(err, ErrInvalidArgument, "tsv")
 
 	w.Close()
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("failed to read pipe: %v", err)
+	}
 	os.Stderr = oldStderr
 
 	output := buf.String()
@@ -92,11 +96,13 @@ func TestOutputError_SessionNotFound(t *testing.T) {
 	os.Stdout = w
 
 	err := errors.New("session not found")
-	OutputError(err, ErrSessionNotFound, "jsonl")
+	_ = OutputError(err, ErrSessionNotFound, "jsonl")
 
 	w.Close()
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("failed to read pipe: %v", err)
+	}
 	os.Stdout = oldStdout
 
 	output := buf.String()
@@ -123,7 +129,9 @@ func TestOutputError_NoResults(t *testing.T) {
 
 	w.Close()
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("failed to read pipe: %v", err)
+	}
 	os.Stdout = oldStdout
 
 	// Verify exit code is 2 for no results
@@ -146,7 +154,9 @@ func TestWarnNoResults_JSONL(t *testing.T) {
 
 	w.Close()
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("failed to read pipe: %v", err)
+	}
 	os.Stdout = oldStdout
 
 	output := strings.TrimSpace(buf.String())
@@ -177,16 +187,20 @@ func TestWarnNoResults_TSV(t *testing.T) {
 	rStdout, wStdout, _ := os.Pipe()
 	os.Stdout = wStdout
 
-	WarnNoResults("tsv")
+	_ = WarnNoResults("tsv")
 
 	wStdout.Close()
 	var bufStdout bytes.Buffer
-	bufStdout.ReadFrom(rStdout)
+	if _, err := bufStdout.ReadFrom(rStdout); err != nil {
+		t.Fatalf("failed to read stdout pipe: %v", err)
+	}
 	os.Stdout = oldStdout
 
 	w.Close()
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("failed to read stderr pipe: %v", err)
+	}
 	os.Stderr = oldStderr
 
 	stderrOutput := buf.String()
@@ -210,11 +224,13 @@ func TestOutputError_DefaultFormat(t *testing.T) {
 	os.Stderr = w
 
 	err := errors.New("test error")
-	OutputError(err, ErrInvalidArgument, "unknown")
+	_ = OutputError(err, ErrInvalidArgument, "unknown")
 
 	w.Close()
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("failed to read pipe: %v", err)
+	}
 	os.Stderr = oldStderr
 
 	output := buf.String()

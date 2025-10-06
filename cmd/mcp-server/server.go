@@ -106,7 +106,7 @@ func writeResponse(id interface{}, result interface{}) {
 		ID:      id,
 		Result:  result,
 	}
-	json.NewEncoder(outputWriter).Encode(resp)
+	_ = json.NewEncoder(outputWriter).Encode(resp)
 }
 
 func writeError(id interface{}, code int, message string) {
@@ -118,5 +118,5 @@ func writeError(id interface{}, code int, message string) {
 			Message: message,
 		},
 	}
-	json.NewEncoder(outputWriter).Encode(resp)
+	_ = json.NewEncoder(outputWriter).Encode(resp)
 }

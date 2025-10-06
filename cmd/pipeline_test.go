@@ -16,7 +16,9 @@ func TestSessionPipeline_LoadProjectLevel(t *testing.T) {
 	projectHash := "-home-yale-work-testproject"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	// Create 3 session files with different content
@@ -36,14 +38,26 @@ func TestSessionPipeline_LoadProjectLevel(t *testing.T) {
 {"type":"user","uuid":"uuid5","timestamp":"2024-01-03T10:01:00Z","message":{"role":"user","content":[{"type":"text","text":"message from session 3-2"}]}}
 `
 
-	os.WriteFile(session1, []byte(session1Content), 0644)
-	os.WriteFile(session2, []byte(session2Content), 0644)
-	os.WriteFile(session3, []byte(session3Content), 0644)
+	if err := os.WriteFile(session1, []byte(session1Content), 0644); err != nil {
+		t.Fatalf("failed to write session1: %v", err)
+	}
+	if err := os.WriteFile(session2, []byte(session2Content), 0644); err != nil {
+		t.Fatalf("failed to write session2: %v", err)
+	}
+	if err := os.WriteFile(session3, []byte(session3Content), 0644); err != nil {
+		t.Fatalf("failed to write session3: %v", err)
+	}
 
 	// Make session3 the newest
-	os.Chtimes(session1, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000))
-	os.Chtimes(session2, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000))
-	os.Chtimes(session3, testutil.TimeFromUnix(3000), testutil.TimeFromUnix(3000))
+	if err := os.Chtimes(session1, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000)); err != nil {
+		t.Fatalf("failed to set session1 times: %v", err)
+	}
+	if err := os.Chtimes(session2, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000)); err != nil {
+		t.Fatalf("failed to set session2 times: %v", err)
+	}
+	if err := os.Chtimes(session3, testutil.TimeFromUnix(3000), testutil.TimeFromUnix(3000)); err != nil {
+		t.Fatalf("failed to set session3 times: %v", err)
+	}
 
 	// Test with ProjectPath set (should load ALL sessions)
 	opts := GlobalOptions{
@@ -86,7 +100,9 @@ func TestSessionPipeline_LoadSessionOnly(t *testing.T) {
 	projectHash := "-home-yale-work-testproject2"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	// Create 2 session files
@@ -98,10 +114,18 @@ func TestSessionPipeline_LoadSessionOnly(t *testing.T) {
 	session2Content := `{"type":"user","uuid":"uuid2","timestamp":"2024-01-02T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"new session"}]}}
 `
 
-	os.WriteFile(session1, []byte(session1Content), 0644)
-	os.WriteFile(session2, []byte(session2Content), 0644)
-	os.Chtimes(session1, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000))
-	os.Chtimes(session2, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000))
+	if err := os.WriteFile(session1, []byte(session1Content), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	if err := os.WriteFile(session2, []byte(session2Content), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	if err := os.Chtimes(session1, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000)); err != nil {
+		t.Fatalf("failed to set times: %v", err)
+	}
+	if err := os.Chtimes(session2, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000)); err != nil {
+		t.Fatalf("failed to set times: %v", err)
+	}
 
 	// Test with SessionOnly=true (should load ONLY latest session)
 	opts := GlobalOptions{
@@ -186,14 +210,20 @@ func TestSessionPipeline_SessionPath(t *testing.T) {
 	projectHash := "-home-yale-work-testproject-sessionpath"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	sessionFile := filepath.Join(sessionDir, "session1.jsonl")
 	sessionContent := `{"type":"user","uuid":"uuid1","timestamp":"2024-01-01T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"test"}]}}
 `
-	os.WriteFile(sessionFile, []byte(sessionContent), 0644)
-	os.Chtimes(sessionFile, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000))
+	if err := os.WriteFile(sessionFile, []byte(sessionContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	if err := os.Chtimes(sessionFile, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000)); err != nil {
+		t.Fatalf("failed to set times: %v", err)
+	}
 
 	opts := GlobalOptions{
 		ProjectPath: projectPath,
@@ -222,7 +252,9 @@ func TestSessionPipeline_EntryCount(t *testing.T) {
 	projectHash := "-home-yale-work-testproject-entrycount"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	sessionFile := filepath.Join(sessionDir, "session1.jsonl")
@@ -231,8 +263,12 @@ func TestSessionPipeline_EntryCount(t *testing.T) {
 {"type":"user","uuid":"uuid2","timestamp":"2024-01-01T10:01:00Z","message":{"role":"user","content":[{"type":"text","text":"msg2"}]}}
 {"type":"user","uuid":"uuid3","timestamp":"2024-01-01T10:02:00Z","message":{"role":"user","content":[{"type":"text","text":"msg3"}]}}
 `
-	os.WriteFile(sessionFile, []byte(sessionContent), 0644)
-	os.Chtimes(sessionFile, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000))
+	if err := os.WriteFile(sessionFile, []byte(sessionContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	if err := os.Chtimes(sessionFile, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000)); err != nil {
+		t.Fatalf("failed to set times: %v", err)
+	}
 
 	pipeline := NewSessionPipeline(GlobalOptions{
 		ProjectPath: projectPath,
@@ -262,14 +298,20 @@ func TestSessionPipeline_GetEntries(t *testing.T) {
 	projectHash := "-home-yale-work-testproject-getentries"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	sessionFile := filepath.Join(sessionDir, "session1.jsonl")
 	sessionContent := `{"type":"user","uuid":"uuid1","timestamp":"2024-01-01T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"test message"}]}}
 `
-	os.WriteFile(sessionFile, []byte(sessionContent), 0644)
-	os.Chtimes(sessionFile, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000))
+	if err := os.WriteFile(sessionFile, []byte(sessionContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	if err := os.Chtimes(sessionFile, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000)); err != nil {
+		t.Fatalf("failed to set times: %v", err)
+	}
 
 	pipeline := NewSessionPipeline(GlobalOptions{
 		ProjectPath: projectPath,
@@ -300,7 +342,9 @@ func TestSessionPipeline_BuildTurnIndex(t *testing.T) {
 	projectHash := "-home-yale-work-testproject-turnindex"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	sessionFile := filepath.Join(sessionDir, "session1.jsonl")
@@ -308,8 +352,12 @@ func TestSessionPipeline_BuildTurnIndex(t *testing.T) {
 {"type":"user","uuid":"uuid2","timestamp":"2024-01-01T10:01:00Z","message":{"role":"user","content":[{"type":"text","text":"msg2"}]}}
 {"type":"user","uuid":"uuid3","timestamp":"2024-01-01T10:02:00Z","message":{"role":"user","content":[{"type":"text","text":"msg3"}]}}
 `
-	os.WriteFile(sessionFile, []byte(sessionContent), 0644)
-	os.Chtimes(sessionFile, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000))
+	if err := os.WriteFile(sessionFile, []byte(sessionContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	if err := os.Chtimes(sessionFile, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000)); err != nil {
+		t.Fatalf("failed to set times: %v", err)
+	}
 
 	pipeline := NewSessionPipeline(GlobalOptions{
 		ProjectPath: projectPath,
@@ -351,7 +399,9 @@ func TestSessionPipeline_ExtractToolCalls(t *testing.T) {
 	projectHash := "-home-yale-work-testproject-toolcalls"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	sessionFile := filepath.Join(sessionDir, "session1.jsonl")
@@ -359,8 +409,12 @@ func TestSessionPipeline_ExtractToolCalls(t *testing.T) {
 	sessionContent := `{"type":"assistant","uuid":"uuid1","timestamp":"2024-01-01T10:00:00Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool1","name":"Bash","input":{"command":"ls"}}]}}
 {"type":"user","uuid":"uuid2","timestamp":"2024-01-01T10:00:01Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool1","content":"file1.txt\nfile2.txt","status":"success"}]}}
 `
-	os.WriteFile(sessionFile, []byte(sessionContent), 0644)
-	os.Chtimes(sessionFile, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000))
+	if err := os.WriteFile(sessionFile, []byte(sessionContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	if err := os.Chtimes(sessionFile, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000)); err != nil {
+		t.Fatalf("failed to set times: %v", err)
+	}
 
 	pipeline := NewSessionPipeline(GlobalOptions{
 		ProjectPath: projectPath,
@@ -409,13 +463,17 @@ func TestSessionPipeline_LoadWithSessionID(t *testing.T) {
 	// Create session file in a project directory (FromSessionID searches ~/.claude/projects/*/)
 	projectHash := "test-project-hash"
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
 	sessionContent := `{"type":"user","uuid":"uuid1","timestamp":"2024-01-01T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"specific session"}]}}
 `
-	os.WriteFile(sessionFile, []byte(sessionContent), 0644)
+	if err := os.WriteFile(sessionFile, []byte(sessionContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 
 	pipeline := NewSessionPipeline(GlobalOptions{
 		SessionID: sessionID,
@@ -441,7 +499,9 @@ func TestSessionPipeline_ProjectLevelSessionPath(t *testing.T) {
 	projectHash := "-home-yale-work-testproject-projpath"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	session1 := filepath.Join(sessionDir, "session1.jsonl")
@@ -452,10 +512,18 @@ func TestSessionPipeline_ProjectLevelSessionPath(t *testing.T) {
 	session2Content := `{"type":"user","uuid":"uuid2","timestamp":"2024-01-02T10:00:00Z","message":{"role":"user","content":[{"type":"text","text":"s2"}]}}
 `
 
-	os.WriteFile(session1, []byte(session1Content), 0644)
-	os.WriteFile(session2, []byte(session2Content), 0644)
-	os.Chtimes(session1, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000))
-	os.Chtimes(session2, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000))
+	if err := os.WriteFile(session1, []byte(session1Content), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	if err := os.WriteFile(session2, []byte(session2Content), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	if err := os.Chtimes(session1, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000)); err != nil {
+		t.Fatalf("failed to set times: %v", err)
+	}
+	if err := os.Chtimes(session2, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000)); err != nil {
+		t.Fatalf("failed to set times: %v", err)
+	}
 
 	pipeline := NewSessionPipeline(GlobalOptions{
 		ProjectPath: projectPath,

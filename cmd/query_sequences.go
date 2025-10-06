@@ -182,7 +182,7 @@ func addSequenceMetrics(result *query.ToolSequenceQuery, entries []parser.Sessio
 
 		// Parse timestamp
 		var ts int64
-		fmt.Sscanf(entry.Timestamp, "%d", &ts)
+		_, _ = fmt.Sscanf(entry.Timestamp, "%d", &ts)
 		turnTimestamps[turn] = ts
 
 		if entry.Message == nil {

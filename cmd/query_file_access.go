@@ -33,7 +33,7 @@ Example:
 
 func init() {
 	queryFileAccessCmd.Flags().StringVar(&fileAccessFile, "file", "", "File path to query (required)")
-	queryFileAccessCmd.MarkFlagRequired("file")
+	_ = queryFileAccessCmd.MarkFlagRequired("file")
 
 	queryCmd.AddCommand(queryFileAccessCmd)
 }

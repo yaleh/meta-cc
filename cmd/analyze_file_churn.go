@@ -63,25 +63,3 @@ func runAnalyzeFileChurn(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
 	return nil
 }
-
-func formatFileChurnMarkdown(result analyzer.FileChurnAnalysis) (string, error) {
-	if len(result.HighChurnFiles) == 0 {
-		return "# File Churn Analysis\n\nNo high churn files detected.\n", nil
-	}
-
-	var md string
-	md += "# File Churn Analysis\n\n"
-	md += fmt.Sprintf("Found %d high churn file(s):\n\n", len(result.HighChurnFiles))
-
-	for i, file := range result.HighChurnFiles {
-		md += fmt.Sprintf("## %d. %s\n\n", i+1, file.File)
-		md += fmt.Sprintf("- **Total Accesses**: %d\n", file.TotalAccesses)
-		md += fmt.Sprintf("- **Read**: %d times\n", file.ReadCount)
-		md += fmt.Sprintf("- **Edit**: %d times\n", file.EditCount)
-		md += fmt.Sprintf("- **Write**: %d times\n", file.WriteCount)
-		md += fmt.Sprintf("- **Time Span**: %d minutes\n", file.TimeSpanMin)
-		md += "\n---\n\n"
-	}
-
-	return md, nil
-}

@@ -13,9 +13,13 @@ func TestLocate_WithSessionID(t *testing.T) {
 	sessionID := "test-session-123"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
-	os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644)
+	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
@@ -52,9 +56,13 @@ func TestLocate_WithProjectPath(t *testing.T) {
 	projectHash := pathToHash(testProjectPath)
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, "session-abc.jsonl")
-	os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644)
+	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
@@ -91,9 +99,13 @@ func TestLocate_DefaultCWD(t *testing.T) {
 	projectHash := pathToHash(cwd)
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, "default-session.jsonl")
-	os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644)
+	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
@@ -129,9 +141,13 @@ func TestLocate_WithEnvVars(t *testing.T) {
 	projectHash := "-test-env-project"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
-	os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644)
+	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	// 设置环境变量
@@ -166,9 +182,13 @@ func TestLocate_EnvVarsIgnoredInProjectMode(t *testing.T) {
 	projectHash := pathToHash(testProjectPath)
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, "project-session.jsonl")
-	os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644)
+	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
@@ -195,9 +215,13 @@ func TestLocate_SessionIDPriority(t *testing.T) {
 	projectHash := "-test-priority"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
-	os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644)
+	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	// 设置环境变量（优先级更低）

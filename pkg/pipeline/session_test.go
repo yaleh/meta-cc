@@ -14,14 +14,18 @@ func createTestSession(t *testing.T, sessionID, projectPath string) string {
 	// Generate project hash from path (simplified)
 	projectHash := "-test-" + filepath.Base(projectPath)
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
 
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
 	content := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":"test"},"uuid":"uuid-1","parentUuid":null,"sessionId":"` + sessionID + `","cwd":"` + projectPath + `"}
 {"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"id":"msg_01","type":"message","role":"assistant","model":"claude-sonnet-4","content":[{"type":"tool_use","id":"toolu_01","name":"Bash","input":{"command":"ls"}}],"stop_reason":"tool_use"},"uuid":"uuid-2","parentUuid":"uuid-1","sessionId":"` + sessionID + `","cwd":"` + projectPath + `"}
 {"type":"user","timestamp":"2025-10-02T06:09:10.123Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01","content":"file1.txt\nfile2.txt"}]},"uuid":"uuid-3","parentUuid":"uuid-2","sessionId":"` + sessionID + `"}
 `
-	os.WriteFile(sessionFile, []byte(content), 0644)
+	if err := os.WriteFile(sessionFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write session file: %v", err)
+	}
 	t.Cleanup(func() { os.RemoveAll(sessionDir) })
 
 	return sessionFile
@@ -138,9 +142,13 @@ func TestSessionPipeline_Load_InvalidJSONL(t *testing.T) {
 	sessionID := "invalid-jsonl-session"
 	projectHash := "-test-invalid"
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	os.MkdirAll(sessionDir, 0755)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
-	os.WriteFile(sessionFile, []byte("invalid json\n{broken"), 0644)
+	if err := os.WriteFile(sessionFile, []byte("invalid json\n{broken"), 0644); err != nil {
+		t.Fatalf("failed to write session file: %v", err)
+	}
 	defer os.RemoveAll(sessionDir)
 
 	p := NewSessionPipeline(GlobalOptions{
@@ -247,7 +255,9 @@ func TestSessionPipeline_BuildTurnIndex_Idempotent(t *testing.T) {
 		SessionID: sessionID,
 	})
 
-	p.Load(LoadOptions{AutoDetect: false})
+	if err := p.Load(LoadOptions{AutoDetect: false}); err != nil {
+		t.Fatalf("failed to load session: %v", err)
+	}
 
 	index1 := p.BuildTurnIndex()
 	index2 := p.BuildTurnIndex()
@@ -277,7 +287,9 @@ func TestSessionPipeline_SessionPath(t *testing.T) {
 		t.Error("SessionPath should be empty before Load")
 	}
 
-	p.Load(LoadOptions{AutoDetect: false})
+	if err := p.Load(LoadOptions{AutoDetect: false}); err != nil {
+		t.Fatalf("failed to load session: %v", err)
+	}
 
 	if p.SessionPath() != sessionFile {
 		t.Errorf("Expected SessionPath %q, got %q", sessionFile, p.SessionPath())
@@ -297,7 +309,9 @@ func TestSessionPipeline_EntryCount(t *testing.T) {
 		t.Error("EntryCount should be 0 before Load")
 	}
 
-	p.Load(LoadOptions{AutoDetect: false})
+	if err := p.Load(LoadOptions{AutoDetect: false}); err != nil {
+		t.Fatalf("failed to load session: %v", err)
+	}
 
 	count := p.EntryCount()
 	if count != 3 {
@@ -363,7 +377,9 @@ func TestSessionPipeline_Entries(t *testing.T) {
 		t.Error("Expected zero entries before Load")
 	}
 
-	p.Load(LoadOptions{AutoDetect: false})
+	if err := p.Load(LoadOptions{AutoDetect: false}); err != nil {
+		t.Fatalf("failed to load session: %v", err)
+	}
 
 	// After Load, should return actual entries
 	entries = p.Entries()

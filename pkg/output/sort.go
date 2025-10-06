@@ -41,11 +41,6 @@ func SortByTimestamp(data interface{}) {
 // Note: This uses a type switch to support different message types.
 // When command types are refactored (future phases), this will use standardized types.
 func SortByTurnSequence(data interface{}) {
-	// Type assertion interface for any type with TurnSequence field
-	type TurnSequenced interface {
-		GetTurnSequence() int
-	}
-
 	// For now, we don't have a common interface. Commands handle their own sorting.
 	// This function serves as a documentation anchor for turn sequence sorting.
 	// Future refactoring will standardize this when message types are unified.
