@@ -176,17 +176,34 @@ meta-cc CLI 是系统的核心，提供清晰、简洁的对外接口：
 
 **2. Subagents（语义层）**
 
-- ✅ **@meta-query**：组织 CLI + Unix 管道进行复杂聚合
-- ✅ **@meta-coach**：语义分析和建议生成（调用 MCP 或 @meta-query）
-- ✅ 可嵌套调用形成复杂工作流
+Subagents 分为两类：
 
-**Subagent 职责**：
-- @meta-query：多步 Unix 管道（jq/awk/sort/uniq）
-- @meta-coach：语义理解、上下文关联、建议生成
+**工具型 Agent**（辅助 Claude 在对话中执行复杂查询）：
+- ✅ **@meta-query**：组织 CLI + Unix 管道进行复杂聚合
+- ✅ 用于 Claude 需要多步 Unix 工具组合的场景
+- ✅ 示例：`meta-cc query tools | jq ... | sort | uniq -c`
+
+**业务型 Agent**（独立的元认知分析助手）：
+- ✅ 各 Subagent 独立调用 MCP meta-insight 工具
+- ✅ **互不依赖或调用**（保持独立性）
+- ✅ **必须说明 MCP 输出控制策略**（参考 `.claude/agents/meta-coach.md`）
+- ✅ 支持多轮对话和上下文关联（在单个 Subagent 内部）
+
+**MCP 输出控制要求**（参考 meta-coach.md:23-53）：
+- `stats_only=true`：仅统计（>99% 压缩）
+- `content_summary=true`：仅元数据（93% 压缩）
+- `max_message_length=500`：限制消息长度（86% 压缩）
+- `limit=10-20`：限制结果数量
+
+**业务型 Subagent 职责**：
+- @meta-coach：综合分析、语义理解、建议生成
+- @error-analyst：错误模式分析、根本原因诊断
+- @workflow-tuner：工作流优化、自动化建议
 
 **使用决策**：
 - 单步 jq 可完成 → 使用 MCP
-- 多步 Unix 管道 → 使用 @meta-query
+- 多步 Unix 管道 → Claude 在对话中使用 @meta-query
+- 语义分析和建议 → 用户直接调用业务型 Subagent
 
 **3. Slash Commands（快捷层）**
 
@@ -196,19 +213,31 @@ meta-cc CLI 是系统的核心，提供清晰、简洁的对外接口：
 
 ### 集成层次对比
 
-| 特性 | MCP Server | @meta-query | @meta-coach | Slash Commands |
-|------|-----------|-------------|-------------|----------------|
-| 调用方式 | Claude 自主 | 用户 `@` | 用户 `@` | 用户 `/` |
-| 查询能力 | jq 过滤/统计 | Unix 管道 | 语义分析 | 固定逻辑 |
-| 输出控制 | ✅ 内置 | 手动 | - | 固定 |
-| 使用场景 | 80%常见查询 | 20%复杂管道 | 分析建议 | 快速统计 |
+**核心集成层**：
+
+| 特性 | MCP Server | Slash Commands |
+|------|-----------|----------------|
+| 调用方式 | Claude 自主 | 用户 `/` |
+| 查询能力 | jq 过滤/统计 | 固定逻辑 |
+| 输出控制 | ✅ 内置（stats_only, max_output_bytes） | 固定格式 |
+| 使用场景 | 对话中自然查询（80%） | 快速统计报告（20%） |
+
+**Subagent 层**（基于 MCP）：
+
+| 类型 | Agent | 调用方式 | 核心能力 | 输出控制 |
+|------|-------|---------|----------|---------|
+| 工具型 | @meta-query | Claude 自主（对话中） | Unix 管道聚合 | 手动 |
+| 业务型 | @meta-coach | 用户 `@` | 综合分析、建议生成 | MCP 参数 |
+| 业务型 | @error-analyst | 用户 `@` | 错误模式分析 | MCP 参数 |
+| 业务型 | @workflow-tuner | 用户 `@` | 工作流优化建议 | MCP 参数 |
 
 ### 分离的好处
 
 1. **职责清晰**：CLI（数据）→ MCP（过滤）→ Subagent（语义）
 2. **性能优化**：gojq 库处理过滤，避免多次调用 CLI
 3. **可测试性**：各层独立，易于测试
-4. **灵活性**：MCP 覆盖常见场景，@meta-query 处理复杂场景
+4. **灵活性**：MCP 覆盖常见场景（80%），@meta-query 处理复杂管道（20%）
+5. **独立性**：业务型 Subagents 互不依赖，避免复杂的嵌套调用
 
 ---
 

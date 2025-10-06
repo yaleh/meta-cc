@@ -2028,40 +2028,45 @@ Claude: "Show me the last 10 errors"
 **状态**：部分完成（Phase 14 已创建 @meta-query，此 Phase 完善其他 Subagents）
 
 **设计原则**：
-- ✅ Subagents 负责语义理解、推理、建议生成
-- ✅ **@meta-query 调用 CLI + 管道进行聚合**（Phase 14 已实现）
-- ✅ **其他 Subagents 调用 MCP 工具获取原始数据**
-- ✅ **@meta-coach 等高级 Subagents 调用 @meta-query 获取聚合数据**
-- ✅ 支持多轮对话和上下文关联
-- ✅ 可嵌套调用其他 Subagents
+- ✅ 所有业务型 Subagents 基于 MCP meta-insight 实现
+- ✅ 各 Subagent **互相独立，不依赖或调用其他 Subagent**
+- ✅ 每个 Subagent **必须说明 MCP 输出控制机制**（参考 `.claude/agents/meta-coach.md`）
+- ✅ 支持多轮对话和上下文关联（在单个 Subagent 内部）
+- ✅ **@meta-query 是工具型 Agent**，用于 Claude 在对话中执行复杂 Unix 管道（Phase 14 已实现）
 
 ### Stage 16.1: 更新 @meta-coach 核心 Subagent
 
 **任务**：
-- 更新 `.claude/subagents/meta-coach.md`
-- 集成 MCP 新参数（jq_filter, stats_only）和 @meta-query
-- 更新数据获取策略
+- 更新 `.claude/subagents/meta-coach.md`（已在 Phase 14 更新）
+- 确保说明 MCP 输出控制策略
+- 验证独立性（不调用其他 Subagents）
 
-**数据获取策略**：
+**MCP 输出控制策略**（参考 meta-coach.md:23-53）：
 
-| 场景 | 优先方式 | 理由 |
-|------|----------|------|
-| 统计摘要 | MCP（stats_only=true） | 一步完成，无需管道 |
-| 简单过滤 | MCP（jq_filter） | gojq 内置支持 |
-| 复杂管道 | @meta-query | 多步 Unix 工具组合 |
-| 详细记录 | MCP | 获取完整上下文 |
+| 场景 | MCP 参数 | 压缩率 | 理由 |
+|------|---------|--------|------|
+| 统计摘要 | `stats_only=true` | >99% | 仅统计，一步完成 |
+| 初步分析 | `content_summary=true` | 93% | 仅元数据，快速扫描 |
+| 详细分析 | `max_message_length=500` | 86% | 平衡细节与大小 |
+| 简单过滤 | `jq_filter="..."` | 可变 | gojq 内置支持 |
+| 复杂聚合 | `stats_first=true` | 可变 | 先统计后详情 |
+
+**IMPORTANT**：Always use aggressive output control
+- stats_only=true for all aggregations (>99% compression)
+- content_summary=true for user messages (prevents massive session summaries)
+- Keep limits low (10-20) to prevent context overflow
 
 **交付物**：
-- 更新 `.claude/subagents/meta-coach.md`（~100 行）
+- 验证 `.claude/agents/meta-coach.md` 包含输出控制说明
 - 示例场景：
   - 场景 1：错误统计（使用 MCP stats_only）
-  - 场景 2：复杂聚合（使用 @meta-query）
-  - 场景 3：详细分析（使用 MCP jq_filter）
+  - 场景 2：初步扫描（使用 MCP content_summary）
+  - 场景 3：详细分析（使用 MCP max_message_length + jq_filter）
 
 **测试**：
 ```bash
 User: "@meta-coach 分析本项目的错误模式"
-验证: @meta-coach → MCP(stats_only=true) → 生成建议
+验证: @meta-coach → MCP(stats_only=true) → 生成建议（独立完成，无需调用其他 Agent）
 ```
 
 ### Stage 16.2: @error-analyst 专用 Subagent
@@ -2073,20 +2078,33 @@ User: "@meta-coach 分析本项目的错误模式"
 
 **交付物**：
 ```markdown
-# .claude/subagents/error-analyst.md
+# .claude/agents/error-analyst.md
 ---
 name: error-analyst
 description: 错误模式深度分析专家
-allowed_tools: [query_errors, query_context, query_file_access]
 ---
 
 你是 error-analyst，专注于分析错误模式和根本原因。
 
+## MCP 输出控制策略
+# IMPORTANT: Always use aggressive output control
+# - stats_only=true for all aggregations (>99% compression)
+# - content_summary=true for user messages (prevents massive session summaries)
+# - Keep limits low (10-20) to prevent context overflow
+
+extract :: Session → Error_Data
+extract(S) = {
+  error_stats: mcp_meta_insight.query_tools(status="error", stats_only=true),
+  error_details: mcp_meta_insight.query_tools(status="error", limit=10),
+  error_context: mcp_meta_insight.query_context(error_signature="...", window=3)
+}
+
 ## 分析流程
-1. 调用 query_errors 获取错误列表
-2. 使用 query_context 获取错误上下文
-3. 分析错误类型：配置问题/依赖缺失/代码错误/架构问题
-4. 生成分类报告和修复优先级
+1. 调用 query_tools(status="error", stats_only=true) 获取错误统计
+2. 调用 query_tools(status="error", limit=10) 获取详细错误
+3. 使用 query_context 获取错误上下文
+4. 分析错误类型：配置问题/依赖缺失/代码错误/架构问题
+5. 生成分类报告和修复优先级
 
 ## 输出格式
 - 错误分类（配置/依赖/代码/架构）
@@ -2104,18 +2122,30 @@ allowed_tools: [query_errors, query_context, query_file_access]
 
 **交付物**：
 ```markdown
-# .claude/subagents/workflow-tuner.md
+# .claude/agents/workflow-tuner.md
 ---
 name: workflow-tuner
 description: 工作流自动化顾问
-allowed_tools: [query_workflow_patterns, query_file_hotspots, query_tool_sequences]
 ---
 
 你是 workflow-tuner，帮助用户自动化重复工作流。
 
+## MCP 输出控制策略
+# IMPORTANT: Always use aggressive output control
+# - stats_only=true for all aggregations (>99% compression)
+# - content_summary=true for user messages (prevents massive session summaries)
+# - Keep limits low (10-20) to prevent context overflow
+
+extract :: Session → Workflow_Data
+extract(S) = {
+  tool_sequences: mcp_meta_insight.query_tool_sequences(min_occurrences=3, stats_only=true),
+  file_access: mcp_meta_insight.query_files(top=20, sort_by="total_ops"),
+  tool_stats: mcp_meta_insight.query_tools(stats_only=true, limit=20)
+}
+
 ## 检测模式
-1. 调用 query_tool_sequences 检测重复序列（如 Read→Edit→Bash）
-2. 调用 query_file_hotspots 识别频繁修改文件
+1. 调用 query_tool_sequences(min_occurrences=3, stats_only=true) 检测重复序列
+2. 调用 query_files(top=20) 识别频繁修改文件
 3. 分析是否值得自动化（出现次数 ≥5）
 
 ## 建议类型
@@ -2132,8 +2162,8 @@ allowed_tools: [query_workflow_patterns, query_file_hotspots, query_tool_sequenc
 ### Stage 16.4: 集成测试和文档
 
 **任务**：
-- 测试 Subagent 嵌套调用（@meta-coach → @error-analyst）
-- 验证 MCP 工具调用正确性
+- 测试各 Subagent 独立运行
+- 验证 MCP 工具调用正确性和输出控制
 - 创建完整使用文档
 
 **交付物**：
@@ -2143,45 +2173,59 @@ allowed_tools: [query_workflow_patterns, query_file_hotspots, query_tool_sequenc
 
 **测试场景**：
 ```bash
-# 测试 1: 端到端错误分析
-User: "@meta-coach 分析最近的错误"
-验证: meta-coach → query_errors → @error-analyst → 分类报告
+# 测试 1: @meta-coach 独立运行
+User: "@meta-coach 分析项目健康度"
+验证: meta-coach → MCP(stats_only, content_summary) → 综合报告（独立完成）
 
-# 测试 2: 工作流优化建议
-User: "@workflow-tuner 有什么可以自动化的？"
-验证: workflow-tuner → query_tool_sequences → 建议列表
+# 测试 2: @error-analyst 独立运行
+User: "@error-analyst 有哪些错误需要修复？"
+验证: error-analyst → MCP(status="error", stats_only) → 错误分类报告
 
-# 测试 3: 嵌套调用
-User: "@meta-coach 全面分析项目健康度"
-验证: meta-coach → @error-analyst + @workflow-tuner → 综合报告
+# 测试 3: @workflow-tuner 独立运行
+User: "@workflow-tuner 建议自动化方案"
+验证: workflow-tuner → MCP(query_tool_sequences, stats_only) → 优化建议
+
+# 测试 4: 输出控制验证
+User: "@meta-coach 分析最近 100 次错误"
+验证: 使用 stats_only + limit 控制输出大小，避免上下文溢出
+
+# 注: 用户可以根据多个 Subagent 的输出自行综合分析，
+#     但 Subagents 之间不相互调用
 ```
 
 **Phase 16 完成标准**：
-- ✅ @meta-coach 核心 Subagent 更新（集成 MCP 新参数和 @meta-query）
-- ✅ @error-analyst 专用 Subagent 实现
-- ✅ @workflow-tuner 专用 Subagent 实现
-- ✅ 嵌套调用测试通过
+- ✅ @meta-coach 核心 Subagent 验证（包含 MCP 输出控制说明）
+- ✅ @error-analyst 专用 Subagent 实现（包含输出控制策略）
+- ✅ @workflow-tuner 专用 Subagent 实现（包含输出控制策略）
+- ✅ 各 Subagent 独立运行测试通过
+- ✅ 输出控制验证（stats_only, content_summary, limit）
 - ✅ 完整的 Subagent 使用文档
-- ✅ 至少 4 个端到端测试场景通过
+- ✅ 至少 4 个独立测试场景通过
 
 **架构完整性**：
 ```
 数据层（meta-cc CLI）
   ↓ JSONL 数据提取
 
-集成层（双路径）
-  ├─ meta-cc-mcp（MCP Server）
-  │   ├─ 调用 meta-cc CLI
-  │   ├─ gojq 过滤/聚合
-  │   └─ 输出控制（50KB）
-  │
-  └─ @meta-query Subagent
-      └─ CLI + Unix 管道聚合
+集成层（MCP Server）
+  └─ meta-cc-mcp（MCP Server）
+      ├─ 调用 meta-cc CLI
+      ├─ gojq 过滤/聚合
+      └─ 输出控制（50KB, stats_only, content_summary）
 
-Subagent 层（语义分析）
-  ├─ @meta-coach（调用 MCP + @meta-query）
-  ├─ @error-analyst（调用 MCP）
-  └─ @workflow-tuner（调用 @meta-query）
+Subagent 层（各自独立，均调用 MCP）
+  ├─ @meta-query（工具型 Agent，Claude 在对话中使用）
+  │   └─ CLI + Unix 管道聚合
+  │
+  ├─ @meta-coach（业务型 Agent）
+  │   └─ 调用 MCP（stats_only, content_summary）→ 综合分析
+  │
+  ├─ @error-analyst（业务型 Agent）
+  │   └─ 调用 MCP（status="error"）→ 错误分类
+  │
+  └─ @workflow-tuner（业务型 Agent）
+      └─ 调用 MCP（query_tool_sequences）→ 优化建议
+      ↑ 各 Subagent 互不调用，独立运行
 
 用户
   ↓ 元认知洞察和优化建议
@@ -2190,8 +2234,9 @@ Subagent 层（语义分析）
 **关键改进**：
 - ✅ CLI 职责单一（仅数据提取）
 - ✅ MCP 使用 gojq 实现过滤/聚合（80% 场景）
-- ✅ @meta-query 处理复杂管道（20% 场景）
-- ✅ Subagent 层专注语义分析
+- ✅ @meta-query 处理复杂管道（20% 场景，工具型 Agent）
+- ✅ 业务型 Subagent 层专注语义分析，各自独立
+- ✅ 强制输出控制（stats_only, content_summary, limit）避免上下文溢出
 
 ---
 
