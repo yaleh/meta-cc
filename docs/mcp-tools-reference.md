@@ -16,10 +16,15 @@ All tools support these parameters:
 | `jq_filter` | string | ".[]" | jq expression for filtering and transforming results |
 | `stats_only` | boolean | false | Return only statistics, no detailed records |
 | `stats_first` | boolean | false | Return statistics first, then details (separated by `---`) |
-| `max_output_bytes` | number | 51200 | Maximum output size in bytes (default: 50KB) |
-| `max_message_length` | number | 500 | **NEW in Phase 15**: Max chars per message content (0=unlimited, prevents huge summaries) |
-| `content_summary` | boolean | false | **NEW in Phase 15**: Return only turn/timestamp/preview (100 chars), skip full content |
+| `inline_threshold_bytes` | number | 8192 | **Phase 16.6**: Threshold for inline vs file_ref mode (default: 8KB). Configure via parameter or `META_CC_INLINE_THRESHOLD` env var. |
+| `max_message_length` | number | 500 | **Phase 15**: Max chars per message content (0=unlimited, prevents huge summaries) |
+| `content_summary` | boolean | false | **Phase 15**: Return only turn/timestamp/preview (100 chars), skip full content |
 | `output_format` | string | "jsonl" | Output format: "jsonl" or "tsv" |
+
+**Phase 16.6 Changes**:
+- ❌ **Removed**: `max_output_bytes` - No longer needed (hybrid mode handles size)
+- ✅ **Added**: `inline_threshold_bytes` - Controls inline vs file_ref mode threshold
+- ✅ **No Truncation**: All data is preserved via hybrid output mode (inline ≤8KB, file_ref >8KB)
 
 ---
 
@@ -917,55 +922,59 @@ group_by(.ToolName) | map({
 
 ---
 
-### max_output_bytes Usage
+### Hybrid Output Mode (Phase 16.6)
 
-**Default**: 51200 bytes (50KB)
+**Default**: Automatic mode selection based on result size
 
-**When to adjust**:
+The MCP server automatically selects between inline and file_ref mode:
+- **Inline mode**: Results ≤8KB returned directly in response
+- **File ref mode**: Results >8KB written to temp file, metadata returned
 
-| Scenario | Recommended Size | Example |
-|----------|-----------------|---------|
-| Quick queries (<100 results) | 10240 (10KB) | Session-only error check |
-| Medium queries (<500 results) | 51200 (50KB) | Default - most queries |
-| Large queries (>500 results) | Use jq_filter to limit | Combine with `.[0:100]` |
-| Summary only | 5120 (5KB) | Use stats_only=true |
+**Threshold Configuration**:
+
+| Method | Priority | Example |
+|--------|----------|---------|
+| Parameter | Highest | `"inline_threshold_bytes": 16384` (16KB) |
+| Environment | Medium | `export META_CC_INLINE_THRESHOLD=16384` |
+| Default | Lowest | 8192 bytes (8KB) |
 
 **Examples**:
 
-**Small query**:
+**Default behavior** (auto-select based on size):
 ```json
 {
   "name": "query_tools",
   "arguments": {
-    "limit": 50,
-    "max_output_bytes": 10240
+    "status": "error"
   }
 }
 ```
+**Result**: Inline mode if <8KB, file_ref mode if >8KB
 
-**Large dataset - use jq to limit**:
+**Custom threshold** (prefer larger inline mode):
 ```json
 {
   "name": "query_tools",
   "arguments": {
-    "limit": 100,
-    "jq_filter": ".[]",
-    "max_output_bytes": 51200
+    "status": "error",
+    "inline_threshold_bytes": 16384  // 16KB threshold
+  }
+}
+```
+**Result**: Inline mode if <16KB, file_ref mode if >16KB
+
+**Force file_ref mode** (for large datasets):
+```json
+{
+  "name": "query_tools",
+  "arguments": {
+    "scope": "project",
+    "output_mode": "file_ref"  // Force file_ref regardless of size
   }
 }
 ```
 
-**Prevent overflow**:
-```json
-{
-  "name": "query_files",
-  "arguments": {
-    "top": 100,
-    "jq_filter": ".[] | {file: .FilePath, ops: .TotalOps}",
-    "max_output_bytes": 20480
-  }
-}
-```
+**Note**: No data truncation occurs. All results are preserved via hybrid mode.
 
 ---
 
@@ -1017,25 +1026,41 @@ group_by(.ToolName) | map({
 }
 ```
 
-### 3. Set Appropriate max_output_bytes
+### 3. Leverage Hybrid Output Mode
 
-**For small queries**:
-```json
-{"max_output_bytes": 10240}  // 10KB
-```
-
-**For medium queries**:
-```json
-{"max_output_bytes": 51200}  // 50KB (default)
-```
-
-**For large queries** - use jq to limit:
+**For quick queries** - inline mode is automatic:
 ```json
 {
-  "jq_filter": ".[0:100]",
-  "max_output_bytes": 51200
+  "name": "query_tools",
+  "arguments": {
+    "status": "error",
+    "limit": 10  // Small result set, likely inline mode
+  }
 }
 ```
+
+**For large queries** - file_ref mode handles size:
+```json
+{
+  "name": "query_tools",
+  "arguments": {
+    "scope": "project"  // Large result set, automatic file_ref mode
+  }
+}
+```
+
+**Custom threshold** - when you need different cutoff:
+```json
+{
+  "name": "query_tools",
+  "arguments": {
+    "status": "error",
+    "inline_threshold_bytes": 16384  // Prefer 16KB inline mode
+  }
+}
+```
+
+**Note**: Hybrid mode eliminates the need for manual size limits. All data is preserved.
 
 ### 4. Combine Tools for Complex Analysis
 
@@ -1218,15 +1243,21 @@ group_by(.ToolName) | map({
    .[] | select(.Status == "error") | {tool: .ToolName} | group_by(.tool)
    ```
 
-### Q: Output is truncated - what should I do?
+### Q: Output is too large - what should I do?
 
-**A**: Try these solutions:
+**A**: Phase 16.6 eliminates truncation. Use these strategies:
 
-1. Increase `max_output_bytes`
+1. **Hybrid mode is automatic** - Large results use file_ref mode
 2. Use `jq_filter` to project fewer fields
 3. Use `stats_only=true` for summaries
 4. Use `limit` to reduce result count
-5. Use `output_format: "tsv"` for compact output
+5. Adjust `inline_threshold_bytes` to prefer file_ref mode:
+   ```json
+   {"inline_threshold_bytes": 4096}  // Force file_ref at 4KB
+   ```
+6. Use `output_format: "tsv"` for compact output
+
+**Note**: No data is truncated. File_ref mode preserves all results in temporary files.
 
 **Example**:
 ```json
@@ -1234,7 +1265,6 @@ group_by(.ToolName) | map({
   "name": "query_tools",
   "arguments": {
     "jq_filter": ".[] | {tool: .ToolName, status: .Status}",
-    "max_output_bytes": 102400,
     "output_format": "tsv"
   }
 }

@@ -34,18 +34,20 @@ By writing large results to temporary JSONL files and returning only metadata, C
 The system automatically selects the output mode based on data size:
 
 ```
-Size ≤ 8KB  → Inline Mode (data embedded in response)
-Size > 8KB  → File Reference Mode (data written to temp file)
+Size ≤ inline_threshold_bytes  → Inline Mode (data embedded in response)
+Size > inline_threshold_bytes  → File Reference Mode (data written to temp file)
 ```
 
-### Threshold: 8KB (8192 bytes)
+### Default Threshold: 8KB (8192 bytes)
 
-The 8KB threshold was chosen because:
+The 8KB default threshold was chosen because:
 
 - Small enough to avoid context bloat for typical queries
 - Large enough to include most common query results inline
 - Matches common TCP packet size boundaries
 - Provides clear separation between "small" and "large" datasets
+
+**Note**: The threshold is configurable via parameter or environment variable (see [Threshold Configuration](#threshold-configuration)).
 
 ### Size Calculation
 
@@ -53,10 +55,10 @@ Size is calculated as the total JSONL byte count (including newlines):
 
 ```go
 // Example: 50 tool calls, ~80 bytes each
-// Total: 50 × 81 = 4050 bytes → Inline Mode
+// Total: 50 × 81 = 4050 bytes → Inline Mode (with 8KB threshold)
 
 // Example: 5000 tool calls, ~80 bytes each
-// Total: 5000 × 81 = 405,000 bytes → File Reference Mode
+// Total: 5000 × 81 = 405,000 bytes → File Reference Mode (with 8KB threshold)
 ```
 
 ## Inline Mode
@@ -319,27 +321,99 @@ Use case: Force file reference for small results if you want to test file-based 
 
 Returns raw data array without mode wrapper (for existing clients that expect the old format).
 
-## Integration with Phase 15 Output Control
+## Threshold Configuration
 
-Hybrid output mode works seamlessly with Phase 15 features:
+By default, hybrid mode switches to `file_ref` at 8KB. You can customize this threshold using two methods:
 
-### max_output_bytes
+### Per-Query Configuration (Parameter)
 
-If `max_output_bytes` causes data truncation, the system forces inline mode:
+Use the `inline_threshold_bytes` parameter to set the threshold for a specific query:
 
 ```json
 {
   "tool": "query_tools",
   "arguments": {
-    "max_output_bytes": 10000
+    "inline_threshold_bytes": 16384  // 16KB threshold
   }
 }
 ```
 
-Behavior:
-- Data truncated to fit within 10KB
-- Mode forced to "inline" (since data is now small)
-- Truncation warning included in response
+**Example Use Cases**:
+- Increase threshold for queries that typically return 10-15KB
+- Decrease threshold to force file_ref mode for better token efficiency
+
+### Global Configuration (Environment Variable)
+
+Set the `META_CC_INLINE_THRESHOLD` environment variable to change the default threshold globally:
+
+```bash
+export META_CC_INLINE_THRESHOLD=16384  # 16KB threshold
+```
+
+**Example Use Cases**:
+- Configure MCP server to prefer inline mode for larger result sets
+- Adjust threshold based on token budget constraints
+
+### Configuration Priority
+
+The threshold is determined in the following order (highest to lowest priority):
+
+1. **Parameter**: `inline_threshold_bytes` in query parameters
+2. **Environment**: `META_CC_INLINE_THRESHOLD` environment variable
+3. **Default**: 8192 bytes (8KB)
+
+**Example**:
+
+```bash
+# Set environment variable
+export META_CC_INLINE_THRESHOLD=16384  # 16KB
+
+# This query uses 16KB threshold (from environment)
+query_tools(status="error")
+
+# This query uses 4KB threshold (parameter overrides environment)
+query_tools(status="error", inline_threshold_bytes=4096)
+```
+
+## No Truncation Policy
+
+**Phase 16.6 removed all truncation logic.** The MCP server guarantees:
+
+- ✅ **Inline mode**: Complete data returned (no size limits enforced)
+- ✅ **File ref mode**: Complete data written to temp file (no truncation)
+- ✅ **No warnings**: No `[OUTPUT TRUNCATED]` messages
+- ✅ **Information integrity**: All query results are preserved in full
+
+### Removed Parameters
+
+The following parameters were **removed in Phase 16.6**:
+- `max_output_bytes` - No longer needed (hybrid mode handles size)
+
+### Migration from max_output_bytes
+
+**Old behavior** (pre-Phase 16.6):
+
+```json
+{
+  "max_output_bytes": 51200  // Truncate at 50KB
+}
+```
+
+**New behavior** (Phase 16.6+):
+
+```json
+{
+  "inline_threshold_bytes": 8192  // Switch to file_ref at 8KB (no truncation)
+}
+```
+
+**Key Difference**:
+- **Old**: `max_output_bytes` truncated data and returned `[OUTPUT TRUNCATED]` warning
+- **New**: `inline_threshold_bytes` switches output mode but **never truncates data**
+
+## Integration with Output Control Features
+
+Hybrid output mode works seamlessly with other output control features:
 
 ### stats_only
 
@@ -457,11 +531,12 @@ Tested with 10 concurrent queries (see `TestMultipleQueriesConcurrent`).
 
 **Symptom**: Expected file_ref mode but got inline mode.
 
-**Cause**: `max_output_bytes` parameter truncated data, forcing inline mode.
+**Cause**: Result size is below the `inline_threshold_bytes` (default 8KB).
 
 **Solution**:
-1. Increase `max_output_bytes`: `{"max_output_bytes": 10485760}` (10MB)
-2. Or remove parameter to use default (50KB)
+1. Decrease threshold: `{"inline_threshold_bytes": 4096}` (4KB)
+2. Or force file_ref mode: `{"output_mode": "file_ref"}`
+3. Check actual data size to verify it exceeds threshold
 
 ### Issue: Disk space exhaustion
 

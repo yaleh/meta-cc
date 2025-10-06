@@ -169,7 +169,7 @@ For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes
 - `stats_only` - Return only statistics, no details
 - `stats_first` - Return stats before details
 - `jq_filter` - Apply jq expressions for advanced filtering
-- `max_output_bytes` - Limit output size (default: 51200)
+- `inline_threshold_bytes` - Threshold for inline/file_ref mode (default: 8192, configurable via param or `META_CC_INLINE_THRESHOLD` env var)
 - `content_summary` - Return only turn/timestamp/preview (for messages)
 - `max_message_length` - Limit message content length (default: 500)
 
@@ -196,9 +196,10 @@ When you receive a `file_ref` response:
 4. **Present insights naturally** - Do NOT mention temp file paths to users
 
 **Best Practices**:
-- Trust automatic mode selection (8KB threshold)
-- Analyze metadata before reading full file
-- Do NOT explicitly mention "file_ref mode" or temp paths to users
+- Trust automatic mode selection (default 8KB threshold, configurable via `inline_threshold_bytes` or `META_CC_INLINE_THRESHOLD`)
+- All data preserved (inline or file_ref), no truncation
+- Analyze metadata first before reading file_ref files
+- Do NOT mention "file_ref mode" or temp paths to users
 - Use Grep for pattern detection on large files
 
 **Temporary File Management**:

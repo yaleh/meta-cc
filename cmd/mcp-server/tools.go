@@ -31,9 +31,9 @@ func StandardToolParameters() map[string]Property {
 			Type:        "boolean",
 			Description: "Return stats first, then details (default: false)",
 		},
-		"max_output_bytes": {
+		"inline_threshold_bytes": {
 			Type:        "number",
-			Description: "Max output size in bytes (default: 51200)",
+			Description: "Threshold for inline vs file_ref mode in bytes (default: 8192). Can also set META_CC_INLINE_THRESHOLD env var",
 		},
 		"output_format": {
 			Type:        "string",

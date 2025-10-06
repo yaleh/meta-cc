@@ -10,10 +10,6 @@ import (
 	"strings"
 )
 
-const (
-	DefaultMaxOutputBytes = 51200 // 50KB
-)
-
 type ToolExecutor struct {
 	metaCCPath string
 }
@@ -42,7 +38,6 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 	jqFilter := getStringParam(args, "jq_filter", ".[]")
 	statsOnly := getBoolParam(args, "stats_only", false)
 	statsFirst := getBoolParam(args, "stats_first", false)
-	maxOutputBytes := getIntParam(args, "max_output_bytes", DefaultMaxOutputBytes)
 	scope := getStringParam(args, "scope", "project")
 	outputFormat := getStringParam(args, "output_format", "jsonl")
 
@@ -120,16 +115,10 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 		return "", fmt.Errorf("response adaptation error: %w", err)
 	}
 
-	// Serialize response
+	// Serialize response (no truncation - rely on hybrid mode)
 	output, err := serializeResponse(response)
 	if err != nil {
 		return "", err
-	}
-
-	// Apply output length limit (for inline mode only)
-	if len(output) > maxOutputBytes {
-		output = output[:maxOutputBytes]
-		output += fmt.Sprintf("\n[OUTPUT TRUNCATED: exceeded %d bytes limit]", maxOutputBytes)
 	}
 
 	return output, nil

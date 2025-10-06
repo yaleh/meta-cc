@@ -234,6 +234,95 @@ get_session_stats        # Session-only statistics (backward compat)
 ```
 ```
 
+### Example 5: Working with Large MCP Query Results
+
+**Phase 16.6** introduced hybrid output mode that automatically handles large query results without truncation.
+
+#### How It Works
+
+When MCP queries return large datasets:
+- **Small results (≤8KB)**: Returned inline in the response
+- **Large results (>8KB)**: Written to a temporary JSONL file, metadata returned
+
+**No data truncation occurs** - all results are preserved.
+
+#### Use Case 1: Analyzing All Project Errors
+
+```
+User: "Show me all errors across the entire project"
+```
+
+Claude will:
+1. Call `query_tools(status="error", scope="project")`
+2. Receive file_ref mode response (likely >8KB for full project)
+3. Analyze the file reference metadata
+4. Use Read or Grep tools to examine specific patterns
+
+**Example Response from MCP**:
+```json
+{
+  "mode": "file_ref",
+  "file_ref": {
+    "path": "/tmp/meta-cc-mcp-abc12345-query_tools.jsonl",
+    "size_bytes": 245678,
+    "line_count": 1243,
+    "fields": ["Timestamp", "ToolName", "Status", "Duration", "Args", "Error"],
+    "summary": {
+      "preview": "{\"Timestamp\":\"2025-10-06T10:00:00Z\",\"ToolName\":\"Bash\",\"Status\":\"error\"}",
+      "record_count": 1243
+    }
+  }
+}
+```
+
+Claude can then:
+- Read the file: `Read: /tmp/meta-cc-mcp-abc12345-query_tools.jsonl`
+- Search for patterns: `Grep: pattern="timeout" path=/tmp/meta-cc-mcp-abc12345-query_tools.jsonl`
+- Analyze metadata: "You have 1243 errors across the project (245KB). Let me find the most common ones..."
+
+#### Use Case 2: Custom Threshold for Specific Queries
+
+```
+User: "I want inline results for queries up to 16KB"
+```
+
+Claude will use:
+```json
+{
+  "name": "query_tools",
+  "arguments": {
+    "status": "error",
+    "inline_threshold_bytes": 16384  // 16KB threshold instead of default 8KB
+  }
+}
+```
+
+#### Use Case 3: Force File Reference Mode
+
+```
+User: "Query all tool calls and save to a file for analysis"
+```
+
+Claude will use:
+```json
+{
+  "name": "query_tools",
+  "arguments": {
+    "scope": "project",
+    "output_mode": "file_ref"  // Force file_ref even if result is small
+  }
+}
+```
+
+This creates a JSONL file that Claude can then read/analyze in chunks.
+
+#### Best Practices
+
+1. **Let hybrid mode decide** - Don't specify `inline_threshold_bytes` unless you have a specific reason
+2. **Analyze metadata first** - Check `file_ref.summary` before reading the full file
+3. **Use Grep for large files** - Search for patterns instead of reading entire 1MB+ files
+4. **Clean up old files** - Use `cleanup_temp_files` tool to remove files >7 days old
+
 ---
 
 ## MCP Server Configuration (Optional)

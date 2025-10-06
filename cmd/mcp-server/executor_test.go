@@ -294,18 +294,17 @@ func TestBuildCommand(t *testing.T) {
 	}
 }
 
-func TestExecuteTool_OutputTruncation(t *testing.T) {
-	// Test with max_output_bytes parameter
+func TestExecuteTool_InlineThresholdParameter(t *testing.T) {
+	// Test with inline_threshold_bytes parameter
 	args := map[string]interface{}{
-		"max_output_bytes": float64(100), // Very small limit
-		"jq_filter":        ".[]",
+		"inline_threshold_bytes": float64(4096), // Custom threshold
+		"jq_filter":              ".[]",
 	}
 
-	// The actual execution will fail since we don't have a real session,
-	// but we're testing the parameter extraction
-	maxBytes := getIntParam(args, "max_output_bytes", DefaultMaxOutputBytes)
-	if maxBytes != 100 {
-		t.Errorf("expected max_output_bytes=100, got %d", maxBytes)
+	// Test parameter extraction
+	thresholdBytes := getIntParam(args, "inline_threshold_bytes", 8192)
+	if thresholdBytes != 4096 {
+		t.Errorf("expected inline_threshold_bytes=4096, got %d", thresholdBytes)
 	}
 }
 

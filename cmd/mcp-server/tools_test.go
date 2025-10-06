@@ -12,7 +12,7 @@ func TestStandardToolParameters(t *testing.T) {
 	// Verify all standard parameters exist
 	requiredParams := []string{
 		"scope", "jq_filter", "stats_only",
-		"stats_first", "max_output_bytes", "output_format",
+		"stats_first", "inline_threshold_bytes", "output_format",
 	}
 
 	for _, param := range requiredParams {
@@ -34,8 +34,8 @@ func TestStandardToolParameters(t *testing.T) {
 	if params["stats_first"].Type != "boolean" {
 		t.Errorf("stats_first should be boolean, got %s", params["stats_first"].Type)
 	}
-	if params["max_output_bytes"].Type != "number" {
-		t.Errorf("max_output_bytes should be number, got %s", params["max_output_bytes"].Type)
+	if params["inline_threshold_bytes"].Type != "number" {
+		t.Errorf("inline_threshold_bytes should be number, got %s", params["inline_threshold_bytes"].Type)
 	}
 	if params["output_format"].Type != "string" {
 		t.Errorf("output_format should be string, got %s", params["output_format"].Type)
@@ -75,8 +75,8 @@ func TestMergeParameters(t *testing.T) {
 	if _, ok := merged["stats_only"]; !ok {
 		t.Error("standard parameter 'stats_only' missing")
 	}
-	if _, ok := merged["max_output_bytes"]; !ok {
-		t.Error("standard parameter 'max_output_bytes' missing")
+	if _, ok := merged["inline_threshold_bytes"]; !ok {
+		t.Error("standard parameter 'inline_threshold_bytes' missing")
 	}
 }
 
@@ -84,7 +84,7 @@ func TestAllToolsHaveStandardParameters(t *testing.T) {
 	tools := getToolDefinitions()
 
 	requiredParams := []string{
-		"scope", "jq_filter", "stats_only", "stats_first", "max_output_bytes", "output_format",
+		"scope", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes", "output_format",
 	}
 
 	// Tools that should have message truncation parameters (Stage 15.1)

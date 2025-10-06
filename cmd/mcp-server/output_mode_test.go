@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -243,4 +244,142 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+// TestGetOutputModeConfigDefault verifies default 8KB threshold
+func TestGetOutputModeConfigDefault(t *testing.T) {
+	params := map[string]interface{}{}
+
+	config := getOutputModeConfig(params)
+
+	if config.InlineThresholdBytes != 8*1024 {
+		t.Errorf("getOutputModeConfig() default threshold = %d, want %d", config.InlineThresholdBytes, 8*1024)
+	}
+}
+
+// TestGetOutputModeConfigParameter verifies parameter override
+func TestGetOutputModeConfigParameter(t *testing.T) {
+	tests := []struct {
+		name      string
+		params    map[string]interface{}
+		wantBytes int
+	}{
+		{
+			name: "parameter as float64",
+			params: map[string]interface{}{
+				"inline_threshold_bytes": float64(16384),
+			},
+			wantBytes: 16384,
+		},
+		{
+			name: "parameter as int",
+			params: map[string]interface{}{
+				"inline_threshold_bytes": 4096,
+			},
+			wantBytes: 4096,
+		},
+		{
+			name: "parameter set to 1KB",
+			params: map[string]interface{}{
+				"inline_threshold_bytes": 1024,
+			},
+			wantBytes: 1024,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := getOutputModeConfig(tt.params)
+
+			if config.InlineThresholdBytes != tt.wantBytes {
+				t.Errorf("getOutputModeConfig() threshold = %d, want %d", config.InlineThresholdBytes, tt.wantBytes)
+			}
+		})
+	}
+}
+
+// TestGetOutputModeConfigEnvironment verifies env var override
+func TestGetOutputModeConfigEnvironment(t *testing.T) {
+	tests := []struct {
+		name      string
+		envValue  string
+		wantBytes int
+	}{
+		{
+			name:      "valid env var 16KB",
+			envValue:  "16384",
+			wantBytes: 16384,
+		},
+		{
+			name:      "valid env var 4KB",
+			envValue:  "4096",
+			wantBytes: 4096,
+		},
+		{
+			name:      "invalid env var (non-numeric)",
+			envValue:  "invalid",
+			wantBytes: 8192, // Falls back to default
+		},
+		{
+			name:      "invalid env var (negative)",
+			envValue:  "-1000",
+			wantBytes: 8192, // Falls back to default
+		},
+		{
+			name:      "invalid env var (zero)",
+			envValue:  "0",
+			wantBytes: 8192, // Falls back to default
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variable
+			os.Setenv("META_CC_INLINE_THRESHOLD", tt.envValue)
+			defer os.Unsetenv("META_CC_INLINE_THRESHOLD")
+
+			params := map[string]interface{}{}
+			config := getOutputModeConfig(params)
+
+			if config.InlineThresholdBytes != tt.wantBytes {
+				t.Errorf("getOutputModeConfig() with env=%s threshold = %d, want %d", tt.envValue, config.InlineThresholdBytes, tt.wantBytes)
+			}
+		})
+	}
+}
+
+// TestConfigPriority verifies parameter > env var > default priority
+func TestConfigPriority(t *testing.T) {
+	// Set environment variable to 4KB
+	os.Setenv("META_CC_INLINE_THRESHOLD", "4096")
+	defer os.Unsetenv("META_CC_INLINE_THRESHOLD")
+
+	tests := []struct {
+		name      string
+		params    map[string]interface{}
+		wantBytes int
+	}{
+		{
+			name: "parameter overrides env var",
+			params: map[string]interface{}{
+				"inline_threshold_bytes": 16384,
+			},
+			wantBytes: 16384, // Parameter wins
+		},
+		{
+			name:      "env var overrides default",
+			params:    map[string]interface{}{},
+			wantBytes: 4096, // Env var wins
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := getOutputModeConfig(tt.params)
+
+			if config.InlineThresholdBytes != tt.wantBytes {
+				t.Errorf("getOutputModeConfig() threshold = %d, want %d (priority test)", config.InlineThresholdBytes, tt.wantBytes)
+			}
+		})
+	}
 }

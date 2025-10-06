@@ -99,9 +99,9 @@ meta-cc 仅负责 Claude Code 会话历史知识的提取，不做分析决策�
   2. 使用 `gojq` 库应用 jq 表达式过滤
   3. 可选统计聚合（stats_only/stats_first）
   4. **混合输出模式**（Phase 16）：
-     - 输出 ≤ 8KB → inline 模式（直接返回数据）
-     - 输出 > 8KB → file_ref 模式（返回临时文件元数据）
-  5. 输出长度控制（max_output_bytes，默认 50KB，仅适用于 inline 模式）
+     - 输出 ≤ 阈值 → inline 模式（直接返回数据，无截断）
+     - 输出 > 阈值 → file_ref 模式（返回临时文件元数据）
+     - 阈值可配置（默认 8KB，参数或环境变量）
 - ✅ 可执行文件：`meta-cc-mcp`（独立二进制）
 
 ### 查询语法：jq
@@ -121,16 +121,16 @@ meta-cc 仅负责 Claude Code 会话历史知识的提取，不做分析决策�
 .[] | select(.Status == "error") | .ToolName | group_by(.) | map({tool: .[0], count: length})
 ```
 
-### MCP 输出控制（Phase 15）
+### MCP 输出控制（Phase 15 + 16）
 
 1. **单一格式**：仅支持 JSONL
-2. **默认输出限制**：50KB（max_output_bytes=51200）
-   - **适用范围**：仅适用于 inline 模式（Phase 16 后）
-   - **作用**：截断保护，防止超大输出消耗 token
-3. **截断策略**：保留完整 JSONL 行 + 截断警告
-4. **统计模式**：
+2. **统计模式**：
    - `stats_only=true`：仅返回统计（如 `{"tool":"Bash","count":311}`）
    - `stats_first=true`：先统计后详情（用 `---` 分隔）
+3. **阈值配置**（Phase 16.6）：
+   - 参数：`inline_threshold_bytes`（默认 8192）
+   - 环境变量：`META_CC_INLINE_THRESHOLD`
+   - 用途：控制 inline/file_ref 模式切换点
 
 ### MCP 输出模式（Phase 16）
 
@@ -189,12 +189,13 @@ meta-cc 仅负责 Claude Code 会话历史知识的提取，不做分析决策�
 - File Reference 压缩率：>99%（仅返回元数据 ~100 bytes）
 - 临时文件清理周期：7 天
 
-**阈值协同工作**：
-- **8KB（模式切换）**：决定使用 inline 还是 file_ref 模式
-- **50KB（截断保护）**：仅在 inline 模式下生效，防止超大输出
+**模式切换与阈值配置**（Phase 16.6 优化）：
+- **inline_threshold_bytes**（默认 8KB，可配置）：决定使用 inline 还是 file_ref 模式
+- **配置方式**：参数 `{"inline_threshold_bytes": 16384}` 或环境变量 `META_CC_INLINE_THRESHOLD=16384`
 - **工作流程**：
-  1. 查询结果 ≤ 8KB → inline 模式 → 直接返回（如超 50KB 则截断）
-  2. 查询结果 > 8KB → file_ref 模式 → 写入临时文件，返回元数据（~100 bytes）
+  1. 查询结果 ≤ 阈值 → inline 模式 → 直接返回（无截断）
+  2. 查询结果 > 阈值 → file_ref 模式 → 写入临时文件，返回元数据（~100 bytes）
+- **设计哲学**：完全依赖 hybrid mode，无数据截断，信息完整性保证
 
 ### 默认查询范围与输出控制
 

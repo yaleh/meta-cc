@@ -94,20 +94,19 @@ func TestAdaptFileRefResponse(t *testing.T) {
 	}
 }
 
-// TestHybridModeWithOutputControl tests compatibility with Phase 15 filters
-func TestHybridModeWithOutputControl(t *testing.T) {
-	data := make([]interface{}, 0, 100)
-	for i := 0; i < 100; i++ {
+// TestNoTruncationInlineMode verifies that inline mode preserves all data without truncation
+func TestNoTruncationInlineMode(t *testing.T) {
+	// Create dataset that fits in inline mode (<8KB)
+	data := make([]interface{}, 0, 50)
+	for i := 0; i < 50; i++ {
 		data = append(data, map[string]interface{}{
 			"tool":   "Read",
 			"status": "success",
+			"index":  i,
 		})
 	}
 
-	// Test with max_output_bytes
-	params := map[string]interface{}{
-		"max_output_bytes": 1000,
-	}
+	params := map[string]interface{}{}
 
 	response, err := adaptResponse(data, params, "query_tools")
 	if err != nil {
@@ -119,9 +118,100 @@ func TestHybridModeWithOutputControl(t *testing.T) {
 		t.Fatalf("response is not a map")
 	}
 
-	// Should be inline due to max_output_bytes truncation
+	// Verify mode is inline
 	if mode, ok := respMap["mode"].(string); !ok || mode != "inline" {
-		t.Errorf("expected mode=inline with max_output_bytes, got %v", respMap["mode"])
+		t.Errorf("expected mode=inline, got %v", respMap["mode"])
+	}
+
+	// Verify all data is preserved (no truncation)
+	responseData, ok := respMap["data"].([]interface{})
+	if !ok {
+		t.Fatalf("expected data array in inline response")
+	}
+
+	if len(responseData) != len(data) {
+		t.Errorf("data was truncated: got %d records, want %d", len(responseData), len(data))
+	}
+
+	// Verify content integrity
+	for i, record := range responseData {
+		recordMap, ok := record.(map[string]interface{})
+		if !ok {
+			t.Errorf("record %d is not a map", i)
+			continue
+		}
+		// When data goes through JSON serialization/deserialization, numbers become float64
+		// But in our case, we're just passing through the data structure without serialization,
+		// so the index field remains as int
+		indexVal := recordMap["index"]
+		var indexInt int
+		switch v := indexVal.(type) {
+		case int:
+			indexInt = v
+		case float64:
+			indexInt = int(v)
+		default:
+			t.Errorf("record %d has unexpected index type: %T", i, indexVal)
+			continue
+		}
+		if indexInt != i {
+			t.Errorf("record %d has wrong index: got %v, want %d", i, indexInt, i)
+		}
+	}
+}
+
+// TestNoTruncationFileRefMode verifies that file_ref mode preserves all data without truncation
+func TestNoTruncationFileRefMode(t *testing.T) {
+	// Create large dataset (>8KB) to trigger file_ref mode
+	data := make([]interface{}, 0, 200)
+	longString := strings.Repeat("x", 100)
+	for i := 0; i < 200; i++ {
+		data = append(data, map[string]interface{}{
+			"Timestamp": "2025-10-06T10:00:00Z",
+			"ToolName":  "Bash",
+			"Status":    "success",
+			"Duration":  123.45,
+			"Args":      longString,
+			"Index":     i,
+		})
+	}
+
+	params := map[string]interface{}{}
+
+	response, err := adaptResponse(data, params, "query_tools")
+	if err != nil {
+		t.Fatalf("adaptResponse failed: %v", err)
+	}
+
+	respMap, ok := response.(map[string]interface{})
+	if !ok {
+		t.Fatalf("response is not a map")
+	}
+
+	// Verify mode is file_ref
+	if mode, ok := respMap["mode"].(string); !ok || mode != "file_ref" {
+		t.Errorf("expected mode=file_ref, got %v", respMap["mode"])
+	}
+
+	// Verify file_ref metadata
+	fileRef, ok := respMap["file_ref"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected file_ref object in response")
+	}
+
+	// Verify line count matches data length (no truncation)
+	lineCount, ok := fileRef["line_count"].(int)
+	if !ok {
+		t.Fatalf("file_ref missing line_count")
+	}
+
+	if lineCount != len(data) {
+		t.Errorf("file_ref line_count indicates truncation: got %d lines, want %d", lineCount, len(data))
+	}
+
+	// Clean up temp file
+	if path, ok := fileRef["path"].(string); ok {
+		os.Remove(path)
 	}
 }
 
@@ -331,6 +421,87 @@ func TestFileCleanupOnError(t *testing.T) {
 
 	// Verify no temp files were left behind
 	// (This is a basic check - full cleanup is tested in temp_file_manager_test.go)
+}
+
+// TestConfigurableThreshold verifies that inline_threshold_bytes parameter works
+func TestConfigurableThreshold(t *testing.T) {
+	// Create dataset of ~5KB (would be inline with default 8KB threshold)
+	data := make([]interface{}, 0, 100)
+	for i := 0; i < 100; i++ {
+		data = append(data, map[string]interface{}{
+			"tool":   "Read",
+			"status": "success",
+			"data":   strings.Repeat("x", 40),
+		})
+	}
+
+	// Set custom threshold to 4KB (smaller than data size)
+	params := map[string]interface{}{
+		"inline_threshold_bytes": 4096,
+	}
+
+	response, err := adaptResponse(data, params, "query_tools")
+	if err != nil {
+		t.Fatalf("adaptResponse failed: %v", err)
+	}
+
+	respMap, ok := response.(map[string]interface{})
+	if !ok {
+		t.Fatalf("response is not a map")
+	}
+
+	// Should use file_ref mode due to lower threshold
+	if mode, ok := respMap["mode"].(string); !ok || mode != "file_ref" {
+		t.Errorf("expected mode=file_ref with custom threshold, got %v", respMap["mode"])
+	}
+
+	// Clean up
+	if fileRef, ok := respMap["file_ref"].(map[string]interface{}); ok {
+		if path, ok := fileRef["path"].(string); ok {
+			os.Remove(path)
+		}
+	}
+}
+
+// TestEnvironmentThreshold verifies that META_CC_INLINE_THRESHOLD environment variable works
+func TestEnvironmentThreshold(t *testing.T) {
+	// Set environment variable
+	os.Setenv("META_CC_INLINE_THRESHOLD", "4096")
+	defer os.Unsetenv("META_CC_INLINE_THRESHOLD")
+
+	// Create dataset of ~5KB (would be inline with default 8KB threshold)
+	data := make([]interface{}, 0, 100)
+	for i := 0; i < 100; i++ {
+		data = append(data, map[string]interface{}{
+			"tool":   "Read",
+			"status": "success",
+			"data":   strings.Repeat("x", 40),
+		})
+	}
+
+	params := map[string]interface{}{}
+
+	response, err := adaptResponse(data, params, "query_tools")
+	if err != nil {
+		t.Fatalf("adaptResponse failed: %v", err)
+	}
+
+	respMap, ok := response.(map[string]interface{})
+	if !ok {
+		t.Fatalf("response is not a map")
+	}
+
+	// Should use file_ref mode due to environment variable threshold
+	if mode, ok := respMap["mode"].(string); !ok || mode != "file_ref" {
+		t.Errorf("expected mode=file_ref with env threshold, got %v", respMap["mode"])
+	}
+
+	// Clean up
+	if fileRef, ok := respMap["file_ref"].(map[string]interface{}); ok {
+		if path, ok := fileRef["path"].(string); ok {
+			os.Remove(path)
+		}
+	}
 }
 
 // TestLargeDatasetPerformance benchmarks file write performance

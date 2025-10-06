@@ -12,11 +12,11 @@ const (
 )
 
 // adaptResponse adapts CLI output to hybrid mode format (inline or file_ref).
-// Applies Phase 15 output control filters and selects appropriate mode.
+// No data truncation occurs - all data is preserved via inline or file_ref mode.
 //
 // Parameters:
 //   - data: Parsed JSONL records from CLI
-//   - params: MCP tool parameters (including output_mode, max_output_bytes)
+//   - params: MCP tool parameters (including output_mode, inline_threshold_bytes)
 //   - toolName: Name of the MCP tool being executed
 //
 // Returns:
@@ -29,23 +29,15 @@ func adaptResponse(data []interface{}, params map[string]interface{}, toolName s
 		return data, nil
 	}
 
-	// Apply Phase 15 filters and get mode override
-	filteredData, modeOverride := integrateWithOutputControl(data, params)
-
-	// Determine output mode
-	var mode string
-	if modeOverride != "" {
-		mode = modeOverride
-	} else {
-		// Auto-detect based on size
-		size := calculateOutputSize(filteredData)
-		mode = selectOutputMode(size, getStringParam(params, "output_mode", ""))
-	}
+	// Determine output mode (no truncation - rely on hybrid mode)
+	size := calculateOutputSize(data)
+	config := getOutputModeConfig(params)
+	mode := selectOutputModeWithConfig(size, getStringParam(params, "output_mode", ""), config)
 
 	// Build response based on mode
 	switch mode {
 	case OutputModeInline:
-		return buildInlineResponse(filteredData), nil
+		return buildInlineResponse(data), nil
 
 	case OutputModeFileRef:
 		// Create temp file
@@ -53,12 +45,12 @@ func adaptResponse(data []interface{}, params map[string]interface{}, toolName s
 		filePath := createTempFilePath(sessionHash, toolName)
 
 		// Write data to temp file
-		if err := writeJSONLFile(filePath, filteredData); err != nil {
+		if err := writeJSONLFile(filePath, data); err != nil {
 			return nil, fmt.Errorf("failed to write temp file: %w", err)
 		}
 
 		// Build file reference response
-		return buildFileRefResponse(filePath, filteredData)
+		return buildFileRefResponse(filePath, data)
 
 	default:
 		return nil, fmt.Errorf("unknown output mode: %s", mode)
@@ -97,35 +89,6 @@ func buildFileRefResponse(filePath string, data []interface{}) (map[string]inter
 	}
 
 	return response, nil
-}
-
-// integrateWithOutputControl applies Phase 15 output control filters
-// and returns filtered data plus mode override (if max_output_bytes forces inline)
-func integrateWithOutputControl(data []interface{}, params map[string]interface{}) ([]interface{}, string) {
-	// Note: stats_only and stats_first are handled in executor.go before adaptResponse
-	// This function only handles data truncation that affects mode selection
-
-	maxOutputBytes := getIntParam(params, "max_output_bytes", DefaultMaxOutputBytes)
-
-	// Calculate current size
-	size := calculateOutputSize(data)
-
-	// If size exceeds max_output_bytes, truncate data and force inline mode
-	if size > maxOutputBytes {
-		// Estimate records to keep based on average record size
-		avgRecordSize := size / len(data)
-		if avgRecordSize > 0 {
-			estimatedRecords := maxOutputBytes / avgRecordSize
-			if estimatedRecords > 0 && estimatedRecords < len(data) {
-				data = data[:estimatedRecords]
-			}
-		}
-		// Force inline mode since data has been truncated
-		return data, OutputModeInline
-	}
-
-	// No mode override
-	return data, ""
 }
 
 // serializeResponse converts response to JSON string

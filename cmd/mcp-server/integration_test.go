@@ -74,10 +74,7 @@ func TestQueryToolsFileRefMode(t *testing.T) {
 		})
 	}
 
-	// Disable max_output_bytes to avoid truncation forcing inline mode
-	params := map[string]interface{}{
-		"max_output_bytes": 10 * 1024 * 1024, // 10MB
-	}
+	params := map[string]interface{}{}
 
 	response, err := adaptResponse(data, params, "query_tools")
 	if err != nil {
@@ -283,10 +280,7 @@ func TestFileRefWithReadToolSimulation(t *testing.T) {
 		}
 	}
 
-	// Disable max_output_bytes to ensure large result
-	params := map[string]interface{}{
-		"max_output_bytes": 10 * 1024 * 1024, // 10MB
-	}
+	params := map[string]interface{}{}
 
 	// Execute query (should create file_ref)
 	response, err := adaptResponse(data, params, "query_tools")
@@ -387,4 +381,344 @@ func BenchmarkModeSelection(b *testing.B) {
 			}
 		})
 	}
+}
+
+// TestQueryToolsNoLimit verifies no-limit queries return all results via file_ref
+func TestQueryToolsNoLimit(t *testing.T) {
+	// Generate large dataset (1000 records)
+	data := make([]interface{}, 1000)
+	for i := 0; i < 1000; i++ {
+		data[i] = map[string]interface{}{
+			"Timestamp": "2025-10-06T10:00:00Z",
+			"ToolName":  "Bash",
+			"Status":    "success",
+			"Index":     i,
+		}
+	}
+
+	// No limit parameter - should return all results
+	params := map[string]interface{}{}
+
+	response, err := adaptResponse(data, params, "query_tools")
+	if err != nil {
+		t.Fatalf("adaptResponse failed: %v", err)
+	}
+
+	respMap, ok := response.(map[string]interface{})
+	if !ok {
+		t.Fatalf("response is not a map")
+	}
+
+	// Verify mode
+	mode, ok := respMap["mode"].(string)
+	if !ok {
+		t.Fatalf("response missing mode field")
+	}
+
+	// Verify all 1000 records are accessible
+	if mode == "inline" {
+		data, ok := respMap["data"].([]interface{})
+		if !ok {
+			t.Fatalf("inline response missing data array")
+		}
+		if len(data) != 1000 {
+			t.Errorf("expected 1000 records, got %d", len(data))
+		}
+	} else if mode == "file_ref" {
+		fileRef, ok := respMap["file_ref"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("file_ref response missing file_ref object")
+		}
+
+		lineCount, ok := fileRef["line_count"].(int)
+		if !ok {
+			t.Fatalf("file_ref missing line_count")
+		}
+
+		if lineCount != 1000 {
+			t.Errorf("expected 1000 lines, got %d", lineCount)
+		}
+
+		// Clean up temp file
+		if path, ok := fileRef["path"].(string); ok {
+			os.Remove(path)
+		}
+	}
+}
+
+// TestNoTruncationLargeData verifies no truncation occurs with 100KB+ data
+func TestNoTruncationLargeData(t *testing.T) {
+	// Generate 100KB+ dataset
+	data := make([]interface{}, 2000)
+	longString := strings.Repeat("x", 100) // 100 chars per record
+	for i := 0; i < 2000; i++ {
+		data[i] = map[string]interface{}{
+			"Timestamp": "2025-10-06T10:00:00Z",
+			"ToolName":  "Bash",
+			"Status":    "success",
+			"Args":      longString,
+			"Index":     i,
+		}
+	}
+
+	params := map[string]interface{}{}
+
+	response, err := adaptResponse(data, params, "query_tools")
+	if err != nil {
+		t.Fatalf("adaptResponse failed: %v", err)
+	}
+
+	respMap, ok := response.(map[string]interface{})
+	if !ok {
+		t.Fatalf("response is not a map")
+	}
+
+	// Verify file_ref mode (data should be >8KB)
+	mode, ok := respMap["mode"].(string)
+	if !ok || mode != "file_ref" {
+		t.Errorf("expected file_ref mode for large data, got %v", mode)
+	}
+
+	// Verify all data is in temp file (no truncation)
+	fileRef, ok := respMap["file_ref"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("file_ref response missing file_ref object")
+	}
+
+	path, ok := fileRef["path"].(string)
+	if !ok {
+		t.Fatalf("file_ref missing path")
+	}
+
+	lineCount, ok := fileRef["line_count"].(int)
+	if !ok {
+		t.Fatalf("file_ref missing line_count")
+	}
+
+	if lineCount != 2000 {
+		t.Errorf("expected 2000 lines (no truncation), got %d", lineCount)
+	}
+
+	// Verify file size is reasonable (>100KB)
+	sizeBytes, ok := fileRef["size_bytes"].(int64)
+	if !ok {
+		t.Fatalf("file_ref missing size_bytes")
+	}
+
+	if sizeBytes < 100*1024 {
+		t.Errorf("expected >100KB, got %d bytes", sizeBytes)
+	}
+
+	// Verify no [OUTPUT TRUNCATED] warnings in file
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read temp file: %v", err)
+	}
+
+	if strings.Contains(string(content), "[OUTPUT TRUNCATED]") {
+		t.Error("found [OUTPUT TRUNCATED] warning - truncation should not occur")
+	}
+
+	// Clean up
+	os.Remove(path)
+}
+
+// TestConfigurableThresholdParameter tests inline_threshold_bytes parameter
+func TestConfigurableThresholdParameter(t *testing.T) {
+	// Generate dataset around 10KB (small enough for 20KB threshold, too large for 8KB)
+	data := make([]interface{}, 100)
+	for i := 0; i < 100; i++ {
+		data[i] = map[string]interface{}{
+			"Timestamp": "2025-10-06T10:00:00Z",
+			"ToolName":  "Bash",
+			"Status":    "success",
+			"Args":      strings.Repeat("x", 30),
+			"Index":     i,
+		}
+	}
+
+	// Test 1: Default threshold (8KB) - should use file_ref
+	t.Run("default_threshold", func(t *testing.T) {
+		params := map[string]interface{}{}
+		response, err := adaptResponse(data, params, "query_tools")
+		if err != nil {
+			t.Fatalf("adaptResponse failed: %v", err)
+		}
+
+		respMap, ok := response.(map[string]interface{})
+		if !ok {
+			t.Fatalf("response is not a map")
+		}
+
+		mode, ok := respMap["mode"].(string)
+		if !ok || mode != "file_ref" {
+			t.Errorf("expected file_ref mode with default threshold, got %v", mode)
+		}
+
+		// Clean up temp file
+		if fileRef, ok := respMap["file_ref"].(map[string]interface{}); ok {
+			if path, ok := fileRef["path"].(string); ok {
+				os.Remove(path)
+			}
+		}
+	})
+
+	// Test 2: Custom threshold (20KB) - should use inline
+	t.Run("custom_threshold_inline", func(t *testing.T) {
+		params := map[string]interface{}{
+			"inline_threshold_bytes": 20 * 1024, // 20KB
+		}
+		response, err := adaptResponse(data, params, "query_tools")
+		if err != nil {
+			t.Fatalf("adaptResponse failed: %v", err)
+		}
+
+		respMap, ok := response.(map[string]interface{})
+		if !ok {
+			t.Fatalf("response is not a map")
+		}
+
+		mode, ok := respMap["mode"].(string)
+		if !ok || mode != "inline" {
+			t.Errorf("expected inline mode with 20KB threshold, got %v", mode)
+		}
+	})
+
+	// Test 3: Small threshold (1KB) - should use file_ref
+	t.Run("small_threshold_file_ref", func(t *testing.T) {
+		params := map[string]interface{}{
+			"inline_threshold_bytes": 1024, // 1KB
+		}
+		response, err := adaptResponse(data, params, "query_tools")
+		if err != nil {
+			t.Fatalf("adaptResponse failed: %v", err)
+		}
+
+		respMap, ok := response.(map[string]interface{})
+		if !ok {
+			t.Fatalf("response is not a map")
+		}
+
+		mode, ok := respMap["mode"].(string)
+		if !ok || mode != "file_ref" {
+			t.Errorf("expected file_ref mode with 1KB threshold, got %v", mode)
+		}
+
+		// Clean up temp file
+		if fileRef, ok := respMap["file_ref"].(map[string]interface{}); ok {
+			if path, ok := fileRef["path"].(string); ok {
+				os.Remove(path)
+			}
+		}
+	})
+}
+
+// TestConfigurableThresholdEnvironment tests META_CC_INLINE_THRESHOLD environment variable
+func TestConfigurableThresholdEnvironment(t *testing.T) {
+	// Generate dataset around 10KB (small enough for 20KB threshold, too large for 8KB)
+	data := make([]interface{}, 100)
+	for i := 0; i < 100; i++ {
+		data[i] = map[string]interface{}{
+			"Timestamp": "2025-10-06T10:00:00Z",
+			"ToolName":  "Bash",
+			"Status":    "success",
+			"Args":      strings.Repeat("x", 30),
+			"Index":     i,
+		}
+	}
+
+	// Test 1: Environment variable sets 20KB threshold
+	t.Run("environment_threshold_20kb", func(t *testing.T) {
+		os.Setenv("META_CC_INLINE_THRESHOLD", "20480") // 20KB
+		defer os.Unsetenv("META_CC_INLINE_THRESHOLD")
+
+		params := map[string]interface{}{}
+		response, err := adaptResponse(data, params, "query_tools")
+		if err != nil {
+			t.Fatalf("adaptResponse failed: %v", err)
+		}
+
+		respMap, ok := response.(map[string]interface{})
+		if !ok {
+			t.Fatalf("response is not a map")
+		}
+
+		mode, ok := respMap["mode"].(string)
+		if !ok || mode != "inline" {
+			t.Errorf("expected inline mode with environment threshold 20KB, got %v", mode)
+		}
+	})
+
+	// Test 2: Parameter overrides environment variable
+	t.Run("parameter_overrides_environment", func(t *testing.T) {
+		os.Setenv("META_CC_INLINE_THRESHOLD", "20480") // 20KB
+		defer os.Unsetenv("META_CC_INLINE_THRESHOLD")
+
+		params := map[string]interface{}{
+			"inline_threshold_bytes": 1024, // 1KB parameter should override env
+		}
+		response, err := adaptResponse(data, params, "query_tools")
+		if err != nil {
+			t.Fatalf("adaptResponse failed: %v", err)
+		}
+
+		respMap, ok := response.(map[string]interface{})
+		if !ok {
+			t.Fatalf("response is not a map")
+		}
+
+		mode, ok := respMap["mode"].(string)
+		if !ok || mode != "file_ref" {
+			t.Errorf("expected file_ref mode (parameter override), got %v", mode)
+		}
+
+		// Clean up temp file
+		if fileRef, ok := respMap["file_ref"].(map[string]interface{}); ok {
+			if path, ok := fileRef["path"].(string); ok {
+				os.Remove(path)
+			}
+		}
+	})
+}
+
+// TestPerformanceBenchmarks verifies 100KB write meets <200ms requirement
+func TestPerformanceBenchmarks(t *testing.T) {
+	// Generate 100KB dataset
+	data := make([]interface{}, 1000)
+	for i := 0; i < 1000; i++ {
+		data[i] = map[string]interface{}{
+			"Timestamp": "2025-10-06T10:00:00Z",
+			"ToolName":  "Bash",
+			"Status":    "success",
+			"Duration":  123.45,
+			"Args":      strings.Repeat("a", 100),
+		}
+	}
+
+	params := map[string]interface{}{}
+
+	// Measure write time
+	start := time.Now()
+	response, err := adaptResponse(data, params, "query_tools")
+	elapsed := time.Since(start)
+
+	if err != nil {
+		t.Fatalf("adaptResponse failed: %v", err)
+	}
+
+	// Verify performance (<200ms for 100KB write)
+	if elapsed > 200*time.Millisecond {
+		t.Errorf("100KB write took %v, expected <200ms", elapsed)
+	}
+
+	// Clean up temp file
+	if respMap, ok := response.(map[string]interface{}); ok {
+		if fileRef, ok := respMap["file_ref"].(map[string]interface{}); ok {
+			if path, ok := fileRef["path"].(string); ok {
+				os.Remove(path)
+			}
+		}
+	}
+
+	t.Logf("100KB write completed in %v", elapsed)
 }
