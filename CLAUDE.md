@@ -220,6 +220,55 @@ When users ask about which integration method to use (MCP vs Slash Commands vs S
 
 4. **When in doubt**: Suggest reading the relevant section of the Integration Guide rather than giving incomplete advice.
 
+## Using MCP meta-insight
+
+The MCP meta-insight server is now available and provides programmatic access to session data. Claude can autonomously query this data when analyzing workflows, debugging issues, or providing recommendations.
+
+### Available Query Tools
+
+The MCP server exposes the following query capabilities:
+
+**Basic Queries**:
+- `get_session_stats` - Session statistics and metrics
+- `query_tools` - Filter tool calls by name, status (error/success)
+- `query_user_messages` - Search user messages with regex patterns
+- `query_files` - File-level operation statistics
+
+**Advanced Queries**:
+- `query_context` - Error context with surrounding tool calls
+- `query_tool_sequences` - Workflow pattern detection
+- `query_file_access` - File operation history
+- `query_project_state` - Project evolution tracking
+- `query_successful_prompts` - High-quality prompt patterns
+- `query_tools_advanced` - SQL-like filtering expressions
+- `query_time_series` - Metrics over time (hourly/daily/weekly)
+
+### Query Scope
+
+All MCP queries support two scope modes:
+- `scope: "project"` - Analyze all sessions in current project (default)
+- `scope: "session"` - Analyze only current session
+
+### When to Use MCP Queries
+
+Claude should use MCP queries autonomously when:
+- User asks about session history, patterns, or trends
+- Debugging repeated errors or workflow inefficiencies
+- Analyzing file modification patterns
+- Identifying successful prompt strategies
+- Investigating tool usage statistics
+
+Do NOT explicitly mention MCP tool names to users - present insights naturally as analysis results.
+
+### Output Control
+
+All MCP tools support output formatting:
+- `output_format`: "jsonl" (default) or "tsv"
+- `stats_only`: Return only statistics, no details
+- `stats_first`: Return stats before details
+- `jq_filter`: Apply jq expressions for advanced filtering
+- `max_output_bytes`: Limit output size (default: 51200)
+
 ## Reference Documentation
 
 **Project Documentation**:
