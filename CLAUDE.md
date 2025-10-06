@@ -22,66 +22,41 @@ The system follows a **two-layer architecture**:
 
 **Key Design Principle**: The CLI tool handles data extraction and statistical analysis without calling LLMs. Claude (via Slash Commands/Subagents/MCP) performs semantic understanding and generates actionable recommendations based on the structured data.
 
+## Core Constraints (Quick Reference)
+
+See [docs/principles.md](docs/principles.md) for complete details.
+
+**Code Limits**:
+- Phase: ≤500 lines of changes
+- Stage: ≤200 lines of changes
+
+**Development Methodology**:
+- **TDD (Test-Driven Development)**: Write tests before implementation
+- **Test Coverage**: ≥80% for all code
+- **Testing Protocol**: Run `make all` after each Stage
+
+**Architecture Principles**:
+- **Responsibility Separation**: CLI (data extraction) → MCP (filtering) → Subagent (semantic analysis)
+- **Output Formats**: JSONL (default) + TSV
+- **Query Syntax**: jq expressions
+- **Pipeline Pattern**: Session location → JSONL parsing → data extraction → formatting
+
+**Key Technical Decisions**:
+- See [docs/plan.md](docs/plan.md) for implementation roadmap
+- See [docs/principles.md](docs/principles.md) for design principles
+- See [docs/proposals/meta-cognition-proposal.md](docs/proposals/meta-cognition-proposal.md) for architecture
+
 ## Repository Structure
 
 ```
 meta-cc/
-├── docs/
-│   └── proposals/
-│       ├── meta-cognition-proposal.md   # Main technical specification
-│       └── candidates/                  # Original proposal drafts
-│           ├── proposal_1.md
-│           └── proposal_2.md
-├── plans/
-│   ├── 1/                               # Phase 1 planning documents
-│   ├── 2/                               # Phase 2 planning documents
-│   └── 3/                               # Phase 3 planning documents
-└── (Future: CLI implementation)
+├── cmd/              # CLI commands and MCP server
+├── internal/         # Core logic (parser, analyzer, query, etc.)
+├── pkg/              # Public packages (output, pipeline)
+├── docs/             # Technical documentation
+├── plans/            # Phase-by-phase development plans
+└── tests/            # Test fixtures and integration tests
 ```
-
-## Documentation Organization
-
-### Primary Specification
-
-**`docs/proposals/meta-cognition-proposal.md`** is the authoritative technical design document containing:
-
-- System architecture (with PlantUML diagrams)
-- CLI command structure and data flow
-- Integration patterns for Slash Commands, Subagents, and MCP
-- Implementation roadmap (3-phase: MVP → Indexing → Advanced)
-- Complete reference links to Claude Code documentation
-
-### Proposal Evolution
-
-The `candidates/` directory contains two original proposals that were analyzed and merged:
-- **proposal_1.md**: Focused on concise CLI design and practical examples
-- **proposal_2.md**: Comprehensive architecture with detailed PlantUML diagrams
-
-The final proposal combines the strengths of both: practical implementation focus with clear visual architecture.
-
-## Key Technical Decisions
-
-### Session File Location Strategy
-
-Claude Code stores session history as JSONL files in `~/.claude/projects/{project-hash}/{session-id}.jsonl`. The CLI tool must locate these files via:
-
-1. **Environment variables** (preferred, if Claude Code provides):
-   - `CC_SESSION_ID`: Current session UUID
-   - `CC_PROJECT_HASH`: Project directory hash (path with `/` → `-`)
-
-2. **Command-line parameters**:
-   - `--session <uuid>`: Explicit session ID
-   - `--project <path>`: Infer from project path
-
-3. **Auto-detection**: Use current directory and find latest session
-
-### Data Processing Flow
-
-```
-JSONL File → meta-cc parse → Structured JSON → Claude Analysis → Recommendations
-```
-
-The CLI outputs high-density structured data (tool usage stats, error patterns, timelines) which Claude then interprets semantically to generate insights.
 
 ## Development Workflow
 
@@ -118,16 +93,7 @@ make test-coverage
 
 ### Phase Planning and Organization
 
-The project follows a **structured phased development approach** with plans organized in the `plans/` directory:
-
-```
-meta-cc/
-├── plans/
-│   ├── 1/           # Phase 1 planning documents
-│   ├── 2/           # Phase 2 planning documents
-│   └── 3/           # Phase 3 planning documents
-└── ...
-```
+The project follows a **structured phased development approach** with plans organized in the `plans/` directory.
 
 **Phase Structure and Testing Protocol**:
 
@@ -163,6 +129,7 @@ Use descriptive commit messages with scope prefixes:
 - `docs:` for documentation changes
 - `feat:` for new features (when implementation begins)
 - `refactor:` for code restructuring
+- `test:` for test-related changes
 
 Include the Claude Code attribution footer:
 ```
@@ -171,62 +138,13 @@ Include the Claude Code attribution footer:
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
-## Implementation Roadmap (Future)
-
-When development begins, follow this phased approach:
-
-### Phase 1: Core Parser (1-2 weeks)
-- JSONL parser for session history
-- Basic commands: `meta-cc parse extract`, `meta-cc parse stats`, `meta-cc analyze errors`
-- Slash Commands: `/meta-stats`, `/meta-errors`
-
-### Phase 2: Index Optimization (1 week, optional)
-- SQLite indexing for cross-session queries
-- Advanced query commands
-
-### Phase 3: Semantic Integration (1-2 weeks, optional)
-- `@meta-coach` subagent
-- MCP server implementation
-
-### Technology Stack (Planned)
-- **Language**: Go (zero-dependency deployment, high performance)
-- **CLI Framework**: Cobra + Viper (standard in Go ecosystem)
-- **Database**: SQLite (optional, for indexing via mattn/go-sqlite3)
-- **Output Formats**: JSON, Markdown, CSV
-
-**Why Go?**
-- **Single binary deployment**: No runtime dependencies (Python/Node.js) required
-- **Fast execution**: Efficient JSONL parsing for large session histories
-- **Cross-platform**: Simple cross-compilation for Linux/macOS/Windows
-- **Strong concurrency**: Native goroutines for parallel processing when needed
-
-## Working with Integration Questions
-
-When users ask about which integration method to use (MCP vs Slash Commands vs Subagent):
-
-1. **Refer to the Integration Guide**: `docs/integration-guide.md` contains:
-   - Core differences (context isolation, invocation mechanisms, execution models)
-   - Decision framework and decision trees
-   - Use case scenario matrices
-   - Anti-patterns and best practices
-   - Real-world case studies
-
-2. **Don't recreate the decision framework** - The guide already has comprehensive comparison tables and decision logic. Just summarize key points and link to the guide.
-
-3. **Quick reference**:
-   - **MCP Server**: For natural queries, seamless data access (Claude decides when to call)
-   - **Slash Commands**: For repeated workflows, fast execution, predictable outputs
-   - **Subagent (@meta-coach)**: For exploratory analysis, guided reflection, multi-turn dialogue
-
-4. **When in doubt**: Suggest reading the relevant section of the Integration Guide rather than giving incomplete advice.
-
 ## Using MCP meta-insight
 
-The MCP meta-insight server is now available and provides programmatic access to session data. Claude can autonomously query this data when analyzing workflows, debugging issues, or providing recommendations.
+MCP meta-insight provides programmatic access to session data. Claude can autonomously query this data when analyzing workflows, debugging issues, or providing recommendations.
 
-### Available Query Tools
+For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes.md).
 
-The MCP server exposes the following query capabilities:
+### Query Tools (13 available)
 
 **Basic Queries**:
 - `get_session_stats` - Session statistics and metrics
@@ -243,39 +161,73 @@ The MCP server exposes the following query capabilities:
 - `query_tools_advanced` - SQL-like filtering expressions
 - `query_time_series` - Metrics over time (hourly/daily/weekly)
 
-### Query Scope
-
-All MCP queries support two scope modes:
+**Query Scope**:
 - `scope: "project"` - Analyze all sessions in current project (default)
 - `scope: "session"` - Analyze only current session
 
-### When to Use MCP Queries
+**Output Control Parameters**:
+- `stats_only` - Return only statistics, no details
+- `stats_first` - Return stats before details
+- `jq_filter` - Apply jq expressions for advanced filtering
+- `max_output_bytes` - Limit output size (default: 51200)
+- `content_summary` - Return only turn/timestamp/preview (for messages)
+- `max_message_length` - Limit message content length (default: 500)
 
-Claude should use MCP queries autonomously when:
-- User asks about session history, patterns, or trends
-- Debugging repeated errors or workflow inefficiencies
-- Analyzing file modification patterns
-- Identifying successful prompt strategies
-- Investigating tool usage statistics
+### Hybrid Output Mode
 
-Do NOT explicitly mention MCP tool names to users - present insights naturally as analysis results.
+The MCP server automatically selects output mode based on result size:
 
-### Output Control
+**Inline Mode (≤8KB results)**:
+- Data embedded directly in response: `{"mode": "inline", "data": [...]}`
+- Used for quick queries and small result sets
 
-All MCP tools support output formatting:
-- `output_format`: "jsonl" (default) or "tsv"
-- `stats_only`: Return only statistics, no details
-- `stats_first`: Return stats before details
-- `jq_filter`: Apply jq expressions for advanced filtering
-- `max_output_bytes`: Limit output size (default: 51200)
+**File Reference Mode (>8KB results)**:
+- Data written to temp JSONL file in `/tmp/`
+- Response contains metadata: `{"mode": "file_ref", "file_ref": {...}}`
+- File ref includes: path, size_bytes, line_count, fields, summary
+
+**Working with File References**:
+
+When you receive a `file_ref` response:
+
+1. **Analyze metadata first** - Check `file_ref.summary` for quick statistics
+2. **Use Read tool** - Selectively examine file content (`Read: /tmp/meta-cc-mcp-*.jsonl`)
+3. **Use Grep tool** - Search for patterns (`Grep: "Status":"error"`)
+4. **Present insights naturally** - Do NOT mention temp file paths to users
+
+**Best Practices**:
+- Trust automatic mode selection (8KB threshold)
+- Analyze metadata before reading full file
+- Do NOT explicitly mention "file_ref mode" or temp paths to users
+- Use Grep for pattern detection on large files
+
+**Temporary File Management**:
+- Files retained for 7 days, auto-cleaned after
+- Manual cleanup: `cleanup_temp_files` tool
+
+## Integration Patterns
+
+For choosing between integration methods, see [docs/integration-guide.md](docs/integration-guide.md).
+
+**Quick Reference**:
+- **MCP Server**: Claude autonomously calls tools during conversation (80% of use cases)
+- **Slash Commands**: User-triggered fixed reports (`/meta-stats`, `/meta-errors`)
+- **Subagents**: Multi-turn analysis (`@meta-coach` for comprehensive workflow analysis)
+
+**When to Use Each**:
+- Natural language query → MCP (automatic)
+- Repeated analysis workflow → Slash Command
+- Exploratory conversation → Subagent
 
 ## Reference Documentation
 
 **Project Documentation**:
-- **[Integration Guide](docs/integration-guide.md)** - Choosing between MCP/Slash/Subagent (NEW - most comprehensive)
-- [Examples & Usage](docs/examples-usage.md) - Step-by-step setup guides
-- [Technical Proposal](docs/proposals/meta-cognition-proposal.md) - Architecture and design
 - [Implementation Plan](docs/plan.md) - Phase-by-phase development roadmap
+- [Design Principles](docs/principles.md) - Core constraints and architecture decisions
+- [Integration Guide](docs/integration-guide.md) - Choosing between MCP/Slash/Subagent
+- [MCP Output Modes](docs/mcp-output-modes.md) - Detailed MCP usage and hybrid output mode
+- [Technical Proposal](docs/proposals/meta-cognition-proposal.md) - Architecture and design
+- [Examples & Usage](docs/examples-usage.md) - Step-by-step setup guides
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 
 **Official Claude Code Documentation**:
@@ -285,15 +237,3 @@ All MCP tools support output formatting:
 - [MCP Integration](https://docs.claude.com/en/docs/claude-code/mcp)
 - [Hooks System](https://docs.claude.com/en/docs/claude-code/hooks)
 - [Settings](https://docs.claude.com/en/docs/claude-code/settings)
-
-## Working with Proposals
-
-When modifying `meta-cognition-proposal.md`:
-
-1. **Use PlantUML for architecture diagrams** - The proposal uses PlantUML extensively to visualize data flows, sequences, and architectures. Prefer diagrams over pseudocode.
-
-2. **Link to official docs** - Always reference Claude Code documentation when describing integration mechanisms.
-
-3. **Maintain clarity of responsibility** - Keep the distinction clear: CLI = data processing (no LLM), Claude = semantic analysis.
-
-4. **Follow the phased approach** - Any new features should fit into the 3-phase roadmap (MVP → Indexing → Advanced).
