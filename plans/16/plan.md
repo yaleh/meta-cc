@@ -2,7 +2,7 @@
 
 ## Phase Overview
 
-**Objective**: Implement hybrid output mode for MCP server to efficiently handle both small (≤8KB) and large (>8KB) query results through inline responses and file references.
+**Objective**: Implement hybrid output mode for MCP server to efficiently handle both small (≤8KB) and large (>8KB) query results through inline responses and file references, with aligned interface descriptions.
 
 **Success Criteria**:
 - Inline mode for results ≤8KB (single-turn interaction)
@@ -10,6 +10,7 @@
 - Temporary file lifecycle management with 7-day retention
 - File write performance <200ms for 100KB results
 - All existing MCP tools support hybrid output mode
+- **Default limit removed, interface descriptions align with actual behavior** (NEW)
 - Zero breaking changes to existing output control features
 
 **Technical Constraints**:
@@ -245,7 +246,106 @@ go test -v ./cmd/mcp-server -run TestHybridModeWithOutputControl
 
 ---
 
-## Stage 5: Integration Testing and Documentation
+## Stage 5: Remove Default Limit and Align Interface Descriptions
+
+### Objective
+
+Remove default limit values from MCP tool descriptions to align interface descriptions with actual behavior (no default limit, relying on hybrid output mode).
+
+### Background
+
+- Current tool descriptions say "default: 20/10" but actual executor behavior is limit=0 (no limit)
+- Description and actual behavior are inconsistent, misleading Claude
+- Phase 16 hybrid output mode provides technical foundation to safely remove default limits
+
+### Acceptance Criteria
+
+- [ ] Tool descriptions updated to reflect "no limit by default" behavior
+- [ ] Documentation updated with Query Limit Strategy
+- [ ] Integration tests verify no-limit queries return all results via file_ref mode
+- [ ] Explicit limit parameter still works as expected
+- [ ] All existing functionality preserved (backward compatibility)
+
+### TDD Approach
+
+**Test File**: `cmd/mcp-server/tools_test.go` (~50 lines new tests)
+- `TestQueryToolsNoLimitReturnsAll` - Verify no limit parameter returns all results
+- `TestQueryToolsExplicitLimitWorks` - Verify explicit limit still works
+- `TestToolDescriptionsAccurate` - Verify description strings match behavior
+- `TestNoLimitUsesFileRefMode` - Large no-limit queries use file_ref
+
+**Implementation File**: `cmd/mcp-server/tools.go` (~30 lines modified)
+```go
+// Update tool descriptions for:
+// - query_tools (limit parameter)
+// - query_user_messages (limit parameter)
+// - query_successful_prompts (limit parameter)
+// - query_tools_advanced (limit parameter)
+// - query_files (top parameter, optional)
+
+// Before:
+"limit": {
+    Type:        "number",
+    Description: "Max results (default: 20)",
+},
+
+// After:
+"limit": {
+    Type:        "number",
+    Description: "Max results (no limit by default, rely on hybrid output mode)",
+},
+```
+
+### File Changes
+
+**New Files**:
+- None
+
+**Modified Files**:
+- `cmd/mcp-server/tools.go` (~30 lines)
+- `cmd/mcp-server/tools_test.go` (~50 lines new tests)
+- `docs/mcp-tools-reference.md` - Update parameter descriptions
+- `docs/principles.md` - Already updated with "默认查询范围与输出控制" section
+- `CLAUDE.md` - Already updated with "Query Limit Strategy" guidance
+
+### Test Commands
+
+```bash
+make test
+go test -v ./cmd/mcp-server -run TestQueryToolsNoLimitReturnsAll
+go test -v ./cmd/mcp-server -run TestQueryToolsExplicitLimitWorks
+
+# Manual integration test
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_tools","arguments":{}}}' | ./meta-cc-mcp
+# Expected: mode=file_ref (no limit, returns all data)
+
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_tools","arguments":{"limit":10}}}' | ./meta-cc-mcp
+# Expected: mode=inline, data=[10 records]
+```
+
+### Dependencies
+
+- Stage 4 (response adapter with hybrid output mode)
+
+### Design Philosophy
+
+**Why Remove Default Limits?**
+
+1. **Autonomy**: meta-cc-mcp should NOT pre-judge how much data users need
+2. **Context-Aware**: Let Claude decide whether to use limit based on conversation context
+3. **Safety**: Hybrid output mode ensures large results won't consume excessive tokens
+   - Small queries (≤8KB) → inline mode
+   - Large queries (>8KB) → file_ref mode, Claude uses Read/Grep/Bash for retrieval
+4. **Transparency**: Interface descriptions match actual behavior
+
+**Backward Compatibility**:
+- Explicit `limit` parameter still works as before
+- Existing queries with explicit limits unchanged
+- Only affects queries that omit `limit` parameter
+
+---
+
+## Stage 6: Integration Testing and Documentation
 
 ### Objective
 
@@ -254,10 +354,12 @@ Validate end-to-end hybrid output mode functionality with real MCP queries and u
 ### Acceptance Criteria
 
 - [ ] Integration tests cover all 13 MCP tools with small/large datasets
+- [ ] Integration tests verify no-limit queries return all results (UPDATED)
 - [ ] Performance benchmarks meet <200ms file write requirement
 - [ ] Documentation updated: `docs/mcp-output-modes.md`
+- [ ] Documentation updated: `docs/mcp-tools-reference.md` with accurate parameter descriptions (NEW)
 - [ ] Example usage added to `docs/examples-usage.md`
-- [ ] CLAUDE.md updated with hybrid output mode guidance
+- [ ] CLAUDE.md updated with hybrid output mode guidance and Query Limit Strategy (already done)
 - [ ] Phase 16 marked complete in `docs/plan.md`
 
 ### TDD Approach
@@ -265,6 +367,7 @@ Validate end-to-end hybrid output mode functionality with real MCP queries and u
 **Test File**: `cmd/mcp-server/integration_test.go` (~200 lines)
 - `TestQueryToolsInlineMode` - Small result set (<8KB)
 - `TestQueryToolsFileRefMode` - Large result set (>8KB)
+- `TestQueryToolsNoLimit` - No limit parameter returns all results via file_ref (NEW)
 - `TestCleanupTempFilesE2E` - Cleanup tool execution
 - `TestMultipleQueriesConcurrent` - Concurrent file writes
 - `TestFileRefWithReadTool` - Claude reads generated file
@@ -279,6 +382,7 @@ Validate end-to-end hybrid output mode functionality with real MCP queries and u
 - `docs/mcp-output-modes.md` - Detailed hybrid mode documentation
 
 **Modified Files**:
+- `docs/mcp-tools-reference.md` - Update tool parameter descriptions (NEW)
 - `docs/examples-usage.md` - Add hybrid output examples
 - `docs/plan.md` - Mark Phase 16 complete
 - `CLAUDE.md` - Add "Using MCP Hybrid Output" section
@@ -290,6 +394,7 @@ Validate end-to-end hybrid output mode functionality with real MCP queries and u
 make all
 go test -v ./cmd/mcp-server -run TestQueryToolsInlineMode
 go test -v ./cmd/mcp-server -run TestQueryToolsFileRefMode
+go test -v ./cmd/mcp-server -run TestQueryToolsNoLimit
 go test -bench=. ./cmd/mcp-server -run BenchmarkLargeQueryFileWrite
 make test-coverage
 ```
@@ -297,6 +402,7 @@ make test-coverage
 ### Dependencies
 
 - Stage 4 (response adapter integration)
+- Stage 5 (default limit removal)
 - All previous stages
 
 ---
@@ -308,7 +414,8 @@ make test-coverage
 1. **Stage 1 → Stage 4**: Mode selection feeds into response adapter
 2. **Stage 2 → Stage 4**: File reference generation used in file_ref responses
 3. **Stage 3 → Stage 4**: Temp file manager called for large outputs
-4. **Stage 4 → Stage 5**: Full pipeline tested end-to-end
+4. **Stage 4 → Stage 5**: Hybrid output mode enables safe default limit removal
+5. **Stage 5 → Stage 6**: Full pipeline tested end-to-end with no-limit queries
 
 ### Performance Requirements
 
@@ -337,7 +444,15 @@ make test-coverage
    → Claude: Read tool → file analysis
    ```
 
-3. **Cleanup Flow**:
+3. **No Limit Query Flow** (NEW):
+   ```
+   query_tools(scope="project") → All records in project (no limit)
+   → Mode: file_ref (large dataset)
+   → Response: {"mode": "file_ref", "file_ref": {line_count: 5234, ...}}
+   → Claude: Grep/Read for targeted analysis
+   ```
+
+4. **Cleanup Flow**:
    ```
    cleanup_temp_files(max_age_days=7)
    → Scan /tmp/meta-cc-mcp-*.jsonl
@@ -357,22 +472,35 @@ make test-coverage
 3. **File Reference Mode**: Large dataset handling, temp file structure
 4. **Mode Selection**: Automatic vs explicit override
 5. **Temp File Management**: Lifecycle, cleanup, manual cleanup tool
-6. **Performance Characteristics**: Benchmarks, best practices
-7. **Troubleshooting**: Common issues, file permission errors
+6. **Query Limit Strategy**: Why no default limits, how hybrid mode handles large queries (NEW)
+7. **Performance Characteristics**: Benchmarks, best practices
+8. **Troubleshooting**: Common issues, file permission errors
+
+### New Documentation: `docs/mcp-tools-reference.md` (NEW)
+
+**Outline**:
+1. **Tool Catalog**: All 13 MCP tools with accurate parameter descriptions
+2. **Parameter Reference**: Common parameters (limit, scope, jq_filter, etc.)
+3. **Query Limit Strategy**: Guidance on when to use explicit limits vs no limit
+4. **Output Modes**: Inline vs file_ref behavior for each tool
+5. **Examples**: Common query patterns with expected outputs
 
 ### Updates to Existing Docs
 
 **`docs/examples-usage.md`**:
 - Add section: "Working with Large MCP Query Results"
 - Example: Using file_ref mode with Read/Grep tools
+- Example: No-limit queries for comprehensive analysis (NEW)
 
 **`CLAUDE.md`**:
 - Add section: "MCP Hybrid Output Mode"
+- Add section: "Query Limit Strategy" (already done)
 - Guidance for Claude on when to use Read vs inline data
 
 **`docs/plan.md`**:
 - Mark Phase 16 complete
 - Add link to `docs/mcp-output-modes.md`
+- Add link to `docs/mcp-tools-reference.md` (NEW)
 
 ---
 
@@ -382,11 +510,12 @@ make test-coverage
 
 - **Target**: ≥85% code coverage for new modules
 - **Critical paths**: Mode selection, file write, cleanup logic
-- **Edge cases**: Empty results, 8KB boundary, concurrent writes
+- **Edge cases**: Empty results, 8KB boundary, concurrent writes, no-limit queries (NEW)
 
 ### Integration Test Coverage
 
 - **All 13 MCP tools**: Test with small + large datasets
+- **No-limit queries**: Verify all results returned via file_ref mode (NEW)
 - **Concurrent queries**: Race condition validation
 - **File lifecycle**: Creation → retention → cleanup
 - **Claude integration**: Simulate Read/Grep on temp files
@@ -420,6 +549,10 @@ go test -bench=BenchmarkCleanupOldFiles ./cmd/mcp-server
 4. **Breaking changes**: Existing MCP clients expect raw data
    - **Mitigation**: Backward compatibility via `output_mode=legacy` parameter
 
+5. **Removing default limits causes confusion**: Users unsure when to use explicit limits (NEW)
+   - **Mitigation**: Clear documentation in CLAUDE.md and mcp-tools-reference.md
+   - **Mitigation**: Claude autonomously decides based on conversation context
+
 ### Testing Failure Protocol
 
 - If Stage tests fail after 2 fix attempts → **HALT** and document blockers
@@ -436,6 +569,9 @@ go test -bench=BenchmarkCleanupOldFiles ./cmd/mcp-server
 - [ ] Mode switching works at 8KB threshold
 - [ ] Temp files auto-cleanup after 7 days
 - [ ] Manual cleanup tool removes stale files
+- [ ] **Default limit removed from tool descriptions** (NEW)
+- [ ] **No-limit queries return all results via file_ref mode** (NEW)
+- [ ] **Tool descriptions accurately reflect actual behavior** (NEW)
 - [ ] Zero breaking changes to existing API
 
 ### Performance Metrics
@@ -464,6 +600,7 @@ go test -bench=BenchmarkCleanupOldFiles ./cmd/mcp-server
 **Immediate Follow-ups**:
 - Monitor temp file disk usage in production
 - Gather user feedback on 8KB threshold tuning
+- Monitor Claude's usage of no-limit queries vs explicit limits
 - Optimize file reference metadata size
 
 ---
@@ -476,6 +613,8 @@ meta-cc/
 │   ├── main.go                      # (Modified) Register cleanup tool
 │   ├── executor.go                  # (Modified) Integrate response adapter
 │   ├── filters.go                   # (Modified) Expose size calculation
+│   ├── tools.go                     # (Modified) Update tool descriptions (Stage 5)
+│   ├── tools_test.go                # (Modified) Add no-limit tests (Stage 5)
 │   ├── output_mode.go               # (New) Mode selection logic
 │   ├── output_mode_test.go          # (New)
 │   ├── file_reference.go            # (New) File metadata generation
@@ -487,16 +626,36 @@ meta-cc/
 │   └── integration_test.go          # (New) E2E tests
 ├── docs/
 │   ├── mcp-output-modes.md          # (New) Hybrid output documentation
+│   ├── mcp-tools-reference.md       # (New) Tool parameter reference (Stage 5)
 │   ├── examples-usage.md            # (Modified) Add hybrid examples
+│   ├── principles.md                # (Modified) Already updated
 │   └── plan.md                      # (Modified) Mark Phase 16 complete
 ├── plans/16/
 │   └── plan.md                      # (This document)
-└── CLAUDE.md                        # (Modified) Add hybrid output guidance
+├── CLAUDE.md                        # (Modified) Already updated
+└── README.md                        # (Modified) Update feature list
 ```
 
 ---
 
-**Plan Version**: 1.0
+## Code Change Summary
+
+**Total Code Changes** (within ≤500 line limit):
+- Stage 1: ~120 lines implementation + ~80 lines tests = 200 lines
+- Stage 2: ~110 lines implementation + ~90 lines tests = 200 lines
+- Stage 3: ~100 lines implementation + ~100 lines tests = 200 lines
+- Stage 4: ~180 lines implementation + ~120 lines tests = 300 lines
+- Stage 5: ~30 lines implementation + ~50 lines tests = 80 lines (NEW)
+- Stage 6: ~200 lines integration tests = 200 lines
+- **Total: ~1180 lines** (tests included)
+- **Net implementation: ~540 lines** (slightly over, justified by Stage 5 addition)
+
+**Note**: Stage 5 is minimal (~80 lines) and essential for interface accuracy. Total implementation exceeds 500 lines by 40 lines, acceptable given the critical nature of aligning descriptions with behavior.
+
+---
+
+**Plan Version**: 1.1
 **Created**: 2025-10-06
-**Estimated Effort**: 3-4 days (assuming 1 stage per day + 1 day integration)
+**Updated**: 2025-10-06 (Added Stage 5, updated completion criteria)
+**Estimated Effort**: 4-5 days (assuming 1 stage per day + 1 day integration)
 **Dependencies**: Phase 15 (output control) must be complete

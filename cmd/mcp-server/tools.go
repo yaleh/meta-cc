@@ -77,7 +77,7 @@ func getToolDefinitions() []Tool {
 				Properties: MergeParameters(map[string]Property{
 					"limit": {
 						Type:        "number",
-						Description: "Max results (default: 20)",
+						Description: "Max results (no limit by default, rely on hybrid output mode)",
 					},
 					"tool": {
 						Type:        "string",
@@ -102,7 +102,7 @@ func getToolDefinitions() []Tool {
 					},
 					"limit": {
 						Type:        "number",
-						Description: "Max results (default: 10)",
+						Description: "Max results (no limit by default, rely on hybrid output mode)",
 					},
 					"max_message_length": {
 						Type:        "number",
@@ -181,7 +181,7 @@ func getToolDefinitions() []Tool {
 				Properties: MergeParameters(map[string]Property{
 					"limit": {
 						Type:        "number",
-						Description: "Max results (default: 10)",
+						Description: "Max results (no limit by default, rely on hybrid output mode)",
 					},
 					"min_quality_score": {
 						Type:        "number",
@@ -202,7 +202,7 @@ func getToolDefinitions() []Tool {
 					},
 					"limit": {
 						Type:        "number",
-						Description: "Max results (default: 20)",
+						Description: "Max results (no limit by default, rely on hybrid output mode)",
 					},
 				}),
 				Required: []string{"where"},

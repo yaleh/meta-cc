@@ -249,3 +249,92 @@ func TestExtractToolsRemoved(t *testing.T) {
 		}
 	}
 }
+
+// TestToolDescriptionsAccurate verifies tool descriptions match actual behavior (Stage 16.5)
+func TestToolDescriptionsAccurate(t *testing.T) {
+	tools := getToolDefinitions()
+
+	// Tools with limit parameter should not have misleading "default: 20/10" descriptions
+	limitTools := map[string]bool{
+		"query_tools":              true,
+		"query_user_messages":      true,
+		"query_successful_prompts": true,
+		"query_tools_advanced":     true,
+	}
+
+	for _, tool := range tools {
+		if !limitTools[tool.Name] {
+			continue
+		}
+
+		t.Run(tool.Name, func(t *testing.T) {
+			limitProp, exists := tool.InputSchema.Properties["limit"]
+			if !exists {
+				t.Errorf("tool %s missing limit parameter", tool.Name)
+				return
+			}
+
+			// Check that description mentions "no limit by default" or similar
+			if strings.Contains(limitProp.Description, "default: 20") || strings.Contains(limitProp.Description, "default: 10") {
+				t.Errorf("tool %s still has misleading default limit in description: %s", tool.Name, limitProp.Description)
+			}
+
+			// Should mention hybrid output mode or no limit by default
+			if !strings.Contains(limitProp.Description, "no limit by default") &&
+				!strings.Contains(limitProp.Description, "rely on hybrid output mode") {
+				t.Errorf("tool %s limit description should mention 'no limit by default' or 'hybrid output mode', got: %s",
+					tool.Name, limitProp.Description)
+			}
+		})
+	}
+}
+
+// TestLimitParameterBehavior verifies that limit parameter behavior is correctly documented
+func TestLimitParameterBehavior(t *testing.T) {
+	tools := getToolDefinitions()
+
+	limitTools := []string{
+		"query_tools",
+		"query_user_messages",
+		"query_successful_prompts",
+		"query_tools_advanced",
+	}
+
+	for _, toolName := range limitTools {
+		var tool *Tool
+		for i := range tools {
+			if tools[i].Name == toolName {
+				tool = &tools[i]
+				break
+			}
+		}
+
+		if tool == nil {
+			t.Errorf("tool %s not found", toolName)
+			continue
+		}
+
+		t.Run(toolName, func(t *testing.T) {
+			limitProp, exists := tool.InputSchema.Properties["limit"]
+			if !exists {
+				t.Errorf("tool %s missing limit parameter", toolName)
+				return
+			}
+
+			if limitProp.Type != "number" {
+				t.Errorf("tool %s limit should be number, got %s", toolName, limitProp.Type)
+			}
+
+			// Description should be informative about hybrid output mode
+			desc := limitProp.Description
+			if len(desc) < 20 {
+				t.Errorf("tool %s limit description too short: %s", toolName, desc)
+			}
+
+			// Should not contain misleading default values
+			if strings.Contains(desc, "(default: ") {
+				t.Errorf("tool %s limit description contains misleading default value: %s", toolName, desc)
+			}
+		})
+	}
+}

@@ -180,7 +180,7 @@ All tools support these parameters:
 **Default Scope**: project (cross-session)
 
 **Tool-Specific Parameters**:
-- `limit` (number): Maximum results (default: 20)
+- `limit` (number): Maximum results (no limit by default, rely on hybrid output mode)
 - `tool` (string): Filter by tool name
 - `status` (string): Filter by status ("error" or "success")
 
@@ -244,7 +244,7 @@ All tools support these parameters:
 
 **Tool-Specific Parameters**:
 - `pattern` (string, **required**): Regex pattern to match
-- `limit` (number): Maximum results (default: 10)
+- `limit` (number): Maximum results (no limit by default, rely on hybrid output mode)
 - `max_message_length` (number): **Phase 15**: Max chars per message (default: 500, 0=unlimited)
 - `content_summary` (boolean): **Phase 15**: Return only metadata (default: false)
 
@@ -504,7 +504,7 @@ All tools support these parameters:
 **Default Scope**: project (cross-session)
 
 **Tool-Specific Parameters**:
-- `limit` (number): Maximum results (default: 10)
+- `limit` (number): Maximum results (no limit by default, rely on hybrid output mode)
 - `min_quality_score` (number): Minimum quality score 0-1 (default: 0.8)
 
 **Use Cases**:
@@ -547,7 +547,7 @@ All tools support these parameters:
 
 **Tool-Specific Parameters**:
 - `where` (string, **required**): SQL-like filter expression
-- `limit` (number): Maximum results (default: 20)
+- `limit` (number): Maximum results (no limit by default, rely on hybrid output mode)
 
 **Use Cases**:
 - Complex multi-condition queries
