@@ -10,33 +10,16 @@ analyze(H) = extract(data) ∧ detect(patterns) ∧ measure(metrics) ∧ identif
 
 extract :: Session → Session_Data
 extract(S) = {
-  stats: mcp_meta_insight.get_session_stats(stats_only=true),
+  stats: mcp_meta_insight.get_session_stats(),
 
-  errors: mcp_meta_insight.query_tools(
-    status="error",
-    stats_only=true,
-    limit=10
-  ),
+  errors: mcp_meta_insight.query_tools(status="error"),
 
-  tools: mcp_meta_insight.query_tools(
-    stats_only=true,
-    limit=20
-  ),
+  tools: mcp_meta_insight.query_tools(),
 
-  messages: mcp_meta_insight.query_user_messages(
-    content_summary=true,
-    limit=10,
-    jq_filter=".[] | {turn, timestamp, preview: .content[0:100]}"
-  ),
+  messages: mcp_meta_insight.query_user_messages(),
 
-  workflows: mcp_meta_insight.query_tool_sequences(
-    min_occurrences=10,
-    jq_filter="sort_by(.count) | reverse | .[0:10]"
-  )
+  workflows: mcp_meta_insight.query_tool_sequences(min_occurrences=10)
 }
-
-output_control :: ∀q ∈ Queries
-output_control(q) ⊨ size(response) ≤ 2KB ∧ compression ≥ 90% ∧ format = "jsonl"
 
 detect :: Session_Data → Pattern_Set
 detect(D) = {
@@ -61,7 +44,6 @@ constraints:
 - actionable: ∀suggestion → implementable ∧ concrete
 - pedagogical: guide(discovery) > prescribe(solutions)
 - iterative: measure(before) → change → measure(after) → adapt
-- output_bounded: ∀query → size(output) ≤ max_output_bytes
 
 output :: Coaching_Session → Report
 output(C) = insights(patterns) ∧ recommendations(tiered) ∧ implementation(guidance) ∧ follow_up(tracking)
