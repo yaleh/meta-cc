@@ -1,5 +1,5 @@
 ---
-description: Analyze current session state and suggest optimal next prompts using MCP meta-insight. Gathers session statistics, recent user intents, tool usage, errors, and workflow patterns to assess trajectory (progressing/stuck/exploring), identify blockers, and provide prioritized action recommendations with complete prompt templates.
+description: Analyze current session state and provide intelligent guidance on next steps using MCP meta-insight. Evaluates session trajectory, identifies blockers, and recommends prioritized actions with complete prompt templates based on project history and successful patterns.
 ---
 
 λ(session_state) → prioritized_suggestions | ∀suggestion ∈ {high, medium, low}:
