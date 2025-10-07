@@ -16,7 +16,7 @@ BINARY_NAME := meta-cc
 MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build build-cli build-mcp test clean install cross-compile lint fmt vet help
+.PHONY: all build build-cli build-mcp test test-all test-coverage clean install cross-compile lint fmt vet help
 
 all: lint test build
 
@@ -31,12 +31,16 @@ build-mcp:
 	$(GOBUILD) -o $(MCP_BINARY_NAME) ./cmd/mcp-server
 
 test:
-	@echo "Running tests..."
+	@echo "Running tests (short mode, skips slow E2E tests)..."
+	$(GOTEST) -short -v ./...
+
+test-all:
+	@echo "Running all tests (including slow E2E tests ~30s)..."
 	$(GOTEST) -v ./...
 
 test-coverage:
 	@echo "Running tests with coverage..."
-	$(GOTEST) -v -coverprofile=coverage.out ./...
+	$(GOTEST) -short -v -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 
 clean:
@@ -91,7 +95,8 @@ help:
 	@echo "  make build           - Build both meta-cc and meta-cc-mcp"
 	@echo "  make build-cli       - Build meta-cc CLI only"
 	@echo "  make build-mcp       - Build meta-cc-mcp MCP server only"
-	@echo "  make test            - Run tests"
+	@echo "  make test            - Run tests (short mode, skips slow E2E tests)"
+	@echo "  make test-all        - Run all tests (including slow E2E tests ~30s)"
 	@echo "  make test-coverage   - Run tests with coverage report"
 	@echo "  make lint            - Run static analysis (fmt + vet + golangci-lint)"
 	@echo "  make fmt             - Format code with gofmt"

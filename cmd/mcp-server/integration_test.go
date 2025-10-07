@@ -726,6 +726,10 @@ func TestPerformanceBenchmarks(t *testing.T) {
 // TestExecuteToolE2E_QuerySuccessfulPrompts verifies query_successful_prompts executes successfully
 // This is an end-to-end test that actually runs the meta-cc CLI
 func TestExecuteToolE2E_QuerySuccessfulPrompts(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E test in short mode (takes ~6s)")
+	}
+
 	// Save and restore working directory
 	originalDir, _ := os.Getwd()
 	defer os.Chdir(originalDir)
@@ -790,6 +794,10 @@ func TestExecuteToolE2E_QuerySuccessfulPrompts(t *testing.T) {
 
 // TestExecuteToolE2E_AllTools verifies all tools execute without errors
 func TestExecuteToolE2E_AllTools(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E test in short mode (takes ~22s)")
+	}
+
 	// Save and restore working directory
 	originalDir, _ := os.Getwd()
 	defer os.Chdir(originalDir)

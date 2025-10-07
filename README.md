@@ -1060,19 +1060,25 @@ go build -o meta-cc
 ### Test
 
 ```bash
-# Run all tests
+# Run tests (short mode, skips slow E2E tests ~30s)
 make test
+
+# Run all tests including E2E tests
+make test-all
 
 # Run with coverage
 make test-coverage
 # Open coverage.html in browser
 ```
 
+**Note**: `make test` uses `-short` flag to skip E2E integration tests that take ~30 seconds. Use `make test-all` for complete test coverage including E2E tests.
+
 ### Available Make Targets
 
 ```bash
 make build           # Build for current platform
-make test            # Run tests
+make test            # Run tests (short mode, skips slow E2E tests)
+make test-all        # Run all tests (including slow E2E tests ~30s)
 make test-coverage   # Run tests with coverage report
 make clean           # Remove build artifacts
 make install         # Install to GOPATH/bin
