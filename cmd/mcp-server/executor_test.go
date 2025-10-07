@@ -256,7 +256,7 @@ func TestBuildCommand(t *testing.T) {
 			scope:        "project",
 			outputFormat: "jsonl",
 			expectNil:    false,
-			expectArgs:   []string{"--project", ".", "query", "user-messages", "--match", "test.*pattern", "--limit", "10", "--output", "jsonl"},
+			expectArgs:   []string{"--project", ".", "query", "user-messages", "--pattern", "test.*pattern", "--limit", "10", "--output", "jsonl"},
 		},
 		{
 			name:         "unknown tool",

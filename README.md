@@ -66,6 +66,41 @@ make cross-compile
 ./meta-cc --summary-first --top N   # Summary + top N details
 ```
 
+## Query Commands
+
+### Session Statistics
+
+```bash
+# Get session stats
+./meta-cc parse stats
+```
+
+### Tool Call Analysis
+
+```bash
+# Query all tool calls
+./meta-cc query tools
+
+# Filter by tool name
+./meta-cc query tools --tool Bash
+
+# Filter by status
+./meta-cc query tools --status error --limit 20
+```
+
+### User Message Search
+
+```bash
+# Search user messages with regex
+./meta-cc query user-messages --pattern "fix.*bug"
+
+# Limit results
+./meta-cc query user-messages --pattern "error" --limit 10
+
+# With context window
+./meta-cc query user-messages --pattern "implement" --with-context 3
+```
+
 ## Output Format Philosophy
 
 meta-cc follows the **Unix philosophy** with two core output formats:

@@ -125,7 +125,7 @@ The query command provides specialized subcommands for different data types:
 
 Examples:
   meta-cc query tools --status error --limit 20
-  meta-cc query user-messages --match "fix.*bug"
+  meta-cc query user-messages --pattern "fix.*bug"
   meta-cc query tools --tool Bash --sort-by timestamp`,
 }
 
@@ -374,7 +374,7 @@ func TestQueryUserMessagesBasic(t *testing.T) {
 }
 
 func TestQueryUserMessagesMatch(t *testing.T) {
-    // Test: query user-messages --match "fix.*bug"
+    // Test: query user-messages --pattern "fix.*bug"
     // Expected: returns messages matching regex
 }
 
@@ -389,7 +389,7 @@ func TestQueryUserMessagesSortByTimestamp(t *testing.T) {
 }
 
 func TestQueryUserMessagesWithContext(t *testing.T) {
-    // Test: query user-messages --match "error" --with-context
+    // Test: query user-messages --pattern "error" --with-context
     // Expected: includes context (previous/next turns)
 }
 ```
@@ -428,8 +428,8 @@ Supports:
   - Limit and pagination
 
 Examples:
-  meta-cc query user-messages --match "fix.*bug"
-  meta-cc query user-messages --match "error" --limit 10
+  meta-cc query user-messages --pattern "fix.*bug"
+  meta-cc query user-messages --pattern "error" --limit 10
   meta-cc query user-messages --sort-by timestamp --reverse`,
     RunE: runQueryUserMessages,
 }
@@ -546,7 +546,7 @@ func sortUserMessages(messages []UserMessage, reverse bool) {
 
 #### Acceptance Criteria
 - ✅ `meta-cc query user-messages` returns all user messages
-- ✅ `meta-cc query user-messages --match "fix"` filters by pattern
+- ✅ `meta-cc query user-messages --pattern "fix"` filters by pattern
 - ✅ Pattern matching uses regex (supports `.*`, `^`, `$`)
 - ✅ `--limit` and `--sort-by` work correctly
 - ✅ All tests pass
@@ -718,7 +718,7 @@ echo "PASS"
 
 # Test 5: Query user messages with pattern
 echo "Test 5: Query user-messages --match 'test'"
-$META_CC query user-messages --match "test" --output json | jq length > /tmp/test5.out
+$META_CC query user-messages --pattern "test" --output json | jq length > /tmp/test5.out
 grep -E '^[0-9]+$' /tmp/test5.out || (echo "FAIL: Invalid output"; exit 1)
 echo "PASS"
 
@@ -796,8 +796,8 @@ meta-cc query tools --where "tool=Bash,status=error"
 meta-cc query user-messages
 
 # Pattern matching (regex)
-meta-cc query user-messages --match "fix.*bug"
-meta-cc query user-messages --match "error|warning"
+meta-cc query user-messages --pattern "fix.*bug"
+meta-cc query user-messages --pattern "error|warning"
 
 # Sort and limit
 meta-cc query user-messages --sort-by timestamp --reverse --limit 5

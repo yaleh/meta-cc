@@ -1247,7 +1247,7 @@ mcp__meta-insight__extract_tools → 返回工具使用列表
 **交付物**：
 - 核心 CLI 命令：
   - `meta-cc query tools --status error --limit 20`
-  - `meta-cc query user-messages --match "fix.*bug" --with-context 3` **NEW**
+  - `meta-cc query user-messages --pattern "fix.*bug" --with-context 3` **NEW**
   - `meta-cc query project-state --include-incomplete-tasks` **NEW**
   - `meta-cc query successful-prompts --min-quality-score 0.8` **NEW**
   - `meta-cc query context --error-signature err-a1b2 --window 3`

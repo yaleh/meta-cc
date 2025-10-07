@@ -170,7 +170,7 @@ case "query_user_messages":
         return "", fmt.Errorf("pattern parameter is required")
     }
 
-    cmdArgs := []string{"query", "user-messages", "--match", pattern, "--output", outputFormat}
+    cmdArgs := []string{"query", "user-messages", "--pattern", pattern, "--output", outputFormat}
 
     if limit, ok := args["limit"].(float64); ok {
         cmdArgs = append(cmdArgs, "--limit", fmt.Sprintf("%.0f", limit))

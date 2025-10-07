@@ -290,7 +290,7 @@ echo "---"
 echo ""
 
 # 执行查询
-result=$(meta-cc query user-messages --match "$PATTERN" --limit "$LIMIT" --sort-by timestamp --reverse --output json)
+result=$(meta-cc query user-messages --pattern "$PATTERN" --limit "$LIMIT" --sort-by timestamp --reverse --output json)
 
 # 检查是否有结果
 count=$(echo "$result" | jq 'length')
@@ -319,7 +319,7 @@ echo "$result" | jq -r '.[] |
 echo ""
 
 # 显示总计
-total_count=$(meta-cc query user-messages --match "$PATTERN" --limit 1000 --output json | jq 'length')
+total_count=$(meta-cc query user-messages --pattern "$PATTERN" --limit 1000 --output json | jq 'length')
 
 echo "📊 **统计**："
 echo "- 显示: $count 条（最新）"

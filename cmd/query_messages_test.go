@@ -38,7 +38,7 @@ func TestQueryUserMessagesCommand_Help(t *testing.T) {
 	// Verify help mentions pattern matching and context
 	expectedContent := []string{
 		"Query user messages",
-		"--match",
+		"--pattern",
 		"--with-context",
 	}
 
@@ -53,7 +53,7 @@ func TestQueryUserMessagesCommand_NoFilters(t *testing.T) {
 	t.Skip("Skipping test that requires real session data - manual verification needed")
 }
 
-func TestQueryUserMessagesCommand_Match(t *testing.T) {
+func TestQueryUserMessagesCommand_Pattern(t *testing.T) {
 	t.Skip("Skipping test that requires real session data - manual verification needed")
 }
 

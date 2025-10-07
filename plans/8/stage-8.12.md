@@ -261,7 +261,7 @@ allowed_tools: [Bash]
 #!/bin/bash
 
 # Step 1: 获取最近用户意图
-recent_intents=$(meta-cc query user-messages --match "." --limit 5 --with-context 2 --output json)
+recent_intents=$(meta-cc query user-messages --pattern "." --limit 5 --with-context 2 --output json)
 
 # Step 2: 获取项目状态
 project_state=$(meta-cc query project-state --include-incomplete-tasks --output json)

@@ -149,7 +149,10 @@ For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes
 **Basic Queries**:
 - `get_session_stats` - Session statistics and metrics
 - `query_tools` - Filter tool calls by name, status (error/success)
+  - Parameters: `tool`, `status`, `limit`
 - `query_user_messages` - Search user messages with regex patterns
+  - Parameters: `pattern` (required, regex), `limit`, `max_message_length`, `content_summary`
+  - Example: `query_user_messages(pattern="fix.*bug", limit=10)`
 - `query_files` - File-level operation statistics
 
 **Advanced Queries**:
@@ -233,6 +236,16 @@ User: "Show me the last 5 errors"
 - You decide based on conversation context whether to use `limit`
 - Hybrid output mode ensures large results won't consume excessive tokens
 - For exploratory queries, omit `limit` and let file_ref mode handle the data
+
+### MCP vs CLI Parameter Naming
+
+MCP tools and CLI commands use consistent parameter naming for easier understanding:
+
+- `query_user_messages`: Uses `pattern` (MCP) → `--pattern` (CLI)
+- `query_tool_sequences`: Uses `pattern` (MCP) → `--pattern` (CLI)
+- Reason: `pattern` is a Unix-standard term (grep, sed, awk all use "pattern")
+
+This consistency eliminates confusion and follows the Unix philosophy.
 
 ## Integration Patterns
 

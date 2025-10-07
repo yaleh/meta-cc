@@ -149,7 +149,7 @@ func (e *ToolExecutor) buildCommand(toolName string, args map[string]interface{}
 	case "query_user_messages":
 		cmdArgs = append(cmdArgs, "query", "user-messages")
 		if pattern := getStringParam(args, "pattern", ""); pattern != "" {
-			cmdArgs = append(cmdArgs, "--match", pattern)
+			cmdArgs = append(cmdArgs, "--pattern", pattern)
 		}
 		if limit := getIntParam(args, "limit", 0); limit > 0 {
 			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))

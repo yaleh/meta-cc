@@ -48,7 +48,7 @@
 **Example scenario**:
 ```bash
 # User message contains session summary (~8k lines)
-meta-cc query user-messages --match "session.*summary"
+meta-cc query user-messages --pattern "session.*summary"
 
 # jq_filter ".[]" returns full object:
 {

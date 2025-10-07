@@ -64,10 +64,10 @@ meta-cc query tools --sort-by timestamp --reverse --limit 30 --output json
 **Basic Usage**:
 ```bash
 # Search user messages with regex
-meta-cc query user-messages --match "fix.*bug" --limit 10 --output json
+meta-cc query user-messages --pattern "fix.*bug" --limit 10 --output json
 
 # Find error-related messages
-meta-cc query user-messages --match "error|fail|issue" --limit 20 --output json
+meta-cc query user-messages --pattern "error|fail|issue" --limit 20 --output json
 
 # Sort by timestamp (newest first)
 meta-cc query user-messages --sort-by timestamp --reverse --limit 5 --output json
@@ -263,7 +263,7 @@ meta-cc query tools --tool Bash --status error --limit 20 --output json
 All 5 Bash errors are the same: `npm test` failing on `auth.test.js`.
 
 [Step 4: Find when this started]
-meta-cc query user-messages --match "auth|test" --limit 10 --output json
+meta-cc query user-messages --pattern "auth|test" --limit 10 --output json
 
 I found that you first mentioned "auth test failing" about 90 minutes ago.
 You've been trying different approaches since then.

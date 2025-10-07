@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	queryMessagesMatch   string
+	queryMessagesPattern string
 	queryMessagesContext int
 )
 
@@ -22,13 +22,13 @@ var queryUserMessagesCmd = &cobra.Command{
 	Long: `Query user messages with pattern matching.
 
 Supports:
-  - Pattern matching (--match: regex pattern)
+  - Pattern matching (--pattern: regex pattern)
   - Timestamp sorting
   - Limit and pagination
 
 Examples:
-  meta-cc query user-messages --match "fix.*bug"
-  meta-cc query user-messages --match "error" --limit 10
+  meta-cc query user-messages --pattern "fix.*bug"
+  meta-cc query user-messages --pattern "error" --limit 10
   meta-cc query user-messages --sort-by timestamp --reverse`,
 	RunE: runQueryUserMessages,
 }
@@ -36,7 +36,7 @@ Examples:
 func init() {
 	queryCmd.AddCommand(queryUserMessagesCmd)
 
-	queryUserMessagesCmd.Flags().StringVar(&queryMessagesMatch, "match", "", "Match pattern (regex)")
+	queryUserMessagesCmd.Flags().StringVar(&queryMessagesPattern, "pattern", "", "Pattern to match (regex)")
 	queryUserMessagesCmd.Flags().IntVar(&queryMessagesContext, "with-context", 0, "Include N turns before/after each match")
 }
 
@@ -71,8 +71,8 @@ func runQueryUserMessages(cmd *cobra.Command, args []string) error {
 	userMessages := extractUserMessages(entries, turnIndex)
 
 	// Step 3: Apply pattern matching
-	if queryMessagesMatch != "" {
-		pattern, err := regexp.Compile(queryMessagesMatch)
+	if queryMessagesPattern != "" {
+		pattern, err := regexp.Compile(queryMessagesPattern)
 		if err != nil {
 			return fmt.Errorf("invalid regex pattern: %w", err)
 		}

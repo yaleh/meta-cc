@@ -198,8 +198,8 @@ meta-cc query tools --tool Bash --sort-by timestamp
 meta-cc query tools --where "tool=Edit,status=error"
 
 # Query user messages
-meta-cc query user-messages --match "fix.*bug"
-meta-cc query user-messages --match "error|warning" --limit 10
+meta-cc query user-messages --pattern "fix.*bug"
+meta-cc query user-messages --pattern "error|warning" --limit 10
 ```
 
 ### Context Query Commands (8.10-8.11)
@@ -226,7 +226,7 @@ meta-cc analyze idle-periods --threshold "5 minutes"
 ### Prompt Optimization Commands (8.12)
 ```bash
 # Query user messages with context window
-meta-cc query user-messages --match "实现|添加" --limit 5 --with-context 3 --output json
+meta-cc query user-messages --pattern "实现|添加" --limit 5 --with-context 3 --output json
 
 # Query current project state
 meta-cc query project-state --include-incomplete-tasks --output json

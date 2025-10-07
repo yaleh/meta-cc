@@ -36,7 +36,7 @@ go build -o meta-cc
 
 # Verify with real projects
 ./meta-cc query tools --status error
-./meta-cc query user-messages --match "error"
+./meta-cc query user-messages --pattern "error"
 
 # Update README.md
 # Add "Query Commands" section
@@ -47,7 +47,7 @@ go build -o meta-cc
 ### Commands
 
 - `meta-cc query tools [--status STATUS] [--tool TOOL] [--where CONDITION] [--limit N] [--sort-by FIELD]`
-- `meta-cc query user-messages [--match PATTERN] [--limit N] [--sort-by FIELD]`
+- `meta-cc query user-messages [--pattern PATTERN] [--limit N] [--sort-by FIELD]`
 
 ### Examples
 
@@ -58,8 +58,8 @@ meta-cc query tools --tool Bash --sort-by timestamp
 meta-cc query tools --where "tool=Edit,status=error"
 
 # Query user messages
-meta-cc query user-messages --match "fix.*bug"
-meta-cc query user-messages --match "error|warning" --limit 10
+meta-cc query user-messages --pattern "fix.*bug"
+meta-cc query user-messages --pattern "error|warning" --limit 10
 ```
 
 ### Testing

@@ -265,6 +265,20 @@ meta-cc CLI 是系统的核心，提供清晰、简洁的对外接口：
 - 统计聚合（stats_only/stats_first）
 - 输出长度控制（max_output_bytes）
 
+**参数命名约定**：
+
+MCP 工具参数与 CLI 参数保持一致，遵循 Unix 命名习惯：
+
+| MCP 工具 | MCP 参数 | CLI 命令 | CLI 参数 | 一致性 |
+|---------|---------|---------|---------|------|
+| `query_user_messages` | `pattern` | `query user-messages` | `--pattern` | ✅ 完全一致 |
+| `query_tool_sequences` | `pattern` | `analyze sequences` | `--pattern` | ✅ 完全一致 |
+
+**设计原则**：
+- 参数名遵循 Unix 标准术语（`pattern` 而非 `match`）
+- MCP → CLI 参数直接映射，无需转换
+- 参考：grep、sed、awk 均使用 "pattern" 而非 "match"
+
 **2. Subagents（语义层）**
 
 Subagents 分为两类：
