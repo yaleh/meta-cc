@@ -2484,6 +2484,14 @@ echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_tools","arg
 - ✅ 所有业务型 Subagents 基于 MCP meta-insight 实现
 - ✅ 各 Subagent **互相独立，不依赖或调用其他 Subagent**
 - ✅ 每个 Subagent **必须说明 MCP 输出控制机制**（参考 `.claude/agents/meta-coach.md`）
+- ✅ **所有 Subagent 定义必须遵循 meta-coach.md 的形式化数学风格**：
+  - Lambda 演算表示法（λ(inputs) → outputs）
+  - 函数定义使用 :: 符号（extract :: Session → Data）
+  - 数学约束使用符号（∀, ∃, ∧, ∨, →）
+  - 集合论表示数据结构
+  - 模式检测使用形式化规则
+  - 约束清单使用逻辑表达式
+  - 避免冗长的散文说明，保持紧凑（≤60 行）
 - ✅ 支持多轮对话和上下文关联（在单个 Subagent 内部）
 - ✅ **@meta-query 是工具型 Agent**，用于 Claude 在对话中执行复杂 Unix 管道（Phase 14 已实现）
 
@@ -2525,103 +2533,174 @@ User: "@meta-coach 分析本项目的错误模式"
 ### Stage 17.2: @error-analyst 专用 Subagent
 
 **任务**：
-- 创建错误深度分析 Subagent
+- 创建错误深度分析 Subagent（遵循 meta-coach.md 形式化风格）
 - 分析错误模式、根本原因、系统性问题
 - 生成修复建议和预防措施
+
+**格式要求**（严格遵循 meta-coach.md 风格）：
+- Lambda 演算签名：λ(error_history, user_focus) → diagnostic_report
+- 形式化函数定义：extract :: Session → Error_Data
+- 数学约束：∀error ∈ errors: classify(error) ∧ prioritize(error)
+- 集合论数据结构：{error_stats, error_details, error_context}
+- 逻辑约束清单：data_driven, actionable, prioritized
+- 总长度：≤60 行
 
 **交付物**：
 ```markdown
 # .claude/agents/error-analyst.md
 ---
 name: error-analyst
-description: 错误模式深度分析专家
+description: Deep error pattern analysis with root cause diagnostics and systematic issue detection
 ---
 
-你是 error-analyst，专注于分析错误模式和根本原因。
+λ(error_history, user_focus) → diagnostic_report | ∀error ∈ errors:
 
-## MCP 输出控制策略
-# IMPORTANT: Always use aggressive output control
-# - stats_only=true for all aggregations (>99% compression)
-# - content_summary=true for user messages (prevents massive session summaries)
-# - Keep limits low (10-20) to prevent context overflow
+diagnose :: Error_History → Diagnostics
+diagnose(H) = extract(errors) ∧ classify(patterns) ∧ trace(root_causes) ∧ prioritize(fixes)
 
 extract :: Session → Error_Data
 extract(S) = {
   error_stats: mcp_meta_insight.query_tools(status="error", stats_only=true),
-  error_details: mcp_meta_insight.query_tools(status="error", limit=10),
-  error_context: mcp_meta_insight.query_context(error_signature="...", window=3)
+
+  error_details: mcp_meta_insight.query_tools(status="error", limit=10, max_message_length=500),
+
+  error_context: mcp_meta_insight.query_context(error_signature=sig, window=3)
 }
 
-## 分析流程
-1. 调用 query_tools(status="error", stats_only=true) 获取错误统计
-2. 调用 query_tools(status="error", limit=10) 获取详细错误
-3. 使用 query_context 获取错误上下文
-4. 分析错误类型：配置问题/依赖缺失/代码错误/架构问题
-5. 生成分类报告和修复优先级
+classify :: Error_Set → Error_Categories
+classify(E) = {
+  configuration: ∃env_var ∨ missing_file,
+  dependency: ∃import_fail ∨ version_mismatch,
+  code_logic: ∃runtime_error ∧ ¬dependency,
+  architecture: frequency(error) ≥ threshold ∧ affects_multiple_modules
+}
 
-## 输出格式
-- 错误分类（配置/依赖/代码/架构）
-- 根本原因分析
-- 修复优先级（P0/P1/P2）
-- 预防建议
+prioritize :: Error_Categories → Priority_Queue
+prioritize(C) = {
+  P0_blocking: prevents_execution ∨ data_corruption,
+  P1_critical: affects_workflow ∧ no_workaround,
+  P2_moderate: has_workaround ∨ infrequent
+}
+
+report :: Diagnostics → Recommendations
+report(D) = category(errors) ∧ root_cause(analysis) ∧ fixes(prioritized) ∧ prevention(strategies)
+
+constraints:
+- evidence_based: ∀diagnosis → ∃error_data ∈ session_history
+- actionable: ∀fix → concrete ∧ implementable
+- prioritized: order(fixes) = severity DESC, frequency DESC
+- systematic: identify(pattern) → prevent(recurrence)
+
+output :: Analysis_Session → Report
+output(A) = classification(errors) ∧ root_causes(detailed) ∧ fixes(prioritized) ∧ prevention(guidance)
 ```
+
+**验证要点**：
+- ✅ 使用 Lambda 演算签名
+- ✅ 所有函数使用 :: 定义
+- ✅ 数学符号表示约束（∀, ∃, ∧, ∨）
+- ✅ 集合论表示数据结构
+- ✅ 约束清单使用逻辑表达式
+- ✅ 总长度 ≤60 行
+- ✅ MCP 输出控制（stats_only, limit, max_message_length）
 
 ### Stage 17.3: @workflow-tuner 工作流优化 Subagent
 
 **任务**：
-- 创建工作流自动化建议 Subagent
-- 检测重复模式，建议创建 Hooks/Slash Commands
+- 创建工作流自动化建议 Subagent（遵循 meta-coach.md 形式化风格）
+- 检测重复模式，建议创建 Hooks/Slash Commands/Subagents
 - 生成自动化配置草稿
+
+**格式要求**（严格遵循 meta-coach.md 风格）：
+- Lambda 演算签名：λ(workflow_history, automation_goal) → automation_plan
+- 形式化函数定义：detect :: Session → Pattern_Set
+- 数学约束：∀pattern: frequency(pattern) ≥ threshold → automate(pattern)
+- 集合论数据结构：{tool_sequences, file_access, tool_stats}
+- 逻辑约束清单：repetition_based, roi_positive, maintainable
+- 总长度：≤60 行
 
 **交付物**：
 ```markdown
 # .claude/agents/workflow-tuner.md
 ---
 name: workflow-tuner
-description: 工作流自动化顾问
+description: Workflow automation advisor that detects repetitive patterns and generates automation configurations
 ---
 
-你是 workflow-tuner，帮助用户自动化重复工作流。
+λ(workflow_history, automation_goal) → automation_plan | ∀pattern ∈ workflows:
 
-## MCP 输出控制策略
-# IMPORTANT: Always use aggressive output control
-# - stats_only=true for all aggregations (>99% compression)
-# - content_summary=true for user messages (prevents massive session summaries)
-# - Keep limits low (10-20) to prevent context overflow
+optimize :: Workflow_History → Automation_Plan
+optimize(H) = detect(patterns) ∧ evaluate(roi) ∧ recommend(automation_type) ∧ generate(config)
 
-extract :: Session → Workflow_Data
-extract(S) = {
+detect :: Session → Pattern_Set
+detect(S) = {
   tool_sequences: mcp_meta_insight.query_tool_sequences(min_occurrences=3, stats_only=true),
-  file_access: mcp_meta_insight.query_files(top=20, sort_by="total_ops"),
-  tool_stats: mcp_meta_insight.query_tools(stats_only=true, limit=20)
+
+  file_hotspots: mcp_meta_insight.query_files(top=20, sort_by="total_ops"),
+
+  tool_usage: mcp_meta_insight.query_tools(stats_only=true, limit=20)
 }
 
-## 检测模式
-1. 调用 query_tool_sequences(min_occurrences=3, stats_only=true) 检测重复序列
-2. 调用 query_files(top=20) 识别频繁修改文件
-3. 分析是否值得自动化（出现次数 ≥5）
+evaluate :: Pattern_Set → Automation_Candidates
+evaluate(P) = {
+  high_value: frequency(pattern) ≥ 5 ∧ time_saved > 60s,
+  medium_value: frequency(pattern) ≥ 3 ∧ time_saved > 30s,
+  low_value: frequency(pattern) < 3 ∨ time_saved ≤ 30s
+}
 
-## 建议类型
-- Slash Command：固定流程（如代码审查）
-- Hook：自动触发（如提交前测试）
-- Subagent：复杂决策（如智能重构）
+recommend :: Automation_Candidates → Automation_Type
+recommend(C) = {
+  slash_command: fixed_sequence ∧ no_branching,
+  hook: event_triggered ∧ deterministic_action,
+  subagent: complex_decision ∨ context_dependent
+}
 
-## 输出
-- 自动化建议（类型、触发条件、优先级）
-- 配置草稿（.md 文件内容）
-- 实施步骤
+generate :: Automation_Type → Config_Draft
+generate(T) = frontmatter(name, description) ∧ implementation(logic) ∧ usage_guide(examples)
+
+constraints:
+- repetition_based: ∀automation → frequency(pattern) ≥ min_threshold
+- roi_positive: time_saved(automation) > setup_cost + maintenance_cost
+- maintainable: config_complexity ≤ acceptable_threshold
+- testable: ∀automation → ∃validation_scenario
+
+output :: Optimization_Session → Deliverables
+output(O) = recommendations(prioritized) ∧ config_drafts(ready_to_use) ∧ implementation_steps(clear)
 ```
+
+**验证要点**：
+- ✅ 使用 Lambda 演算签名
+- ✅ 所有函数使用 :: 定义
+- ✅ 数学符号表示约束（∀, ∃, ∧, ∨, ≥, ≤）
+- ✅ 集合论表示数据结构
+- ✅ 约束清单使用逻辑表达式
+- ✅ 总长度 ≤60 行
+- ✅ MCP 输出控制（stats_only, top, limit）
 
 ### Stage 17.4: 集成测试和文档
 
 **任务**：
 - 测试各 Subagent 独立运行
 - 验证 MCP 工具调用正确性和输出控制
-- 创建完整使用文档
+- **验证所有 Subagent 定义符合形式化数学风格**
+- 创建完整使用文档（包含形式化风格指南）
+
+**形式化风格验证清单**：
+- ✅ 每个 Subagent 包含 Lambda 演算签名
+- ✅ 所有核心函数使用 :: 定义类型
+- ✅ 数学约束使用符号（∀, ∃, ∧, ∨, →）
+- ✅ 数据结构使用集合论表示（{...}）
+- ✅ 包含 constraints 章节，使用逻辑表达式
+- ✅ 总长度控制在 ≤60 行
+- ✅ 避免冗长散文，保持形式化精炼
 
 **交付物**：
 - `docs/subagents-guide.md`：Subagent 使用指南
-- `docs/subagents-development.md`：创建自定义 Subagent 指南
+- `docs/subagents-development.md`：创建自定义 Subagent 指南（包含形式化风格要求）
+  - 形式化数学风格规范（参考 meta-coach.md）
+  - Lambda 演算语法指南
+  - 常用数学符号表（∀, ∃, ∧, ∨, →, ≥, ≤, ∈, ⊆）
+  - 示例：如何将散文描述转换为形式化定义
 - 集成测试脚本
 
 **测试场景**：
@@ -2642,18 +2721,40 @@ User: "@workflow-tuner 建议自动化方案"
 User: "@meta-coach 分析最近 100 次错误"
 验证: 使用 stats_only + limit 控制输出大小，避免上下文溢出
 
+# 测试 5: 形式化风格验证
+验证 .claude/agents/error-analyst.md:
+  - ✅ 包含 λ(error_history, user_focus) → diagnostic_report
+  - ✅ 至少 4 个函数使用 :: 定义（extract, classify, prioritize, report）
+  - ✅ constraints 章节使用逻辑符号
+  - ✅ 总行数 ≤60 行
+  - ✅ 无冗长散文说明
+
+验证 .claude/agents/workflow-tuner.md:
+  - ✅ 包含 λ(workflow_history, automation_goal) → automation_plan
+  - ✅ 至少 4 个函数使用 :: 定义（detect, evaluate, recommend, generate）
+  - ✅ constraints 章节使用逻辑符号
+  - ✅ 总行数 ≤60 行
+  - ✅ 无冗长散文说明
+
 # 注: 用户可以根据多个 Subagent 的输出自行综合分析，
 #     但 Subagents 之间不相互调用
 ```
 
 **Phase 17 完成标准**：
 - ✅ @meta-coach 核心 Subagent 验证（包含 MCP 输出控制说明）
-- ✅ @error-analyst 专用 Subagent 实现（包含输出控制策略）
-- ✅ @workflow-tuner 专用 Subagent 实现（包含输出控制策略）
+- ✅ @error-analyst 专用 Subagent 实现（遵循形式化数学风格）
+- ✅ @workflow-tuner 专用 Subagent 实现（遵循形式化数学风格）
+- ✅ **所有 Subagent 定义遵循形式化规范**：
+  - 使用 Lambda 演算签名（λ(inputs) → outputs）
+  - 函数定义使用 :: 符号
+  - 数学约束使用符号（∀, ∃, ∧, ∨, →, ≥, ≤）
+  - 数据结构使用集合论表示
+  - 约束清单使用逻辑表达式
+  - 总长度 ≤60 行
 - ✅ 各 Subagent 独立运行测试通过
-- ✅ 输出控制验证（stats_only, content_summary, limit）
-- ✅ 完整的 Subagent 使用文档
-- ✅ 至少 4 个独立测试场景通过
+- ✅ 输出控制验证（stats_only, content_summary, limit, max_message_length）
+- ✅ 完整的 Subagent 使用文档（包含形式化风格指南）
+- ✅ 至少 5 个测试场景通过（包含形式化风格验证）
 
 **架构完整性**：
 ```
