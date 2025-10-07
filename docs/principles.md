@@ -294,11 +294,12 @@ Subagents 分为两类：
 - ✅ **必须说明 MCP 输出控制策略**（参考 `.claude/agents/meta-coach.md`）
 - ✅ 支持多轮对话和上下文关联（在单个 Subagent 内部）
 
-**MCP 输出控制要求**（参考 meta-coach.md:23-53）：
+**MCP 输出控制要求**（Phase 16+ 推荐）：
 - `stats_only=true`：仅统计（>99% 压缩）
-- `content_summary=true`：仅元数据（93% 压缩）
-- `max_message_length=500`：限制消息长度（86% 压缩）
-- `limit=10-20`：限制结果数量
+- **Hybrid Mode**（默认）：自动选择 inline（≤8KB）或 file_ref（>8KB），无数据截断
+- ~~`content_summary=true`~~：已弃用，使用 Hybrid Mode 代替（信息完整性更好）
+- ~~`max_message_length=500`~~：已弃用（默认 0 = 无截断），使用 Hybrid Mode 代替
+- `limit=10-20`：限制结果数量（仅在明确需要时使用）
 
 **MCP 输出模式适配**（Phase 16）：
 - 小查询（≤8KB）→ inline 模式，直接分析 data 字段

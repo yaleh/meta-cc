@@ -618,6 +618,78 @@ Existing MCP clients expecting raw data arrays can use legacy mode:
 ]
 ```
 
+### From Truncation Parameters to Hybrid Mode
+
+**Background**: Phase 15 introduced `max_message_length` and `content_summary` to handle large user messages (10.7k tokens). Phase 16 introduced hybrid output mode, making truncation unnecessary.
+
+**Before (Phase 15 - Truncation Approach)**:
+
+```json
+// Request with truncation
+{
+  "tool": "query_user_messages",
+  "arguments": {
+    "pattern": "error",
+    "max_message_length": 500  // Truncate to 500 chars
+  }
+}
+
+// Response: Data is truncated (information loss)
+{
+  "mode": "inline",
+  "data": [
+    {"content": "This is a long error message that gets trunca..."}
+  ]
+}
+```
+
+**After (Phase 16+ - Hybrid Mode, Default)**:
+
+```json
+// Request without truncation (default)
+{
+  "tool": "query_user_messages",
+  "arguments": {
+    "pattern": "error"
+    // No max_message_length needed - hybrid mode handles large results
+  }
+}
+
+// Small results: inline mode
+{
+  "mode": "inline",
+  "data": [
+    {"content": "Full content preserved"}
+  ]
+}
+
+// Large results: file_ref mode (no truncation)
+{
+  "mode": "file_ref",
+  "file_ref": {
+    "path": "/tmp/meta-cc-mcp-query_user_messages-123.jsonl",
+    "size_bytes": 45678,
+    "line_count": 121,
+    "summary": {"preview": "...", "record_count": 121}
+  }
+}
+```
+
+**Migration Checklist**:
+
+- ✅ **Remove `max_message_length` parameter** - Default is now 0 (no truncation)
+- ✅ **Remove `content_summary` parameter** - Hybrid mode provides better information preservation
+- ✅ **No code changes needed** - Backward compatible (parameters still accepted but ignored by default)
+- ✅ **Better information integrity** - Complete data preserved in file_ref mode
+- ✅ **Use Read/Grep tools** - Process large results incrementally from file_ref
+
+**Key Benefits**:
+
+| Approach | Information Loss | Token Efficiency | Flexibility |
+|----------|------------------|------------------|-------------|
+| Phase 15 Truncation | ❌ Data truncated | ✅ Inline only | ❌ Fixed 500 chars |
+| Phase 16 Hybrid Mode | ✅ Complete data | ✅ Adaptive (inline/file_ref) | ✅ Read/Grep on demand |
+
 ## See Also
 
 - [Examples & Usage](examples-usage.md) - Practical hybrid output examples

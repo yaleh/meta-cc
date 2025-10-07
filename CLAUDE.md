@@ -151,8 +151,9 @@ For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes
 - `query_tools` - Filter tool calls by name, status (error/success)
   - Parameters: `tool`, `status`, `limit`
 - `query_user_messages` - Search user messages with regex patterns
-  - Parameters: `pattern` (required, regex), `limit`, `max_message_length`, `content_summary`
+  - Parameters: `pattern` (required, regex), `limit`, `max_message_length` (deprecated), `content_summary` (deprecated)
   - Example: `query_user_messages(pattern="fix.*bug", limit=10)`
+  - Note: By default, uses hybrid mode for large results (no truncation)
 - `query_files` - File-level operation statistics
 
 **Advanced Queries**:
@@ -173,8 +174,8 @@ For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes
 - `stats_first` - Return stats before details
 - `jq_filter` - Apply jq expressions for advanced filtering
 - `inline_threshold_bytes` - Threshold for inline/file_ref mode (default: 8192, configurable via param or `META_CC_INLINE_THRESHOLD` env var)
-- `content_summary` - Return only turn/timestamp/preview (for messages)
-- `max_message_length` - Limit message content length (default: 500)
+- `content_summary` - Return only turn/timestamp/preview (for messages). **Deprecated**: Use hybrid mode instead for better information preservation
+- `max_message_length` - Limit message content length (default: 0 = no truncation). **Deprecated**: Rely on hybrid mode for large results
 
 ### Hybrid Output Mode
 

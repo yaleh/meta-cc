@@ -371,7 +371,7 @@ func TestExecuteTool_MessageTruncationParameters(t *testing.T) {
 		{
 			name:          "default max_message_length",
 			args:          map[string]interface{}{},
-			expectMaxLen:  DefaultMaxMessageLength,
+			expectMaxLen:  0, // Changed from DefaultMaxMessageLength - rely on hybrid mode
 			expectSummary: false,
 		},
 		{
@@ -387,7 +387,7 @@ func TestExecuteTool_MessageTruncationParameters(t *testing.T) {
 			args: map[string]interface{}{
 				"content_summary": true,
 			},
-			expectMaxLen:  DefaultMaxMessageLength,
+			expectMaxLen:  0, // Changed from DefaultMaxMessageLength
 			expectSummary: true,
 		},
 		{
@@ -403,7 +403,8 @@ func TestExecuteTool_MessageTruncationParameters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			maxLen := getIntParam(tt.args, "max_message_length", DefaultMaxMessageLength)
+			// Changed default from DefaultMaxMessageLength to 0 to match executor behavior
+			maxLen := getIntParam(tt.args, "max_message_length", 0)
 			summary := getBoolParam(tt.args, "content_summary", false)
 
 			if maxLen != tt.expectMaxLen {

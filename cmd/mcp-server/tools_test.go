@@ -212,7 +212,7 @@ func TestQueryUserMessagesMessageTruncationParams(t *testing.T) {
 			t.Errorf("max_message_length should be number type, got %s", maxMsgLen.Type)
 		}
 
-		if !strings.Contains(maxMsgLen.Description, "default: 500") {
+		if !strings.Contains(maxMsgLen.Description, "default: 0") {
 			t.Errorf("max_message_length should mention default value, got: %s", maxMsgLen.Description)
 		}
 

@@ -106,11 +106,11 @@ func getToolDefinitions() []Tool {
 					},
 					"max_message_length": {
 						Type:        "number",
-						Description: "Max chars per message content (default: 500, prevents huge summaries)",
+						Description: "Max chars per message content (default: 0 = no truncation, rely on hybrid mode for large results)",
 					},
 					"content_summary": {
 						Type:        "boolean",
-						Description: "Return only turn/timestamp/preview (100 chars), skip full content",
+						Description: "Return only turn/timestamp/preview (100 chars), skip full content. Use hybrid mode instead for better information preservation.",
 					},
 				}),
 				Required: []string{"pattern"},

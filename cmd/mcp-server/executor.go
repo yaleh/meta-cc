@@ -42,7 +42,8 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 	outputFormat := getStringParam(args, "output_format", "jsonl")
 
 	// Extract message truncation parameters (for query_user_messages)
-	maxMessageLength := getIntParam(args, "max_message_length", DefaultMaxMessageLength)
+	// Default to 0 (no truncation) - rely on hybrid mode for large results
+	maxMessageLength := getIntParam(args, "max_message_length", 0)
 	contentSummary := getBoolParam(args, "content_summary", false)
 
 	// Build meta-cc command
@@ -69,8 +70,9 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 		return "", fmt.Errorf("JSONL parse error: %w", err)
 	}
 
-	// Apply message truncation for query_user_messages
-	if toolName == "query_user_messages" {
+	// Apply message filters for query_user_messages (only if explicitly requested)
+	// By default, rely on hybrid mode (no truncation)
+	if toolName == "query_user_messages" && (maxMessageLength > 0 || contentSummary) {
 		parsedData = e.applyMessageFiltersToData(parsedData, maxMessageLength, contentSummary)
 	}
 
