@@ -27,17 +27,24 @@ collect(S) = {
 
 extract :: UserPrompts → PromptFeatures
 extract(U) = {
+  // 统计包含引用的消息数量（不是引用符号的总出现次数）
   file_references: count(U.all_prompts | filter("@[a-zA-Z0-9/_.-]+")),
+  // Implementation: jq -r '.content' | grep -c '@'
 
   subagent_usage: count(U.all_prompts | filter("@agent-")),
+  // Implementation: jq -r '.content' | grep -c '@agent-'
 
   slash_commands: count(U.all_prompts | filter("^/")),
+  // Implementation: jq -r '.content' | grep -c '^/'
 
-  multi_file_refs: count(U.all_prompts | filter("@.*@")),  // 多个 @ 引用
+  multi_file_refs: count(U.all_prompts | filter("@.*@")),
+  // Implementation: jq -r '.content' | grep -c '@.*@'
 
   doc_refs: count(U.all_prompts | filter("@docs|@plans|@CLAUDE")),
+  // Implementation: jq -r '.content' | grep -cE '@docs|@plans|@CLAUDE'
 
-  specific_locations: count(U.all_prompts | filter("Lines? \\d+|:\\d+")),  // 指定行号
+  specific_locations: count(U.all_prompts | filter("Lines? \\d+|:\\d+")),
+  // Implementation: jq -r '.content' | grep -cE 'Lines? [0-9]+|:[0-9]+'
 }
 
 classify :: UserPrompts → PromptTypes
@@ -129,21 +136,22 @@ analyze_workflow(S) = {
 characterize :: (PromptTypes, ToolUsageMetrics, WorkflowInsights) → UserStyle
 characterize(P, T, W) = {
   communication_style: classify({
-    "结构化型": T.file_ref_rate > 0.4 ∧ T.advanced_refs > 0.3,
+    "结构化型": T.file_ref_rate > 0.5 ∧ T.advanced_refs > 0.1,
     "探索型": W.feedback_ratio.clarification > 0.2,
     "直接型": W.iteration_efficiency.one_shot_success > 0.6,
-    "协作型": T.subagent_adoption > 0.1
+    "协作型": T.subagent_adoption > 0.15
   }),
 
   planning_style: classify({
-    "文档驱动": T.doc_awareness > 0.5,
+    "文档驱动": T.doc_awareness > 0.3,
     "增量开发": P.planning < P.execution ∧ W.completion_rate > 0.7,
     "瀑布式": P.planning > 0.3 ∧ planning_precedes_execution
   }),
 
   tool_proficiency: classify({
-    "高级用户": T.subagent_adoption > 0.15 ∧ T.slash_cmd_adoption > 0.1,
-    "熟练用户": T.file_ref_rate > 0.3,
+    "专家级用户": T.file_ref_rate > 0.6 ∧ T.subagent_adoption > 0.2,
+    "高级用户": T.file_ref_rate > 0.4 ∧ T.subagent_adoption > 0.1,
+    "熟练用户": T.file_ref_rate > 0.2,
     "新手": T.file_ref_rate < 0.2 ∧ T.subagent_adoption < 0.05
   })
 }
@@ -194,3 +202,4 @@ constraints:
 - privacy_aware: aggregate statistics only, no sensitive data exposure
 - non_judgmental: descriptive ∧ ¬prescriptive
 - comprehensive: cover 5 dimensions (prompts, rhythm, tools, completion, success)
+- correct_counting: use grep -c for message count, not grep -o | wc -l for occurrence count
