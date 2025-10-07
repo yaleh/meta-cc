@@ -9,8 +9,28 @@ import (
 	"github.com/yale/meta-cc/internal/types"
 )
 
+// BuiltinTools is the set of Claude Code's built-in tools
+// These are the native capabilities shipped with Claude Code
+// Tools prefixed with "mcp__*" are user/server-provided (not built-in)
+var BuiltinTools = map[string]bool{
+	"Bash":         true,
+	"Read":         true,
+	"Edit":         true,
+	"Write":        true,
+	"Glob":         true,
+	"Grep":         true,
+	"TodoWrite":    true,
+	"Task":         true,
+	"WebFetch":     true,
+	"WebSearch":    true,
+	"SlashCommand": true,
+	"BashOutput":   true,
+	"NotebookEdit": true,
+	"ExitPlanMode": true,
+}
+
 // BuildToolSequenceQuery builds a tool sequence pattern query
-func BuildToolSequenceQuery(entries []parser.SessionEntry, minOccurrences int, pattern string) (*ToolSequenceQuery, error) {
+func BuildToolSequenceQuery(entries []parser.SessionEntry, minOccurrences int, pattern string, includeBuiltin bool) (*ToolSequenceQuery, error) {
 	if minOccurrences < 1 {
 		return nil, fmt.Errorf("minOccurrences must be at least 1")
 	}
@@ -18,8 +38,8 @@ func BuildToolSequenceQuery(entries []parser.SessionEntry, minOccurrences int, p
 	// Build turn index
 	turnIndex := buildTurnIndex(entries)
 
-	// Extract tool calls with turn numbers
-	toolCalls := extractToolCallsWithTurns(entries, turnIndex)
+	// Extract tool calls with turn numbers (with optional built-in tool filtering)
+	toolCalls := extractToolCallsWithTurns(entries, turnIndex, includeBuiltin)
 
 	// Sort by turn
 	sort.Slice(toolCalls, func(i, j int) bool {
@@ -52,11 +72,17 @@ type toolCallWithTurn struct {
 }
 
 // extractToolCallsWithTurns extracts tool calls with turn numbers
-func extractToolCallsWithTurns(entries []parser.SessionEntry, turnIndex map[string]int) []toolCallWithTurn {
+// If includeBuiltin is false, built-in tools (Bash, Read, Edit, etc.) are filtered out
+func extractToolCallsWithTurns(entries []parser.SessionEntry, turnIndex map[string]int, includeBuiltin bool) []toolCallWithTurn {
 	var result []toolCallWithTurn
 
 	toolCalls := parser.ExtractToolCalls(entries)
 	for _, tc := range toolCalls {
+		// Skip built-in tools unless explicitly included
+		if !includeBuiltin && BuiltinTools[tc.ToolName] {
+			continue
+		}
+
 		if turn, ok := turnIndex[tc.UUID]; ok {
 			result = append(result, toolCallWithTurn{
 				toolName: tc.ToolName,

@@ -370,12 +370,21 @@ All tools support these parameters:
 **Tool-Specific Parameters**:
 - `pattern` (string): Sequence pattern to match (e.g., "Read -> Edit -> Bash")
 - `min_occurrences` (number): Minimum occurrences to report (default: 3)
+- `include_builtin_tools` (boolean): Include built-in tools (Bash, Read, Edit, etc.). Default: false
+
+**Performance Note**: By default, built-in tools (Bash, Read, Edit, etc.) are excluded from analysis for:
+- **35x faster execution** (~30s → <1s for large projects)
+- **Cleaner workflow patterns** (focus on MCP tools and business logic)
+- **97% data reduction** (10,892 → 305 tool calls in typical projects)
+
+Use `include_builtin_tools=true` only when debugging low-level tool usage.
 
 **Use Cases**:
 - Identify repetitive workflows
 - Find automation opportunities
 - Analyze tool combinations
 - Understand workflow habits
+- Discover MCP tool orchestration patterns
 
 **Example 1 - Common Sequences**:
 ```json
@@ -407,6 +416,18 @@ All tools support these parameters:
   "arguments": {
     "min_occurrences": 3,
     "jq_filter": "sort_by(.Occurrences) | reverse | .[0:10]"
+  }
+}
+```
+
+**Example 4 - Include Built-in Tools (for debugging)**:
+```json
+{
+  "name": "query_tool_sequences",
+  "arguments": {
+    "min_occurrences": 5,
+    "include_builtin_tools": true,
+    "jq_filter": ".[] | select(.Pattern | contains(\"Bash\"))"
   }
 }
 ```

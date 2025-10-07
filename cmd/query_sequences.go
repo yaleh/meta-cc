@@ -12,10 +12,11 @@ import (
 )
 
 var (
-	sequencesMinOccur     int
-	querySequencesPattern string
-	sequencesSuccessOnly  bool
-	sequencesWithMetrics  bool
+	sequencesMinOccur        int
+	querySequencesPattern    string
+	sequencesSuccessOnly     bool
+	sequencesWithMetrics     bool
+	queryIncludeBuiltinTools bool
 )
 
 // querySequencesCmd represents the tool-sequences query command
@@ -42,6 +43,7 @@ func init() {
 	querySequencesCmd.Flags().StringVar(&querySequencesPattern, "pattern", "", "Specific sequence pattern to match (e.g., 'Read -> Edit -> Bash')")
 	querySequencesCmd.Flags().BoolVar(&sequencesSuccessOnly, "successful-only", false, "Only show sequences with no errors")
 	querySequencesCmd.Flags().BoolVar(&sequencesWithMetrics, "with-metrics", false, "Include success rate and duration metrics")
+	querySequencesCmd.Flags().BoolVar(&queryIncludeBuiltinTools, "include-builtin-tools", false, "Include built-in tools (Bash, Read, Edit, etc.) in sequence analysis. Default: false (exclude for cleaner workflow patterns)")
 
 	queryCmd.AddCommand(querySequencesCmd)
 }
@@ -61,7 +63,7 @@ func runQuerySequences(cmd *cobra.Command, args []string) error {
 	}
 
 	// Build tool sequence query
-	result, err := query.BuildToolSequenceQuery(entries, sequencesMinOccur, querySequencesPattern)
+	result, err := query.BuildToolSequenceQuery(entries, sequencesMinOccur, querySequencesPattern, queryIncludeBuiltinTools)
 	if err != nil {
 		return fmt.Errorf("failed to build tool sequence query: %w", err)
 	}

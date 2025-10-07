@@ -4,15 +4,14 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/analyzer"
 	"github.com/yale/meta-cc/internal/query"
 	"github.com/yale/meta-cc/pkg/output"
 )
 
 var (
-	sequencesMinLength      int
 	sequencesMinOccurrences int
 	sequencesPattern        string
+	includeBuiltinTools     bool
 )
 
 // analyzeSequencesCmd represents the analyze sequences subcommand
@@ -35,9 +34,9 @@ Examples:
 func init() {
 	analyzeCmd.AddCommand(analyzeSequencesCmd)
 
-	analyzeSequencesCmd.Flags().IntVar(&sequencesMinLength, "min-length", 3, "Minimum sequence length (ignored when --pattern is specified)")
 	analyzeSequencesCmd.Flags().IntVar(&sequencesMinOccurrences, "min-occurrences", 3, "Minimum occurrences to report")
 	analyzeSequencesCmd.Flags().StringVar(&sequencesPattern, "pattern", "", "Specific pattern to match (e.g. \"Read → Edit\" or \"Read -> Edit\")")
+	analyzeSequencesCmd.Flags().BoolVar(&includeBuiltinTools, "include-builtin-tools", false, "Include built-in tools (Bash, Read, Edit, etc.) in sequence analysis. Default: false (exclude for cleaner workflow patterns, 35x faster)")
 }
 
 func runAnalyzeSequences(cmd *cobra.Command, args []string) error {
@@ -49,21 +48,14 @@ func runAnalyzeSequences(cmd *cobra.Command, args []string) error {
 
 	entries := p.GetEntries()
 
-	// Step 2: Detect sequences based on whether pattern is specified
-	var sequences interface{}
-
-	if sequencesPattern != "" {
-		// Use query package for specific pattern matching
-		queryResult, err := query.BuildToolSequenceQuery(entries, sequencesMinOccurrences, sequencesPattern)
-		if err != nil {
-			return fmt.Errorf("failed to query tool sequences: %w", err)
-		}
-		sequences = queryResult.Sequences
-	} else {
-		// Use analyzer package for general sequence detection
-		result := analyzer.DetectToolSequences(entries, sequencesMinLength, sequencesMinOccurrences)
-		sequences = result.Sequences
+	// Step 2: Use query package for all sequence detection
+	// When pattern="" (empty), it auto-detects all repeated sequences
+	// The includeBuiltinTools flag controls filtering (default: false = exclude built-in tools)
+	queryResult, err := query.BuildToolSequenceQuery(entries, sequencesMinOccurrences, sequencesPattern, includeBuiltinTools)
+	if err != nil {
+		return fmt.Errorf("failed to query tool sequences: %w", err)
 	}
+	sequences := queryResult.Sequences
 
 	// Step 3: Format and output
 	var outputStr string

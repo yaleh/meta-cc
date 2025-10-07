@@ -1,6 +1,7 @@
 package query
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -67,7 +68,8 @@ func TestBuildToolSequenceQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := BuildToolSequenceQuery(entries, tt.minOccurrences, tt.pattern)
+			// Use includeBuiltin=true for existing tests to maintain backward compatibility
+			got, err := BuildToolSequenceQuery(entries, tt.minOccurrences, tt.pattern, true)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BuildToolSequenceQuery() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -260,4 +262,292 @@ func createUUID(i int) string {
 
 func createToolID(i int) string {
 	return string(rune('A' + i))
+}
+
+// TestExtractToolCallsWithBuiltinFilter tests that built-in tools are filtered when includeBuiltin=false
+func TestExtractToolCallsWithBuiltinFilter(t *testing.T) {
+	now := time.Now()
+
+	// Create entries with mix of built-in and MCP tools
+	entries := createSequenceEntries(now, []string{
+		"Bash",                            // Built-in (should be filtered)
+		"Read",                            // Built-in (should be filtered)
+		"mcp__meta-insight__query_tools",  // MCP tool (should be kept)
+		"Edit",                            // Built-in (should be filtered)
+		"mcp__playwright__browser_click",  // MCP tool (should be kept)
+		"Grep",                            // Built-in (should be filtered)
+		"mcp__context7__get-library-docs", // MCP tool (should be kept)
+		"Write",                           // Built-in (should be filtered)
+	})
+
+	// Build turn index based on the actual entries
+	turnIndex := make(map[string]int)
+	turn := 0
+	for _, entry := range entries {
+		if entry.IsMessage() {
+			turn++
+			turnIndex[entry.UUID] = turn
+		}
+	}
+
+	// Test with includeBuiltin=false (default behavior)
+	filteredCalls := extractToolCallsWithTurns(entries, turnIndex, false)
+
+	// Should only have 3 MCP tools
+	if len(filteredCalls) != 3 {
+		t.Errorf("Expected 3 tool calls with filter, got %d", len(filteredCalls))
+	}
+
+	// Verify all returned tools are MCP tools (start with "mcp__")
+	for _, tc := range filteredCalls {
+		if !strings.HasPrefix(tc.toolName, "mcp__") {
+			t.Errorf("Expected MCP tool, got built-in tool: %s", tc.toolName)
+		}
+	}
+
+	// Test with includeBuiltin=true (include all tools)
+	allCalls := extractToolCallsWithTurns(entries, turnIndex, true)
+
+	// Should have all 8 tools
+	if len(allCalls) != 8 {
+		t.Errorf("Expected 8 tool calls without filter, got %d", len(allCalls))
+	}
+}
+
+// TestExtractToolCallsIncludeBuiltin tests that all tools are preserved when includeBuiltin=true
+func TestExtractToolCallsIncludeBuiltin(t *testing.T) {
+	now := time.Now()
+
+	entries := createSequenceEntries(now, []string{
+		"Bash", "Read", "Edit", "Write",
+	})
+
+	// Build turn index based on the actual entries
+	turnIndex := make(map[string]int)
+	turn := 0
+	for _, entry := range entries {
+		if entry.IsMessage() {
+			turn++
+			turnIndex[entry.UUID] = turn
+		}
+	}
+
+	calls := extractToolCallsWithTurns(entries, turnIndex, true)
+
+	// All built-in tools should be included
+	if len(calls) != 4 {
+		t.Errorf("Expected 4 tool calls, got %d", len(calls))
+	}
+
+	// Verify all tools are present (may not be in same order as input due to processing)
+	toolSet := make(map[string]bool)
+	for _, tc := range calls {
+		toolSet[tc.toolName] = true
+	}
+
+	expectedTools := []string{"Bash", "Read", "Edit", "Write"}
+	for _, tool := range expectedTools {
+		if !toolSet[tool] {
+			t.Errorf("Expected tool %s to be present in results", tool)
+		}
+	}
+}
+
+// TestBuiltinToolsList tests that the built-in tools list is complete
+func TestBuiltinToolsList(t *testing.T) {
+	expectedBuiltins := []string{
+		"Bash", "Read", "Edit", "Write", "Glob", "Grep",
+		"TodoWrite", "Task", "WebFetch", "WebSearch",
+		"SlashCommand", "BashOutput", "NotebookEdit", "ExitPlanMode",
+	}
+
+	// Verify all expected built-in tools are in the map
+	for _, tool := range expectedBuiltins {
+		if !BuiltinTools[tool] {
+			t.Errorf("Expected built-in tool %s not found in BuiltinTools map", tool)
+		}
+	}
+
+	// Verify count matches
+	if len(BuiltinTools) != len(expectedBuiltins) {
+		t.Errorf("Expected %d built-in tools, got %d", len(expectedBuiltins), len(BuiltinTools))
+	}
+}
+
+// TestSequencePatternQualityWithFilter tests that filtering improves pattern quality
+func TestSequencePatternQualityWithFilter(t *testing.T) {
+	now := time.Now()
+
+	// Create realistic session with noise (many Bash calls) and signal (MCP workflow)
+	entries := createSequenceEntries(now, []string{
+		"Bash", "Bash", "Bash", // Noise pattern
+		"mcp__meta-insight__query_tools",
+		"mcp__meta-insight__query_user_messages",
+		"Bash", "Bash", "Bash", // More noise
+		"mcp__meta-insight__query_tools",
+		"mcp__meta-insight__query_user_messages",
+		"Read", "Edit", "Write", // More built-in noise
+		"mcp__meta-insight__query_tools",
+		"mcp__meta-insight__query_user_messages",
+	})
+
+	// Test WITHOUT filter (includeBuiltin=true) - should find "Bash → Bash" as top pattern
+	allToolsResult, err := BuildToolSequenceQuery(entries, 3, "", true)
+	if err != nil {
+		t.Fatalf("BuildToolSequenceQuery failed: %v", err)
+	}
+
+	// Test WITH filter (includeBuiltin=false) - should find MCP workflow pattern
+	filteredResult, err := BuildToolSequenceQuery(entries, 3, "", false)
+	if err != nil {
+		t.Fatalf("BuildToolSequenceQuery with filter failed: %v", err)
+	}
+
+	// With filter, should find the meaningful MCP pattern
+	if len(filteredResult.Sequences) == 0 {
+		t.Error("Expected to find MCP workflow patterns with filter")
+	}
+
+	// Verify that filtered results contain MCP tools, not built-in tools
+	for _, seq := range filteredResult.Sequences {
+		if strings.Contains(seq.Pattern, "Bash") || strings.Contains(seq.Pattern, "Read") {
+			t.Errorf("Filtered results should not contain built-in tools, got pattern: %s", seq.Pattern)
+		}
+		if !strings.Contains(seq.Pattern, "mcp__") {
+			t.Errorf("Filtered results should contain MCP tools, got pattern: %s", seq.Pattern)
+		}
+	}
+
+	// Without filter, should have more patterns (including noise)
+	if len(allToolsResult.Sequences) <= len(filteredResult.Sequences) {
+		t.Log("Note: Without filter should typically find more patterns (including noise)")
+	}
+}
+
+// TestBuildToolSequenceQueryWithFilter tests the full query pipeline with filtering
+func TestBuildToolSequenceQueryEmptyPatternExcludesBuiltin(t *testing.T) {
+	now := time.Now()
+
+	// Create entries with both built-in tools and MCP tools
+	// Pattern: MCP1 → Bash → MCP2 → Read → (repeat 3 times)
+	entries := createSequenceEntries(now, []string{
+		"mcp__meta-insight__query_tools",
+		"Bash",
+		"mcp__meta-insight__query_user_messages",
+		"Read",
+		"mcp__meta-insight__query_tools",
+		"Bash",
+		"mcp__meta-insight__query_user_messages",
+		"Edit",
+		"mcp__meta-insight__query_tools",
+		"Bash",
+		"mcp__meta-insight__query_user_messages",
+	})
+
+	// Test with includeBuiltin=false and empty pattern
+	result, err := BuildToolSequenceQuery(entries, 2, "", false)
+	if err != nil {
+		t.Fatalf("BuildToolSequenceQuery() error = %v", err)
+	}
+
+	// Should only find MCP tool sequences, not built-in tool sequences
+	if len(result.Sequences) == 0 {
+		t.Errorf("Expected to find MCP tool sequences, got none")
+	}
+
+	// Verify no built-in tools in patterns
+	for _, seq := range result.Sequences {
+		pattern := seq.Pattern
+		if strings.Contains(pattern, "Bash") ||
+			strings.Contains(pattern, "Read") ||
+			strings.Contains(pattern, "Edit") ||
+			strings.Contains(pattern, "Write") {
+			t.Errorf("Found built-in tool in pattern (should be excluded): %s", pattern)
+		}
+	}
+
+	// Verify MCP tools are present
+	foundMCPPattern := false
+	for _, seq := range result.Sequences {
+		if strings.Contains(seq.Pattern, "mcp__") {
+			foundMCPPattern = true
+			break
+		}
+	}
+	if !foundMCPPattern {
+		t.Errorf("Expected to find MCP tool patterns, but none found")
+	}
+}
+
+func TestBuildToolSequenceQueryWithFilter(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name           string
+		tools          []string
+		includeBuiltin bool
+		minOccurrences int
+		wantMinCount   int  // Minimum number of sequences to find
+		wantMCP        bool // Should results contain MCP tools?
+	}{
+		{
+			name: "filter out built-in tools",
+			tools: []string{
+				"Bash", "Read",
+				"mcp__meta-insight__query_tools",
+				"mcp__meta-insight__query_user_messages",
+				"Bash", "Read",
+				"mcp__meta-insight__query_tools",
+				"mcp__meta-insight__query_user_messages",
+				"Bash", "Read",
+				"mcp__meta-insight__query_tools",
+				"mcp__meta-insight__query_user_messages",
+			},
+			includeBuiltin: false,
+			minOccurrences: 3,
+			wantMinCount:   1,
+			wantMCP:        true,
+		},
+		{
+			name: "include all tools",
+			tools: []string{
+				"Bash", "Bash",
+				"Bash", "Bash",
+				"Bash", "Bash",
+			},
+			includeBuiltin: true,
+			minOccurrences: 3,
+			wantMinCount:   1,
+			wantMCP:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entries := createSequenceEntries(now, tt.tools)
+
+			result, err := BuildToolSequenceQuery(entries, tt.minOccurrences, "", tt.includeBuiltin)
+			if err != nil {
+				t.Fatalf("BuildToolSequenceQuery failed: %v", err)
+			}
+
+			if len(result.Sequences) < tt.wantMinCount {
+				t.Errorf("Expected at least %d sequences, got %d", tt.wantMinCount, len(result.Sequences))
+			}
+
+			if tt.wantMCP && len(result.Sequences) > 0 {
+				// At least one sequence should contain MCP tools
+				hasMCP := false
+				for _, seq := range result.Sequences {
+					if strings.Contains(seq.Pattern, "mcp__") {
+						hasMCP = true
+						break
+					}
+				}
+				if !hasMCP {
+					t.Error("Expected to find MCP tools in sequences")
+				}
+			}
+		})
+	}
 }

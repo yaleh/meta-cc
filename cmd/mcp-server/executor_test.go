@@ -701,6 +701,22 @@ func TestBuildCommandAdditional(t *testing.T) {
 			wantArgs:     []string{"--project", ".", "analyze", "sequences", "--pattern", "Read->Edit", "--min-occurrences", "5", "--output", "jsonl"},
 		},
 		{
+			name:         "query_tool_sequences_with_builtin_filter",
+			toolName:     "query_tool_sequences",
+			args:         map[string]interface{}{"min_occurrences": float64(3), "include_builtin_tools": false},
+			scope:        "project",
+			outputFormat: "jsonl",
+			wantArgs:     []string{"--project", ".", "analyze", "sequences", "--min-occurrences", "3", "--output", "jsonl"},
+		},
+		{
+			name:         "query_tool_sequences_include_builtin",
+			toolName:     "query_tool_sequences",
+			args:         map[string]interface{}{"min_occurrences": float64(3), "include_builtin_tools": true},
+			scope:        "project",
+			outputFormat: "jsonl",
+			wantArgs:     []string{"--project", ".", "analyze", "sequences", "--min-occurrences", "3", "--include-builtin-tools", "--output", "jsonl"},
+		},
+		{
 			name:         "query_file_access",
 			toolName:     "query_file_access",
 			args:         map[string]interface{}{"file": "main.go"},

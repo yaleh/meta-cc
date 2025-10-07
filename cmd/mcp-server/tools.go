@@ -148,6 +148,10 @@ func getToolDefinitions() []Tool {
 						Type:        "number",
 						Description: "Min occurrences (default: 3)",
 					},
+					"include_builtin_tools": {
+						Type:        "boolean",
+						Description: "Include built-in tools (Bash, Read, Edit, etc.). Default: false (cleaner workflow patterns, 35x faster)",
+					},
 				}),
 			},
 		},

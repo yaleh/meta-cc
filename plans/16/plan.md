@@ -850,6 +850,264 @@ meta-cc/
 
 ---
 
+## Stage 8: Filter Built-in Tools for Meaningful Workflow Patterns
+
+### Objective
+
+Implement built-in tool filtering in sequence analysis to focus on high-level workflow patterns (MCP tools, agents) rather than low-level file operations, improving both performance and analysis quality.
+
+### Background
+
+**Current Problem**:
+- Built-in tools (Bash, Read, Edit, etc.) account for 97% of all tool calls (10,580 out of 10,892)
+- Sequence analysis dominated by noise: "Bash → Bash → Bash" (2,178 occurrences)
+- Query execution slow for large projects (~30s for 10,892 calls)
+- Meaningful MCP workflow patterns buried under low-level operations
+
+**Proposed Solution**:
+- Add `--include-builtin-tools` flag (default: false, excluding built-in tools)
+- Filter built-in tools during sequence extraction, not output
+- Expose parameter via MCP server for Claude queries
+- Document the performance and quality improvements
+
+**Expected Impact**:
+- **Performance**: ~35x speedup (30s → <1s) for project-scope queries
+- **Data reduction**: 97% fewer tool calls to analyze (10,892 → 305)
+- **Quality**: Focus on MCP tools workflow (meta-insight, context7, playwright, etc.)
+- **Examples**: "query_tools → query_user_messages → query_successful_prompts" instead of "Bash → Bash → Bash"
+
+### Acceptance Criteria
+
+- [ ] `--include-builtin-tools` flag added to `analyze sequences` command (default: false)
+- [ ] Built-in tools list defined (14 tools: Bash, Read, Edit, Write, Glob, Grep, TodoWrite, Task, WebFetch, WebSearch, SlashCommand, BashOutput, NotebookEdit, ExitPlanMode)
+- [ ] Filtering implemented in `extractToolCallsWithTurns` before sequence detection
+- [ ] MCP `query_tool_sequences` tool supports `include_builtin_tools` parameter
+- [ ] Unit tests verify filtering logic (with/without built-in tools)
+- [ ] Integration tests verify performance improvement (≥30x for large datasets)
+- [ ] Documentation updated with usage examples and performance characteristics
+
+### TDD Approach
+
+**Test File**: `internal/query/sequences_test.go` (~80 lines new tests)
+- `TestExtractToolCallsWithBuiltinFilter` - Verify built-in tools filtered
+- `TestExtractToolCallsIncludeBuiltin` - Verify flag=true preserves all tools
+- `TestBuiltinToolsList` - Verify built-in tool list completeness
+- `TestSequencePatternQualityWithFilter` - Verify meaningful patterns emerge
+- `TestFilterPerformance` - Benchmark performance improvement
+
+**Test File**: `cmd/mcp-server/executor_test.go` (~40 lines new tests)
+- `TestQueryToolSequencesWithFilter` - MCP tool supports parameter
+- `TestQueryToolSequencesDefaultBehavior` - Default excludes built-in tools
+
+**Implementation File**: `internal/query/sequences.go` (~60 lines modified)
+```go
+// Add built-in tools list (14 tools)
+var BuiltinTools = map[string]bool{
+    "Bash": true, "Read": true, "Edit": true, "Write": true,
+    "Glob": true, "Grep": true, "TodoWrite": true, "Task": true,
+    "WebFetch": true, "WebSearch": true, "SlashCommand": true,
+    "BashOutput": true, "NotebookEdit": true, "ExitPlanMode": true,
+}
+
+// Modify extractToolCallsWithTurns to accept filter parameter
+func extractToolCallsWithTurns(entries []parser.SessionEntry, turnIndex map[string]int, includeBuiltin bool) []toolCallWithTurn {
+    var result []toolCallWithTurn
+
+    toolCalls := parser.ExtractToolCalls(entries)
+    for _, tc := range toolCalls {
+        // Skip built-in tools unless explicitly included
+        if !includeBuiltin && BuiltinTools[tc.ToolName] {
+            continue
+        }
+
+        if turn, ok := turnIndex[tc.UUID]; ok {
+            result = append(result, toolCallWithTurn{
+                toolName: tc.ToolName,
+                turn:     turn,
+                uuid:     tc.UUID,
+            })
+        }
+    }
+
+    return result
+}
+
+// Update BuildToolSequenceQuery signature
+func BuildToolSequenceQuery(entries []parser.SessionEntry, minOccurrences int, pattern string, includeBuiltin bool) (*ToolSequenceQuery, error)
+```
+
+**Implementation File**: `cmd/analyze.go` (~20 lines modified)
+```go
+// Add flag to analyze sequences command
+var includeBuiltinTools bool
+
+func init() {
+    analyzeSequencesCmd.Flags().BoolVar(&includeBuiltinTools, "include-builtin-tools", false, "Include built-in tools (Bash, Read, Edit, etc.) in sequence analysis. Default: false (exclude for cleaner workflow patterns)")
+}
+
+// Pass flag to query builder
+result, err := query.BuildToolSequenceQuery(entries, minOccurrences, pattern, includeBuiltinTools)
+```
+
+**Implementation File**: `cmd/mcp-server/executor.go` (~15 lines modified)
+```go
+// Add parameter handling in query_tool_sequences
+case "query_tool_sequences":
+    cmdArgs = append(cmdArgs, "analyze", "sequences")
+    if pattern := getStringParam(args, "pattern", ""); pattern != "" {
+        cmdArgs = append(cmdArgs, "--pattern", pattern)
+    }
+    if minOccur := getIntParam(args, "min_occurrences", 0); minOccur > 0 {
+        cmdArgs = append(cmdArgs, "--min-occurrences", strconv.Itoa(minOccur))
+    }
+    // New parameter
+    if includeBuiltin := getBoolParam(args, "include_builtin_tools", false); includeBuiltin {
+        cmdArgs = append(cmdArgs, "--include-builtin-tools")
+    }
+```
+
+**Implementation File**: `cmd/mcp-server/tools.go` (~10 lines modified)
+```go
+// Add parameter to query_tool_sequences tool definition
+{
+    Name:        "query_tool_sequences",
+    Description: "Query workflow patterns. Default: exclude built-in tools for cleaner analysis.",
+    InputSchema: ToolSchema{
+        Type: "object",
+        Properties: MergeParameters(map[string]Property{
+            "pattern": {
+                Type:        "string",
+                Description: "Sequence pattern to match",
+            },
+            "min_occurrences": {
+                Type:        "number",
+                Description: "Min occurrences (default: 3)",
+            },
+            "include_builtin_tools": {
+                Type:        "boolean",
+                Description: "Include built-in tools (Bash, Read, Edit, etc.). Default: false (cleaner workflow patterns, 35x faster)",
+            },
+        }),
+    },
+}
+```
+
+### File Changes
+
+**New Files**:
+- None
+
+**Modified Files**:
+- `internal/query/sequences.go` (~60 lines: add BuiltinTools map, modify extractToolCallsWithTurns)
+- `internal/query/sequences_test.go` (~80 lines: add filtering tests)
+- `cmd/analyze.go` (~20 lines: add --include-builtin-tools flag)
+- `cmd/mcp-server/executor.go` (~15 lines: handle include_builtin_tools parameter)
+- `cmd/mcp-server/executor_test.go` (~40 lines: test MCP parameter)
+- `cmd/mcp-server/tools.go` (~10 lines: add parameter definition)
+- `docs/mcp-tools-reference.md` (~20 lines: document parameter and performance characteristics)
+- `CLAUDE.md` (~15 lines: update query_tool_sequences usage)
+
+**Total Changes**: ~260 lines (implementation + tests + docs)
+
+### Test Commands
+
+```bash
+make test
+go test -v ./internal/query -run TestExtractToolCallsWithBuiltinFilter
+go test -v ./internal/query -run TestSequencePatternQuality
+go test -v ./cmd/mcp-server -run TestQueryToolSequencesWithFilter
+
+# Integration test: verify performance improvement
+time ./meta-cc analyze sequences --min-occurrences 3
+# Expected: <1s (filtering built-in tools)
+
+time ./meta-cc analyze sequences --min-occurrences 3 --include-builtin-tools
+# Expected: ~30s (including all tools)
+
+# Integration test: verify pattern quality
+./meta-cc analyze sequences --min-occurrences 3 | jq '.pattern' | head -10
+# Expected: MCP tool patterns like "query_tools → query_user_messages"
+
+./meta-cc analyze sequences --min-occurrences 3 --include-builtin-tools | jq '.pattern' | head -10
+# Expected: Built-in tool patterns like "Bash → Bash → Bash"
+```
+
+### Dependencies
+
+None (independent feature, can be implemented in parallel with other stages)
+
+### Design Philosophy
+
+**Why Exclude Built-in Tools by Default?**
+
+1. **Focus on High-Level Workflows**: Built-in tools are low-level operations (file read/write, bash execution). Workflow analysis should focus on business logic and MCP tool orchestration.
+
+2. **Performance**: Filtering 97% of tool calls reduces sequence detection complexity from O(10,892²) to O(305²), achieving ~35x speedup.
+
+3. **Pattern Quality**: Built-in tool patterns are trivial ("Bash → Bash → Bash"). MCP tool patterns reveal actual analysis workflows ("query_tools → query_user_messages → query_successful_prompts").
+
+4. **User Control**: Users can opt-in to built-in tools with `--include-builtin-tools` flag for specific debugging scenarios.
+
+**Built-in Tools List Rationale**:
+- These are Claude Code's native capabilities shipped with the product
+- All tools prefixed with `mcp__*` are user/server-provided (not built-in)
+- List includes: Bash, Read, Edit, Write, Glob, Grep, TodoWrite, Task, WebFetch, WebSearch, SlashCommand, BashOutput, NotebookEdit, ExitPlanMode
+
+### Performance Characteristics
+
+**Before (including all tools)**:
+- Tool calls analyzed: 10,892
+- Patterns detected: 1,549
+- Execution time: ~30s
+- Top pattern: "Bash → Bash → Bash" (2,178 occurrences)
+
+**After (excluding built-in tools, default)**:
+- Tool calls analyzed: 305 (97% reduction)
+- Patterns detected: ~20-50 (meaningful workflows)
+- Execution time: <1s (35x speedup)
+- Top pattern: "query_tools → query_user_messages → query_successful_prompts" (meaningful MCP workflow)
+
+### Documentation Updates
+
+**`docs/mcp-tools-reference.md`**:
+```markdown
+## query_tool_sequences
+
+**Performance Note**: By default, built-in tools (Bash, Read, Edit, etc.) are excluded from analysis for:
+- 35x faster execution (~30s → <1s for large projects)
+- Cleaner workflow patterns (focus on MCP tools and business logic)
+- 97% data reduction (10,892 → 305 tool calls)
+
+Use `include_builtin_tools=true` only when debugging low-level tool usage.
+
+**Examples**:
+- Default (exclude built-in): Shows MCP workflow patterns
+- With built-in tools: Shows all tool sequences (slower, noisier)
+```
+
+**`CLAUDE.md`**:
+```markdown
+## Query Tool Sequences
+
+By default, `query_tool_sequences` excludes Claude Code's built-in tools (Bash, Read, Edit, etc.) to focus on high-level workflow patterns. This provides:
+- Faster analysis (35x speedup)
+- Cleaner patterns (MCP tools instead of "Bash → Bash → Bash")
+- Better insight into meta-cognitive workflows
+
+**When to include built-in tools**:
+- Debugging specific Bash/Read/Edit sequences
+- Analyzing low-level file operation patterns
+- Complete tool usage audit
+
+**Usage**:
+```
+query_tool_sequences(min_occurrences=3)  # Default: exclude built-in tools
+query_tool_sequences(include_builtin_tools=true)  # Include all tools
+```
+```
+
+---
+
 ## Completion Status
 
 **Phase 16: COMPLETE** ✅

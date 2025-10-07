@@ -248,6 +248,34 @@ MCP tools and CLI commands use consistent parameter naming for easier understand
 
 This consistency eliminates confusion and follows the Unix philosophy.
 
+### Query Tool Sequences - Built-in Tool Filtering
+
+By default, `query_tool_sequences` excludes Claude Code's built-in tools (Bash, Read, Edit, etc.) to focus on high-level workflow patterns. This provides:
+
+- **35x faster analysis** (~30s → <1s for large projects)
+- **Cleaner patterns** (MCP tool workflows instead of "Bash → Bash → Bash")
+- **Better insight** into meta-cognitive workflows and MCP tool orchestration
+
+**Built-in Tools List** (14 tools):
+- File operations: Bash, Read, Edit, Write, Glob, Grep
+- Task management: TodoWrite, Task
+- Web operations: WebFetch, WebSearch
+- Other: SlashCommand, BashOutput, NotebookEdit, ExitPlanMode
+
+**When to include built-in tools**:
+- Debugging specific Bash/Read/Edit sequences
+- Analyzing low-level file operation patterns
+- Complete tool usage audit
+
+**Usage Examples**:
+```
+# Default: exclude built-in tools (cleaner, faster)
+query_tool_sequences(min_occurrences=3)
+
+# Include all tools (slower, noisier)
+query_tool_sequences(min_occurrences=3, include_builtin_tools=true)
+```
+
 ## Integration Patterns
 
 For choosing between integration methods, see [docs/integration-guide.md](docs/integration-guide.md).

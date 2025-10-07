@@ -177,6 +177,10 @@ func (e *ToolExecutor) buildCommand(toolName string, args map[string]interface{}
 		if minOccur := getIntParam(args, "min_occurrences", 0); minOccur > 0 {
 			cmdArgs = append(cmdArgs, "--min-occurrences", strconv.Itoa(minOccur))
 		}
+		// New parameter: include built-in tools (default: false for cleaner patterns)
+		if includeBuiltin := getBoolParam(args, "include_builtin_tools", false); includeBuiltin {
+			cmdArgs = append(cmdArgs, "--include-builtin-tools")
+		}
 
 	case "query_file_access":
 		cmdArgs = append(cmdArgs, "query", "file-access")
