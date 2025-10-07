@@ -39,8 +39,8 @@ test-all:
 	$(GOTEST) -v ./...
 
 test-coverage:
-	@echo "Running tests with coverage..."
-	$(GOTEST) -short -v -coverprofile=coverage.out ./...
+	@echo "Running tests with coverage (including E2E tests)..."
+	$(GOTEST) -v -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 
 clean:
@@ -97,7 +97,7 @@ help:
 	@echo "  make build-mcp       - Build meta-cc-mcp MCP server only"
 	@echo "  make test            - Run tests (short mode, skips slow E2E tests)"
 	@echo "  make test-all        - Run all tests (including slow E2E tests ~30s)"
-	@echo "  make test-coverage   - Run tests with coverage report"
+	@echo "  make test-coverage   - Run tests with coverage report (includes E2E tests)"
 	@echo "  make lint            - Run static analysis (fmt + vet + golangci-lint)"
 	@echo "  make fmt             - Format code with gofmt"
 	@echo "  make vet             - Run go vet"
