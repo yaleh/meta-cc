@@ -1,49 +1,59 @@
 ---
-description: 基于历史成功 prompts 优化当前 prompt（使用 MCP meta-insight）
+description: Refine prompt based on successful prompt history (using MCP meta-insight)
 argument-hint: [prompt]
 ---
 
-# 基于历史优化 Prompt
+λ(prompt_raw) → prompt_refined | ∀pattern ∈ successful_history:
 
-使用 MCP meta-insight 分析项目历史中的成功 prompts，为当前 prompt 提供优化建议。
+prompt_raw :: `$1`
 
-## Original Prompt
+refine :: Raw_Prompt → Optimized_Prompts
+refine(P) = analyze(history) ∧ detect(gaps) ∧ generate(alternatives)
 
-```
-$1
-```
+analyze :: Project_History → Success_Patterns
+analyze(H) = {
+  successful: mcp_meta_insight.query_successful_prompts(min_quality_score=0.8),
 
-## 分析步骤
+  similar: mcp_meta_insight.query_user_messages(pattern=keywords(P)),
 
-1. **使用 `mcp__meta-insight__query_successful_prompts` 获取高质量历史 prompts**
-   - 设置 `min_quality_score=0.8`
-   - 分析成功 prompt 的结构特征
+  features: extract(structure) ∧ extract(specificity) ∧ extract(constraints)
+}
 
-2. **使用 `mcp__meta-insight__query_user_messages` 查找相似历史请求**
-   - 根据用户当前 prompt 的关键词构建搜索模式
-   - 查找类似的历史 user messages
-   - 分析其上下文和结果
+detect :: (Prompt, Patterns) → Improvement_Areas
+detect(P, S) = {
+  missing_file_refs: ¬uses(@file) ∧ should_reference(files),
+  missing_agent_refs: ¬uses(@agent-) ∧ should_delegate(tasks),
+  vague_objectives: specificity(P) < threshold(S),
+  missing_constraints: required_constraints(S) \ constraints(P),
+  missing_locations: ¬specifies(path:lines) ∧ references(files)
+}
 
-3. **提供优化建议**
-   - 对比当前 prompt 和成功案例
-   - 指出可改进之处：
-     - 缺失的具体细节
-     - 模糊的表达
-     - 可添加的约束条件
-     - 更清晰的目标描述
+best_practices :: Prompt → Quality_Score
+best_practices(P) = score({
+  file_reference: use(@file) > copy(content),
+  agent_delegation: use(@agent-X) > describe(steps),
+  precise_location: specify(path:lines) > mention(file),
+  clear_constraints: explicit(limits) > implicit(assumptions)
+})
 
-**Claude Code 最佳实践**：
-- ✅ **使用 `@` 引用文件**，避免复制文件内容到 prompt
-   - 好：`参考 @docs/plan.md @docs/principles.md`
-   - 差：`以下是 plan.md 的内容：[大段复制的内容]`
-- ✅ **使用 `@agent-` 调用 subagents**，避免复制 subagent 行为到 prompt
-   - 好：`使用 @agent-stage-executor 执行 Stage 13.1`
-   - 差：`请按照以下步骤执行：1. 读取计划 2. 执行测试 3. 实现...`
-- ✅ **引用具体位置**：文件路径 + 行号范围
-   - 好：`plans/13/plan.md Stage 13.1 (Lines 100-250)`
+generate :: (Prompt, Gaps, Patterns) → Alternatives
+generate(P, G, S) = optimize(P, G, S) where {
+  |alternatives| ≤ 3,
+  ∀alt ∈ alternatives: quality(alt) > quality(P),
+  rank(alternatives) by best_practices(alt)
+}
 
-- 给出不超过 3 个优化后的 prompt 示例
-  - 为示例编号以便于选择
-  - 说明你建议的选择
-- 不要执行优化后的示例
+output :: Alternatives → Report
+output(A) = {
+  original: P,
+  analysis: gaps(P) ∧ evidence(patterns),
+  options: enumerate(A) ∧ explain(improvements),
+  recommendation: argmax(quality, A)
+} where ¬execute(A)
 
+constraints:
+- evidence_based: ∀suggestion → ∃pattern ∈ successful_prompts
+- actionable: alternatives → concrete ∧ implementable
+- comparative: show(before_vs_after) ∧ highlight(changes)
+- limited: |alternatives| ≤ 3 ∧ recommend(best)
+- non_executable: analyze ∧ suggest ∧ ¬implement
