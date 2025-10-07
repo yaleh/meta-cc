@@ -1,105 +1,222 @@
 ---
 name: meta-errors
-description: 错误模式分析（Phase 14：标准化工具 + 简化查询）
-allowed_tools: [Bash]
+description: Analyze user-facing error patterns using MCP meta-insight. Focuses on workflow failures (test failures, build errors, interrupted tasks), subagent/slash/MCP errors, and user-triggered issues rather than internal tool errors.
 ---
 
-# meta-errors: 错误模式分析
+λ(scope) → error_insights | ∀error ∈ {workflow_failures, user_interruptions, high_level_tool_errors}:
 
-分析会话中的错误模式，提供优化建议。
+scope :: project | session
 
-```bash
-# Source shared utilities
-source "$(dirname "$0")/../lib/meta-utils.sh"
-check_meta_cc_installed
+analyze :: UserMessages → Error_Insights
+analyze(U) = collect(messages) ∧ detect(errors) ∧ classify(patterns) ∧ diagnose(causes)
 
-echo "## 错误数据提取" >&2
-echo "" >&2
+collect :: Scope → ErrorContext
+collect(S) = {
+  all_messages: mcp_meta_insight.query_user_messages(
+    pattern=".*",
+    limit=200,
+    scope=scope
+  ),
 
-# Phase 14: Use query errors command (JSONL output)
-errors_jsonl=$(meta-cc query errors 2>/dev/null)
-exit_code=$?
+  tool_calls: mcp_meta_insight.query_tools(
+    status="error",
+    scope=scope
+  ),
 
-if [ $exit_code -eq 2 ]; then
-    echo "✅ 当前会话未检测到错误。" >&2
-    exit 0
-elif [ $exit_code -eq 1 ]; then
-    echo "❌ 查询执行失败。" >&2
-    exit 1
-fi
+  tool_sequences: mcp_meta_insight.query_tool_sequences(
+    min_occurrences=2,
+    scope=scope
+  )
+}
 
-errors_data=$(jsonl_to_json "$errors_jsonl")
-error_count=$(echo "$errors_data" | jq 'length')
-echo "检测到 $error_count 个错误工具调用。" >&2
-echo "" >&2
+detect :: ErrorContext → ErrorEvents
+detect(E) = {
+  user_interruptions: identify_semantically(E.all_messages, [
+    "stop|interrupt|cancel|/clear",
+    "that's wrong|incorrect|not what I wanted",
+    "let me try again|restart|redo"
+  ]),
 
-# 聚合错误模式
-echo "## 错误模式分析"
-echo ""
+  workflow_failures: identify_semantically(E.all_messages, [
+    "test.*fail|tests? failed",
+    "build.*fail|compilation error",
+    "make.*error|make failed",
+    "npm.*error|yarn error",
+    "git.*error|merge conflict"
+  ]),
 
-patterns=$(echo "$errors_data" | jq 'if length > 0 then
-    group_by(.signature) | map({
-        signature: .[0].signature,
-        tool_name: .[0].tool_name,
-        count: length,
-        first_seen: .[0].timestamp,
-        last_seen: .[-1].timestamp,
-        sample_error: .[0].error,
-        time_span_seconds: ((.[- 1].timestamp | fromdateiso8601) - (.[0].timestamp | fromdateiso8601))
-    }) | sort_by(-.count)
-else
-    []
-end')
+  subagent_errors: filter_tool_calls(E.tool_calls, tool="Task", status="error"),
+  slash_errors: filter_tool_calls(E.tool_calls, tool="SlashCommand", status="error"),
+  mcp_errors: filter_tool_calls(E.tool_calls, tool="mcp__*", status="error"),
 
-pattern_count=$(echo "$patterns" | jq 'length')
+  file_not_found: identify_messages_followed_by_error(E.all_messages, E.tool_calls, [
+    user_mentions("@file") → error("file not found|does not exist")
+  ]),
 
-if [ "$pattern_count" -eq 0 ]; then
-    echo "✅ 未检测到错误。"
-    exit 0
-fi
+  repeated_attempts: identify_sequences([
+    user_request → error → user_retry → error → user_retry
+  ])
+}
 
-echo "# 错误模式分析"
-echo ""
-echo "发现 $pattern_count 个错误模式："
-echo ""
+classify :: ErrorEvents → ErrorPatterns
+classify(E) = {
+  by_category: {
+    workflow_level: {
+      test_failures: count(E.workflow_failures.test),
+      build_failures: count(E.workflow_failures.build),
+      git_conflicts: count(E.workflow_failures.git)
+    },
 
-# 显示模式（限制 top 10）
-if [ "$pattern_count" -gt 10 ]; then
-    echo "⚠️  检测到大量错误 ($pattern_count 个模式)"
-    echo "显示 Top 10 模式以防止上下文溢出。"
-    echo ""
-    patterns_to_show=$(echo "$patterns" | jq '.[:10]')
-else
-    patterns_to_show="$patterns"
-fi
+    high_level_tools: {
+      subagent_failures: count(E.subagent_errors),
+      slash_command_failures: count(E.slash_errors),
+      mcp_failures: count(E.mcp_errors)
+    },
 
-echo "$patterns_to_show" | jq -r '.[] |
-    "\n## 模式: \(.tool_name)\n" +
-    "- **签名**: `\(.signature)`\n" +
-    "- **次数**: \(.count) 次\n" +
-    "- **错误**: \(.sample_error)\n" +
-    "\n### 上下文\n" +
-    "- **首次出现**: \(.first_seen)\n" +
-    "- **最后出现**: \(.last_seen)\n" +
-    "- **时间跨度**: \(.time_span_seconds) 秒\n" +
-    "\n---\n"'
+    user_corrections: {
+      interruptions: count(E.user_interruptions.interrupt),
+      rejections: count(E.user_interruptions.wrong),
+      retries: count(E.user_interruptions.retry)
+    },
 
-echo ""
-echo "---"
-echo ""
-echo "## 优化建议"
-echo ""
-echo "1. 调查重复错误 - 查看错误文本识别根本原因"
-echo "2. 使用 Hooks 预检查 - 创建钩子防止错误"
-echo "3. 调整工作流 - 考虑替代工具或优化提示词"
-```
+    context_issues: {
+      file_not_found: count(E.file_not_found),
+      missing_context: identify_errors_after_vague_prompts(E.all_messages, E.tool_calls)
+    }
+  },
 
-## 高级查询
+  by_severity: prioritize_by([
+    Critical: workflow_failures ∧ repeated_attempts,
+    High: subagent_errors ∨ multiple_interruptions,
+    Medium: slash_errors ∨ mcp_errors,
+    Low: single_occurrence ∧ user_recovered
+  ]),
 
-```bash
-# 最近 50 个错误
-meta-cc query errors | jq '.[-50:]'
+  by_frequency: group_and_rank(E, threshold=2)
+}
 
-# 按工具过滤
-meta-cc query errors | jq '[.[] | select(.tool_name == "Bash")]'
-```
+diagnose :: (ErrorEvents, ErrorPatterns) → RootCauses
+diagnose(E, P) = {
+  workflow_issues: {
+    test_instability: if P.by_category.workflow_level.test_failures > 3 then
+      analyze_test_failure_messages(E.workflow_failures.test),
+
+    build_configuration: if P.by_category.workflow_level.build_failures > 2 then
+      analyze_build_failure_context(E.workflow_failures.build),
+
+    git_workflow: if P.by_category.workflow_level.git_conflicts > 1 then
+      analyze_git_error_patterns(E.workflow_failures.git)
+  },
+
+  tool_usage_issues: {
+    subagent_misuse: if P.by_category.high_level_tools.subagent_failures > 0 then
+      identify_why_subagent_failed(E.subagent_errors),
+
+    mcp_query_issues: if P.by_category.high_level_tools.mcp_failures > 0 then
+      analyze_mcp_error_messages(E.mcp_errors),
+
+    slash_command_errors: if P.by_category.high_level_tools.slash_command_failures > 0 then
+      extract_slash_error_details(E.slash_errors)
+  },
+
+  context_problems: {
+    missing_files: if P.by_category.context_issues.file_not_found > 2 then
+      suggest("Verify file paths before using @ references"),
+
+    insufficient_context: if P.by_category.context_issues.missing_context > 3 then
+      suggest("Provide more context with @docs, @plans references")
+  },
+
+  user_satisfaction: {
+    frustration_signals: if P.by_category.user_corrections.interruptions > 5 then
+      analyze_interruption_causes(E.user_interruptions),
+
+    expectation_mismatch: if P.by_category.user_corrections.rejections > 3 then
+      analyze_rejection_contexts(E.user_interruptions)
+  }
+}
+
+output :: Analysis → Report
+output(A) = {
+  summary: {
+    total_error_events: count(A.error_events),
+    workflow_failure_rate: count(A.patterns.by_category.workflow_level) / total_messages,
+    user_interruption_rate: count(A.patterns.by_category.user_corrections) / total_messages,
+    high_level_tool_error_rate: count(A.patterns.by_category.high_level_tools) / total_tool_calls
+  },
+
+  critical_issues: {
+    repeated_failures: A.patterns.by_severity.Critical,
+    blocking_problems: identify_patterns_stopping_progress(A.error_events)
+  },
+
+  error_breakdown: {
+    workflow_errors: {
+      test_failures: {
+        count: A.patterns.by_category.workflow_level.test_failures,
+        examples: sample(A.error_events.workflow_failures.test, 3),
+        root_cause: A.root_causes.workflow_issues.test_instability
+      },
+      build_failures: {
+        count: A.patterns.by_category.workflow_level.build_failures,
+        examples: sample(A.error_events.workflow_failures.build, 3),
+        root_cause: A.root_causes.workflow_issues.build_configuration
+      }
+    },
+
+    tool_errors: {
+      subagent_errors: {
+        count: A.patterns.by_category.high_level_tools.subagent_failures,
+        examples: A.error_events.subagent_errors,
+        diagnosis: A.root_causes.tool_usage_issues.subagent_misuse
+      },
+      mcp_errors: {
+        count: A.patterns.by_category.high_level_tools.mcp_failures,
+        examples: A.error_events.mcp_errors,
+        diagnosis: A.root_causes.tool_usage_issues.mcp_query_issues
+      },
+      slash_errors: {
+        count: A.patterns.by_category.high_level_tools.slash_command_failures,
+        examples: A.error_events.slash_errors,
+        diagnosis: A.root_causes.tool_usage_issues.slash_command_errors
+      }
+    },
+
+    user_corrections: {
+      interruptions: {
+        count: A.patterns.by_category.user_corrections.interruptions,
+        causes: A.root_causes.user_satisfaction.frustration_signals
+      },
+      rejections: {
+        count: A.patterns.by_category.user_corrections.rejections,
+        causes: A.root_causes.user_satisfaction.expectation_mismatch
+      }
+    }
+  },
+
+  recommendations: {
+    immediate_fixes: generate_fixes_for(A.patterns.by_severity.Critical),
+    workflow_improvements: suggest_workflow_changes(A.root_causes.workflow_issues),
+    tool_usage_tips: suggest_better_practices(A.root_causes.tool_usage_issues),
+    context_guidelines: suggest_context_improvements(A.root_causes.context_problems)
+  }
+} where ¬execute(recommendations)
+
+implementation_notes:
+- focus on user-visible errors (workflow, high-level tools, user corrections)
+- builtin tool errors (Read, Bash, Edit) are secondary unless part of workflow failure
+- detect @ references, @agent-, /commands in user messages
+- analyze tool call results to detect errors in response to user actions
+- use semantic analysis to identify error intents in user messages
+- filter transitive tool calls (subagent/slash → builtin tools) to find user-facing issues
+- prioritize repeated errors and blocking issues
+- consider error recovery patterns (user retry vs give up)
+
+constraints:
+- user_focused: analyze errors from user's perspective
+- workflow_centric: prioritize dev workflow failures over tool glitches
+- actionable: ∀error → ∃recommendation
+- severity_aware: Critical > High > Medium > Low
+- pattern_detection: identify repeated failures (threshold ≥ 2)
+- exclude_noise: filter one-off builtin tool errors unless critical
+- semantic_understanding: detect error signals in natural language
