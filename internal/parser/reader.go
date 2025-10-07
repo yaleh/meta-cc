@@ -38,7 +38,8 @@ func (p *SessionParser) ParseEntries() ([]SessionEntry, error) {
 	scanner := bufio.NewScanner(file)
 
 	// Increase buffer size for large lines (Claude Code sessions can have very long lines)
-	const maxCapacity = 1024 * 1024 // 1MB
+	// Some sessions can have lines exceeding 1MB, so we use 2MB to be safe
+	const maxCapacity = 2 * 1024 * 1024 // 2MB
 	buf := make([]byte, maxCapacity)
 	scanner.Buffer(buf, maxCapacity)
 
