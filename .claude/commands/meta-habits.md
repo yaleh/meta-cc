@@ -27,77 +27,37 @@ collect(S) = {
 
 extract :: UserPrompts → PromptFeatures
 extract(U) = {
-  // 统计包含引用的消息数量（不是引用符号的总出现次数）
-  file_references: count(U.all_prompts | filter("@[a-zA-Z0-9/_.-]+")),
-  // Implementation: jq -r '.content' | grep -c '@'
-
-  subagent_usage: count(U.all_prompts | filter("@agent-")),
-  // Implementation: jq -r '.content' | grep -c '@agent-'
-
-  slash_commands: count(U.all_prompts | filter("^/")),
-  // Implementation: jq -r '.content' | grep -c '^/'
-
-  multi_file_refs: count(U.all_prompts | filter("@.*@")),
-  // Implementation: jq -r '.content' | grep -c '@.*@'
-
-  doc_refs: count(U.all_prompts | filter("@docs|@plans|@CLAUDE")),
-  // Implementation: jq -r '.content' | grep -cE '@docs|@plans|@CLAUDE'
-
-  specific_locations: count(U.all_prompts | filter("Lines? \\d+|:\\d+")),
-  // Implementation: jq -r '.content' | grep -cE 'Lines? [0-9]+|:[0-9]+'
+  file_references: count_messages_with(U.all_prompts, "@file_or_dir_ref"),
+  subagent_usage: count_messages_with(U.all_prompts, "@agent-*"),
+  slash_commands: count_messages_with(U.all_prompts, "/command"),
+  multi_file_refs: count_messages_with(U.all_prompts, "multiple_@_refs"),
+  doc_refs: count_messages_with(U.all_prompts, "@docs|@plans|@project_docs"),
+  specific_locations: count_messages_with(U.all_prompts, "line_numbers_or_ranges")
 }
 
 classify :: UserPrompts → PromptTypes
 classify(U) = {
-  planning: filter(U.all_prompts,
-    pattern="计划|Phase.*plan|设计|规划|分析.*如何|建议|思考"
-  ),
-
-  execution: filter(U.all_prompts,
-    pattern="执行|实现|implement|修改|fix|create|add|apply|do"
-  ),
-
-  verification: filter(U.all_prompts,
-    pattern="测试|验证|test|check|运行|确认|validate"
-  ),
-
-  documentation: filter(U.all_prompts,
-    pattern="文档|doc|README|注释|comment|update.*md"
-  ),
-
-  meta_reflection: filter(U.all_prompts,
-    pattern="/meta-|@agent-meta-coach|分析.*习惯|优化.*prompt"
-  )
+  planning: identify_semantically(U.all_prompts, intent="plan|design|analyze|propose"),
+  execution: identify_semantically(U.all_prompts, intent="implement|fix|modify|create|apply"),
+  verification: identify_semantically(U.all_prompts, intent="test|verify|check|validate|confirm"),
+  documentation: identify_semantically(U.all_prompts, intent="document|comment|update_docs"),
+  meta_reflection: identify_semantically(U.all_prompts, intent="analyze_workflow|optimize_process|meta_commands")
 }
 
 detect_sequences :: UserPrompts → PromptSequences
 detect_sequences(U) = {
-  // 用户工作流序列
-  typical_workflows: identify([
+  typical_workflows: identify_semantic_sequences([
     planning → execution → verification,
     question → clarification → execution,
     error → debug → fix → verify
   ]),
 
-  // 用户反馈信号
-  positive_feedback: filter(U.all_prompts,
-    pattern="好的|继续|下一个|apply|执行.*above|perfect|excellent"
-  ),
+  positive_feedback: identify_semantically(U.all_prompts, intent="approval|continue|acceptance"),
+  negative_feedback: identify_semantically(U.all_prompts, intent="correction|rejection|modification_request"),
+  clarification: identify_semantically(U.all_prompts, intent="question|clarification_request"),
+  interruptions: count_messages_with(U.all_prompts, "/clear|interrupted"),
 
-  negative_feedback: filter(U.all_prompts,
-    pattern="修改|重新|不对|fix|change|incorrect|wrong"
-  ),
-
-  clarification: filter(U.all_prompts,
-    pattern="为什么|如何|能否|可以.*吗|what|why|how|can you"
-  ),
-
-  interruptions: filter(U.all_prompts,
-    pattern="^/clear$|\\[Request interrupted"
-  ),
-
-  // Prompt 改进迭代
-  refinement_cycles: detect([
+  refinement_cycles: detect_semantic_sequences([
     vague_prompt → clarification → refined_prompt
   ])
 }
@@ -105,14 +65,10 @@ detect_sequences(U) = {
 measure_tool_adoption :: PromptFeatures → ToolUsageMetrics
 measure_tool_adoption(F) = {
   file_ref_rate: F.file_references / total_prompts,
-
   subagent_adoption: F.subagent_usage / total_prompts,
-
   slash_cmd_adoption: F.slash_commands / total_prompts,
-
-  advanced_refs: F.specific_locations / F.file_references,  // 精确引用比例
-
-  doc_awareness: F.doc_refs / F.file_references,  // 文档引用比例
+  advanced_refs: F.specific_locations / F.file_references,
+  doc_awareness: F.doc_refs / F.file_references
 }
 
 analyze_workflow :: PromptSequences → WorkflowInsights
@@ -135,24 +91,24 @@ analyze_workflow(S) = {
 
 characterize :: (PromptTypes, ToolUsageMetrics, WorkflowInsights) → UserStyle
 characterize(P, T, W) = {
-  communication_style: classify({
-    "结构化型": T.file_ref_rate > 0.5 ∧ T.advanced_refs > 0.1,
-    "探索型": W.feedback_ratio.clarification > 0.2,
-    "直接型": W.iteration_efficiency.one_shot_success > 0.6,
-    "协作型": T.subagent_adoption > 0.15
+  communication_style: classify_based_on({
+    "Structured": high_file_ref_rate ∧ frequent_specific_line_refs,
+    "Exploratory": high_clarification_rate,
+    "Direct": high_one_shot_success,
+    "Collaborative": frequent_subagent_delegation
   }),
 
-  planning_style: classify({
-    "文档驱动": T.doc_awareness > 0.3,
-    "增量开发": P.planning < P.execution ∧ W.completion_rate > 0.7,
-    "瀑布式": P.planning > 0.3 ∧ planning_precedes_execution
+  planning_style: classify_based_on({
+    "Document-Driven": frequent_doc_refs,
+    "Incremental": more_execution_than_planning ∧ high_completion_rate,
+    "Waterfall": high_planning_rate ∧ planning_precedes_execution
   }),
 
-  tool_proficiency: classify({
-    "专家级用户": T.file_ref_rate > 0.6 ∧ T.subagent_adoption > 0.2,
-    "高级用户": T.file_ref_rate > 0.4 ∧ T.subagent_adoption > 0.1,
-    "熟练用户": T.file_ref_rate > 0.2,
-    "新手": T.file_ref_rate < 0.2 ∧ T.subagent_adoption < 0.05
+  tool_proficiency: classify_based_on({
+    "Expert": very_high_file_refs ∧ frequent_subagent_use,
+    "Advanced": high_file_refs ∧ occasional_subagent_use,
+    "Proficient": moderate_file_refs,
+    "Beginner": low_file_refs ∧ rare_subagent_use
   })
 }
 
@@ -167,7 +123,7 @@ output(A) = {
 
   prompt_patterns: {
     type_distribution: percentage(A.prompt_types),
-    typical_sequences: top_5(A.sequences.typical_workflows),
+    typical_sequences: top_sequences(A.sequences.typical_workflows),
     refinement_efficiency: A.workflow.iteration_efficiency
   },
 
@@ -195,6 +151,13 @@ output(A) = {
   }
 } where ¬execute(recommendations)
 
+implementation_notes:
+- use semantic analysis via LLM capabilities, not just keyword matching
+- detect user language(s) from message content and use appropriate patterns
+- analyze message sequences for workflow patterns (not just individual messages)
+- consider context and intent, not just surface features
+- count messages containing patterns, not total pattern occurrences
+
 constraints:
 - user_focused: analyze user behavior, not Claude behavior
 - evidence_based: ∀insight → ∃data_point
@@ -202,4 +165,4 @@ constraints:
 - privacy_aware: aggregate statistics only, no sensitive data exposure
 - non_judgmental: descriptive ∧ ¬prescriptive
 - comprehensive: cover 5 dimensions (prompts, rhythm, tools, completion, success)
-- correct_counting: use grep -c for message count, not grep -o | wc -l for occurrence count
+- semantic_analysis: use LLM understanding beyond keyword matching
