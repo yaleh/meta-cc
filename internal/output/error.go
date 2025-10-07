@@ -80,8 +80,11 @@ func OutputError(err error, code ErrorCode, format string) error {
 func WarnNoResults(format string) error {
 	switch format {
 	case "jsonl":
-		// Output empty array (valid JSONL)
-		fmt.Println("[]")
+		// JSONL format: no results = no output (empty, no lines)
+		// This conforms to JSONL spec: each line is a JSON object
+		// No lines = no results
+		// Warning message goes to stderr
+		fmt.Fprintf(os.Stderr, "Warning: No results found\n")
 
 	case "tsv":
 		// Output warning to stderr, nothing to stdout

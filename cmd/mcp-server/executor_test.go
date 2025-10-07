@@ -447,6 +447,12 @@ func TestParseJSONL(t *testing.T) {
 			expectErr: false,
 		},
 		{
+			name:      "empty array (exit code 2 scenario)",
+			jsonl:     "[]",
+			expectLen: 0,
+			expectErr: false, // Should handle [] as empty result
+		},
+		{
 			name: "with empty lines",
 			jsonl: `{"id":1}
 
@@ -846,9 +852,16 @@ if [[ "$1" == "parse" && "$2" == "stats" ]]; then
 	echo '{"total_turns":10,"tool_calls":25}'
 	exit 0
 elif [[ "$1" == "query" && "$2" == "tools" ]]; then
-	echo '{"tool":"Bash","count":5}'
-	echo '{"tool":"Read","count":3}'
-	exit 0
+	if [[ "$3" == "--status" && "$4" == "error" ]]; then
+		# Simulate no results scenario (exit code 2)
+		echo '[]'
+		echo "Warning: No results found" >&2
+		exit 2
+	else
+		echo '{"tool":"Bash","count":5}'
+		echo '{"tool":"Read","count":3}'
+		exit 0
+	fi
 else
 	echo "unknown command" >&2
 	exit 1
@@ -890,6 +903,12 @@ fi
 			cmdArgs:     []string{"query", "tools", "--output", "jsonl"},
 			expectError: false,
 			expectOut:   "Bash",
+		},
+		{
+			name:        "exit code 2 (no results) should not be an error",
+			cmdArgs:     []string{"query", "tools", "--status", "error"},
+			expectError: false, // Exit code 2 should NOT be treated as error
+			expectOut:   "[]",  // Should return stdout content (empty array)
 		},
 		{
 			name:        "unknown command returns error",

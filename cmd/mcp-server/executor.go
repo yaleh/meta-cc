@@ -255,6 +255,18 @@ func (e *ToolExecutor) executeMetaCC(cmdArgs []string) (string, error) {
 	cmd.Dir, _ = os.Getwd()
 
 	if err := cmd.Run(); err != nil {
+		// Check if this is an exit error with specific exit code
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode := exitErr.ExitCode()
+
+			// Exit code 2 means "no results found" - this is not an error
+			// Return stdout content (may be "[]" or empty string)
+			if exitCode == 2 {
+				return stdout.String(), nil
+			}
+		}
+
+		// For exit code 1 or other errors, return error message
 		stderrMsg := strings.TrimSpace(stderr.String())
 		if stderrMsg == "" {
 			// If stderr is empty, include command details for debugging
@@ -268,7 +280,14 @@ func (e *ToolExecutor) executeMetaCC(cmdArgs []string) (string, error) {
 
 // parseJSONL parses JSONL string into array of interfaces
 func (e *ToolExecutor) parseJSONL(jsonlData string) ([]interface{}, error) {
-	lines := strings.Split(strings.TrimSpace(jsonlData), "\n")
+	jsonlData = strings.TrimSpace(jsonlData)
+
+	// Handle special cases: empty input or "[]" (exit code 2 scenario)
+	if jsonlData == "" || jsonlData == "[]" {
+		return []interface{}{}, nil
+	}
+
+	lines := strings.Split(jsonlData, "\n")
 	var data []interface{}
 
 	for _, line := range lines {

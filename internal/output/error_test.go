@@ -145,25 +145,44 @@ func TestOutputError_NoResults(t *testing.T) {
 }
 
 func TestWarnNoResults_JSONL(t *testing.T) {
-	// Capture stdout
+	// Capture stdout and stderr
 	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	rStdout, wStdout, _ := os.Pipe()
+	os.Stdout = wStdout
+
+	oldStderr := os.Stderr
+	rStderr, wStderr, _ := os.Pipe()
+	os.Stderr = wStderr
 
 	exitErr := WarnNoResults("jsonl")
 
-	w.Close()
-	var buf bytes.Buffer
-	if _, err := buf.ReadFrom(r); err != nil {
-		t.Fatalf("failed to read pipe: %v", err)
+	wStdout.Close()
+	wStderr.Close()
+
+	var bufStdout bytes.Buffer
+	var bufStderr bytes.Buffer
+	if _, err := bufStdout.ReadFrom(rStdout); err != nil {
+		t.Fatalf("failed to read stdout pipe: %v", err)
 	}
+	if _, err := bufStderr.ReadFrom(rStderr); err != nil {
+		t.Fatalf("failed to read stderr pipe: %v", err)
+	}
+
 	os.Stdout = oldStdout
+	os.Stderr = oldStderr
 
-	output := strings.TrimSpace(buf.String())
+	stdoutOutput := bufStdout.String()
+	stderrOutput := bufStderr.String()
 
-	// Verify empty array output
-	if output != "[]" {
-		t.Errorf("expected '[]', got '%s'", output)
+	// JSONL format: no results should output empty string (no lines)
+	// This conforms to JSONL spec: each line is a JSON object, no lines = no results
+	if stdoutOutput != "" {
+		t.Errorf("expected empty stdout for JSONL (no results), got '%s'", stdoutOutput)
+	}
+
+	// Verify warning goes to stderr
+	if !strings.Contains(stderrOutput, "Warning: No results found") {
+		t.Errorf("expected warning in stderr, got: %s", stderrOutput)
 	}
 
 	// Verify exit code
