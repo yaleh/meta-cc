@@ -235,7 +235,7 @@ func getToolDefinitions() []Tool {
 		},
 		{
 			Name:        "query_files",
-			Description: "File-level operation stats. Use jq_filter for filtering/sorting. Default scope: project.",
+			Description: "File operation stats (returns array). Use jq_filter for filtering. Default scope: project.",
 			InputSchema: ToolSchema{
 				Type: "object",
 				Properties: MergeParameters(map[string]Property{
@@ -243,8 +243,9 @@ func getToolDefinitions() []Tool {
 						Type:        "number",
 						Description: "Minimum access count to report (default: 5)",
 					},
-					// Note: Filtering (where), sorting (sort_by), and limiting (top) should use jq_filter
-					// Example jq_filter: ".high_churn_files[] | select(.file | test(\"\\.go$\")) | [.] | sort_by(-.total_accesses) | .[0:10]"
+					// Note: Output is JSONL array (one file object per line)
+					// Fields: file, total_accesses, read_count, edit_count, write_count, time_span_minutes, first_access, last_access
+					// Example jq_filter: "select(.file | test(\"\\.go$\")) | select(.total_accesses > 10)"
 				}),
 			},
 		},

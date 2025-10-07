@@ -43,15 +43,18 @@ func runAnalyzeFileChurn(cmd *cobra.Command, args []string) error {
 	entries := p.GetEntries()
 	result := analyzer.DetectFileChurn(entries, fileChurnThreshold)
 
+	// Step 3: Unwrap files array (for consistent JSONL output)
+	files := result.HighChurnFiles
+
 	// Step 4: Format and output
 	var outputStr string
 	var formatErr error
 
 	switch outputFormat {
 	case "jsonl":
-		outputStr, formatErr = output.FormatJSONL(result)
+		outputStr, formatErr = output.FormatJSONL(files)
 	case "tsv":
-		outputStr, formatErr = output.FormatTSV(result)
+		outputStr, formatErr = output.FormatTSV(files)
 	default:
 		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
 	}
