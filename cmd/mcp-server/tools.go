@@ -235,22 +235,16 @@ func getToolDefinitions() []Tool {
 		},
 		{
 			Name:        "query_files",
-			Description: "File-level operation stats. Default scope: project.",
+			Description: "File-level operation stats. Use jq_filter for filtering/sorting. Default scope: project.",
 			InputSchema: ToolSchema{
 				Type: "object",
 				Properties: MergeParameters(map[string]Property{
-					"sort_by": {
-						Type:        "string",
-						Description: "Sort field (default: total_ops)",
-					},
-					"top": {
+					"threshold": {
 						Type:        "number",
-						Description: "Top N files (default: 20)",
+						Description: "Minimum access count to report (default: 5)",
 					},
-					"where": {
-						Type:        "string",
-						Description: "Optional filter expression",
-					},
+					// Note: Filtering (where), sorting (sort_by), and limiting (top) should use jq_filter
+					// Example jq_filter: ".high_churn_files[] | select(.file | test(\"\\.go$\")) | [.] | sort_by(-.total_accesses) | .[0:10]"
 				}),
 			},
 		},

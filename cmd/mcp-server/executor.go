@@ -223,14 +223,10 @@ func (e *ToolExecutor) buildCommand(toolName string, args map[string]interface{}
 
 	case "query_files":
 		cmdArgs = append(cmdArgs, "analyze", "file-churn")
-		if sortBy := getStringParam(args, "sort_by", ""); sortBy != "" {
-			cmdArgs = append(cmdArgs, "--sort-by", sortBy)
-		}
-		if top := getIntParam(args, "top", 0); top > 0 {
-			cmdArgs = append(cmdArgs, "--top", strconv.Itoa(top))
-		}
-		if where := getStringParam(args, "where", ""); where != "" {
-			cmdArgs = append(cmdArgs, "--where", where)
+		// Only pass --threshold (data extraction parameter)
+		// Filtering (where), sorting (sort_by), and limiting (top) should be done via jq_filter
+		if threshold := getIntParam(args, "threshold", 0); threshold > 0 && threshold != 5 {
+			cmdArgs = append(cmdArgs, "--threshold", strconv.Itoa(threshold))
 		}
 
 	case "cleanup_temp_files":
