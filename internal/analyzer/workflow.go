@@ -6,35 +6,12 @@ import (
 	"time"
 
 	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yale/meta-cc/internal/types"
 )
 
 // SequenceAnalysis represents tool sequence analysis results
 type SequenceAnalysis struct {
-	Sequences []SequencePattern `json:"sequences"`
-}
-
-// SequencePattern represents a repeated tool call sequence
-type SequencePattern struct {
-	Pattern     string               `json:"pattern"`
-	Length      int                  `json:"length"`
-	Count       int                  `json:"count"`
-	Occurrences []SequenceOccurrence `json:"occurrences"`
-	TimeSpanMin int                  `json:"time_span_minutes"`
-}
-
-// SequenceOccurrence represents a single occurrence of a sequence
-type SequenceOccurrence struct {
-	StartTurn int              `json:"start_turn"`
-	EndTurn   int              `json:"end_turn"`
-	Tools     []ToolInSequence `json:"tools"`
-}
-
-// ToolInSequence represents a tool call within a sequence
-type ToolInSequence struct {
-	Turn    int    `json:"turn"`
-	Tool    string `json:"tool"`
-	File    string `json:"file,omitempty"`
-	Command string `json:"command,omitempty"`
+	Sequences []types.SequencePattern `json:"sequences"`
 }
 
 // FileChurnAnalysis represents file churn analysis results
@@ -299,8 +276,8 @@ func extractToolCallsWithTurns(entries []parser.SessionEntry, turnIndex map[stri
 	return result
 }
 
-func findAllSequences(toolCalls []toolCallWithTurn, minLength, minOccurrences int, entries []parser.SessionEntry) []SequencePattern {
-	sequenceMap := make(map[string][]SequenceOccurrence)
+func findAllSequences(toolCalls []toolCallWithTurn, minLength, minOccurrences int, entries []parser.SessionEntry) []types.SequencePattern {
+	sequenceMap := make(map[string][]types.SequenceOccurrence)
 
 	// Try sequences of different lengths
 	maxLen := 5
@@ -320,10 +297,10 @@ func findAllSequences(toolCalls []toolCallWithTurn, minLength, minOccurrences in
 			pattern := strings.Join(tools, " → ")
 
 			// Build occurrence with tool details
-			var toolsInSeq []ToolInSequence
+			var toolsInSeq []types.ToolInSequence
 			for j := 0; j < seqLen; j++ {
 				tc := toolCalls[i+j]
-				toolsInSeq = append(toolsInSeq, ToolInSequence{
+				toolsInSeq = append(toolsInSeq, types.ToolInSequence{
 					Turn:    tc.turn,
 					Tool:    tc.toolName,
 					File:    tc.filePath,
@@ -331,7 +308,7 @@ func findAllSequences(toolCalls []toolCallWithTurn, minLength, minOccurrences in
 				})
 			}
 
-			occurrence := SequenceOccurrence{
+			occurrence := types.SequenceOccurrence{
 				StartTurn: toolCalls[i].turn,
 				EndTurn:   toolCalls[i+seqLen-1].turn,
 				Tools:     toolsInSeq,
@@ -342,7 +319,7 @@ func findAllSequences(toolCalls []toolCallWithTurn, minLength, minOccurrences in
 	}
 
 	// Filter by minimum occurrences and build result
-	var result []SequencePattern
+	var result []types.SequencePattern
 	for pattern, occurrences := range sequenceMap {
 		if len(occurrences) >= minOccurrences {
 			// Calculate length
@@ -351,7 +328,7 @@ func findAllSequences(toolCalls []toolCallWithTurn, minLength, minOccurrences in
 			// Calculate time span
 			timeSpan := calculateSequenceTimeSpan(occurrences, entries)
 
-			result = append(result, SequencePattern{
+			result = append(result, types.SequencePattern{
 				Pattern:     pattern,
 				Length:      length,
 				Count:       len(occurrences),
@@ -372,7 +349,7 @@ func findAllSequences(toolCalls []toolCallWithTurn, minLength, minOccurrences in
 	return result
 }
 
-func calculateSequenceTimeSpan(occurrences []SequenceOccurrence, entries []parser.SessionEntry) int {
+func calculateSequenceTimeSpan(occurrences []types.SequenceOccurrence, entries []parser.SessionEntry) int {
 	if len(occurrences) == 0 {
 		return 0
 	}

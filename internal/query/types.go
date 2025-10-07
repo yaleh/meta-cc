@@ -1,5 +1,7 @@
 package query
 
+import "github.com/yale/meta-cc/internal/types"
+
 // ContextQuery represents context query results
 type ContextQuery struct {
 	ErrorSignature string              `json:"error_signature,omitempty"`
@@ -51,22 +53,5 @@ type FileAccessEvent struct {
 
 // ToolSequenceQuery represents tool sequence pattern query results
 type ToolSequenceQuery struct {
-	Sequences []SequencePattern `json:"sequences"`
-}
-
-// SequencePattern represents a repeated tool call sequence
-type SequencePattern struct {
-	Pattern        string               `json:"pattern"`
-	Count          int                  `json:"count"`
-	Occurrences    []SequenceOccurrence `json:"occurrences"`
-	TimeSpanMin    int                  `json:"time_span_minutes"`
-	SuccessRate    float64              `json:"success_rate,omitempty"`
-	AvgDurationMin float64              `json:"avg_duration_minutes,omitempty"`
-	Context        string               `json:"context,omitempty"`
-}
-
-// SequenceOccurrence represents a single occurrence of a sequence
-type SequenceOccurrence struct {
-	StartTurn int `json:"start_turn"`
-	EndTurn   int `json:"end_turn"`
+	Sequences []types.SequencePattern `json:"sequences"`
 }

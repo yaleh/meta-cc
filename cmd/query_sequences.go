@@ -8,13 +8,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/parser"
 	"github.com/yale/meta-cc/internal/query"
+	"github.com/yale/meta-cc/internal/types"
 )
 
 var (
-	sequencesMinOccur    int
-	sequencesPattern     string
-	sequencesSuccessOnly bool
-	sequencesWithMetrics bool
+	sequencesMinOccur     int
+	querySequencesPattern string
+	sequencesSuccessOnly  bool
+	sequencesWithMetrics  bool
 )
 
 // querySequencesCmd represents the tool-sequences query command
@@ -38,7 +39,7 @@ Example:
 
 func init() {
 	querySequencesCmd.Flags().IntVar(&sequencesMinOccur, "min-occurrences", 3, "Minimum occurrences to report")
-	querySequencesCmd.Flags().StringVar(&sequencesPattern, "pattern", "", "Specific sequence pattern to match (e.g., 'Read -> Edit -> Bash')")
+	querySequencesCmd.Flags().StringVar(&querySequencesPattern, "pattern", "", "Specific sequence pattern to match (e.g., 'Read -> Edit -> Bash')")
 	querySequencesCmd.Flags().BoolVar(&sequencesSuccessOnly, "successful-only", false, "Only show sequences with no errors")
 	querySequencesCmd.Flags().BoolVar(&sequencesWithMetrics, "with-metrics", false, "Include success rate and duration metrics")
 
@@ -60,7 +61,7 @@ func runQuerySequences(cmd *cobra.Command, args []string) error {
 	}
 
 	// Build tool sequence query
-	result, err := query.BuildToolSequenceQuery(entries, sequencesMinOccur, sequencesPattern)
+	result, err := query.BuildToolSequenceQuery(entries, sequencesMinOccur, querySequencesPattern)
 	if err != nil {
 		return fmt.Errorf("failed to build tool sequence query: %w", err)
 	}
@@ -145,7 +146,7 @@ func filterSuccessfulSequences(result *query.ToolSequenceQuery, entries []parser
 	}
 
 	// Filter sequences
-	var filtered []query.SequencePattern
+	var filtered []types.SequencePattern
 	for _, seq := range result.Sequences {
 		hasError := false
 		for _, occ := range seq.Occurrences {

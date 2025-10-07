@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yale/meta-cc/internal/types"
 )
 
 // BuildToolSequenceQuery builds a tool sequence pattern query
@@ -26,7 +27,7 @@ func BuildToolSequenceQuery(entries []parser.SessionEntry, minOccurrences int, p
 	})
 
 	// Find sequences
-	var sequences []SequencePattern
+	var sequences []types.SequencePattern
 	if pattern != "" {
 		// Find specific pattern
 		seq := findSpecificPattern(toolCalls, pattern, entries)
@@ -69,22 +70,22 @@ func extractToolCallsWithTurns(entries []parser.SessionEntry, turnIndex map[stri
 }
 
 // findSpecificPattern finds occurrences of a specific pattern
-func findSpecificPattern(toolCalls []toolCallWithTurn, pattern string, entries []parser.SessionEntry) SequencePattern {
+func findSpecificPattern(toolCalls []toolCallWithTurn, pattern string, entries []parser.SessionEntry) types.SequencePattern {
 	// Parse pattern (format: "Tool1 → Tool2 → Tool3")
 	tools := parsePattern(pattern)
 	if len(tools) == 0 {
-		return SequencePattern{Pattern: pattern, Count: 0}
+		return types.SequencePattern{Pattern: pattern, Count: 0}
 	}
 
 	// Find all occurrences
-	var occurrences []SequenceOccurrence
+	var occurrences []types.SequenceOccurrence
 
 	for i := 0; i <= len(toolCalls)-len(tools); i++ {
 		// Check if sequence matches starting at position i
 		if matchesSequence(toolCalls, i, tools) {
 			startTurn := toolCalls[i].turn
 			endTurn := toolCalls[i+len(tools)-1].turn
-			occurrences = append(occurrences, SequenceOccurrence{
+			occurrences = append(occurrences, types.SequenceOccurrence{
 				StartTurn: startTurn,
 				EndTurn:   endTurn,
 			})
@@ -94,7 +95,7 @@ func findSpecificPattern(toolCalls []toolCallWithTurn, pattern string, entries [
 	// Calculate time span
 	timeSpan := calculateSequenceTimeSpan(occurrences, entries, toolCalls)
 
-	return SequencePattern{
+	return types.SequencePattern{
 		Pattern:     pattern,
 		Count:       len(occurrences),
 		Occurrences: occurrences,
@@ -103,8 +104,8 @@ func findSpecificPattern(toolCalls []toolCallWithTurn, pattern string, entries [
 }
 
 // findAllSequences finds all repeated sequences of length 2-5
-func findAllSequences(toolCalls []toolCallWithTurn, minOccurrences int, entries []parser.SessionEntry) []SequencePattern {
-	sequenceMap := make(map[string][]SequenceOccurrence)
+func findAllSequences(toolCalls []toolCallWithTurn, minOccurrences int, entries []parser.SessionEntry) []types.SequencePattern {
+	sequenceMap := make(map[string][]types.SequenceOccurrence)
 
 	// Try sequences of different lengths (2-5 tools)
 	for seqLen := 2; seqLen <= 5 && seqLen <= len(toolCalls); seqLen++ {
@@ -119,7 +120,7 @@ func findAllSequences(toolCalls []toolCallWithTurn, minOccurrences int, entries 
 			pattern := strings.Join(tools, " → ")
 
 			// Record occurrence
-			occurrence := SequenceOccurrence{
+			occurrence := types.SequenceOccurrence{
 				StartTurn: toolCalls[i].turn,
 				EndTurn:   toolCalls[i+seqLen-1].turn,
 			}
@@ -129,11 +130,11 @@ func findAllSequences(toolCalls []toolCallWithTurn, minOccurrences int, entries 
 	}
 
 	// Filter by minimum occurrences and build result
-	var result []SequencePattern
+	var result []types.SequencePattern
 	for pattern, occurrences := range sequenceMap {
 		if len(occurrences) >= minOccurrences {
 			timeSpan := calculateSequenceTimeSpan(occurrences, entries, toolCalls)
-			result = append(result, SequencePattern{
+			result = append(result, types.SequencePattern{
 				Pattern:     pattern,
 				Count:       len(occurrences),
 				Occurrences: occurrences,
@@ -183,7 +184,7 @@ func matchesSequence(toolCalls []toolCallWithTurn, start int, tools []string) bo
 }
 
 // calculateSequenceTimeSpan calculates time span for sequence occurrences
-func calculateSequenceTimeSpan(occurrences []SequenceOccurrence, entries []parser.SessionEntry, toolCalls []toolCallWithTurn) int {
+func calculateSequenceTimeSpan(occurrences []types.SequenceOccurrence, entries []parser.SessionEntry, toolCalls []toolCallWithTurn) int {
 	if len(occurrences) == 0 {
 		return 0
 	}

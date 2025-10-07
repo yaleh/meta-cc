@@ -5,12 +5,14 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yale/meta-cc/internal/analyzer"
+	"github.com/yale/meta-cc/internal/query"
 	"github.com/yale/meta-cc/pkg/output"
 )
 
 var (
 	sequencesMinLength      int
 	sequencesMinOccurrences int
+	sequencesPattern        string
 )
 
 // analyzeSequencesCmd represents the analyze sequences subcommand
@@ -25,6 +27,7 @@ Useful for detecting potentially inefficient workflows.
 Examples:
   meta-cc analyze sequences
   meta-cc analyze sequences --min-length 3 --min-occurrences 3
+  meta-cc analyze sequences --pattern "Read → Edit → Bash" --min-occurrences 5
   meta-cc analyze sequences --output json`,
 	RunE: runAnalyzeSequences,
 }
@@ -32,8 +35,9 @@ Examples:
 func init() {
 	analyzeCmd.AddCommand(analyzeSequencesCmd)
 
-	analyzeSequencesCmd.Flags().IntVar(&sequencesMinLength, "min-length", 3, "Minimum sequence length")
+	analyzeSequencesCmd.Flags().IntVar(&sequencesMinLength, "min-length", 3, "Minimum sequence length (ignored when --pattern is specified)")
 	analyzeSequencesCmd.Flags().IntVar(&sequencesMinOccurrences, "min-occurrences", 3, "Minimum occurrences to report")
+	analyzeSequencesCmd.Flags().StringVar(&sequencesPattern, "pattern", "", "Specific pattern to match (e.g. \"Read → Edit\" or \"Read -> Edit\")")
 }
 
 func runAnalyzeSequences(cmd *cobra.Command, args []string) error {
@@ -43,19 +47,33 @@ func runAnalyzeSequences(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to locate session file: %w", err)
 	}
 
-	// Step 2: Detect sequences
 	entries := p.GetEntries()
-	result := analyzer.DetectToolSequences(entries, sequencesMinLength, sequencesMinOccurrences)
 
-	// Step 4: Format and output
+	// Step 2: Detect sequences based on whether pattern is specified
+	var sequences interface{}
+
+	if sequencesPattern != "" {
+		// Use query package for specific pattern matching
+		queryResult, err := query.BuildToolSequenceQuery(entries, sequencesMinOccurrences, sequencesPattern)
+		if err != nil {
+			return fmt.Errorf("failed to query tool sequences: %w", err)
+		}
+		sequences = queryResult.Sequences
+	} else {
+		// Use analyzer package for general sequence detection
+		result := analyzer.DetectToolSequences(entries, sequencesMinLength, sequencesMinOccurrences)
+		sequences = result.Sequences
+	}
+
+	// Step 3: Format and output
 	var outputStr string
 	var formatErr error
 
 	switch outputFormat {
 	case "jsonl":
-		outputStr, formatErr = output.FormatJSONL(result)
+		outputStr, formatErr = output.FormatJSONL(sequences)
 	case "tsv":
-		outputStr, formatErr = output.FormatTSV(result)
+		outputStr, formatErr = output.FormatTSV(sequences)
 	default:
 		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
 	}
