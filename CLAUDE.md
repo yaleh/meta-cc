@@ -151,8 +151,8 @@ For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes
 - `query_tools` - Filter tool calls by name, status (error/success)
   - Parameters: `tool`, `status`, `limit`
 - `query_user_messages` - Search user messages with regex patterns
-  - Parameters: `pattern` (required, regex), `limit`, `max_message_length` (deprecated), `content_summary` (deprecated)
-  - Example: `query_user_messages(pattern="fix.*bug", limit=10)`
+  - Parameters: `pattern` (required, regex), `limit`
+  - Example: `query_user_messages(pattern="fix.*bug")`
   - Note: By default, uses hybrid mode for large results (no truncation)
 - `query_files` - File-level operation statistics
 
