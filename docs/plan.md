@@ -10,7 +10,9 @@
 - ✅ **Phase 0-9 已完成**（核心查询 + 上下文管理）
 - ✅ **Phase 14 已完成**（架构重构 + MCP 独立可执行文件）
 - ✅ **Phase 15 已完成**（MCP 输出控制 + 工具标准化）
-- ✅ **Phase 16 已完成**（混合输出模式 + 无截断 + 可配置阈值）🎉 **NEW**
+- ✅ **Phase 16 已完成**（混合输出模式 + 无截断 + 可配置阈值）
+- ✅ **Phase 17 已完成**（Subagent 形式化实现）
+- 📋 **Phase 18 规划中**（GitHub Release 准备）
 - ✅ 47 个单元测试全部通过
 - ✅ 3 个真实项目验证通过（0% 错误率）
 - ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`）
@@ -111,11 +113,19 @@ card "Phase 16" as P16 #lightgreen {
 }
 
 card "Phase 17" as P17 #lightgreen {
-  **Subagent 实现**
+  **Subagent 实现** ✅
   - @meta-coach 核心
   - @error-analyst 专用
   - @workflow-tuner 专用
-  - 嵌套调用测试
+  - 形式化规范
+}
+
+card "Phase 18" as P18 #lightyellow {
+  **GitHub Release 准备**
+  - LICENSE + 开源合规
+  - CI/CD 流水线
+  - Release 自动化
+  - 社区文档完善
 }
 
 P0 -down-> P8
@@ -128,6 +138,7 @@ P13 -down-> P14
 P14 -down-> P15
 P15 -down-> P16
 P16 -down-> P17
+P17 -down-> P18
 
 note right of P0
   **业务闭环完成**
@@ -142,6 +153,11 @@ end note
 note right of P17
   **完整架构实现**
   数据层 + MCP + Subagent
+end note
+
+note right of P18
+  **开源发布准备**
+  社区化和自动化
 end note
 
 @enduml
@@ -2829,6 +2845,7 @@ Subagent 层（各自独立，均调用 MCP）
 | 15 | **MCP 输出控制与标准化** | 消息内容截断 + 统一参数 + 工具描述优化（80%+ 压缩率）|
 | 16 | **MCP 输出模式优化** | 混合输出（inline + file_ref）+ 8KB 阈值 + 临时文件管理 |
 | 17 | **完整三层架构** | CLI（数据）→ MCP/Subagent（聚合）→ @meta-coach（语义） |
+| 18 | **GitHub Release 准备** | LICENSE + CI/CD + 自动化发布 + 社区规范 |
 
 ---
 
@@ -2859,3 +2876,330 @@ meta-cc 项目采用 TDD 和渐进式交付：
 - ✅ **架构分离**：meta-cc（CLI）+ meta-cc-mcp（MCP）独立可执行文件
 - ✅ **LLM 友好**：jq 语法 Claude 熟悉，gojq 库处理高效
 - ✅ **80/20 原则**：MCP 覆盖常见场景，@meta-query 处理复杂场景
+
+---
+
+## Phase 18: GitHub Release 准备（GitHub Release Preparation）
+
+**目标**：完善开源发布基础设施，实现自动化 CI/CD 和二进制分发
+
+**代码量**：~1,250 行（LICENSE, CI/CD workflows, 文档模板）
+
+**优先级**：高（社区化准备，v1.0 发布前置条件）
+
+**状态**：规划中
+
+**背景与问题**：
+- **问题 1**：缺少 LICENSE 文件 - GitHub 显示 "No license"，用户无法合法使用/fork
+- **问题 2**：无 CI/CD 流水线 - PR 未自动测试，跨平台构建手动执行
+- **问题 3**：无自动化 Release - README 承诺 "pre-compiled binary (coming soon)"，但未实现
+- **问题 4**：缺少社区文档 - 无 CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
+- **问题 5**：无 Issue/PR 模板 - 问题报告和贡献流程不规范
+
+**解决方案**：
+- ✅ **开源合规**：添加 LICENSE (MIT), NOTICE, SECURITY.md
+- ✅ **CI/CD 自动化**：GitHub Actions workflows（测试 + lint + release）
+- ✅ **二进制分发**：自动构建 5 平台二进制（Linux/macOS/Windows）
+- ✅ **社区规范**：CONTRIBUTING.md, CODE_OF_CONDUCT.md, Issue/PR 模板
+- ✅ **文档优化**：README badges, 安装指引，GitHub Pages（可选）
+
+**设计原则**：
+- ✅ **自动化优先**：一个命令触发完整 release（`git tag v1.0.0 && git push --tags`）
+- ✅ **跨平台支持**：CI 测试覆盖 Linux/macOS/Windows
+- ✅ **社区友好**：清晰的贡献指南和行为准则
+- ✅ **质量保障**：PR 必须通过 lint + 测试才能合并
+
+### Stage 18.1: 开源合规与许可（~30 分钟，~50 行）
+
+**任务**：
+- 添加 LICENSE 文件（MIT License）
+- 添加 NOTICE 文件（第三方许可声明）
+- 更新 go.mod 添加 license 信息
+- 添加 SECURITY.md（漏洞报告政策）
+
+**交付物**：
+```
+LICENSE                    # MIT License（完整文本）
+NOTICE                     # 第三方依赖许可声明（如有）
+SECURITY.md                # 安全漏洞报告政策
+go.mod                     # 更新 license 字段
+```
+
+**验收标准**：
+- ✅ GitHub 自动识别 MIT License
+- ✅ LICENSE 文件包含 2025 年版权声明
+- ✅ SECURITY.md 包含联系方式和报告流程
+- ✅ 所有第三方依赖许可证兼容 MIT
+
+### Stage 18.2: 贡献指南与社区规范（~1 小时，~300 行）
+
+**任务**：
+- 创建 CONTRIBUTING.md（贡献流程）
+- 创建 CODE_OF_CONDUCT.md（行为准则）
+- 更新 README.md 添加贡献章节
+- 定义 PR 和 commit 规范
+
+**交付物**：
+```
+CONTRIBUTING.md            # 贡献指南（如何提交 PR, 代码规范, 测试要求）
+CODE_OF_CONDUCT.md         # 行为准则（Contributor Covenant）
+README.md                  # 添加 "Contributing" 章节
+```
+
+**内容要点**：
+- **CONTRIBUTING.md**：
+  - 如何设置开发环境（Go 1.21+, make）
+  - 代码风格（golangci-lint）
+  - 测试要求（覆盖率 ≥80%）
+  - Commit message 格式（conventional commits）
+  - PR 流程（fork → branch → PR）
+- **CODE_OF_CONDUCT.md**：
+  - 采用 Contributor Covenant 2.1
+  - 明确社区标准和执行机制
+
+**验收标准**：
+- ✅ CONTRIBUTING.md 包含完整开发流程
+- ✅ CODE_OF_CONDUCT.md 符合开源社区标准
+- ✅ README.md 链接到贡献文档
+- ✅ 文档清晰易读（≤5 分钟阅读时间）
+
+### Stage 18.3: GitHub 模板与配置（~45 分钟，~200 行）
+
+**任务**：
+- 创建 Issue 模板（Bug Report, Feature Request）
+- 创建 PR 模板
+- 配置 .github 目录结构
+- （可选）添加 FUNDING.yml
+
+**交付物**：
+```
+.github/
+├── ISSUE_TEMPLATE/
+│   ├── bug_report.yml           # Bug 报告模板
+│   ├── feature_request.yml      # 功能请求模板
+│   └── config.yml               # Issue 模板配置
+├── PULL_REQUEST_TEMPLATE.md     # PR 模板（checklist）
+└── FUNDING.yml                  # 赞助链接（可选）
+```
+
+**模板内容**：
+- **bug_report.yml**：环境信息、复现步骤、预期 vs 实际行为
+- **feature_request.yml**：需求描述、使用场景、替代方案
+- **PULL_REQUEST_TEMPLATE.md**：
+  - 变更描述
+  - 相关 Issue
+  - 测试 checklist（`make test`, `make lint`）
+  - 文档更新
+
+**验收标准**：
+- ✅ Issue 创建时自动加载模板
+- ✅ PR 创建时显示 checklist
+- ✅ 模板字段清晰且必填项标记
+- ✅ 配置符合 GitHub 最佳实践
+
+### Stage 18.4: CI/CD 流水线（~2 小时，~400 行）
+
+**任务**：
+- 创建 CI workflow（测试 + lint）
+- 创建 Release workflow（构建 + 上传二进制）
+- 配置跨平台测试矩阵
+- 集成 golangci-lint
+
+**交付物**：
+```
+.github/workflows/
+├── ci.yml           # PR 和 push 触发：测试 + lint
+├── release.yml      # Tag 触发：构建跨平台二进制 + GitHub Release
+└── lint.yml         # 代码质量检查（可选，合并到 ci.yml）
+```
+
+**ci.yml 要点**：
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go: ['1.21', '1.22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+      - run: make test
+      - run: make lint
+      - uses: codecov/codecov-action@v3  # 上传覆盖率
+```
+
+**release.yml 要点**：
+```yaml
+name: Release
+on:
+  push:
+    tags: ['v*']
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: make cross-compile
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: build/*
+          generate_release_notes: true
+```
+
+**验收标准**：
+- ✅ 每个 PR 自动运行测试（Linux/macOS/Windows）
+- ✅ golangci-lint 强制执行
+- ✅ 测试覆盖率报告生成
+- ✅ Tag push 自动构建 5 平台二进制（linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64）
+- ✅ Release 自动创建并上传二进制
+
+### Stage 18.5: Release 自动化（~1.5 小时，~200 行）
+
+**任务**：
+- 完善 cross-compile Makefile target
+- 创建 scripts/release.sh 辅助脚本
+- 更新 CHANGELOG.md 规范
+- 定义版本号策略（Semantic Versioning）
+
+**交付物**：
+```
+scripts/
+└── release.sh                # Release 辅助脚本（version bump, changelog, tag）
+Makefile                      # 增强 cross-compile target
+CHANGELOG.md                  # 更新格式和自动化规范
+```
+
+**scripts/release.sh 功能**：
+```bash
+# 用法: ./scripts/release.sh v1.0.0
+# 功能:
+# 1. 验证当前分支（main/develop）
+# 2. 运行完整测试（make test-all）
+# 3. 更新 CHANGELOG.md（提示添加 release notes）
+# 4. 创建 git tag
+# 5. 推送到远程（触发 GitHub Actions release）
+```
+
+**版本号策略**：
+- **v0.x.x**：Beta 版本（当前）
+- **v1.0.0**：首个稳定版（Phase 18 完成后）
+- **v1.x.0**：新功能
+- **v1.0.x**：Bug 修复
+
+**验收标准**：
+- ✅ `make cross-compile` 生成 5 平台二进制
+- ✅ `./scripts/release.sh v1.0.0` 创建完整 release
+- ✅ CHANGELOG.md 遵循 Keep a Changelog 格式
+- ✅ GitHub Release 页面包含下载链接和 release notes
+
+### Stage 18.6: 文档优化（~45 分钟，~100 行）
+
+**任务**：
+- README.md 添加 badges（build, coverage, license, version）
+- 更新安装章节（添加 "从 GitHub Releases 下载"）
+- 创建 .github/README.md（可选：项目 profile）
+- 添加截图/GIF（如适用）
+
+**交付物**：
+```
+README.md                     # 添加 badges + 更新安装指引
+.github/README.md             # GitHub profile 增强（可选）
+docs/assets/                  # 截图和演示 GIF（可选）
+```
+
+**Badges 示例**：
+```markdown
+[![CI](https://github.com/yale/meta-cc/actions/workflows/ci.yml/badge.svg)](https://github.com/yale/meta-cc/actions)
+[![Coverage](https://codecov.io/gh/yale/meta-cc/branch/main/graph/badge.svg)](https://codecov.io/gh/yale/meta-cc)
+[![License](https://img.shields.io/github/license/yale/meta-cc)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/yale/meta-cc)](https://github.com/yale/meta-cc/releases)
+```
+
+**安装章节更新**：
+```markdown
+### Install from GitHub Releases (Recommended)
+
+Download pre-compiled binaries for your platform:
+
+**Linux (x86_64)**:
+```bash
+curl -L https://github.com/yale/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
+chmod +x meta-cc
+sudo mv meta-cc /usr/local/bin/
+```
+
+**macOS (Apple Silicon)**:
+```bash
+curl -L https://github.com/yale/meta-cc/releases/latest/download/meta-cc-darwin-arm64 -o meta-cc
+chmod +x meta-cc
+sudo mv meta-cc /usr/local/bin/
+```
+
+[See all platforms →](https://github.com/yale/meta-cc/releases/latest)
+```
+
+**验收标准**：
+- ✅ Badges 全部可点击且状态正确
+- ✅ 安装指引包含 5 平台下载链接
+- ✅ README 在 GitHub 上渲染完美
+- ✅ 文档清晰专业（与成熟开源项目对标）
+
+### Stage 18.7: 仓库配置与发布（~30 分钟，配置项）
+
+**任务**：
+- 更新 GitHub 仓库描述和 topics
+- 配置分支保护（main 分支）
+- 启用 GitHub Actions
+- （可选）配置 GitHub Pages
+
+**配置项**：
+- **Repository Settings**:
+  - Description: "Meta-Cognition tool for Claude Code - analyze session history for workflow optimization"
+  - Topics: `go`, `claude-code`, `meta-cognition`, `cli`, `mcp`, `workflow-analysis`
+  - Features: Issues ✅, Projects ❌, Wiki ❌, Discussions（可选）
+
+- **Branch Protection (main)**:
+  - Require PR reviews: 1 approval
+  - Require status checks: CI (test + lint)
+  - Require branches up to date
+  - No force push, no deletion
+
+- **GitHub Actions**:
+  - Enable Actions for workflows
+  - Allow read/write permissions for GITHUB_TOKEN
+
+**验收标准**：
+- ✅ 仓库通过 topics 可被搜索发现
+- ✅ Main 分支需要 PR + CI 通过才能合并
+- ✅ GitHub Actions 正常运行
+- ✅ Repository 页面专业且信息完整
+
+**预估工作量**：
+| Stage | 时间 | 代码量 | 优先级 |
+|-------|------|--------|--------|
+| 18.1 Legal | 30 min | ~50 lines | 🔴 Critical |
+| 18.2 Contributing | 1 hour | ~300 lines | 🟡 High |
+| 18.3 Templates | 45 min | ~200 lines | 🟡 High |
+| 18.4 CI/CD | 2 hours | ~400 lines | 🔴 Critical |
+| 18.5 Release | 1.5 hours | ~200 lines | 🔴 Critical |
+| 18.6 Docs | 45 min | ~100 lines | 🟢 Medium |
+| 18.7 Config | 30 min | N/A | 🟢 Medium |
+| **Total** | **~6.5 hours** | **~1,250 lines** | |
+
+**Phase 18 完成标准**：
+- ✅ LICENSE 文件存在且被 GitHub 识别
+- ✅ CI/CD 流水线运行正常（测试 + lint + release）
+- ✅ 可通过 `git tag v1.0.0 && git push --tags` 触发自动 release
+- ✅ GitHub Releases 页面提供 5 平台二进制下载
+- ✅ CONTRIBUTING.md 和 CODE_OF_CONDUCT.md 完整
+- ✅ Issue/PR 模板可用
+- ✅ README.md 包含 badges 和完整安装指引
+- ✅ 仓库配置符合开源最佳实践
+
+**应用价值**：
+- 🚀 **社区化**：降低贡献门槛，吸引外部贡献者
+- 🤖 **自动化**：CI/CD 保障代码质量，减少手动工作
+- 📦 **易用性**：一键下载安装，无需编译
+- 🌟 **专业性**：完整开源基础设施，提升项目可信度
