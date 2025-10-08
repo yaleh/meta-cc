@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // ChunkMetadata contains metadata for a single chunk

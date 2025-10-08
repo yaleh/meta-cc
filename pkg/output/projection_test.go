@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // TestProjectToolCalls_BasicProjection tests basic field projection
@@ -165,7 +165,7 @@ func TestProjectionSizeReduction(t *testing.T) {
 				"description": "Run all unit tests",
 				"timeout":     120000,
 			},
-			Output: "PASS\nok  \tgithub.com/yale/meta-cc/pkg/output\t0.023s\nPASS\nok  \tgithub.com/yale/meta-cc/internal/parser\t0.015s",
+			Output: "PASS\nok  \tgithub.com/yaleh/meta-cc/pkg/output\t0.023s\nPASS\nok  \tgithub.com/yaleh/meta-cc/internal/parser\t0.015s",
 			Status: "success",
 			Error:  "",
 		}

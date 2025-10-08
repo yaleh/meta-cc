@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/query"
-	"github.com/yale/meta-cc/pkg/output"
+	"github.com/yaleh/meta-cc/internal/query"
+	"github.com/yaleh/meta-cc/pkg/output"
 )
 
 var (

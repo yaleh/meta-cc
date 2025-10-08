@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yale/meta-cc/internal/parser"
-	"github.com/yale/meta-cc/internal/types"
+	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 // BuiltinTools is the set of Claude Code's built-in tools

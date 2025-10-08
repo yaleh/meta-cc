@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yale/meta-cc/internal/analyzer"
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/analyzer"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // BuildContextQuery builds a context query for a specific error signature

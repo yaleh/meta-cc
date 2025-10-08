@@ -5,6 +5,36 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- New features will be listed here
+
+### Changed
+- Changes to existing functionality will be listed here
+
+### Fixed
+- Bug fixes will be listed here
+
+## Release Process
+
+To create a new release:
+
+1. Update CHANGELOG.md with version and release notes
+2. Run `./scripts/release.sh v1.0.0`
+3. Monitor GitHub Actions for build completion
+4. Verify binaries on GitHub Releases page
+
+## Versioning Strategy
+
+- **v0.x.x**: Beta releases (pre-1.0)
+- **v1.0.0**: First stable release
+- **v1.x.0**: Minor version (new features, backward compatible)
+- **v1.0.x**: Patch version (bug fixes only)
+- **v1.0.0-beta.1**: Pre-release tags
+
+---
+
 ## [v0.11.1-formalization] - 2025-10-03
 
 ### Changed

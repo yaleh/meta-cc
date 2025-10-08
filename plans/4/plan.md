@@ -120,7 +120,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 func TestCalculateStats_BasicCounts(t *testing.T) {
@@ -313,7 +313,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // SessionStats 表示会话的统计信息
@@ -476,7 +476,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yale/meta-cc/internal/testutil"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestParseStatsCommand_Default(t *testing.T) {
@@ -784,11 +784,11 @@ import (
 	"strings" // 如果尚未导入
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/analyzer"  // 新增
-	"github.com/yale/meta-cc/internal/filter"
-	"github.com/yale/meta-cc/internal/locator"
-	"github.com/yale/meta-cc/internal/parser"
-	"github.com/yale/meta-cc/pkg/output"
+	"github.com/yaleh/meta-cc/internal/analyzer"  // 新增
+	"github.com/yaleh/meta-cc/internal/filter"
+	"github.com/yaleh/meta-cc/internal/locator"
+	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/pkg/output"
 )
 ```
 
@@ -853,8 +853,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yale/meta-cc/cmd"
-	"github.com/yale/meta-cc/internal/testutil"
+	"github.com/yaleh/meta-cc/cmd"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestIntegration_ParseStatsCommand_FullFlow(t *testing.T) {

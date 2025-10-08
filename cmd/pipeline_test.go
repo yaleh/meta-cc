@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yale/meta-cc/internal/testutil"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestSessionPipeline_LoadProjectLevel(t *testing.T) {

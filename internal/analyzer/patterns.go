@@ -4,7 +4,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // ErrorPattern 表示检测到的错误模式

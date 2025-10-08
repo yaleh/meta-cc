@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // Helper function to create test ToolCall with specific timestamp

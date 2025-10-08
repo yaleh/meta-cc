@@ -1,5 +1,10 @@
 # meta-cc
 
+[![CI](https://github.com/yaleh/meta-cc/actions/workflows/ci.yml/badge.svg)](https://github.com/yaleh/meta-cc/actions)
+[![License](https://img.shields.io/github/license/yaleh/meta-cc)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/yaleh/meta-cc)](https://github.com/yaleh/meta-cc/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/yaleh/meta-cc)](go.mod)
+
 Meta-Cognition tool for Claude Code - analyze session history for workflow optimization.
 
 ## Recent Milestones
@@ -20,26 +25,63 @@ Meta-Cognition tool for Claude Code - analyze session history for workflow optim
 
 ## Installation
 
-### From Source
+### Option 1: Download Pre-compiled Binary (Recommended)
 
+Download the latest release for your platform:
+
+#### Linux (x86_64)
 ```bash
-git clone https://github.com/yale/meta-cc.git
-cd meta-cc
-make build
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
+chmod +x meta-cc
+sudo mv meta-cc /usr/local/bin/
 ```
 
-### Cross-Platform Binaries
+#### Linux (ARM64)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-arm64 -o meta-cc
+chmod +x meta-cc
+sudo mv meta-cc /usr/local/bin/
+```
+
+#### macOS (Intel)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-darwin-amd64 -o meta-cc
+chmod +x meta-cc
+sudo mv meta-cc /usr/local/bin/
+```
+
+#### macOS (Apple Silicon)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-darwin-arm64 -o meta-cc
+chmod +x meta-cc
+sudo mv meta-cc /usr/local/bin/
+```
+
+#### Windows (PowerShell)
+```powershell
+Invoke-WebRequest -Uri "https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-windows-amd64.exe" -OutFile "meta-cc.exe"
+# Move to a directory in your PATH
+```
+
+[View all releases →](https://github.com/yaleh/meta-cc/releases)
+
+### Option 2: Build from Source
 
 ```bash
-# Build for all supported platforms
-make cross-compile
+git clone https://github.com/yaleh/meta-cc.git
+cd meta-cc
+make install
+```
 
-# Binaries will be in build/ directory:
-# - build/meta-cc-linux-amd64
-# - build/meta-cc-linux-arm64
-# - build/meta-cc-darwin-amd64
-# - build/meta-cc-darwin-arm64
-# - build/meta-cc-windows-amd64.exe
+**Requirements:**
+- Go 1.21 or later
+- make
+
+### Verify Installation
+
+```bash
+meta-cc --version
+meta-cc --help
 ```
 
 ## Usage
@@ -497,7 +539,7 @@ meta-cc provides deep integration with Claude Code, allowing you to analyze sess
 
 ```bash
 # Clone the repository
-git clone https://github.com/yale/meta-cc.git
+git clone https://github.com/yaleh/meta-cc.git
 cd meta-cc
 
 # Build the binary
@@ -515,7 +557,7 @@ meta-cc --version
 
 ```bash
 # Download latest release (Linux x64)
-curl -L https://github.com/yale/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
 
 # Install to system path
 sudo mv meta-cc /usr/local/bin/meta-cc
@@ -1040,6 +1082,12 @@ Also see:
 - [Technical Proposal](./docs/proposals/meta-cognition-proposal.md) - Architecture deep dive
 - [Claude Code Documentation](https://docs.claude.com/en/docs/claude-code/overview) - Official docs
 
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development process, code style, and testing requirements.
+
+Please also read and adhere to our [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Development
 
 ### Prerequisites
@@ -1379,10 +1427,10 @@ meta-cc query tools --limit 100 --fields "UUID,ToolName,Status" --output json | 
 meta-cc query tools --output tsv
 
 # Output:
-# UUID	ToolName	Status	Error
-# 1b08...	Read
-# 69a7...	Bash
-# 586a...	Bash
+# UUID\tToolName\tStatus\tError
+# 1b08...\tRead
+# 69a7...\tBash
+# 586a...\tBash
 
 # Combine with other features
 meta-cc query tools --limit 100 --fields "UUID,ToolName,Status" --output tsv
@@ -1513,4 +1561,4 @@ meta-cc/
 
 ## License
 
-MIT
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

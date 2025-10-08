@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/yale/meta-cc/internal/output"
+	"github.com/yaleh/meta-cc/internal/output"
 )
 
 var (

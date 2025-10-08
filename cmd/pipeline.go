@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/yale/meta-cc/internal/locator"
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/locator"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // GlobalOptions contains global CLI flags shared across commands.

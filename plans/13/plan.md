@@ -276,8 +276,8 @@ package output
 
 import (
     "testing"
-    "github.com/yale/meta-cc/internal/parser"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestFormatOutput_JSONL(t *testing.T) {
@@ -453,8 +453,8 @@ import (
     "reflect"
     "strings"
 
-    "github.com/yale/meta-cc/internal/analyzer"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/analyzer"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // TSVFieldExtractor defines how to extract fields from a struct
@@ -636,8 +636,8 @@ package output
 
 import (
     "fmt"
-    "github.com/yale/meta-cc/internal/analyzer"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/analyzer"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // ToolCallExtractor extracts TSV fields from ToolCall
@@ -748,9 +748,9 @@ import (
     "strings"
     "testing"
 
-    "github.com/yale/meta-cc/internal/analyzer"
-    "github.com/yale/meta-cc/internal/parser"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/analyzer"
+    "github.com/yaleh/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestFormatTSV_ToolCalls(t *testing.T) {

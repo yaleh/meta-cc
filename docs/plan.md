@@ -12,13 +12,14 @@
 - ✅ **Phase 15 已完成**（MCP 输出控制 + 工具标准化）
 - ✅ **Phase 16 已完成**（混合输出模式 + 无截断 + 可配置阈值）
 - ✅ **Phase 17 已完成**（Subagent 形式化实现）
-- 📋 **Phase 18 规划中**（GitHub Release 准备）
+- ✅ **Phase 18 已完成**（GitHub Release 准备）
 - ✅ 47 个单元测试全部通过
 - ✅ 3 个真实项目验证通过（0% 错误率）
 - ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`）
 - ✅ MCP Server 独立可执行文件（`meta-cc-mcp`，13 个工具，支持混合输出模式）
 - ✅ MCP 输出压缩率 80%+（10.7k → ~1-2k tokens）
 - ✅ 混合输出模式：自动处理大数据（≤8KB inline，>8KB file_ref，无截断）
+- ✅ 开源基础设施完成：LICENSE, CI/CD, 发布自动化
 
 ---
 
@@ -3111,10 +3112,10 @@ docs/assets/                  # 截图和演示 GIF（可选）
 
 **Badges 示例**：
 ```markdown
-[![CI](https://github.com/yale/meta-cc/actions/workflows/ci.yml/badge.svg)](https://github.com/yale/meta-cc/actions)
-[![Coverage](https://codecov.io/gh/yale/meta-cc/branch/main/graph/badge.svg)](https://codecov.io/gh/yale/meta-cc)
-[![License](https://img.shields.io/github/license/yale/meta-cc)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/yale/meta-cc)](https://github.com/yale/meta-cc/releases)
+[![CI](https://github.com/yaleh/meta-cc/actions/workflows/ci.yml/badge.svg)](https://github.com/yaleh/meta-cc/actions)
+[![Coverage](https://codecov.io/gh/yaleh/meta-cc/branch/main/graph/badge.svg)](https://codecov.io/gh/yaleh/meta-cc)
+[![License](https://img.shields.io/github/license/yaleh/meta-cc)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/yaleh/meta-cc)](https://github.com/yaleh/meta-cc/releases)
 ```
 
 **安装章节更新**：
@@ -3125,19 +3126,19 @@ Download pre-compiled binaries for your platform:
 
 **Linux (x86_64)**:
 ```bash
-curl -L https://github.com/yale/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
 chmod +x meta-cc
 sudo mv meta-cc /usr/local/bin/
 ```
 
 **macOS (Apple Silicon)**:
 ```bash
-curl -L https://github.com/yale/meta-cc/releases/latest/download/meta-cc-darwin-arm64 -o meta-cc
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-darwin-arm64 -o meta-cc
 chmod +x meta-cc
 sudo mv meta-cc /usr/local/bin/
 ```
 
-[See all platforms →](https://github.com/yale/meta-cc/releases/latest)
+[See all platforms →](https://github.com/yaleh/meta-cc/releases/latest)
 ```
 
 **验收标准**：

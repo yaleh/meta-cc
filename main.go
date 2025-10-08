@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/yale/meta-cc/cmd"
+	"github.com/yaleh/meta-cc/cmd"
 	"os"
 )
 

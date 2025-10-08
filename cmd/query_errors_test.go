@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yale/meta-cc/internal/parser"
-	"github.com/yale/meta-cc/pkg/output"
+	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/pkg/output"
 )
 
 func TestGenerateErrorSignature(t *testing.T) {

@@ -17,7 +17,7 @@ check_meta_cc_installed() {
         echo "  2. 将其放置在 PATH 中（如 /usr/local/bin/meta-cc）" >&2
         echo "  3. 确保可执行权限：chmod +x /usr/local/bin/meta-cc" >&2
         echo "" >&2
-        echo "详情参见：https://github.com/yale/meta-cc" >&2
+        echo "详情参见：https://github.com/yaleh/meta-cc" >&2
         exit $EXIT_ERROR
     fi
 }

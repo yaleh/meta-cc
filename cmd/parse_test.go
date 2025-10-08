@@ -103,9 +103,21 @@ func TestParseExtractCommand_TypeTools(t *testing.T) {
 }
 
 func TestParseExtractCommand_MissingSessionFile(t *testing.T) {
-	// Clear environment variables
+	// Clear environment variables that might be set by previous tests
 	os.Unsetenv("CC_SESSION_ID")
 	os.Unsetenv("CC_PROJECT_HASH")
+
+	// Change to a temporary directory that has no session
+	tmpDir := t.TempDir()
+	oldWd, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+	defer os.Chdir(oldWd)
+
+	// Reset rootCmd flags to clean state
+	rootCmd.Flags().Set("session", "")
+	rootCmd.Flags().Set("project", "")
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -114,7 +126,7 @@ func TestParseExtractCommand_MissingSessionFile(t *testing.T) {
 
 	err := rootCmd.Execute()
 	if err == nil {
-		t.Error("Expected error when session file not found")
+		t.Errorf("Expected error when session file not found, but command succeeded. Output: %s", buf.String())
 	}
 }
 
@@ -238,16 +250,29 @@ func TestParseStatsCommand_Markdown(t *testing.T) {
 }
 
 func TestParseStatsCommand_MissingSession(t *testing.T) {
-	// Clear environment variables
+	// Clear environment variables that might be set by previous tests
 	os.Unsetenv("CC_SESSION_ID")
 	os.Unsetenv("CC_PROJECT_HASH")
 
+	// Change to a temporary directory that has no session
+	tmpDir := t.TempDir()
+	oldWd, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+	defer os.Chdir(oldWd)
+
+	// Reset rootCmd flags to clean state
+	rootCmd.Flags().Set("session", "")
+	rootCmd.Flags().Set("project", "")
+
 	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
 	rootCmd.SetArgs([]string{"parse", "stats"})
 
 	err := rootCmd.Execute()
 	if err == nil {
-		t.Error("Expected error when session file not found")
+		t.Errorf("Expected error when session file not found, but command succeeded. Output: %s", buf.String())
 	}
 }

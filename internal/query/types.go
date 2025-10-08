@@ -1,6 +1,6 @@
 package query
 
-import "github.com/yale/meta-cc/internal/types"
+import "github.com/yaleh/meta-cc/internal/types"
 
 // ContextQuery represents context query results
 type ContextQuery struct {

@@ -3,7 +3,7 @@ package output
 import (
 	"encoding/json"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // SizeEstimate represents estimated output size

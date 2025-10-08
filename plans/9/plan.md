@@ -156,7 +156,7 @@ func init() {
 ```go
 package filter
 
-import "github.com/yale/meta-cc/internal/parser"
+import "github.com/yaleh/meta-cc/internal/parser"
 
 // PaginationConfig 分页配置
 type PaginationConfig struct {
@@ -226,7 +226,7 @@ package output
 
 import (
     "encoding/json"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // EstimateSize 预估数据结构的输出大小（字节）
@@ -356,8 +356,8 @@ package filter
 
 import (
     "testing"
-    "github.com/yale/meta-cc/internal/parser"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestApplyPagination(t *testing.T) {
@@ -429,7 +429,7 @@ package output
 
 import (
     "testing"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestEstimateToolCallsSize(t *testing.T) {
@@ -567,7 +567,7 @@ import (
     "os"
     "path/filepath"
     "encoding/json"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // ChunkConfig 分片配置
@@ -743,7 +743,7 @@ import (
     "os"
     "path/filepath"
     "testing"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestChunkToolCalls(t *testing.T) {
@@ -873,7 +873,7 @@ import (
     "encoding/json"
     "fmt"
     "strings"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // ProjectionConfig 字段投影配置
@@ -1082,7 +1082,7 @@ package output
 
 import (
     "testing"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestProjectToolCalls(t *testing.T) {
@@ -1228,7 +1228,7 @@ package output
 import (
     "fmt"
     "strings"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // FormatTSV 格式化为 TSV（Tab-Separated Values）
@@ -1274,8 +1274,8 @@ package output
 import (
     "fmt"
     "strings"
-    "github.com/yale/meta-cc/internal/parser"
-    "github.com/yale/meta-cc/internal/analyzer"
+    "github.com/yaleh/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/analyzer"
 )
 
 // SummaryOutput 摘要 + 详情输出
@@ -1402,7 +1402,7 @@ package output
 import (
     "strings"
     "testing"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestFormatTSV(t *testing.T) {
@@ -1456,7 +1456,7 @@ package output
 import (
     "strings"
     "testing"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestFormatSummaryFirst(t *testing.T) {
@@ -1524,7 +1524,7 @@ import (
     "fmt"
     "os"
     "time"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func main() {

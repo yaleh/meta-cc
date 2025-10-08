@@ -45,7 +45,7 @@
 mkdir -p cmd internal pkg tests/fixtures
 
 # 初始化 Go 模块
-go mod init github.com/yale/meta-cc
+go mod init github.com/yaleh/meta-cc
 ```
 
 **2. 测试先行（无测试文件，直接实现）**
@@ -61,7 +61,7 @@ go mod init github.com/yale/meta-cc
 package main
 
 import (
-    "github.com/yale/meta-cc/cmd"
+    "github.com/yaleh/meta-cc/cmd"
     "os"
 )
 
@@ -170,7 +170,7 @@ Meta-Cognition tool for Claude Code - analyze session history for workflow optim
 ### From Source
 
 ```bash
-git clone https://github.com/yale/meta-cc.git
+git clone https://github.com/yaleh/meta-cc.git
 cd meta-cc
 go build -o meta-cc
 ```
@@ -397,9 +397,9 @@ COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 
 # 构建参数
-LDFLAGS := -ldflags "-X github.com/yale/meta-cc/cmd.Version=$(VERSION) \
-                     -X github.com/yale/meta-cc/cmd.Commit=$(COMMIT) \
-                     -X github.com/yale/meta-cc/cmd.BuildTime=$(BUILD_TIME)"
+LDFLAGS := -ldflags "-X github.com/yaleh/meta-cc/cmd.Version=$(VERSION) \
+                     -X github.com/yaleh/meta-cc/cmd.Commit=$(COMMIT) \
+                     -X github.com/yaleh/meta-cc/cmd.BuildTime=$(BUILD_TIME)"
 
 # Go 参数
 GOCMD := go
@@ -547,7 +547,7 @@ Meta-Cognition tool for Claude Code - analyze session history for workflow optim
 ### From Source
 
 ```bash
-git clone https://github.com/yale/meta-cc.git
+git clone https://github.com/yaleh/meta-cc.git
 cd meta-cc
 make build
 ```

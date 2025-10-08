@@ -125,7 +125,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/testutil"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestParseExtractCommand_TypeTurns(t *testing.T) {
@@ -253,8 +253,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/locator"
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/locator"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 var (
@@ -427,7 +427,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 func TestFormatJSON_SessionEntries(t *testing.T) {
@@ -628,7 +628,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // FormatMarkdown 将数据格式化为 Markdown
@@ -738,7 +738,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // FormatCSV 将数据格式化为 CSV
@@ -895,7 +895,7 @@ package filter
 import (
 	"testing"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 func TestParseFilter_SingleCondition(t *testing.T) {
@@ -1057,7 +1057,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // Condition 表示一个过滤条件
@@ -1261,8 +1261,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yale/meta-cc/cmd"
-	"github.com/yale/meta-cc/internal/testutil"
+	"github.com/yaleh/meta-cc/cmd"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestIntegration_ParseExtractCommand_FullFlow(t *testing.T) {

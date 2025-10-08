@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/parser"
-	"github.com/yale/meta-cc/internal/query"
-	"github.com/yale/meta-cc/internal/types"
+	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/query"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 var (

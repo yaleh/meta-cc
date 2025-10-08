@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // ProjectionConfig defines which fields to include in output

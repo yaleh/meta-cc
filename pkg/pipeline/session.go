@@ -3,8 +3,8 @@ package pipeline
 import (
 	"fmt"
 
-	"github.com/yale/meta-cc/internal/locator"
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/locator"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // SessionPipeline encapsulates session data processing

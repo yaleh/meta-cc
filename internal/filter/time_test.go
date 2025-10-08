@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 func TestParseDuration(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yale/meta-cc/internal/analyzer"
+	"github.com/yaleh/meta-cc/internal/analyzer"
 )
 
 func TestAnalyzeFileChurnCommand_OutputFormat(t *testing.T) {

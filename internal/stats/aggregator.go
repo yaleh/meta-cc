@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // AggregateConfig defines aggregation parameters

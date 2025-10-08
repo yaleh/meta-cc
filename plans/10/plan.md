@@ -560,7 +560,7 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 ```go
 package filter
 
-import "github.com/yale/meta-cc/internal/parser"
+import "github.com/yaleh/meta-cc/internal/parser"
 
 // ApplyAdvancedFilter 应用高级过滤表达式
 func ApplyAdvancedFilter(tools []parser.ToolCall, expr Expression) []parser.ToolCall {
@@ -880,7 +880,7 @@ package analyzer
 import (
     "fmt"
     "sort"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // AggregateConfig 聚合配置
@@ -1051,9 +1051,9 @@ import (
     "encoding/json"
     "fmt"
     "github.com/spf13/cobra"
-    "github.com/yale/meta-cc/internal/analyzer"
-    "github.com/yale/meta-cc/internal/locator"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/analyzer"
+    "github.com/yaleh/meta-cc/internal/locator"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 var (
@@ -1126,7 +1126,7 @@ package analyzer
 
 import (
     "testing"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestAggregate(t *testing.T) {
@@ -1288,7 +1288,7 @@ package analyzer
 
 import (
     "time"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // TimeSeriesConfig 时间序列配置
@@ -1615,7 +1615,7 @@ package analyzer
 
 import (
     "sort"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // FileStats 文件统计信息

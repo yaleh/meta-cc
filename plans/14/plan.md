@@ -219,7 +219,7 @@ package cmd
 
 import (
     "testing"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestNewSessionPipeline(t *testing.T) {
@@ -398,8 +398,8 @@ package cmd
 import (
     "fmt"
     "github.com/spf13/cobra"
-    "github.com/yale/meta-cc/internal/parser"
-    "github.com/yale/meta-cc/pkg/output"
+    "github.com/yaleh/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/pkg/output"
 )
 
 var queryErrorsCmd = &cobra.Command{
@@ -576,7 +576,7 @@ import (
     "testing"
     "strings"
     "encoding/json"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestRunQueryErrors(t *testing.T) {
@@ -706,7 +706,7 @@ package output
 
 import (
     "sort"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // SortByTimestamp sorts entries by timestamp (ascending)
@@ -803,8 +803,8 @@ package output
 
 import (
     "testing"
-    "github.com/yale/meta-cc/internal/parser"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestSortByTimestamp_ToolCalls(t *testing.T) {
@@ -1857,7 +1857,7 @@ package cmd
 
 import (
     "testing"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestRefactored_QueryTools(t *testing.T) {

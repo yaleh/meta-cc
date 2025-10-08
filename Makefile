@@ -2,9 +2,9 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
-LDFLAGS := -ldflags "-X github.com/yale/meta-cc/cmd.Version=$(VERSION) \
-                     -X github.com/yale/meta-cc/cmd.Commit=$(COMMIT) \
-                     -X github.com/yale/meta-cc/cmd.BuildTime=$(BUILD_TIME)"
+LDFLAGS := -ldflags "-X github.com/yaleh/meta-cc/cmd.Version=$(VERSION) \
+                     -X github.com/yaleh/meta-cc/cmd.Commit=$(COMMIT) \
+                     -X github.com/yaleh/meta-cc/cmd.BuildTime=$(BUILD_TIME)"
 
 GOCMD := go
 GOBUILD := $(GOCMD) build

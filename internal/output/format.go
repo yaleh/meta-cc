@@ -3,7 +3,7 @@ package output
 import (
 	"fmt"
 
-	pkgOutput "github.com/yale/meta-cc/pkg/output"
+	pkgOutput "github.com/yaleh/meta-cc/pkg/output"
 )
 
 // FormatOutput formats data based on the output format

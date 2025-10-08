@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/filter"
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/filter"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 var (

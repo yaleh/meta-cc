@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yale/meta-cc/internal/testutil"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestFromSessionID_Success(t *testing.T) {

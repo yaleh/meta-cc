@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // FormatTSV formats data as TSV (Tab-Separated Values)

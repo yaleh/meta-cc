@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 func TestFormatTSV(t *testing.T) {

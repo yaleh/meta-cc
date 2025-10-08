@@ -3,7 +3,7 @@ package filter
 import (
 	"testing"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // generateTestToolCalls creates test ToolCall data

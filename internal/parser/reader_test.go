@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/yale/meta-cc/internal/testutil"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestParseSession_ValidFile(t *testing.T) {

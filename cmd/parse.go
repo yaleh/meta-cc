@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/analyzer"
-	"github.com/yale/meta-cc/internal/filter"
-	internalOutput "github.com/yale/meta-cc/internal/output"
-	"github.com/yale/meta-cc/internal/parser"
-	"github.com/yale/meta-cc/pkg/output"
+	"github.com/yaleh/meta-cc/internal/analyzer"
+	"github.com/yaleh/meta-cc/internal/filter"
+	internalOutput "github.com/yaleh/meta-cc/internal/output"
+	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/pkg/output"
 )
 
 var (

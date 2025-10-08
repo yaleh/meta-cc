@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // BuildFileAccessQuery builds a file access history query

@@ -100,8 +100,8 @@ Total                1194 lines 340 lines -72%
 package pipeline
 
 import (
-    "github.com/yale/meta-cc/internal/locator"
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/locator"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // GlobalOptions contains global CLI flags
@@ -208,7 +208,7 @@ package pipeline
 
 import (
     "testing"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestSessionPipeline_Load(t *testing.T) {
@@ -355,9 +355,9 @@ import (
     "time"
 
     "github.com/spf13/cobra"
-    "github.com/yale/meta-cc/internal/filter"
-    "github.com/yale/meta-cc/pkg/output"
-    "github.com/yale/meta-cc/pkg/pipeline"
+    "github.com/yaleh/meta-cc/internal/filter"
+    "github.com/yaleh/meta-cc/pkg/output"
+    "github.com/yaleh/meta-cc/pkg/pipeline"
 )
 
 // ErrorEntry represents a single error occurrence
@@ -471,7 +471,7 @@ package cmd
 
 import (
     "testing"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestGenerateErrorSignature(t *testing.T) {
@@ -577,7 +577,7 @@ import (
     "sort"
     "time"
 
-    "github.com/yale/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/parser"
 )
 
 // SortByTimestamp sorts data by timestamp field
@@ -640,8 +640,8 @@ import (
     "testing"
     "time"
 
-    "github.com/yale/meta-cc/internal/parser"
-    "github.com/yale/meta-cc/internal/testutil"
+    "github.com/yaleh/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestSortByTimestamp(t *testing.T) {

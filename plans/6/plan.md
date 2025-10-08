@@ -14,7 +14,7 @@
 - 完整的集成文档和使用说明
 - 安装和故障排查指南
 
----
+---\n
 
 ## Phase 目标
 
@@ -38,7 +38,7 @@
 - ✅ 测试环境可复现
 - ✅ **完成 MVP（Minimum Viable Product）里程碑**
 
----
+---\n
 
 ## 集成架构
 
@@ -48,15 +48,15 @@
 
 actor "用户" as User
 participant "Claude Code" as CC
-participant "Slash Command\n.claude/commands/" as SC
+participant "Slash Command\\n.claude/commands/" as SC
 participant "Bash Tool" as Bash
 participant "meta-cc CLI" as CLI
-participant "Session File\n~/.claude/projects/" as File
+participant "Session File\\n~/.claude/projects/" as File
 
 User -> CC: 输入 /meta-stats
 activate CC
 
-CC -> SC: 加载命令定义\nmeta-stats.md
+CC -> SC: 加载命令定义\\nmeta-stats.md
 activate SC
 
 SC -> Bash: 执行命令:\nmeta-cc parse stats\n--output md
@@ -91,7 +91,7 @@ deactivate CC
 @enduml
 ```
 
----
+---\n
 
 ## Stage 6.1: /meta-stats Slash Command
 
@@ -126,7 +126,7 @@ if ! command -v meta-cc &> /dev/null; then
     echo "  2. 将其放置在 PATH 中（如 /usr/local/bin/meta-cc）"
     echo "  3. 确保可执行权限：chmod +x /usr/local/bin/meta-cc"
     echo ""
-    echo "详情参见：https://github.com/yale/meta-cc"
+    echo "详情参见：https://github.com/yaleh/meta-cc"
     exit 1
 fi
 
@@ -237,7 +237,7 @@ meta-cc/
 - ✅ 错误处理：meta-cc 未安装时显示友好错误消息
 - ✅ 环境变量：如果 `CC_SESSION_ID` 可用，自动使用；否则回退到工作目录
 
----
+---\n
 
 ## Stage 6.2: /meta-errors Slash Command
 
@@ -273,7 +273,7 @@ if ! command -v meta-cc &> /dev/null; then
     echo "  2. 将其放置在 PATH 中（如 /usr/local/bin/meta-cc）"
     echo "  3. 确保可执行权限：chmod +x /usr/local/bin/meta-cc"
     echo ""
-    echo "详情参见：https://github.com/yale/meta-cc"
+    echo "详情参见：https://github.com/yaleh/meta-cc"
     exit 1
 fi
 
@@ -460,7 +460,7 @@ meta-cc/
 - ✅ 无错误会话：正确显示 "✅ 未检测到错误" 而不是报错
 - ✅ 错误处理：meta-cc 未安装时显示友好错误消息
 
----
+---\n
 
 ## Stage 6.3: 集成测试、文档和安装指南
 
@@ -560,7 +560,7 @@ meta-cc 提供了与 Claude Code 的深度集成，允许你通过简单的 Slas
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yale/meta-cc.git
+git clone https://github.com/yaleh/meta-cc.git
 cd meta-cc
 
 # 构建二进制文件
@@ -578,7 +578,7 @@ meta-cc --version
 
 ```bash
 # 下载最新版本（Linux x64）
-curl -L https://github.com/yale/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
 
 # 安装到系统路径
 sudo mv meta-cc /usr/local/bin/meta-cc
@@ -888,8 +888,7 @@ echo "Project Hash: $CC_PROJECT_HASH"
 - [meta-cc 命令参考](./README.md#commands)
 - [meta-cc 技术方案](./docs/proposals/meta-cognition-proposal.md)
 
----
-```
+---\n
 
 **3. 创建故障排查指南**
 
@@ -991,7 +990,7 @@ Error executing command: ...
 **解决方案**:
 ```bash
 # 手动运行命令测试
-bash -c "$(sed -n '/```bash/,/```/p' .claude/commands/meta-stats.md | grep -v '```')"
+bash -c "$(sed -n '\`\`\`bash/,\`\`\`/p' .claude/commands/meta-stats.md | grep -v '\`\`\`')"
 
 # 检查 meta-cc 版本
 meta-cc --version
@@ -1069,7 +1068,7 @@ cat ~/.claude/projects/<hash>/<session-id>.jsonl | jq . | head -n 50
 如果以上解决方案无效，请：
 
 1. **查看项目文档**: [README.md](../README.md)
-2. **提交 Issue**: [GitHub Issues](https://github.com/yale/meta-cc/issues)
+2. **提交 Issue**: [GitHub Issues](https://github.com/yaleh/meta-cc/issues)
 3. **查看 Claude Code 文档**: [官方文档](https://docs.claude.com/en/docs/claude-code)
 
 提交 Issue 时，请包含：
@@ -1126,7 +1125,7 @@ meta-cc/
 - ✅ 手动测试：运行 `bash tests/integration/slash_commands_test.sh` 全部通过
 - ✅ 手动测试：在 Claude Code 中验证 `/meta-stats` 和 `/meta-errors` 可用
 
----
+---\n
 
 ## Phase 6 集成测试
 
@@ -1188,13 +1187,13 @@ bash tests/integration/slash_commands_test.sh
 - ✅ 输出格式美观、易读
 - ✅ 性能良好（命令在 2 秒内返回结果）
 
----
+---\n
 
 ## Phase 6 完成标准
 
 ### 功能验收
 
-**必须满足所有条件**:
+**必须满足所有条件**：
 
 1. **Slash Commands 可用**
    ```
@@ -1230,8 +1229,8 @@ bash tests/integration/slash_commands_test.sh
 
 6. **集成测试通过**
    ```bash
-   bash tests/integration/slash_commands_test.sh
-   ```
+bash tests/integration/slash_commands_test.sh
+```
    - ✅ 所有测试步骤通过
    - ✅ 无错误或警告
    - ✅ 输出清晰的成功消息
@@ -1265,7 +1264,7 @@ bash tests/integration/slash_commands_test.sh
 - ✅ 文档易读、完整
 - ✅ 输出格式美观、实用
 
----
+---\n
 
 ## 项目结构（Phase 6 完成后）
 
@@ -1311,7 +1310,7 @@ meta-cc/
 └── README.md                        # Phase 6（更新）
 ```
 
----
+---\n
 
 ## 依赖关系
 
@@ -1334,7 +1333,7 @@ meta-cc/
 - Phase 8（MCP Server）：MCP 协议集成
 - Phase 9（Advanced Features）：跨会话分析、工具序列检测
 
----
+---\n
 
 ## 风险与缓解
 
@@ -1347,7 +1346,7 @@ meta-cc/
 | 输出格式混乱影响阅读 | 中 | 使用 Markdown 格式；测试实际输出效果 |
 | 会话文件权限问题 | 低 | 文档说明权限要求；故障排查指南包含解决方案 |
 
----
+---\n
 
 ## MVP 里程碑完成
 
@@ -1389,11 +1388,11 @@ meta-cc/
 - ✅ 导出数据进行深入分析
 - ✅ 在 Claude Code 中无缝使用（Slash Commands）
 
----
+---\n
 
 ## 下一步行动
 
-**Phase 6 完成后，可选方向**:
+**Phase 6 完成后，可选方向**：
 
 1. **发布 MVP 版本**（推荐）
    - 创建 GitHub Release（v0.1.0）
@@ -1447,7 +1446,7 @@ bash tests/integration/slash_commands_test.sh
 # 恢复 meta-cc：sudo mv /tmp/meta-cc /usr/local/bin/meta-cc
 ```
 
----
+---\n
 
 ## Phase 6 实现摘要
 
@@ -1509,7 +1508,7 @@ meta-cc parse stats --output md > session-report.md
 meta-cc analyze errors --output md >> session-report.md
 ```
 
----
+---\n
 
 ## 参考文档
 
@@ -1523,7 +1522,7 @@ meta-cc analyze errors --output md >> session-report.md
 - [Phase 4 实施计划](../plans/4/plan.md)
 - [Phase 5 实施计划](../plans/5/plan.md)
 
----
+---\n
 
 ## Phase 6 总结
 

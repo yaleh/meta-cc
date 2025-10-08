@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // TimeFilter represents time-based filtering options

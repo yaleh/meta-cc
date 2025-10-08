@@ -1,6 +1,6 @@
 package filter
 
-import "github.com/yale/meta-cc/internal/parser"
+import "github.com/yaleh/meta-cc/internal/parser"
 
 // PaginationConfig defines pagination parameters
 type PaginationConfig struct {

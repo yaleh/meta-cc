@@ -206,9 +206,9 @@ import (
     "sort"
 
     "github.com/spf13/cobra"
-    "github.com/yale/meta-cc/internal/locator"
-    "github.com/yale/meta-cc/internal/parser"
-    "github.com/yale/meta-cc/pkg/output"
+    "github.com/yaleh/meta-cc/internal/locator"
+    "github.com/yaleh/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/pkg/output"
 )
 
 var (
@@ -407,9 +407,9 @@ import (
     "sort"
 
     "github.com/spf13/cobra"
-    "github.com/yale/meta-cc/internal/locator"
-    "github.com/yale/meta-cc/internal/parser"
-    "github.com/yale/meta-cc/pkg/output"
+    "github.com/yaleh/meta-cc/internal/locator"
+    "github.com/yaleh/meta-cc/internal/parser"
+    "github.com/yaleh/meta-cc/pkg/output"
 )
 
 var (

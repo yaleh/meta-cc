@@ -3,7 +3,7 @@ package stats
 import (
 	"sort"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // FileStats represents file-level operation statistics

@@ -304,7 +304,7 @@ package analyzer
 import (
 	"testing"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 func TestDetectErrorPatterns_NoErrors(t *testing.T) {
@@ -458,7 +458,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // ErrorPattern 表示检测到的错误模式
@@ -632,7 +632,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yale/meta-cc/internal/testutil"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestAnalyzeErrorsCommand_NoErrors(t *testing.T) {
@@ -831,10 +831,10 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/yale/meta-cc/internal/analyzer"
-	"github.com/yale/meta-cc/internal/locator"
-	"github.com/yale/meta-cc/internal/parser"
-	"github.com/yale/meta-cc/pkg/output"
+	"github.com/yaleh/meta-cc/internal/analyzer"
+	"github.com/yaleh/meta-cc/internal/locator"
+	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/pkg/output"
 )
 
 var (
@@ -1070,8 +1070,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yale/meta-cc/cmd"
-	"github.com/yale/meta-cc/internal/testutil"
+	"github.com/yaleh/meta-cc/cmd"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestIntegration_AnalyzeErrorsCommand_FullFlow(t *testing.T) {

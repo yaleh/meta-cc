@@ -1069,7 +1069,7 @@ Do: "@meta-coach I just got an error in my auth module.
 
 ### Contributing
 
-Found a better pattern? [Open an issue](https://github.com/yale/meta-cc/issues) or submit a PR with your use case!
+Found a better pattern? [Open an issue](https://github.com/yaleh/meta-cc/issues) or submit a PR with your use case!
 
 ---
 

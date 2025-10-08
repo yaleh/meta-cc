@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yale/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 func TestFormatOutput_JSONL(t *testing.T) {

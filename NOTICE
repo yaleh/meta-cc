@@ -1,0 +1,12 @@
+meta-cc
+Copyright (c) 2025 meta-cc contributors
+
+This software contains third-party dependencies under their respective licenses:
+
+- github.com/spf13/cobra (Apache License 2.0)
+- github.com/spf13/viper (MIT License)
+- github.com/stretchr/testify (MIT License)
+
+For a complete list of dependencies and their licenses, please see go.mod and go.sum files.
+
+All dependencies are compatible with the MIT License under which this project is distributed.

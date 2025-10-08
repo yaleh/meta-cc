@@ -633,7 +633,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/yale/meta-cc/internal/testutil"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestParseSession_ValidFile(t *testing.T) {
@@ -1299,8 +1299,8 @@ package integration
 import (
 	"testing"
 
-	"github.com/yale/meta-cc/internal/parser"
-	"github.com/yale/meta-cc/internal/testutil"
+	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 func TestIntegration_ParseRealSession(t *testing.T) {
@@ -1479,7 +1479,7 @@ Parse Claude Code session files in JSONL format.
 ### Basic Usage
 
 ```go
-import "github.com/yale/meta-cc/internal/parser"
+import "github.com/yaleh/meta-cc/internal/parser"
 
 // Parse session file
 sessionParser := parser.NewSessionParser("/path/to/session.jsonl")
