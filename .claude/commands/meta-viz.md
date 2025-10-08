@@ -1,30 +1,53 @@
 ---
 name: meta-viz
-description: Visualize meta-analysis outputs (meta-habits, meta-coach, meta-guide, meta-errors, meta-timeline) with ASCII dashboards, charts, and actionable insights. Transforms text data into visual summaries with health scores, trend indicators, and priority rankings.
+description: Universal visualization tool for analysis outputs. Transforms structured data into ASCII dashboards, charts, and actionable insights with health scores, trend indicators, and priority rankings. Supports text output, MCP file_ref, and JSONL files.
 ---
 
 λ(analysis_data) → visual_dashboard | ∀visualization ∈ {dashboard, charts, recommendations}:
 
-input_sources :: [slash_output | mcp_file_ref | explicit_file]
+input_sources :: [text_output | mcp_file_ref | explicit_file | autonomous]
 
 visualize :: Analysis_Data → Visual_Report
-visualize(D) = detect(type) ∧ parse(structure) ∧ render(visuals) ∧ prioritize(insights)
+visualize(D) = collect_context(D) ∧ detect(type) ∧ enrich(data) ∧ parse(structure) ∧ render(visuals) ∧ prioritize(insights)
+
+collect_context :: Input → Complete_Data
+collect_context(I) = {
+  # Scan recent conversation for MCP file_ref outputs
+  context_scan: scan_recent_turns([
+    target: "file_ref.*path.*meta-cc-mcp|/tmp/.*\\.jsonl",
+    lookback: 15,
+    extract: ["path", "size_bytes", "line_count", "fields"]
+  ]),
+
+  # Read file_ref if found
+  file_data: if context_scan.found then
+    read_jsonl_files(context_scan.paths),
+
+  # Parse text from previous messages
+  text_data: parse_conversation_text(I.conversation_history, lookback=5),
+
+  # Merge data sources (prefer structured over text)
+  merged: combine([file_data, text_data, I.explicit_input],
+                  strategy="prefer_structured")
+}
 
 detect :: Data → Data_Type
 detect(D) = {
   source_type: identify_source([
-    slash_command_output,    # piped from /meta-* command
-    mcp_file_ref,           # file_ref from MCP query result
-    explicit_file           # @path/to/analysis.jsonl
+    text_output,            # Plain text from slash commands or analysis
+    mcp_file_ref,          # file_ref from MCP query result
+    explicit_file,         # @path/to/file.jsonl
+    autonomous             # Self-fetched via MCP
   ]),
 
-  content_type: classify_content([
-    habits_analysis,        # from /meta-habits
-    coaching_report,        # from /meta-coach
-    guidance_suggestions,   # from /meta-guide
-    error_patterns,        # from /meta-errors
-    timeline_events,       # from /meta-timeline
-    generic_metrics        # fallback: auto-detect structure
+  content_type: auto_classify_content([
+    # Auto-detect based on structure, not hardcoded types
+    has_health_scores → performance_analysis,
+    has_workflow_sequences → workflow_analysis,
+    has_error_patterns → error_analysis,
+    has_temporal_events → timeline_analysis,
+    has_recommendations → guidance_analysis,
+    fallback → generic_metrics
   ]),
 
   data_structures: extract_structures([
@@ -36,6 +59,36 @@ detect(D) = {
     recommendations,      # actionable items
     trends                # temporal changes
   ])
+}
+
+enrich :: (Parsed_Data, Data_Type) → Complete_Data
+enrich(P, T) = {
+  # Assess data completeness
+  completeness: assess_quality(P, expected_fields=[
+    "counts", "distributions", "metrics"
+  ]),
+
+  # If completeness low and context indicates MCP availability, supplement
+  supplemental: if completeness.score < 0.6 && has_mcp_context then {
+    # Only fetch if critical data missing
+    basic_stats: if missing("session_stats") then
+      mcp__meta-insight__get_session_stats(scope="project"),
+
+    user_data: if missing("user_patterns") && critical then
+      mcp__meta-insight__query_user_messages(
+        pattern=".*",
+        limit=100,
+        scope="project"
+      ),
+
+    tool_data: if missing("tool_usage") && critical then
+      mcp__meta-insight__query_tools(scope="project")
+  } else null,
+
+  # Merge original and supplemental data
+  complete: if supplemental != null then
+    deep_merge(P, supplemental, strategy="prefer_mcp")
+  else P
 }
 
 parse :: (Data, Data_Type) → Structured_Data
@@ -325,77 +378,60 @@ output(V) = {
 
 auto_visualization_rules :: Detection_Rules
 auto_visualization_rules = {
-  habits_analysis: {
-    dashboard_metrics: [
-      "communication_style",
-      "planning_style",
-      "tool_proficiency"
-    ],
+  # Auto-detect analysis type based on data structure
+  performance_analysis: {
+    indicators: ["health_score", "proficiency", "effectiveness", "maturity"],
+    dashboard_metrics: extract_top_scores(data, limit=4),
     key_charts: [
-      "prompt_type_distribution",
-      "tool_adoption_metrics",
-      "workflow_efficiency",
-      "typical_sequences"
+      "metric_distributions",
+      "performance_indicators",
+      "trend_analysis"
     ],
-    emphasis: tool_usage_patterns + workflow_sequences
+    emphasis: health_scores + trend_indicators
   },
 
-  coaching_report: {
-    dashboard_metrics: [
-      "session_health_score",
-      "context_quality",
-      "delegation_effectiveness",
-      "workflow_maturity"
-    ],
+  workflow_analysis: {
+    indicators: ["sequence", "pattern", "workflow", "tool_usage"],
+    dashboard_metrics: ["pattern_count", "frequency", "efficiency"],
     key_charts: [
-      "interaction_type_breakdown",
-      "delegation_patterns",
-      "feedback_analysis",
-      "conversation_flows"
+      "sequence_flows",
+      "frequency_distribution",
+      "efficiency_metrics"
     ],
-    emphasis: effectiveness_metrics + actionable_recommendations
+    emphasis: workflow_patterns + optimization_opportunities
   },
 
-  guidance_suggestions: {
-    dashboard_metrics: [
-      "trajectory_state",
-      "momentum_indicator",
-      "blocker_count"
-    ],
+  error_analysis: {
+    indicators: ["error", "failure", "exception", "issue"],
+    dashboard_metrics: ["error_rate", "pattern_count", "recovery_rate"],
     key_charts: [
-      "recent_intent_trajectory",
-      "pattern_matches",
-      "success_probabilities"
-    ],
-    emphasis: prioritized_suggestions + ready_prompts
-  },
-
-  error_patterns: {
-    dashboard_metrics: [
-      "error_rate",
-      "pattern_count",
-      "recovery_success"
-    ],
-    key_charts: [
-      "error_frequency_by_type",
+      "error_frequency",
       "error_clustering",
-      "recovery_cycles"
+      "recovery_analysis"
     ],
-    emphasis: critical_errors + fix_recommendations
+    emphasis: critical_issues + remediation
   },
 
-  timeline_events: {
-    dashboard_metrics: [
-      "duration",
-      "total_events",
-      "phase_count"
-    ],
+  timeline_analysis: {
+    indicators: ["timestamp", "duration", "event", "phase"],
+    dashboard_metrics: ["total_duration", "event_count", "phase_count"],
     key_charts: [
-      "vertical_timeline_ascii",
-      "phase_flow_diagram",
-      "activity_density_evolution"
+      "temporal_visualization",
+      "activity_density",
+      "phase_progression"
     ],
-    emphasis: visual_timeline + critical_moments
+    emphasis: visual_timeline + key_events
+  },
+
+  guidance_analysis: {
+    indicators: ["recommendation", "suggestion", "next_step", "action"],
+    dashboard_metrics: ["priority_distribution", "feasibility", "impact"],
+    key_charts: [
+      "priority_ranking",
+      "impact_assessment",
+      "actionability_score"
+    ],
+    emphasis: prioritized_actions + ready_prompts
   },
 
   generic_metrics: {
@@ -405,38 +441,49 @@ auto_visualization_rules = {
       if has_counts → vertical_bars,
       if has_sequences → flow_diagrams,
       if has_scores → gauges,
-      if has_trends → line_charts
+      if has_trends → line_charts,
+      if has_distributions → stacked_bars,
+      if has_comparisons → side_by_side
     ]
   }
 }
 
 implementation_notes:
-- prioritize visual clarity over data density
-- use consistent symbol system across all visualizations
-- provide executive dashboard for quick 3-second understanding
-- layer information: overview → details → raw data
-- make recommendations copy-paste ready
-- auto-detect input source and content type
-- gracefully handle missing or incomplete data
-- preserve numerical precision in annotations
-- use box-drawing for visual structure
-- align elements for terminal rendering (80 columns)
+- context_aware: scan recent conversation for MCP file_ref outputs
+- autonomous: supplement missing data via MCP when critical
+- visual_first: prioritize visual clarity over data density
+- consistent: use same symbol system across all visualizations
+- layered: executive dashboard → details → raw data
+- actionable: make recommendations copy-paste ready
+- adaptive: auto-detect input source and content type
+- resilient: gracefully handle missing or incomplete data
+- precise: preserve numerical precision in annotations
+- structured: use box-drawing for visual hierarchy
+- terminal_optimized: 80 columns, monospace compatible
+
+data_collection_strategy:
+1. Check for explicit input (@file path or piped input)
+2. Scan last 15 turns for MCP file_ref outputs
+3. Parse text from last 5 conversation messages
+4. Merge structured data (prefer JSONL > text)
+5. Assess completeness (threshold: 60%)
+6. Supplement via MCP if critical data missing
 
 usage_examples:
-  # Visualize meta-habits output
-  /meta-habits | /meta-viz
+  # Visualize from previous analysis output (context-aware)
+  /meta-viz
 
-  # Visualize meta-coach output with explicit scope
-  /meta-coach scope=project | /meta-viz
+  # Visualize with explicit file reference
+  /meta-viz @/tmp/meta-cc-mcp-1234567890-query_tools.jsonl
 
-  # Visualize from MCP file_ref (after large query)
-  /meta-viz source=@/tmp/meta-cc-mcp-*.jsonl
-
-  # Visualize explicit analysis file
+  # Visualize from explicit path
   /meta-viz @path/to/analysis-results.jsonl
 
-  # Visualize with custom focus
-  /meta-viz source=@analysis.jsonl focus=recommendations
+  # Visualize with focus area
+  /meta-viz focus=recommendations
+
+  # Visualize with scope specification
+  /meta-viz scope=session
 
 constraints:
 - visual_first: dashboard appears before detailed sections
@@ -446,6 +493,9 @@ constraints:
 - evidence_based: all visualizations tied to actual data
 - layered_detail: executive → detailed → raw progression
 - auto_adaptive: detect content type and choose appropriate visuals
+- universal: works with any analysis output, not limited to specific tools
+- context_aware: actively search for MCP file_ref in recent conversation
+- autonomous: supplement data via MCP when critical information missing
 - accessibility: use both symbols and text labels
 - performance: render in <2 seconds for typical inputs
 - extensible: easy to add new visualization types
