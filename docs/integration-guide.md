@@ -28,6 +28,46 @@ This guide helps you understand the **core differences** between these methods a
 
 ---
 
+## Quick Start: MCP Server Setup
+
+For most users, the **MCP Server** provides the best balance of power and convenience:
+
+### Step 1: Install and Build
+```bash
+git clone https://github.com/yaleh/meta-cc.git
+cd meta-cc
+make build-mcp
+cp meta-cc-mcp ~/.local/bin/
+```
+
+### Step 2: Configure Claude Code
+```bash
+# Quick setup
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+
+# Or manual configuration - edit claude_desktop_config.json
+{
+  "mcpServers": {
+    "meta-cc": {
+      "type": "stdio",
+      "command": "meta-cc-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+### Step 3: Test Integration
+```
+@meta-cc get_session_stats
+@meta-cc query_tools --limit=10
+@meta-cc query_user_messages --pattern=".*error.*"
+```
+
+**You're ready!** Claude will now automatically call meta-cc tools when you ask questions about your session data.
+
+---
+
 ## Part I: Core Differences Deep Dive
 
 ### 1.1 Context Isolation Mechanism

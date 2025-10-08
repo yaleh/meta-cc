@@ -84,6 +84,69 @@ meta-cc --version
 meta-cc --help
 ```
 
+## MCP Server Integration
+
+Deploy meta-cc as an MCP server to analyze sessions directly within Claude Code.
+
+### Quick Setup
+
+```bash
+# Build MCP server
+make build-mcp
+
+# Add to Claude Code (user scope)
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+```
+
+### Manual Configuration
+
+**1. Build the MCP server:**
+```bash
+git clone https://github.com/yaleh/meta-cc.git
+cd meta-cc
+make build-mcp
+cp meta-cc-mcp ~/.local/bin/
+```
+
+**2. Configure Claude Code:**
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `~/.config/claude/claude_desktop_config.json` (Linux):
+
+```json
+{
+  "mcpServers": {
+    "meta-cc": {
+      "type": "stdio",
+      "command": "meta-cc-mcp",
+      "args": [],
+      "env": {
+        "META_CC_INLINE_THRESHOLD": "8192"
+      }
+    }
+  }
+}
+```
+
+**3. Restart Claude Code** to load the server.
+
+**4. Test the integration:**
+```
+@meta-cc get_session_stats
+@meta-cc query_tools --limit=10
+@meta-cc query_user_messages --pattern=".*error.*"
+```
+
+### Available MCP Tools
+
+- **`get_session_stats`** - Session statistics
+- **`query_tools`** - Tool call analysis
+- **`query_user_messages`** - Search user messages
+- **`query_tool_sequences`** - Workflow patterns
+- **`query_time_series`** - Time-based analysis
+- **`cleanup_temp_files`** - File management
+
+*See [MCP Tools Reference](docs/mcp-tools-reference.md) for complete documentation.*
+
 ## Usage
 
 ```bash
@@ -1124,12 +1187,14 @@ make test-coverage
 ### Available Make Targets
 
 ```bash
-make build           # Build for current platform
+make build           # Build CLI and MCP server
+make build-cli       # Build CLI only
+make build-mcp       # Build MCP server only
 make test            # Run tests (short mode, skips slow E2E tests)
 make test-all        # Run all tests (including slow E2E tests ~30s)
 make test-coverage   # Run tests with coverage report (includes E2E tests)
 make clean           # Remove build artifacts
-make install         # Install to GOPATH/bin
+make install         # Install CLI to GOPATH/bin
 make cross-compile   # Build for all platforms
 make deps            # Download and tidy dependencies
 make help            # Show help message

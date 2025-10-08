@@ -23,18 +23,28 @@ This separation allows Claude to perform complex analysis by making multiple met
 
 ## Prerequisites
 
-1. **Install meta-cc**:
+1. **Install meta-cc CLI and MCP server**:
    ```bash
-   cd /home/yale/work/meta-cc
-   go build -o meta-cc
-   sudo mv meta-cc /usr/local/bin/
-   # Or add to your PATH
+   git clone https://github.com/yaleh/meta-cc.git
+   cd meta-cc
+   make build           # Build both CLI and MCP server
+   sudo cp meta-cc /usr/local/bin/
+   sudo cp meta-cc-mcp /usr/local/bin/
    ```
 
-2. **Verify installation**:
+2. **Configure MCP server** (optional but recommended):
+   ```bash
+   # Quick setup
+   claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+
+   # Or manual configuration - see README.md for details
+   ```
+
+3. **Verify installation**:
    ```bash
    which meta-cc
-   meta-cc --help
+   meta-cc --version
+   which meta-cc-mcp
    ```
 
 ## Integration Hierarchy
