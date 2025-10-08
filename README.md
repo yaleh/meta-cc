@@ -90,17 +90,73 @@ Deploy meta-cc as an MCP server to analyze sessions directly within Claude Code.
 
 ### Quick Setup
 
-```bash
-# Build MCP server
-make build-mcp
+**Option A: Download Pre-compiled MCP Server (Recommended)**
 
-# Add to Claude Code (user scope)
+Download the latest MCP server release for your platform:
+
+#### Linux (x86_64)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-linux-amd64 -o meta-cc-mcp
+chmod +x meta-cc-mcp
+sudo mv meta-cc-mcp /usr/local/bin/
+```
+
+#### Linux (ARM64)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-linux-arm64 -o meta-cc-mcp
+chmod +x meta-cc-mcp
+sudo mv meta-cc-mcp /usr/local/bin/
+```
+
+#### macOS (Intel)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-darwin-amd64 -o meta-cc-mcp
+chmod +x meta-cc-mcp
+sudo mv meta-cc-mcp /usr/local/bin/
+```
+
+#### macOS (Apple Silicon)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-darwin-arm64 -o meta-cc-mcp
+chmod +x meta-cc-mcp
+sudo mv meta-cc-mcp /usr/local/bin/
+```
+
+#### Windows (PowerShell)
+```powershell
+Invoke-WebRequest -Uri "https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-windows-amd64.exe" -OutFile "meta-cc-mcp.exe"
+# Move to a directory in your PATH
+```
+
+**Then add to Claude Code:**
+```bash
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+```
+
+[View all releases →](https://github.com/yaleh/meta-cc/releases)
+
+**Option B: Build from Source**
+```bash
+git clone https://github.com/yaleh/meta-cc.git
+cd meta-cc
+make build-mcp
+cp meta-cc-mcp ~/.local/bin/
 claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
 ```
 
 ### Manual Configuration
 
-**1. Build the MCP server:**
+**1. Install the MCP server:**
+
+**Option A: Download Pre-compiled Binary (Recommended)**
+```bash
+# Download for your platform (see examples above)
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-linux-amd64 -o meta-cc-mcp
+chmod +x meta-cc-mcp
+sudo mv meta-cc-mcp /usr/local/bin/
+```
+
+**Option B: Build from Source**
 ```bash
 git clone https://github.com/yaleh/meta-cc.git
 cd meta-cc
