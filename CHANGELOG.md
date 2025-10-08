@@ -7,14 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- New features will be listed here
+### Changed
+- **Meta-insight to Meta-cc Renaming**: Comprehensive refactor to update all references from the old `mcp_meta_insight` / `meta‑insight` namespace to the new `mcp_meta_cc` / `meta‑cc` across:
+  - Agent definitions and command examples
+  - Command definitions in meta-coach, meta-errors, meta-guide, and related prompt templates
+  - Documentation descriptions and inline usage examples
+  - Updated `.gitignore` and various documentation files
+  - Test files and implementation plans
+  - This ensures consistency with the renamed meta-cc component and prevents confusion from stale meta-insight references
+
+## [v0.12.1] - 2025-10-08
 
 ### Changed
-- Changes to existing functionality will be listed here
-
-### Fixed
-- Bug fixes will be listed here
+- **Meta-insight to Meta-cc Renaming**: Comprehensive refactor to update all references from the old `mcp_meta_insight` / `meta‑insight` namespace to the new `mcp_meta_cc` / `meta‑cc` across documentation, agents, commands, and tests. This ensures consistency with the renamed meta-cc component and prevents confusion from stale meta-insight references.
 
 ## [v0.12.0] - 2025-10-08
 
