@@ -33,19 +33,19 @@ jobs:
           mkdir -p build
 
           # Linux amd64
-          GOOS=linux GOARCH=amd64 go build -o build/meta-cc-linux-amd64 ./cmd/meta-cc
+          GOOS=linux GOARCH=amd64 go build -o build/meta-cc-linux-amd64 .
 
           # Linux arm64
-          GOOS=linux GOARCH=arm64 go build -o build/meta-cc-linux-arm64 ./cmd/meta-cc
+          GOOS=linux GOARCH=arm64 go build -o build/meta-cc-linux-arm64 .
 
           # macOS amd64
-          GOOS=darwin GOARCH=amd64 go build -o build/meta-cc-darwin-amd64 ./cmd/meta-cc
+          GOOS=darwin GOARCH=amd64 go build -o build/meta-cc-darwin-amd64 .
 
           # macOS arm64
-          GOOS=darwin GOARCH=arm64 go build -o build/meta-cc-darwin-arm64 ./cmd/meta-cc
+          GOOS=darwin GOARCH=arm64 go build -o build/meta-cc-darwin-arm64 .
 
           # Windows amd64
-          GOOS=windows GOARCH=amd64 go build -o build/meta-cc-windows-amd64.exe ./cmd/meta-cc
+          GOOS=windows GOARCH=amd64 go build -o build/meta-cc-windows-amd64.exe .
 
           # MCP server binaries
           GOOS=linux GOARCH=amd64 go build -o build/meta-cc-mcp-linux-amd64 ./cmd/mcp-server
