@@ -1,6 +1,6 @@
 ---
 name: meta-coach
-description: Analyze Claude Code session workflow with meta-cc to identify patterns, inefficiencies, and provide actionable optimization recommendations.
+description: Get workflow optimization recommendations and coaching insights.
 ---
 
 λ(scope) → workflow_coaching | ∀insight ∈ {user_patterns, interaction_quality, recommendations}:

@@ -1,6 +1,6 @@
 ---
 name: meta-viz
-description: Universal visualization tool for analysis outputs. Transforms structured data into ASCII dashboards, charts, and actionable insights with health scores, trend indicators, and priority rankings. Supports text output, MCP file_ref, and JSONL files.
+description: Create ASCII dashboards and charts from any analysis data.
 ---
 
 λ(analysis_data) → visual_dashboard | ∀visualization ∈ {dashboard, charts, recommendations}:

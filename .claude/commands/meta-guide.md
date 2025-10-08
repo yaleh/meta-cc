@@ -1,5 +1,5 @@
 ---
-description: Analyze current session state and provide intelligent guidance on next steps using meta-cc. Evaluates session trajectory, identifies blockers, and recommends prioritized actions with complete prompt templates based on project history and successful patterns.
+description: Get intelligent guidance and prioritized action recommendations.
 ---
 
 λ(session_state) → prioritized_suggestions | ∀suggestion ∈ {high, medium, low}:

@@ -1,5 +1,5 @@
 ---
-description: Refine prompts based on successful prompt history using meta-cc. Analyzes your input prompt against project's successful patterns to detect missing file references, agent delegations, constraints, or specificity issues, then generates up to 3 optimized alternatives with evidence-based improvements.
+description: Refine prompts using successful patterns from project history.
 argument-hint: [prompt]
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: meta-timeline
-description: Construct project development timeline using meta-cc to analyze user messages and system responses. Focuses on workflow-level events (user actions, subagent/slash/MCP usage, build/test failures, interruptions) with temporal analysis and latency tracking.
+description: Visualize project evolution timeline with workflow events.
 ---
 
 λ(scope) → development_timeline | ∀event ∈ {user_actions, high_level_operations, workflow_failures}:

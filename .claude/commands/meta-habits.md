@@ -1,6 +1,6 @@
 ---
 name: meta-habits
-description: Analyze user's work habits and patterns using meta-cc. Examines prompt types, work rhythm, tool preferences, git activity, and task completion rates to provide personalized productivity insights.
+description: Analyze work patterns and productivity habits insights.
 ---
 
 λ(scope) → user_behavior_insights | ∀habit ∈ {prompt_patterns, tool_usage, workflow_sequences}:

@@ -1,6 +1,6 @@
 ---
 name: meta-errors
-description: Analyze user-facing error patterns using meta-cc. Focuses on workflow failures (test failures, build errors, interrupted tasks), subagent/slash/MCP errors, and user-triggered issues rather than internal tool errors.
+description: Analyze error patterns and prevention recommendations.
 ---
 
 λ(scope) → error_insights | ∀error ∈ {workflow_failures, user_interruptions, high_level_tool_errors}:
