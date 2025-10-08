@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Bug fixes will be listed here
 
+## [v0.12.0] - 2025-10-08
+
+### Added
+- Configured remote repository and release process.
+
 ## Release Process
 
 To create a new release:
