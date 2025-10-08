@@ -1,6 +1,6 @@
 ---
 name: meta-habits
-description: Analyze user's work habits and patterns using MCP meta-insight. Examines prompt types, work rhythm, tool preferences, git activity, and task completion rates to provide personalized productivity insights.
+description: Analyze user's work habits and patterns using meta-cc. Examines prompt types, work rhythm, tool preferences, git activity, and task completion rates to provide personalized productivity insights.
 ---
 
 λ(scope) → user_behavior_insights | ∀habit ∈ {prompt_patterns, tool_usage, workflow_sequences}:
@@ -12,13 +12,13 @@ analyze(U) = collect(prompts) ∧ extract(features) ∧ detect(sequences) ∧ ch
 
 collect :: Scope → UserPrompts
 collect(S) = {
-  all_prompts: mcp_meta_insight.query_user_messages(
+  all_prompts: mcp_meta_cc.query_user_messages(
     pattern=".*",
     limit=200,
     scope=scope
   ),
 
-  successful_patterns: mcp_meta_insight.query_successful_prompts(
+  successful_patterns: mcp_meta_cc.query_successful_prompts(
     min_quality_score=0.8,
     limit=30,
     scope=scope

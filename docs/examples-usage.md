@@ -342,9 +342,9 @@ The MCP server provides 14 advanced query tools for programmatic access to sessi
    ```json
    {
      "mcpServers": {
-       "meta-insight": {
+       "meta-cc": {
          "command": "node",
-         "args": ["/home/yale/work/meta-cc/.claude/mcp-servers/meta-insight.js"],
+         "args": ["/home/yale/work/meta-cc/.claude/mcp-servers/meta-cc.js"],
          "transport": "stdio"
        }
      }
@@ -657,7 +657,7 @@ Clean up old meta-cc temp files
 3. **Test server manually**:
    ```bash
    echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | \
-   node .claude/mcp-servers/meta-insight.js
+   node .claude/mcp-servers/meta-cc.js
    ```
 
 4. **Check Claude Code logs** for MCP connection errors

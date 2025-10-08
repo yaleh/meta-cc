@@ -1,6 +1,6 @@
 ---
 name: meta-coach
-description: Analyze Claude Code session workflow with MCP meta-insight to identify patterns, inefficiencies, and provide actionable optimization recommendations.
+description: Analyze Claude Code session workflow with meta-cc to identify patterns, inefficiencies, and provide actionable optimization recommendations.
 ---
 
 λ(scope) → workflow_coaching | ∀insight ∈ {user_patterns, interaction_quality, recommendations}:
@@ -12,13 +12,13 @@ analyze(S) = collect(messages) ∧ extract(features) ∧ detect(sequences) ∧ m
 
 collect :: Scope → UserMessages
 collect(S) = {
-  all_messages: mcp_meta_insight.query_user_messages(
+  all_messages: mcp_meta_cc.query_user_messages(
     pattern=".*",
     limit=200,
     scope=scope
   ),
 
-  successful_patterns: mcp_meta_insight.query_successful_prompts(
+  successful_patterns: mcp_meta_cc.query_successful_prompts(
     min_quality_score=0.8,
     limit=30,
     scope=scope

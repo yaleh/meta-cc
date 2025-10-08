@@ -152,13 +152,13 @@ func TestExtractErrorsFromToolCalls(t *testing.T) {
 				{
 					UUID:      "uuid-5",
 					Timestamp: "2025-10-05T00:04:00Z",
-					ToolName:  "mcp__meta-insight__query_user_messages_session",
+					ToolName:  "mcp__meta_cc__query_user_messages_session",
 					Status:    "",
 					Error:     "MCP error -32603: Tool execution failed",
 				},
 			},
 			wantLen:  1,
-			wantSigs: []string{"mcp__meta-insight__query_user_messages_session:MCP error -32603: Tool execution failed"},
+			wantSigs: []string{"mcp__meta_cc__query_user_messages_session:MCP error -32603: Tool execution failed"},
 		},
 		{
 			name: "no errors",

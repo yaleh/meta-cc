@@ -1143,17 +1143,17 @@ func executeTool(name string, args map[string]interface{}) (string, error) {
 **验证步骤** (Phase 14+ 使用 meta-cc-mcp)：
 ```bash
 # 添加 MCP 服务器（Phase 14+ 使用独立可执行文件）
-claude mcp add meta-insight /usr/local/bin/meta-cc-mcp
+claude mcp add meta-cc /usr/local/bin/meta-cc-mcp
 
 # 验证连接
 claude mcp list
 # 预期输出：
-# meta-insight: /usr/local/bin/meta-cc-mcp - ✓ Connected
+# meta-cc: /usr/local/bin/meta-cc-mcp - ✓ Connected
 
 # 在 Claude Code 中测试
-# 使用 mcp__meta-insight__get_session_stats 工具
-# 使用 mcp__meta-insight__query_tools 工具（Phase 14+ analyze_errors 已废弃）
-# 使用 mcp__meta-insight__extract_tools 工具
+# 使用 mcp__meta_cc__get_session_stats 工具
+# 使用 mcp__meta_cc__query_tools 工具（Phase 14+ analyze_errors 已废弃）
+# 使用 mcp__meta_cc__extract_tools 工具
 ```
 
 **交付物**：
@@ -1177,12 +1177,12 @@ claude mcp list
 **验证结果**（Phase 14+）：
 ```bash
 $ claude mcp list
-meta-insight: /usr/local/bin/meta-cc-mcp - ✓ Connected
+meta-cc: /usr/local/bin/meta-cc-mcp - ✓ Connected
 
 $ # 在 Claude Code 中成功使用
-mcp__meta-insight__get_session_stats → 返回会话统计
-mcp__meta-insight__analyze_errors → 返回错误分析（空数组）
-mcp__meta-insight__extract_tools → 返回工具使用列表
+mcp__meta_cc__get_session_stats → 返回会话统计
+mcp__meta_cc__analyze_errors → 返回错误分析（空数组）
+mcp__meta_cc__extract_tools → 返回工具使用列表
 ```
 
 ---
@@ -2504,7 +2504,7 @@ echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_tools","arg
 **状态**：部分完成（Phase 14 已创建 @meta-query，此 Phase 完善其他 Subagents）
 
 **设计原则**：
-- ✅ 所有业务型 Subagents 基于 MCP meta-insight 实现
+- ✅ 所有业务型 Subagents 基于 meta-cc 实现
 - ✅ 各 Subagent **互相独立，不依赖或调用其他 Subagent**
 - ✅ 每个 Subagent **必须说明 MCP 输出控制机制**（参考 `.claude/agents/meta-coach.md`）
 - ✅ **所有 Subagent 定义必须遵循 meta-coach.md 的形式化数学风格**：
@@ -2583,11 +2583,11 @@ diagnose(H) = extract(errors) ∧ classify(patterns) ∧ trace(root_causes) ∧ 
 
 extract :: Session → Error_Data
 extract(S) = {
-  error_stats: mcp_meta_insight.query_tools(status="error", stats_only=true),
+  error_stats: mcp_meta_cc.query_tools(status="error", stats_only=true),
 
-  error_details: mcp_meta_insight.query_tools(status="error", limit=10, max_message_length=500),
+  error_details: mcp_meta_cc.query_tools(status="error", limit=10, max_message_length=500),
 
-  error_context: mcp_meta_insight.query_context(error_signature=sig, window=3)
+  error_context: mcp_meta_cc.query_context(error_signature=sig, window=3)
 }
 
 classify :: Error_Set → Error_Categories
@@ -2657,11 +2657,11 @@ optimize(H) = detect(patterns) ∧ evaluate(roi) ∧ recommend(automation_type) 
 
 detect :: Session → Pattern_Set
 detect(S) = {
-  tool_sequences: mcp_meta_insight.query_tool_sequences(min_occurrences=3, stats_only=true),
+  tool_sequences: mcp_meta_cc.query_tool_sequences(min_occurrences=3, stats_only=true),
 
-  file_hotspots: mcp_meta_insight.query_files(top=20, sort_by="total_ops"),
+  file_hotspots: mcp_meta_cc.query_files(top=20, sort_by="total_ops"),
 
-  tool_usage: mcp_meta_insight.query_tools(stats_only=true, limit=20)
+  tool_usage: mcp_meta_cc.query_tools(stats_only=true, limit=20)
 }
 
 evaluate :: Pattern_Set → Automation_Candidates

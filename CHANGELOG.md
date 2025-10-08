@@ -87,10 +87,10 @@ To create a new release:
   - Stage 10.3: Time-series analysis (`query-time-series` with hourly/daily/weekly buckets)
   - Stage 10.4: File-level statistics (`query-files` with operation counts and error rates)
 - Advanced MCP tools:
-  - `mcp__meta-insight__query_tools_advanced`
-  - `mcp__meta-insight__aggregate_stats`
-  - `mcp__meta-insight__query_time_series`
-  - `mcp__meta-insight__query_files`
+  - `mcp__meta_cc__query_tools_advanced`
+  - `mcp__meta_cc__aggregate_stats`
+  - `mcp__meta_cc__query_time_series`
+  - `mcp__meta_cc__query_files`
 
 ### Changed
 - Enhanced query engine with SQL-like expression parsing
@@ -104,9 +104,9 @@ To create a new release:
   - Stage 9.2: Tool sequence detection (`query-tool-sequences` for workflow patterns)
   - Stage 9.3: File access history (`query-file-access` for read/edit/write tracking)
 - MCP server tools:
-  - `mcp__meta-insight__query_context`
-  - `mcp__meta-insight__query_tool_sequences`
-  - `mcp__meta-insight__query_file_access`
+  - `mcp__meta_cc__query_context`
+  - `mcp__meta_cc__query_tool_sequences`
+  - `mcp__meta_cc__query_file_access`
 
 ### Changed
 - Enhanced pattern detection with sequence analysis
@@ -121,11 +121,11 @@ To create a new release:
   - Stage 8.7-8.9: Message search with regex (`query-user-messages --pattern`)
   - Stage 8.10-8.12: Project state and successful prompt analysis
 - MCP server tools:
-  - `mcp__meta-insight__extract_tools`
-  - `mcp__meta-insight__query_tools`
-  - `mcp__meta-insight__query_user_messages`
-  - `mcp__meta-insight__query_project_state`
-  - `mcp__meta-insight__query_successful_prompts`
+  - `mcp__meta_cc__extract_tools`
+  - `mcp__meta_cc__query_tools`
+  - `mcp__meta_cc__query_user_messages`
+  - `mcp__meta_cc__query_project_state`
+  - `mcp__meta_cc__query_successful_prompts`
 
 ### Changed
 - All query commands now support pagination and filtering
@@ -138,7 +138,7 @@ To create a new release:
   - Stage 7.1-7.3: MCP server foundation with stdio transport
   - Stage 7.4-7.6: Tool exposure (`get_session_stats`, `analyze_errors`, `extract_tools`)
   - Stage 7.7-7.9: Integration testing and error handling
-- MCP server binary: `meta-insight-mcp`
+- MCP server binary: `meta-cc-mcp`
 - MCP configuration documentation in `docs/mcp-setup.md`
 
 ### Changed

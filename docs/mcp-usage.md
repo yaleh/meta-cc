@@ -56,7 +56,7 @@ What's my error rate?
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__get_session_stats
+mcp__meta_cc__get_session_stats
 ```
 
 ---
@@ -77,7 +77,7 @@ Why do my commands fail?
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__analyze_errors
+mcp__meta_cc__analyze_errors
 ```
 
 ---
@@ -101,7 +101,7 @@ What tools have I been using?
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__extract_tools
+mcp__meta_cc__extract_tools
 ```
 
 ---
@@ -126,7 +126,7 @@ What Read commands succeeded?
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__query_tools
+mcp__meta_cc__query_tools
 ```
 
 ---
@@ -159,7 +159,7 @@ Look for my "fix.*test" messages
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__query_user_messages
+mcp__meta_cc__query_user_messages
 ```
 
 ---
@@ -182,7 +182,7 @@ Give me 5 turns of context for error X
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__query_context
+mcp__meta_cc__query_context
 ```
 
 ---
@@ -205,7 +205,7 @@ Show common workflows
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__query_tool_sequences
+mcp__meta_cc__query_tool_sequences
 ```
 
 ---
@@ -227,7 +227,7 @@ What operations on config.json?
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__query_file_access
+mcp__meta_cc__query_file_access
 ```
 
 ---
@@ -248,7 +248,7 @@ What branch am I on?
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__query_project_state
+mcp__meta_cc__query_project_state
 ```
 
 ---
@@ -271,7 +271,7 @@ Find successful prompt patterns
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__query_successful_prompts
+mcp__meta_cc__query_successful_prompts
 ```
 
 ---
@@ -324,7 +324,7 @@ Find tools matching a pattern
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__query_tools_advanced
+mcp__meta_cc__query_tools_advanced
 ```
 
 ---
@@ -365,7 +365,7 @@ aggregate_stats(group_by="tool", metrics="count,error_rate", where="duration>100
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__aggregate_stats
+mcp__meta_cc__aggregate_stats
 ```
 
 ---
@@ -412,7 +412,7 @@ query_time_series(metric="tool-calls", interval="hour", where="tool='Bash'")
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__query_time_series
+mcp__meta_cc__query_time_series
 ```
 
 ---
@@ -466,7 +466,7 @@ query_files(sort_by="error_rate", where="error_count>0", top=5)
 
 **Direct Invocation**:
 ```
-mcp__meta-insight__query_files
+mcp__meta_cc__query_files
 ```
 
 ---
@@ -493,7 +493,7 @@ Claude: [Automatically calls]
 If you prefer explicit control:
 
 ```
-Use mcp__meta-insight__query_tools to find Bash errors
+Use mcp__meta_cc__query_tools to find Bash errors
 ```
 
 ### 3. Combined Analysis

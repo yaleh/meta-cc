@@ -220,7 +220,7 @@ func TestExtractToolCallsWithIsError(t *testing.T) {
 						Type: "tool_use",
 						ToolUse: &ToolUse{
 							ID:   "toolu_123",
-							Name: "mcp__meta-insight__query_user_messages_session",
+							Name: "mcp__meta_cc__query_user_messages_session",
 							Input: map[string]interface{}{
 								"limit":         5,
 								"output_format": "json",
@@ -261,8 +261,8 @@ func TestExtractToolCallsWithIsError(t *testing.T) {
 	tc := toolCalls[0]
 
 	// Verify basic extraction
-	if tc.ToolName != "mcp__meta-insight__query_user_messages_session" {
-		t.Errorf("Expected tool name 'mcp__meta-insight__query_user_messages_session', got %q", tc.ToolName)
+	if tc.ToolName != "mcp__meta_cc__query_user_messages_session" {
+		t.Errorf("Expected tool name 'mcp__meta_cc__query_user_messages_session', got %q", tc.ToolName)
 	}
 
 	if tc.Output != "MCP error -32603: Tool execution failed" {

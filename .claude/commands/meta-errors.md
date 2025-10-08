@@ -1,6 +1,6 @@
 ---
 name: meta-errors
-description: Analyze user-facing error patterns using MCP meta-insight. Focuses on workflow failures (test failures, build errors, interrupted tasks), subagent/slash/MCP errors, and user-triggered issues rather than internal tool errors.
+description: Analyze user-facing error patterns using meta-cc. Focuses on workflow failures (test failures, build errors, interrupted tasks), subagent/slash/MCP errors, and user-triggered issues rather than internal tool errors.
 ---
 
 λ(scope) → error_insights | ∀error ∈ {workflow_failures, user_interruptions, high_level_tool_errors}:
@@ -12,18 +12,18 @@ analyze(U) = collect(messages) ∧ detect(errors) ∧ classify(patterns) ∧ dia
 
 collect :: Scope → ErrorContext
 collect(S) = {
-  all_messages: mcp_meta_insight.query_user_messages(
+  all_messages: mcp_meta_cc.query_user_messages(
     pattern=".*",
     limit=200,
     scope=scope
   ),
 
-  tool_calls: mcp_meta_insight.query_tools(
+  tool_calls: mcp_meta_cc.query_tools(
     status="error",
     scope=scope
   ),
 
-  tool_sequences: mcp_meta_insight.query_tool_sequences(
+  tool_sequences: mcp_meta_cc.query_tool_sequences(
     min_occurrences=2,
     scope=scope
   )

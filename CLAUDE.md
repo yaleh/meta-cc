@@ -138,9 +138,9 @@ Include the Claude Code attribution footer:
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
-## Using MCP meta-insight
+## Using meta-cc
 
-MCP meta-insight provides programmatic access to session data. Claude can autonomously query this data when analyzing workflows, debugging issues, or providing recommendations.
+meta-cc provides programmatic access to session data. Claude can autonomously query this data when analyzing workflows, debugging issues, or providing recommendations.
 
 For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes.md).
 

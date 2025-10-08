@@ -289,7 +289,7 @@ Subagents 分为两类：
 - ✅ 示例：`meta-cc query tools | jq ... | sort | uniq -c`
 
 **业务型 Agent**（独立的元认知分析助手）：
-- ✅ 各 Subagent 独立调用 MCP meta-insight 工具
+- ✅ 各 Subagent 独立调用 meta-cc 工具
 - ✅ **互不依赖或调用**（保持独立性）
 - ✅ **必须说明 MCP 输出控制策略**（参考 `.claude/agents/meta-coach.md`）
 - ✅ 支持多轮对话和上下文关联（在单个 Subagent 内部）

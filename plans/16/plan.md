@@ -873,7 +873,7 @@ Implement built-in tool filtering in sequence analysis to focus on high-level wo
 **Expected Impact**:
 - **Performance**: ~35x speedup (30s → <1s) for project-scope queries
 - **Data reduction**: 97% fewer tool calls to analyze (10,892 → 305)
-- **Quality**: Focus on MCP tools workflow (meta-insight, context7, playwright, etc.)
+- **Quality**: Focus on MCP tools workflow (meta-cc, context7, playwright, etc.)
 - **Examples**: "query_tools → query_user_messages → query_successful_prompts" instead of "Bash → Bash → Bash"
 
 ### Acceptance Criteria

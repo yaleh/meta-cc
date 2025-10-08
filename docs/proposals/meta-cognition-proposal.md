@@ -680,11 +680,11 @@ meta-cc query sessions --limit 10
 
 actor User
 participant "Claude Code" as CC
-participant "meta-insight\nMCP Server" as MCP
+participant "meta-cc\nMCP Server" as MCP
 participant "meta-cc CLI" as CLI
 database "会话历史" as History
 
-User -> CC : "Use meta-insight MCP to\ncheck similar errors"
+User -> CC : "Use meta-cc MCP to\ncheck similar errors"
 activate CC
 
 CC -> MCP : MCP Tool Call:\nextract_session_data(\n  type="tools",\n  filter="status=error"\n)
@@ -713,11 +713,11 @@ deactivate CC
 添加 MCP Server：
 ```bash
 # Phase 14+: 使用独立可执行文件 meta-cc-mcp（无需 Node.js）
-claude mcp add meta-insight /usr/local/bin/meta-cc-mcp
+claude mcp add meta-cc /usr/local/bin/meta-cc-mcp
 
 # 验证连接
 claude mcp list
-# 输出：meta-insight: /usr/local/bin/meta-cc-mcp - ✓ Connected
+# 输出：meta-cc: /usr/local/bin/meta-cc-mcp - ✓ Connected
 ```
 
 **实现文件**: `cmd/mcp-server/` (~600 行, Phase 14 重构)

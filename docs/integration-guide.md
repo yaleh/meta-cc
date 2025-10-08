@@ -122,7 +122,7 @@ User: "What's my session error rate?"
   ↓
 Claude thinks: "User wants stats... I should use get_session_stats"
   ↓
-Claude calls: mcp__meta-insight__get_session_stats(output_format: "json")
+Claude calls: mcp__meta_cc__get_session_stats(output_format: "json")
   ↓
 Result: {"ErrorRate": 0.0, "ErrorCount": 0, ...}
   ↓
@@ -966,7 +966,7 @@ meta-cc analyze toolchains --output json
 **Solution**:
 ```
 Instead of: "How am I doing?"
-Try: "Get my session statistics" or "Use meta-insight to show my stats"
+Try: "Get my session statistics" or "Use meta-cc to show my stats"
 ```
 
 ---

@@ -1,6 +1,6 @@
 ---
 name: meta-timeline
-description: Construct project development timeline using MCP meta-insight to analyze user messages and system responses. Focuses on workflow-level events (user actions, subagent/slash/MCP usage, build/test failures, interruptions) with temporal analysis and latency tracking.
+description: Construct project development timeline using meta-cc to analyze user messages and system responses. Focuses on workflow-level events (user actions, subagent/slash/MCP usage, build/test failures, interruptions) with temporal analysis and latency tracking.
 ---
 
 λ(scope) → development_timeline | ∀event ∈ {user_actions, high_level_operations, workflow_failures}:
@@ -12,23 +12,23 @@ analyze(M) = collect(events) ∧ sequence(timeline) ∧ detect(patterns) ∧ mea
 
 collect :: Scope → EventData
 collect(S) = {
-  user_messages: mcp_meta_insight.query_user_messages(
+  user_messages: mcp_meta_cc.query_user_messages(
     pattern=".*",
     scope=scope
   ),
 
-  high_level_tools: mcp_meta_insight.query_tools(
+  high_level_tools: mcp_meta_cc.query_tools(
     scope=scope,
     jq_filter='select(.ToolName | test("^(Task|SlashCommand|mcp__)"))'
   ),
 
-  error_events: mcp_meta_insight.query_tools(
+  error_events: mcp_meta_cc.query_tools(
     status="error",
     scope=scope,
     jq_filter='select(.ToolName | test("^(Task|SlashCommand|mcp__|Bash)") and (.Error | test("fail|error|interrupt", "i")))'
   ),
 
-  tool_sequences: mcp_meta_insight.query_tool_sequences(
+  tool_sequences: mcp_meta_cc.query_tool_sequences(
     min_occurrences=2,
     scope=scope
   )
@@ -49,7 +49,7 @@ classify_operations :: HighLevelTools → OperationTypes
 classify_operations(T) = {
   subagent_ops: filter(T, tool="Task") |> group_by(subagent_type),
   slash_ops: filter(T, tool="SlashCommand") |> extract_command_names,
-  mcp_queries: filter(T, tool_pattern="mcp__meta-insight__*") |> group_by(query_type),
+  mcp_queries: filter(T, tool_pattern="mcp__meta_cc__*") |> group_by(query_type),
 
   operation_outcomes: {
     successful: count(T, status="success"),

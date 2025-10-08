@@ -72,17 +72,17 @@ enrich(P, T) = {
   supplemental: if completeness.score < 0.6 && has_mcp_context then {
     # Only fetch if critical data missing
     basic_stats: if missing("session_stats") then
-      mcp__meta-insight__get_session_stats(scope="project"),
+      mcp__meta_cc__get_session_stats(scope="project"),
 
     user_data: if missing("user_patterns") && critical then
-      mcp__meta-insight__query_user_messages(
+      mcp__meta_cc__query_user_messages(
         pattern=".*",
         limit=100,
         scope="project"
       ),
 
     tool_data: if missing("tool_usage") && critical then
-      mcp__meta-insight__query_tools(scope="project")
+      mcp__meta_cc__query_tools(scope="project")
   } else null,
 
   # Merge original and supplemental data

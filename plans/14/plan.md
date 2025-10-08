@@ -2057,7 +2057,7 @@ claude mcp list
 User: "Show me the last 10 errors in this project"
 
 # Claude should call:
-mcp__meta-insight__query_tools({
+mcp__meta_cc__query_tools({
   "jq_filter": ".[] | select(.Status == \"error\")",
   "stats_only": false,
   "max_output_bytes": 51200
@@ -2146,7 +2146,7 @@ echo "Please review the warnings above and update your scripts."
 ```json
 {
   "mcpServers": {
-    "meta-insight": {
+    "meta-cc": {
       "command": "/home/yale/work/meta-cc/meta-cc-mcp",
       "args": [],
       "env": {}
@@ -2158,11 +2158,11 @@ echo "Please review the warnings above and update your scripts."
 **验证**:
 ```bash
 # Re-register MCP server
-claude mcp add meta-insight /home/yale/work/meta-cc/meta-cc-mcp
+claude mcp add meta-cc /home/yale/work/meta-cc/meta-cc-mcp
 
 # Verify connection
 claude mcp list
-# Expected: meta-insight: /path/to/meta-cc-mcp - ✓ Connected
+# Expected: meta-cc: /path/to/meta-cc-mcp - ✓ Connected
 ```
 
 ---

@@ -1,5 +1,5 @@
 ---
-description: Analyze current session state and provide intelligent guidance on next steps using MCP meta-insight. Evaluates session trajectory, identifies blockers, and recommends prioritized actions with complete prompt templates based on project history and successful patterns.
+description: Analyze current session state and provide intelligent guidance on next steps using meta-cc. Evaluates session trajectory, identifies blockers, and recommends prioritized actions with complete prompt templates based on project history and successful patterns.
 ---
 
 λ(session_state) → prioritized_suggestions | ∀suggestion ∈ {high, medium, low}:
@@ -9,17 +9,17 @@ analyze(S) = gather(data) ∧ assess(state) ∧ detect(patterns) ∧ prioritize(
 
 gather :: Session → Session_Data
 gather(S) = {
-  stats: mcp_meta_insight.get_session_stats(scope="project"),
+  stats: mcp_meta_cc.get_session_stats(scope="project"),
 
-  recent_intents: mcp_meta_insight.query_user_messages(scope="project", limit=10),
+  recent_intents: mcp_meta_cc.query_user_messages(scope="project", limit=10),
 
-  recent_tools: mcp_meta_insight.query_tools(scope="project", limit=20),
+  recent_tools: mcp_meta_cc.query_tools(scope="project", limit=20),
 
-  errors: mcp_meta_insight.query_tools(scope="project", status="error"),
+  errors: mcp_meta_cc.query_tools(scope="project", status="error"),
 
-  workflows: mcp_meta_insight.query_tool_sequences(scope="project", min_occurrences=3),
+  workflows: mcp_meta_cc.query_tool_sequences(scope="project", min_occurrences=3),
 
-  successful_prompts: mcp_meta_insight.query_successful_prompts(scope="project", min_quality_score=0.8, limit=10)
+  successful_prompts: mcp_meta_cc.query_successful_prompts(scope="project", min_quality_score=0.8, limit=10)
 }
 
 assess :: Session_Data → Session_State
