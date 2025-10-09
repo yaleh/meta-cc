@@ -21,31 +21,55 @@ meta-cc is designed as a **powerful data retrieval and statistics tool** for Cla
 
 This separation allows Claude to perform complex analysis by making multiple meta-cc calls with varying parameters, while meta-cc focuses on fast, accurate data extraction.
 
-## Prerequisites
+## Installation
 
-1. **Install meta-cc CLI and MCP server**:
-   ```bash
-   git clone https://github.com/yaleh/meta-cc.git
-   cd meta-cc
-   make build           # Build both CLI and MCP server
-   sudo cp meta-cc /usr/local/bin/
-   sudo cp meta-cc-mcp /usr/local/bin/
-   ```
+### Option 1: Quick Install (Bundled Release) - Recommended
 
-2. **Configure MCP server** (optional but recommended):
-   ```bash
-   # Quick setup
-   claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+Download and extract the bundle for your platform:
 
-   # Or manual configuration - see README.md for details
-   ```
+```bash
+# Linux/macOS
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-linux-amd64.tar.gz | tar xz
+cd meta-cc-v*/
+./install.sh
 
-3. **Verify installation**:
-   ```bash
-   which meta-cc
-   meta-cc --version
-   which meta-cc-mcp
-   ```
+# Verify installation
+meta-cc --version
+meta-cc-mcp --version
+```
+
+The bundle includes:
+- `meta-cc` CLI tool
+- `meta-cc-mcp` MCP server
+- 8 slash commands (`.claude/commands/`)
+- 3 subagents (`.claude/agents/`)
+
+### Option 2: Build from Source
+
+```bash
+git clone https://github.com/yaleh/meta-cc.git
+cd meta-cc
+make build           # Build both CLI and MCP server
+sudo cp meta-cc /usr/local/bin/
+sudo cp meta-cc-mcp /usr/local/bin/
+
+# Copy Claude Code integration files
+cp -r .claude/commands ~/.claude/projects/meta-cc/commands/
+cp -r .claude/agents ~/.claude/projects/meta-cc/agents/
+```
+
+### MCP Server Configuration
+
+Configure the MCP server for Claude Code:
+
+```bash
+# Quick setup
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+
+# Or manual configuration in ~/.claude/settings.json
+```
+
+See [README.md](../README.md) for detailed MCP setup instructions.
 
 ## Integration Hierarchy
 

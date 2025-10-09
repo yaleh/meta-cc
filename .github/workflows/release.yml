@@ -49,9 +49,39 @@ jobs:
 
           # MCP server binaries
           GOOS=linux GOARCH=amd64 go build -o build/meta-cc-mcp-linux-amd64 ./cmd/mcp-server
+          GOOS=linux GOARCH=arm64 go build -o build/meta-cc-mcp-linux-arm64 ./cmd/mcp-server
           GOOS=darwin GOARCH=amd64 go build -o build/meta-cc-mcp-darwin-amd64 ./cmd/mcp-server
           GOOS=darwin GOARCH=arm64 go build -o build/meta-cc-mcp-darwin-arm64 ./cmd/mcp-server
           GOOS=windows GOARCH=amd64 go build -o build/meta-cc-mcp-windows-amd64.exe ./cmd/mcp-server
+
+      - name: Create bundles
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          mkdir -p build/bundles
+
+          for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64; do
+            BUNDLE_DIR=build/bundles/meta-cc-${VERSION}-${platform}
+            mkdir -p $BUNDLE_DIR/bin $BUNDLE_DIR/.claude/commands $BUNDLE_DIR/.claude/agents
+
+            # Copy binaries
+            if [[ $platform == windows-* ]]; then
+              cp build/meta-cc-${platform}.exe $BUNDLE_DIR/bin/
+              cp build/meta-cc-mcp-${platform}.exe $BUNDLE_DIR/bin/
+            else
+              cp build/meta-cc-${platform} $BUNDLE_DIR/bin/
+              cp build/meta-cc-mcp-${platform} $BUNDLE_DIR/bin/
+            fi
+
+            # Copy Claude Code integration files
+            cp -r .claude/commands/* $BUNDLE_DIR/.claude/commands/
+            cp -r .claude/agents/* $BUNDLE_DIR/.claude/agents/
+
+            # Copy install script
+            cp scripts/install.sh $BUNDLE_DIR/
+
+            # Create archive
+            tar -czf build/meta-cc-bundle-${platform}.tar.gz -C build/bundles meta-cc-${VERSION}-${platform}
+          done
 
       - name: Generate checksums
         run: |

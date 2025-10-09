@@ -76,9 +76,15 @@ Once the tag is pushed, GitHub Actions will automatically:
    - macOS (amd64, arm64)
    - Windows (amd64)
 
-2. **Create GitHub Release** with auto-generated release notes
+2. **Create platform bundles** including:
+   - Binaries (`meta-cc`, `meta-cc-mcp`)
+   - Slash commands (`.claude/commands/`)
+   - Subagents (`.claude/agents/`)
+   - Installation script
 
-3. **Upload binaries** as release assets
+3. **Create GitHub Release** with auto-generated release notes
+
+4. **Upload artifacts** (16 total files per release)
 
 Monitor the build progress at:
 https://github.com/yaleh/meta-cc/actions
@@ -90,16 +96,41 @@ After GitHub Actions completes:
 1. **Check the release page**:
    https://github.com/yaleh/meta-cc/releases
 
-2. **Verify binaries are attached**:
-   - `meta-cc-linux-amd64`
-   - `meta-cc-linux-arm64`
-   - `meta-cc-darwin-amd64`
-   - `meta-cc-darwin-arm64`
+2. **Verify artifacts are attached**:
+
+   **Individual binaries** (10 files):
+   - `meta-cc-linux-amd64`, `meta-cc-linux-arm64`
+   - `meta-cc-darwin-amd64`, `meta-cc-darwin-arm64`
    - `meta-cc-windows-amd64.exe`
-   - MCP server binaries
+   - `meta-cc-mcp-linux-amd64`, `meta-cc-mcp-linux-arm64`
+   - `meta-cc-mcp-darwin-amd64`, `meta-cc-mcp-darwin-arm64`
+   - `meta-cc-mcp-windows-amd64.exe`
+
+   **Platform bundles** (5 files):
+   - `meta-cc-bundle-linux-amd64.tar.gz`
+   - `meta-cc-bundle-linux-arm64.tar.gz`
+   - `meta-cc-bundle-darwin-amd64.tar.gz`
+   - `meta-cc-bundle-darwin-arm64.tar.gz`
+   - `meta-cc-bundle-windows-amd64.tar.gz`
+
+   **Checksums** (1 file):
    - `checksums.txt`
 
-3. **Test download and installation**:
+3. **Test bundle installation**:
+   ```bash
+   # Download and extract bundle
+   curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-linux-amd64.tar.gz | tar xz
+   cd meta-cc-v*/
+   ./install.sh
+
+   # Verify installation
+   meta-cc --version
+   meta-cc-mcp --version
+   ls ~/.claude/projects/meta-cc/commands/
+   ls ~/.claude/projects/meta-cc/agents/
+   ```
+
+4. **Test individual binary download**:
    ```bash
    curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
    chmod +x meta-cc
