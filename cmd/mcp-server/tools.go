@@ -234,6 +234,80 @@ func getToolDefinitions() []Tool {
 			},
 		},
 		{
+			Name:        "query_assistant_messages",
+			Description: "Query assistant messages with pattern matching and filtering. Default scope: project.",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: MergeParameters(map[string]Property{
+					"pattern": {
+						Type:        "string",
+						Description: "Regex pattern to match text content",
+					},
+					"min_tools": {
+						Type:        "number",
+						Description: "Minimum tool use count",
+					},
+					"max_tools": {
+						Type:        "number",
+						Description: "Maximum tool use count",
+					},
+					"min_tokens_output": {
+						Type:        "number",
+						Description: "Minimum output tokens",
+					},
+					"min_length": {
+						Type:        "number",
+						Description: "Minimum text length",
+					},
+					"max_length": {
+						Type:        "number",
+						Description: "Maximum text length",
+					},
+					"limit": {
+						Type:        "number",
+						Description: "Max results (no limit by default, rely on hybrid output mode)",
+					},
+				}),
+			},
+		},
+		{
+			Name:        "query_conversation",
+			Description: "Query conversation turns (user+assistant pairs). Default scope: project.",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: MergeParameters(map[string]Property{
+					"start_turn": {
+						Type:        "number",
+						Description: "Starting turn sequence",
+					},
+					"end_turn": {
+						Type:        "number",
+						Description: "Ending turn sequence",
+					},
+					"pattern": {
+						Type:        "string",
+						Description: "Regex pattern (user or assistant content)",
+					},
+					"pattern_target": {
+						Type:        "string",
+						Description: "Pattern target: user, assistant, any (default: any)",
+					},
+					"min_duration": {
+						Type:        "number",
+						Description: "Minimum response duration (ms)",
+					},
+					"max_duration": {
+						Type:        "number",
+						Description: "Maximum response duration (ms)",
+					},
+					"limit": {
+						Type:        "number",
+						Description: "Max results (no limit by default, rely on hybrid output mode)",
+					},
+				}),
+			},
+		},
+		{
 			Name:        "query_files",
 			Description: "File operation stats (returns array). Use jq_filter for filtering. Default scope: project.",
 			InputSchema: ToolSchema{

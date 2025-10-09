@@ -13,6 +13,7 @@
 - ✅ **Phase 16 已完成**（混合输出模式 + 无截断 + 可配置阈值）
 - ✅ **Phase 17 已完成**（Subagent 形式化实现）
 - ✅ **Phase 18 已完成**（GitHub Release 准备）
+- 🚧 **Phase 19 规划中**（Assistant 响应查询）
 - ✅ 47 个单元测试全部通过
 - ✅ 3 个真实项目验证通过（0% 错误率）
 - ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`）
@@ -3206,3 +3207,55 @@ sudo mv meta-cc /usr/local/bin/
 - 🤖 **自动化**：CI/CD 保障代码质量，减少手动工作
 - 📦 **易用性**：一键下载安装，无需编译
 - 🌟 **专业性**：完整开源基础设施，提升项目可信度
+
+---
+
+## Phase 19: 消息查询增强（Message Query Enhancement）
+
+**目标**：实现 assistant 响应查询和完整对话查询能力  
+**代码量**：~600 行 | **优先级**：中 | **状态**：规划中
+
+### 背景
+
+**限制**：`Message.Content` 标记 `json:"-"` 无法序列化；缺 assistant 响应和对话关联查询
+
+**方案**：基于 principles.md 分层设计
+1. 保留 `query_user_messages`（向后兼容）
+2. 新增 `query_assistant_messages`（assistant 响应）
+3. 新增 `query_conversation`（关联查询）
+
+### 接口设计
+
+| 工具 | 用途 | 场景 |
+|------|------|------|
+| `query_user_messages` | 用户消息 | 输入模式分析（已存在） |
+| `query_assistant_messages` | Assistant 响应 | 响应长度、工具使用 |
+| `query_conversation` | 完整对话 | 交互模式、响应时间 |
+
+### Stage 19.1: 序列化支持（~80 行，1h）
+- 为 `Message`/`ContentBlock` 添加 `MarshalJSON`
+- **交付**：`internal/parser/types.go` (+60), `types_test.go` (+20)
+
+### Stage 19.2: Assistant 查询（~150 行，1.5h）
+- CLI: `meta-cc query assistant-messages --pattern "fix.*bug" --min-tools 2`
+- MCP: `query_assistant_messages` (14→15 工具)
+- **交付**：`cmd/query_assistant_messages.go` (+120), `_test.go` (+30)
+
+### Stage 19.3: 对话查询（~200 行，2h）
+- CLI: `meta-cc query conversation --start-turn 100 --limit 10`
+- 数据：`ConversationTurn{UserMessage, AssistantMessage, Duration}`
+- MCP: `query_conversation` (15→16 工具)
+- **交付**：`cmd/query_conversation.go` (+150), `_test.go` (+50)
+
+### Stage 19.4: MCP 工具（~100 行，1h）
+- **交付**：`cmd/mcp-server/tools.go` (+60), `executor.go` (+30), `integration_test.go` (+10)
+
+### Stage 19.5: 文档（~70 行，30min）
+- **交付**：`CLAUDE.md` (+20), `mcp-tools-reference.md` (+30), `examples-usage.md` (+20), `principles.md` (+10)
+
+### 完成标准
+- ✅ 序列化正确 | 3 工具正常 | 2 MCP 工具 | Hybrid mode | 测试≥80% | 文档完整
+
+**工作量**：~6h | ~600 lines (80+150+200+100+70)
+
+详细计划见 `plans/19/plan.md`

@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Slash Command Enhancements**: Integrated new message query capabilities
+  - `/meta-timeline` now includes assistant response analysis and conversation latency metrics
+  - `/meta-coach` now includes interaction quality analysis with response time, tool efficiency, and satisfaction metrics
+
+## [v0.14.0] - 2025-10-09
+
+### Added
+- **Phase 19: Assistant Message and Conversation Query**
+  - Stage 19.1: AssistantMessage serialization support
+  - Stage 19.2: `query-assistant-messages` CLI command with regex search
+  - Stage 19.3: `query-conversation` CLI command with role filter support
+  - Stage 19.4: MCP integration with `query_assistant_messages` and `query_conversation` tools
+  - Stage 19.5: Comprehensive documentation updates
+- New MCP tools (14 total, up from 12):
+  - `mcp__meta_cc__query_assistant_messages` - Search assistant responses with regex
+  - `mcp__meta_cc__query_conversation` - Search conversation messages with optional role filter
+- CLI commands:
+  - `meta-cc query assistant-messages --pattern <regex>` - Search assistant messages
+  - `meta-cc query conversation --pattern <regex> [--role user|assistant]` - Search conversation
+
+### Changed
+- Documentation updated to reflect 14 MCP tools (previously 12)
+- All message query tools now use hybrid output mode for large results
+- Enhanced conversation analysis capabilities with role-based filtering
+
+### Technical Details
+- Supports regex pattern matching across assistant responses
+- Conversation query can filter by role (user, assistant, or both)
+- Full hybrid output mode support with configurable thresholds
+- Consistent parameter naming with existing message query tools
+
 ## [v0.13.0] - 2025-10-09
 
 ### Added

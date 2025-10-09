@@ -429,3 +429,72 @@ Subagents 分为两类：
 - [meta-cc 项目总体实施计划](./plan.md)
 - [Claude Code 元认知分析系统 - 技术方案](./proposals/meta-cognition-proposal.md)
 - [Claude Code 官方文档](https://docs.claude.com/en/docs/claude-code/overview)
+
+---
+
+## 七、消息查询接口设计原则（Phase 19）
+
+### 接口分层策略
+
+**1. 专用接口**（细粒度，性能优化）：
+- `query_user_messages`：仅查询用户消息
+  - ✅ 已存在，历史兼容
+  - ✅ 性能优化：只加载 user entries
+  - ✅ 用于分析用户输入模式
+
+- `query_assistant_messages`：仅查询 assistant 响应
+  - ✅ 独立分析 assistant 行为
+  - ✅ 支持响应长度、工具使用过滤
+  - ✅ 用于响应质量评估
+
+**2. 统一接口**（粗粒度，关联分析）：
+- `query_conversation`：查询完整对话（user + assistant）
+  - ✅ 自动关联 user prompt 和 assistant response
+  - ✅ 支持 turn 范围查询（`--start-turn`, `--end-turn`）
+  - ✅ 包含响应时间（`duration_ms` 字段）
+  - ✅ 用于分析交互模式、迭代效率
+
+### 设计原则
+
+1. **向后兼容**：保留现有 `query_user_messages` 接口，不破坏已有工具
+2. **职责清晰**：3 个工具各司其职（user, assistant, conversation）
+3. **延迟决策**：提供完整对话数据，分析交给 Claude/jq
+4. **性能优化**：专用接口避免加载无关数据
+
+### 查询模式选择
+
+| 分析目标 | 推荐工具 | 原因 |
+|---------|---------|------|
+| 用户输入模式 | `query_user_messages` | 性能最优，只加载 user |
+| Assistant 响应质量 | `query_assistant_messages` | 专注响应分析 |
+| 交互模式/响应时间 | `query_conversation` | 完整上下文 + 时间维度 |
+
+### 数据结构设计
+
+```go
+// ConversationTurn 结构（关联查询）
+type ConversationTurn struct {
+    TurnSequence      int               `json:"turn_sequence"`
+    UserMessage       *UserMessage      `json:"user_message,omitempty"`
+    AssistantMessage  *AssistantMessage `json:"assistant_message,omitempty"`
+    Duration          int               `json:"duration_ms"`  // user → assistant 响应时间
+    Timestamp         string            `json:"timestamp"`     // 对话开始时间
+}
+```
+
+### 混合输出策略（Phase 16 应用）
+
+**输出大小预估**：
+- `query_user_messages`：平均 ~1.6KB/message
+  - 1000 条 → ~1.6MB → file_ref 模式
+- `query_assistant_messages`：平均 ~2-5KB/message（含 tool blocks）
+  - 500 条 → ~1-2.5MB → file_ref 模式
+- `query_conversation`：平均 ~5-10KB/turn
+  - 200 turns → ~1-2MB → file_ref 模式
+
+**阈值配置建议**：
+- 默认 8KB 适合 2-5 条消息（inline 模式）
+- 大批量查询自动切换 file_ref 模式
+- 可通过 `inline_threshold_bytes` 参数或 `META_CC_INLINE_THRESHOLD` 环境变量调整
+
+---

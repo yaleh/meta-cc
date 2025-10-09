@@ -129,10 +129,15 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 func (e *ToolExecutor) buildCommand(toolName string, args map[string]interface{}, scope string, outputFormat string) []string {
 	cmdArgs := []string{}
 
-	// Add project flag for project-level queries
+	// Add scope flags based on scope parameter
 	if scope == "project" {
+		// Project-level: explicitly set --project . to load all sessions
 		cmdArgs = append(cmdArgs, "--project", ".")
+	} else if scope == "session" {
+		// Session-level: use --session-only flag to load only current session
+		cmdArgs = append(cmdArgs, "--session-only")
 	}
+	// If scope is neither (shouldn't happen with default), CLI will use project-level default
 
 	// Map tool name to meta-cc command
 	switch toolName {
@@ -219,6 +224,54 @@ func (e *ToolExecutor) buildCommand(toolName string, args map[string]interface{}
 		}
 		if where := getStringParam(args, "where", ""); where != "" {
 			cmdArgs = append(cmdArgs, "--where", where)
+		}
+
+	case "query_assistant_messages":
+		cmdArgs = append(cmdArgs, "query", "assistant-messages")
+		if pattern := getStringParam(args, "pattern", ""); pattern != "" {
+			cmdArgs = append(cmdArgs, "--pattern", pattern)
+		}
+		if minTools := getIntParam(args, "min_tools", 0); minTools > 0 {
+			cmdArgs = append(cmdArgs, "--min-tools", strconv.Itoa(minTools))
+		}
+		if maxTools := getIntParam(args, "max_tools", 0); maxTools > 0 {
+			cmdArgs = append(cmdArgs, "--max-tools", strconv.Itoa(maxTools))
+		}
+		if minTokens := getIntParam(args, "min_tokens_output", 0); minTokens > 0 {
+			cmdArgs = append(cmdArgs, "--min-tokens-output", strconv.Itoa(minTokens))
+		}
+		if minLength := getIntParam(args, "min_length", 0); minLength > 0 {
+			cmdArgs = append(cmdArgs, "--min-length", strconv.Itoa(minLength))
+		}
+		if maxLength := getIntParam(args, "max_length", 0); maxLength > 0 {
+			cmdArgs = append(cmdArgs, "--max-length", strconv.Itoa(maxLength))
+		}
+		if limit := getIntParam(args, "limit", 0); limit > 0 {
+			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
+		}
+
+	case "query_conversation":
+		cmdArgs = append(cmdArgs, "query", "conversation")
+		if startTurn := getIntParam(args, "start_turn", 0); startTurn > 0 {
+			cmdArgs = append(cmdArgs, "--start-turn", strconv.Itoa(startTurn))
+		}
+		if endTurn := getIntParam(args, "end_turn", 0); endTurn > 0 {
+			cmdArgs = append(cmdArgs, "--end-turn", strconv.Itoa(endTurn))
+		}
+		if pattern := getStringParam(args, "pattern", ""); pattern != "" {
+			cmdArgs = append(cmdArgs, "--pattern", pattern)
+		}
+		if target := getStringParam(args, "pattern_target", ""); target != "" {
+			cmdArgs = append(cmdArgs, "--pattern-target", target)
+		}
+		if minDuration := getIntParam(args, "min_duration", 0); minDuration > 0 {
+			cmdArgs = append(cmdArgs, "--min-duration", strconv.Itoa(minDuration))
+		}
+		if maxDuration := getIntParam(args, "max_duration", 0); maxDuration > 0 {
+			cmdArgs = append(cmdArgs, "--max-duration", strconv.Itoa(maxDuration))
+		}
+		if limit := getIntParam(args, "limit", 0); limit > 0 {
+			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
 		}
 
 	case "query_files":

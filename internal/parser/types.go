@@ -73,6 +73,19 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(aux.ContentRaw, &m.Content)
 }
 
+// MarshalJSON 自定义 JSON 序列化
+// 确保 Content 字段被正确序列化
+func (m *Message) MarshalJSON() ([]byte, error) {
+	type Alias Message
+	return json.Marshal(&struct {
+		Content []ContentBlock `json:"content"`
+		*Alias
+	}{
+		Content: m.Content,
+		Alias:   (*Alias)(m),
+	})
+}
+
 // ContentBlock 表示消息中的一个内容块
 // 可以是文本、工具调用或工具结果
 type ContentBlock struct {
@@ -211,4 +224,64 @@ func (cb *ContentBlock) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// MarshalJSON 自定义 ContentBlock 的序列化逻辑
+// 根据 type 字段，序列化不同的内容
+// 使用 value receiver 以支持 []ContentBlock 中的元素序列化
+func (cb ContentBlock) MarshalJSON() ([]byte, error) {
+	switch cb.Type {
+	case "text":
+		return json.Marshal(struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		}{
+			Type: cb.Type,
+			Text: cb.Text,
+		})
+
+	case "tool_use":
+		if cb.ToolUse == nil {
+			return nil, fmt.Errorf("tool_use type but ToolUse is nil")
+		}
+		return json.Marshal(struct {
+			Type  string                 `json:"type"`
+			ID    string                 `json:"id"`
+			Name  string                 `json:"name"`
+			Input map[string]interface{} `json:"input"`
+		}{
+			Type:  cb.Type,
+			ID:    cb.ToolUse.ID,
+			Name:  cb.ToolUse.Name,
+			Input: cb.ToolUse.Input,
+		})
+
+	case "tool_result":
+		if cb.ToolResult == nil {
+			return nil, fmt.Errorf("tool_result type but ToolResult is nil")
+		}
+		return json.Marshal(struct {
+			Type      string `json:"type"`
+			ToolUseID string `json:"tool_use_id"`
+			Content   string `json:"content"`
+			IsError   bool   `json:"is_error"`
+			Status    string `json:"status,omitempty"`
+			Error     string `json:"error,omitempty"`
+		}{
+			Type:      cb.Type,
+			ToolUseID: cb.ToolResult.ToolUseID,
+			Content:   cb.ToolResult.Content,
+			IsError:   cb.ToolResult.IsError,
+			Status:    cb.ToolResult.Status,
+			Error:     cb.ToolResult.Error,
+		})
+
+	default:
+		// 未知类型，返回仅包含 type 字段的简单对象（与 UnmarshalJSON 的行为一致）
+		return json.Marshal(struct {
+			Type string `json:"type"`
+		}{
+			Type: cb.Type,
+		})
+	}
 }

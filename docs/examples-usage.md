@@ -81,12 +81,14 @@ meta-cc provides **three integration tiers** optimized for different use cases:
 
 Claude automatically calls MCP tools based on your questions. No special syntax needed.
 
-**Available**: 14 MCP tools including `query_tools`, `analyze_errors`, `query_user_messages`, `aggregate_stats`, `query_time_series`, `query_files`, etc.
+**Available**: 14 MCP tools including `query_tools`, `query_user_messages`, `query_assistant_messages`, `query_conversation`, `aggregate_stats`, `query_time_series`, `query_files`, etc.
 
 **Examples**:
 ```
 "Show me all Bash errors in this project"
 "Find user messages where I asked about testing"
+"Search assistant responses that mention 'test passed'"
+"Show me the conversation where we discussed refactoring"
 "Compare tool usage between this week and last week"
 "Which files have I edited the most across all sessions?"
 ```
@@ -223,48 +225,52 @@ Would you like me to create a custom Hook to validate grep commands before execu
 
 **Available MCP Tools** (14 total):
 
-#### Core Query Tools
+#### Message Query Tools
+```
+query_user_messages       # Search user messages with regex
+query_assistant_messages  # Search assistant response messages with regex
+query_conversation        # Search conversation (user + assistant) with optional role filter
+```
+
+#### Tool Query Tools
 ```
 query_tools              # Query tool call history
-query_user_messages      # Search user messages with regex
-query_errors             # Extract error records
-query_file_access        # File operation history
-query_context            # Context around specific events
-```
-
-#### Statistical Tools
-```
-aggregate_stats          # Grouped statistics (by tool, status, etc.)
-query_time_series        # Temporal pattern analysis
-query_files              # File-level operation statistics
-```
-
-#### Pattern Detection
-```
-analyze_errors           # Error pattern detection
-query_tool_sequences     # Repeated tool sequences
-query_successful_prompts # Identify high-quality prompts
-```
-
-#### Advanced Queries
-```
 query_tools_advanced     # SQL-like filtering
-extract_tools            # Bulk tool extraction with pagination
-get_session_stats        # Session-only statistics (backward compat)
+query_tool_sequences     # Repeated tool sequences
+```
+
+#### Analysis Tools
+```
+query_context            # Context around specific events
+query_file_access        # File operation history
+query_files              # File-level operation statistics
+query_project_state      # Project evolution tracking
+query_successful_prompts # Identify high-quality prompts
+query_time_series        # Temporal pattern analysis
+```
+
+#### Stats & Utilities
+```
+get_session_stats        # Session statistics and metrics
+cleanup_temp_files       # Remove old temporary files
 ```
 
 **Example Queries Using These Tools**:
 
 ```
-# Basic queries (Claude picks the right tool)
-"Show recent Bash errors"                    → query_tools
-"Find messages about testing"                → query_user_messages
-"What files did I edit most?"                → query_files
+# Message queries (Claude picks the right tool)
+"Find messages where I asked about testing"           → query_user_messages
+"Search assistant responses that mention 'passed'"    → query_assistant_messages
+"Show conversation about error handling"              → query_conversation
+
+# Tool queries
+"Show recent Bash errors"                             → query_tools
+"What files did I edit most?"                         → query_files
 
 # Advanced queries (Claude composes multiple tools)
-"Compare my workflow this week vs last week" → query_time_series + aggregate_stats
-"Find all errors related to test.py"         → query_errors + query_context
-"Show my most productive hours"              → query_time_series (tool-calls by hour)
+"Compare my workflow this week vs last week"          → query_time_series + aggregate_stats
+"Find all errors related to test.py"                  → query_tools + query_context
+"Show my most productive hours"                       → query_time_series (tool-calls by hour)
 ```
 ```
 
