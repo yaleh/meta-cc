@@ -13,14 +13,15 @@
 - ✅ **Phase 16 已完成**（混合输出模式 + 无截断 + 可配置阈值）
 - ✅ **Phase 17 已完成**（Subagent 形式化实现）
 - ✅ **Phase 18 已完成**（GitHub Release 准备）
-- 🚧 **Phase 19 规划中**（Assistant 响应查询）
-- ✅ 47 个单元测试全部通过
+- ✅ **Phase 19 已完成**（Assistant 响应查询 + 对话分析）
+- ✅ 单元测试全部通过（新增 assistant messages + conversation 测试）
 - ✅ 3 个真实项目验证通过（0% 错误率）
 - ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`）
-- ✅ MCP Server 独立可执行文件（`meta-cc-mcp`，13 个工具，支持混合输出模式）
+- ✅ MCP Server 独立可执行文件（`meta-cc-mcp`，15 个工具，支持混合输出模式）
 - ✅ MCP 输出压缩率 80%+（10.7k → ~1-2k tokens）
 - ✅ 混合输出模式：自动处理大数据（≤8KB inline，>8KB file_ref，无截断）
 - ✅ 开源基础设施完成：LICENSE, CI/CD, 发布自动化
+- ✅ 消息查询完整：user messages + assistant messages + conversation turns
 
 ---
 
@@ -3212,8 +3213,8 @@ sudo mv meta-cc /usr/local/bin/
 
 ## Phase 19: 消息查询增强（Message Query Enhancement）
 
-**目标**：实现 assistant 响应查询和完整对话查询能力  
-**代码量**：~600 行 | **优先级**：中 | **状态**：规划中
+**目标**：实现 assistant 响应查询和完整对话查询能力
+**代码量**：~600 行 | **优先级**：中 | **状态**：✅ 已完成
 
 ### 背景
 
@@ -3232,29 +3233,36 @@ sudo mv meta-cc /usr/local/bin/
 | `query_assistant_messages` | Assistant 响应 | 响应长度、工具使用 |
 | `query_conversation` | 完整对话 | 交互模式、响应时间 |
 
-### Stage 19.1: 序列化支持（~80 行，1h）
-- 为 `Message`/`ContentBlock` 添加 `MarshalJSON`
-- **交付**：`internal/parser/types.go` (+60), `types_test.go` (+20)
+### Stage 19.1: 序列化支持（~80 行，1h）✅
+- ✅ 为 `Message`/`ContentBlock` 添加 `MarshalJSON`
+- **交付**：`internal/parser/types.go` (+73), `types_serialization_test.go` (+288)
 
-### Stage 19.2: Assistant 查询（~150 行，1.5h）
-- CLI: `meta-cc query assistant-messages --pattern "fix.*bug" --min-tools 2`
-- MCP: `query_assistant_messages` (14→15 工具)
-- **交付**：`cmd/query_assistant_messages.go` (+120), `_test.go` (+30)
+### Stage 19.2: Assistant 查询（~150 行，1.5h）✅
+- ✅ CLI: `meta-cc query assistant-messages --pattern "fix.*bug" --min-tools 2`
+- ✅ MCP: `query_assistant_messages` (14→15 工具)
+- **交付**：`cmd/query_assistant_messages.go` (+301), `_test.go` (+174)
 
-### Stage 19.3: 对话查询（~200 行，2h）
-- CLI: `meta-cc query conversation --start-turn 100 --limit 10`
-- 数据：`ConversationTurn{UserMessage, AssistantMessage, Duration}`
-- MCP: `query_conversation` (15→16 工具)
-- **交付**：`cmd/query_conversation.go` (+150), `_test.go` (+50)
+### Stage 19.3: 对话查询（~200 行，2h）✅
+- ✅ CLI: `meta-cc query conversation --start-turn 100 --limit 10`
+- ✅ 数据：`ConversationTurn{UserMessage, AssistantMessage, Duration}`
+- ✅ MCP: `query_conversation` (15→16 工具)
+- **交付**：`cmd/query_conversation.go` (+374), `_test.go` (+386)
 
-### Stage 19.4: MCP 工具（~100 行，1h）
-- **交付**：`cmd/mcp-server/tools.go` (+60), `executor.go` (+30), `integration_test.go` (+10)
+### Stage 19.4: MCP 工具（~100 行，1h）✅
+- ✅ 实现 2 个新 MCP 工具（query_assistant_messages, query_conversation）
+- **交付**：`cmd/mcp-server/tools.go` (+74), `executor.go` (+55), `tools_test.go` (+154)
 
-### Stage 19.5: 文档（~70 行，30min）
-- **交付**：`CLAUDE.md` (+20), `mcp-tools-reference.md` (+30), `examples-usage.md` (+20), `principles.md` (+10)
+### Stage 19.5: 文档（~70 行，30min）✅
+- ✅ 更新使用文档和示例
+- **交付**：`CLAUDE.md` (+10), `mcp-output-modes.md` (+31), `examples-usage.md` (+56), `principles.md` (+69)
+
+### Stage 19.6: 集成（~100 行，1h）✅
+- ✅ 集成到 `/meta-timeline` 和 `/meta-coach` slash commands
+- **交付**：`.claude/commands/meta-coach.md` (+115), `.claude/commands/meta-timeline.md` (+40)
 
 ### 完成标准
 - ✅ 序列化正确 | 3 工具正常 | 2 MCP 工具 | Hybrid mode | 测试≥80% | 文档完整
+- ✅ 所有单元测试通过 | Slash commands 集成完成 | CHANGELOG 更新
 
 **工作量**：~6h | ~600 lines (80+150+200+100+70)
 
