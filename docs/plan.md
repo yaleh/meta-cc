@@ -13,6 +13,7 @@
 - ✅ **Phase 16 已完成**（混合输出模式 + 无截断 + 可配置阈值）
 - ✅ **Phase 17 已完成**（Subagent 形式化实现）
 - ✅ **Phase 18 已完成**（GitHub Release 准备）
+- 🚧 **Phase 19 规划中**（Assistant 响应查询）
 - ✅ 47 个单元测试全部通过
 - ✅ 3 个真实项目验证通过（0% 错误率）
 - ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`）
@@ -3206,3 +3207,365 @@ sudo mv meta-cc /usr/local/bin/
 - 🤖 **自动化**：CI/CD 保障代码质量，减少手动工作
 - 📦 **易用性**：一键下载安装，无需编译
 - 🌟 **专业性**：完整开源基础设施，提升项目可信度
+
+---
+
+## Phase 19: Assistant Response Query（Assistant 响应查询）
+
+**目标**：实现对 Claude Code assistant 响应的完整查询能力，支持响应内容分析和模式识别
+
+**代码量**：~450 行（序列化修复 + CLI 命令 + MCP 工具 + 测试）
+
+**优先级**：中（增强分析能力，补全数据访问接口）
+
+**状态**：规划中
+
+**背景与问题**：
+- **问题 1**：`Message.Content` 字段被标记为 `json:"-"`，导致 `parse extract --type turns` 无法输出 assistant 响应内容
+- **问题 2**：`query_user_messages` 只返回用户消息，无法分析 assistant 的响应模式
+- **问题 3**：`query_tools` 只包含工具调用的 I/O，不包含 assistant 的文本响应（text blocks）
+- **问题 4**：缺少对 assistant 响应的结构化分析（text vs tool_use 比例、响应长度分布等）
+- **问题 5**：无法评估 assistant 响应质量（冗余检测、响应效率分析）
+
+**当前限制分析**：
+```go
+// internal/parser/types.go:33
+Content []ContentBlock `json:"-"`  // ← 序列化时被忽略
+
+// cmd/query_messages.go:143
+if entry.Type != "user" {           // ← 只处理 user 类型
+    continue
+}
+```
+
+**解决方案**：
+- ✅ **修复序列化**：为 `Message` 和 `ContentBlock` 添加 `MarshalJSON` 方法
+- ✅ **CLI 命令**：实现 `meta-cc query assistant-messages` 命令
+- ✅ **MCP 工具**：添加 `query_assistant_messages` MCP 工具
+- ✅ **高级过滤**：支持按响应长度、content block 类型、token 使用量过滤
+- ✅ **响应分析**：提取响应模式、文本/工具比例、响应效率指标
+
+**设计原则**：
+- ✅ **向后兼容**：不影响现有代码，保持 `parse extract --type turns` 的行为
+- ✅ **结构化输出**：返回完整的 content blocks（text + tool_use）
+- ✅ **性能优化**：大响应使用 hybrid output mode（file_ref）
+- ✅ **可组合性**：输出格式与其他 query 命令一致（JSONL/TSV）
+
+### Stage 19.1: 序列化支持（~1 小时，~80 行）
+
+**目标**：修复 `Message` 和 `ContentBlock` 的 JSON 序列化，使 `Content` 字段可以正确输出
+
+**任务**：
+1. 为 `Message` 类型添加 `MarshalJSON` 方法
+2. 为 `ContentBlock` 类型添加 `MarshalJSON` 方法
+3. 处理嵌套的 `ToolUse` 和 `ToolResult` 序列化
+4. 添加单元测试验证序列化正确性
+
+**交付物**：
+```
+internal/parser/types.go          # +60 lines: MarshalJSON 方法
+internal/parser/types_test.go     # +20 lines: 序列化测试
+```
+
+**实现细节**：
+
+```go
+// MarshalJSON 实现 Message 的 JSON 序列化
+func (m *Message) MarshalJSON() ([]byte, error) {
+    type Alias Message
+    return json.Marshal(&struct {
+        Content []ContentBlock `json:"content"`
+        *Alias
+    }{
+        Content: m.Content,
+        Alias:   (*Alias)(m),
+    })
+}
+
+// MarshalJSON 实现 ContentBlock 的 JSON 序列化
+func (cb *ContentBlock) MarshalJSON() ([]byte, error) {
+    switch cb.Type {
+    case "text":
+        return json.Marshal(map[string]interface{}{
+            "type": "text",
+            "text": cb.Text,
+        })
+    case "tool_use":
+        return json.Marshal(map[string]interface{}{
+            "type":  "tool_use",
+            "id":    cb.ToolUse.ID,
+            "name":  cb.ToolUse.Name,
+            "input": cb.ToolUse.Input,
+        })
+    case "tool_result":
+        return json.Marshal(map[string]interface{}{
+            "type":        "tool_result",
+            "tool_use_id": cb.ToolResult.ToolUseID,
+            "content":     cb.ToolResult.Content,
+            "is_error":    cb.ToolResult.IsError,
+        })
+    default:
+        return json.Marshal(map[string]interface{}{"type": cb.Type})
+    }
+}
+```
+
+**测试命令**：
+```bash
+make test
+go test -v ./internal/parser -run TestMessageMarshalJSON
+go test -v ./internal/parser -run TestContentBlockMarshalJSON
+```
+
+**验收标准**：
+- ✅ `Message` 序列化包含 `content` 字段
+- ✅ `ContentBlock` 根据类型正确序列化（text/tool_use/tool_result）
+- ✅ 嵌套的 `ToolUse` 和 `ToolResult` 正确输出
+- ✅ 所有单元测试通过
+- ✅ 不影响现有的反序列化逻辑（`UnmarshalJSON`）
+
+### Stage 19.2: CLI 命令实现（~1.5 小时，~150 行）
+
+**目标**：实现 `meta-cc query assistant-messages` CLI 命令
+
+**任务**：
+1. 创建 `cmd/query_assistant_messages.go` 文件
+2. 实现 `AssistantMessage` 数据结构
+3. 实现消息提取逻辑（从 `SessionEntry` 中提取 assistant 消息）
+4. 支持过滤参数（pattern, limit, min-length, max-length）
+5. 支持输出格式（JSONL/TSV）
+
+**交付物**：
+```
+cmd/query_assistant_messages.go        # +120 lines: 命令实现
+cmd/query_assistant_messages_test.go   # +30 lines: 单元测试
+```
+
+**数据结构设计**：
+
+```go
+// AssistantMessage 表示 assistant 的一条响应
+type AssistantMessage struct {
+    TurnSequence   int            `json:"turn_sequence"`
+    UUID           string         `json:"uuid"`
+    Timestamp      string         `json:"timestamp"`
+    Model          string         `json:"model"`
+    ContentBlocks  []ContentBlock `json:"content_blocks"`
+    TextLength     int            `json:"text_length"`      // 文本总长度
+    ToolUseCount   int            `json:"tool_use_count"`   // 工具调用数量
+    TokensInput    int            `json:"tokens_input"`     // 输入 tokens
+    TokensOutput   int            `json:"tokens_output"`    // 输出 tokens
+}
+
+// ContentBlock 简化结构（用于输出）
+type ContentBlock struct {
+    Type    string                 `json:"type"`
+    Text    string                 `json:"text,omitempty"`
+    ToolID  string                 `json:"tool_id,omitempty"`
+    Name    string                 `json:"name,omitempty"`
+    Input   map[string]interface{} `json:"input,omitempty"`
+}
+```
+
+**命令参数**：
+```bash
+meta-cc query assistant-messages \
+  --pattern "fix.*bug"       # 正则匹配响应内容
+  --limit 10                 # 限制结果数量
+  --min-length 1000          # 最小响应长度（字符数）
+  --max-length 10000         # 最大响应长度
+  --min-tools 1              # 最少工具调用数
+  --max-tools 5              # 最多工具调用数
+  --output jsonl             # 输出格式（jsonl/tsv）
+```
+
+**测试命令**：
+```bash
+make test
+go test -v ./cmd -run TestQueryAssistantMessages
+meta-cc query assistant-messages --limit 5
+meta-cc query assistant-messages --min-length 1000 --output tsv
+```
+
+**验收标准**：
+- ✅ 命令成功执行并输出 assistant 消息
+- ✅ 支持正则模式匹配
+- ✅ 支持长度过滤（min-length, max-length）
+- ✅ 支持工具调用数量过滤
+- ✅ JSONL 和 TSV 格式输出正确
+- ✅ 单元测试覆盖率 ≥80%
+
+### Stage 19.3: MCP 工具实现（~1 小时，~100 lines）
+
+**目标**：添加 `query_assistant_messages` MCP 工具
+
+**任务**：
+1. 在 `cmd/mcp-server/tools.go` 中添加工具定义
+2. 在 `cmd/mcp-server/executor.go` 中添加命令映射
+3. 支持 hybrid output mode（inline/file_ref）
+4. 添加 MCP 集成测试
+
+**交付物**：
+```
+cmd/mcp-server/tools.go                # +40 lines: 工具定义
+cmd/mcp-server/executor.go             # +15 lines: 命令映射
+cmd/mcp-server/integration_test.go     # +45 lines: MCP 测试
+```
+
+**工具定义**：
+
+```json
+{
+  "name": "query_assistant_messages",
+  "description": "Query assistant responses with pattern matching and filtering. Returns assistant message content including text blocks and tool calls. Uses hybrid output mode (inline <8KB, file_ref >8KB).",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "pattern": {
+        "type": "string",
+        "description": "Regex pattern to match response content"
+      },
+      "limit": {
+        "type": "number",
+        "description": "Max results (0 = no limit, rely on hybrid mode)"
+      },
+      "min_length": {
+        "type": "number",
+        "description": "Minimum response length in characters"
+      },
+      "max_length": {
+        "type": "number",
+        "description": "Maximum response length in characters"
+      },
+      "min_tools": {
+        "type": "number",
+        "description": "Minimum number of tool calls"
+      },
+      "scope": {
+        "type": "string",
+        "enum": ["project", "session"],
+        "description": "Query scope"
+      }
+    }
+  }
+}
+```
+
+**命令映射**：
+
+```go
+case "query_assistant_messages":
+    cmdArgs = append(cmdArgs, "query", "assistant-messages")
+    if pattern := getStringParam(args, "pattern", ""); pattern != "" {
+        cmdArgs = append(cmdArgs, "--pattern", pattern)
+    }
+    if limit := getIntParam(args, "limit", 0); limit > 0 {
+        cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
+    }
+    if minLength := getIntParam(args, "min_length", 0); minLength > 0 {
+        cmdArgs = append(cmdArgs, "--min-length", strconv.Itoa(minLength))
+    }
+    if minTools := getIntParam(args, "min_tools", 0); minTools > 0 {
+        cmdArgs = append(cmdArgs, "--min-tools", strconv.Itoa(minTools))
+    }
+```
+
+**测试命令**：
+```bash
+make test
+go test -v ./cmd/mcp-server -run TestQueryAssistantMessages
+```
+
+**验收标准**：
+- ✅ MCP 工具在 `list_tools` 中显示
+- ✅ 工具参数定义完整且正确
+- ✅ 命令映射正确执行 CLI 命令
+- ✅ Hybrid output mode 正常工作
+- ✅ 集成测试通过
+
+### Stage 19.4: 文档更新（~30 分钟，~120 行）
+
+**目标**：更新项目文档以反映新功能
+
+**任务**：
+1. 更新 `CLAUDE.md` 添加 `query_assistant_messages` 工具说明
+2. 更新 `docs/mcp-tools-reference.md` 添加工具文档
+3. 更新 `docs/examples-usage.md` 添加使用示例
+4. 更新 `README.md` 添加功能描述
+
+**交付物**：
+```
+CLAUDE.md                          # +30 lines: MCP 工具说明
+docs/mcp-tools-reference.md        # +40 lines: 工具参考
+docs/examples-usage.md             # +30 lines: 使用示例
+README.md                          # +20 lines: 功能列表
+```
+
+**CLAUDE.md 更新**：
+
+```markdown
+### Query Tools (14 available)
+
+**Basic Queries**:
+- `query_assistant_messages` - Query assistant responses with content analysis
+  - Parameters: `pattern` (regex), `limit`, `min_length`, `max_length`, `min_tools`
+  - Example: `query_assistant_messages(pattern="completed.*Stage", min_tools=1)`
+  - Returns: Full assistant responses with text blocks and tool calls
+```
+
+**使用示例**：
+
+```bash
+# 查找包含 "completed" 的 assistant 响应
+meta-cc query assistant-messages --pattern "completed"
+
+# 查找长响应（>1000 字符）且包含多个工具调用
+meta-cc query assistant-messages --min-length 1000 --min-tools 2
+
+# 分析响应大小分布
+meta-cc query assistant-messages --output jsonl | \
+  jq -r '.text_length' | \
+  awk '{sum+=$1; count++} END {print "Avg:", sum/count, "Total:", count}'
+
+# MCP 查询示例（在 Claude Code 中）
+mcp__meta_cc__query_assistant_messages({
+  pattern: "Phase.*complete",
+  min_length: 500,
+  scope: "project"
+})
+```
+
+**验收标准**：
+- ✅ CLAUDE.md 包含工具说明和参数描述
+- ✅ docs/mcp-tools-reference.md 包含完整工具文档
+- ✅ docs/examples-usage.md 包含实用示例
+- ✅ README.md 更新功能列表
+- ✅ 文档清晰易读
+
+---
+
+**Phase 19 完成标准**：
+- ✅ `Message.Content` 字段可以正确序列化
+- ✅ `meta-cc query assistant-messages` 命令正常工作
+- ✅ `query_assistant_messages` MCP 工具可用
+- ✅ 支持模式匹配和长度过滤
+- ✅ Hybrid output mode 正常工作（inline/file_ref）
+- ✅ 所有测试通过（单元测试 + 集成测试）
+- ✅ 测试覆盖率 ≥80%
+- ✅ 文档完整且准确
+
+**预估工作量**：
+| Stage | 时间 | 代码量 | 优先级 |
+|-------|------|--------|--------|
+| 19.1 Serialization | 1 hour | ~80 lines | 🔴 Critical |
+| 19.2 CLI Command | 1.5 hours | ~150 lines | 🔴 Critical |
+| 19.3 MCP Tool | 1 hour | ~100 lines | 🟡 High |
+| 19.4 Documentation | 30 min | ~120 lines | 🟢 Medium |
+| **Total** | **~4 hours** | **~450 lines** | |
+
+**应用价值**：
+- 📊 **完整分析能力**：补全数据访问接口，可分析 assistant 响应模式
+- 🔍 **质量评估**：检测冗余响应、评估响应效率
+- 📈 **模式识别**：识别成功的响应模式（text vs tool_use 比例）
+- 🎯 **优化建议**：基于响应数据提供 workflow 优化建议
+- 🔄 **对称设计**：与 `query_user_messages` 对称，提供完整的对话数据访问
