@@ -25,47 +25,96 @@ Meta-Cognition tool for Claude Code - analyze session history for workflow optim
 
 ## Installation
 
-### Option 1: Download Pre-compiled Binary (Recommended)
+### Option 1: Quick Install with Bundle (Recommended)
 
-Download the latest release for your platform:
+Download and install meta-cc with MCP server, slash commands, and subagents in one command:
 
 #### Linux (x86_64)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-linux-amd64.tar.gz | tar xz
+cd meta-cc-v*/
+./install.sh
+```
+
+#### Linux (ARM64)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-linux-arm64.tar.gz | tar xz
+cd meta-cc-v*/
+./install.sh
+```
+
+#### macOS (Intel)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-darwin-amd64.tar.gz | tar xz
+cd meta-cc-v*/
+./install.sh
+```
+
+#### macOS (Apple Silicon)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-darwin-arm64.tar.gz | tar xz
+cd meta-cc-v*/
+./install.sh
+```
+
+#### Windows
+```powershell
+# Download and extract meta-cc-bundle-windows-amd64.tar.gz
+# Run install.sh in Git Bash or WSL
+```
+
+**What's included:**
+- ✅ `meta-cc` CLI tool
+- ✅ `meta-cc-mcp` MCP server
+- ✅ 8 slash commands (`.claude/commands/`)
+- ✅ 3 subagents (`.claude/agents/`)
+
+[View all releases →](https://github.com/yaleh/meta-cc/releases)
+
+### Option 2: Individual Binaries
+
+Download only the CLI or MCP server:
+
+<details>
+<summary>Click to expand individual binary instructions</summary>
+
+#### CLI Only - Linux (x86_64)
 ```bash
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
 chmod +x meta-cc
 sudo mv meta-cc /usr/local/bin/
 ```
 
-#### Linux (ARM64)
+#### CLI Only - Linux (ARM64)
 ```bash
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-arm64 -o meta-cc
 chmod +x meta-cc
 sudo mv meta-cc /usr/local/bin/
 ```
 
-#### macOS (Intel)
+#### CLI Only - macOS (Intel)
 ```bash
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-darwin-amd64 -o meta-cc
 chmod +x meta-cc
 sudo mv meta-cc /usr/local/bin/
 ```
 
-#### macOS (Apple Silicon)
+#### CLI Only - macOS (Apple Silicon)
 ```bash
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-darwin-arm64 -o meta-cc
 chmod +x meta-cc
 sudo mv meta-cc /usr/local/bin/
 ```
 
-#### Windows (PowerShell)
+#### CLI Only - Windows (PowerShell)
 ```powershell
 Invoke-WebRequest -Uri "https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-windows-amd64.exe" -OutFile "meta-cc.exe"
 # Move to a directory in your PATH
 ```
 
-[View all releases →](https://github.com/yaleh/meta-cc/releases)
+</details>
 
-### Option 2: Build from Source
+### Option 3: Build from Source
 
 ```bash
 git clone https://github.com/yaleh/meta-cc.git
@@ -90,15 +139,23 @@ Deploy meta-cc as an MCP server to analyze sessions directly within Claude Code.
 
 ### Quick Setup
 
-**Option A: Download Pre-compiled MCP Server (Recommended)**
+**If you installed using the bundle (Option 1)**, the MCP server is already installed! Just configure Claude Code:
 
-Download the latest MCP server release for your platform:
+```bash
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+```
+
+**If you need MCP server only**, download individual binaries:
+
+<details>
+<summary>Click to expand MCP server download instructions</summary>
 
 #### Linux (x86_64)
 ```bash
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-linux-amd64 -o meta-cc-mcp
 chmod +x meta-cc-mcp
 sudo mv meta-cc-mcp /usr/local/bin/
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
 ```
 
 #### Linux (ARM64)
@@ -106,6 +163,7 @@ sudo mv meta-cc-mcp /usr/local/bin/
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-linux-arm64 -o meta-cc-mcp
 chmod +x meta-cc-mcp
 sudo mv meta-cc-mcp /usr/local/bin/
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
 ```
 
 #### macOS (Intel)
@@ -113,6 +171,7 @@ sudo mv meta-cc-mcp /usr/local/bin/
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-darwin-amd64 -o meta-cc-mcp
 chmod +x meta-cc-mcp
 sudo mv meta-cc-mcp /usr/local/bin/
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
 ```
 
 #### macOS (Apple Silicon)
@@ -120,29 +179,18 @@ sudo mv meta-cc-mcp /usr/local/bin/
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-darwin-arm64 -o meta-cc-mcp
 chmod +x meta-cc-mcp
 sudo mv meta-cc-mcp /usr/local/bin/
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
 ```
 
 #### Windows (PowerShell)
 ```powershell
 Invoke-WebRequest -Uri "https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-windows-amd64.exe" -OutFile "meta-cc-mcp.exe"
-# Move to a directory in your PATH
-```
-
-**Then add to Claude Code:**
-```bash
-claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+# Move to a directory in your PATH, then configure Claude Code
 ```
 
 [View all releases →](https://github.com/yaleh/meta-cc/releases)
 
-**Option B: Build from Source**
-```bash
-git clone https://github.com/yaleh/meta-cc.git
-cd meta-cc
-make build-mcp
-cp meta-cc-mcp ~/.local/bin/
-claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
-```
+</details>
 
 ### Manual Configuration
 
