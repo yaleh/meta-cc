@@ -18,6 +18,18 @@ collect(S) = {
     scope=scope
   ),
 
+  assistant_messages: mcp_meta_cc.query_assistant_messages(
+    pattern=".*",
+    limit=200,
+    scope=scope
+  ),
+
+  conversations: mcp_meta_cc.query_conversation(
+    pattern=".*",
+    limit=200,
+    scope=scope
+  ),
+
   successful_patterns: mcp_meta_cc.query_successful_prompts(
     min_quality_score=0.8,
     limit=30,
@@ -84,8 +96,8 @@ detect(U) = {
   }
 }
 
-measure :: (MessageFeatures, InteractionSequences) → EffectivenessMetrics
-measure(F, S) = {
+measure :: (MessageFeatures, InteractionSequences, Conversations) → EffectivenessMetrics
+measure(F, S, C) = {
   tool_proficiency: {
     file_ref_rate: F.tool_usage.file_refs / total_messages,
     subagent_adoption: F.tool_usage.subagent_calls / total_messages,
@@ -99,6 +111,50 @@ measure(F, S) = {
     clarification_rate: count(S.feedback_patterns.clarification) / total_messages,
     interruption_rate: count(S.feedback_patterns.interruptions) / total_messages,
     refinement_cycles: avg_length(S.conversation_flows.vague_to_refined)
+  },
+
+  interaction_quality: {
+    response_efficiency: {
+      avg_response_time: avg(C.map(c => c.duration_ms)),
+      response_time_by_context: {
+        with_file_refs: avg_duration(C where user_has_file_refs),
+        without_refs: avg_duration(C where user_no_refs),
+        context_benefit: (without - with) / without
+      },
+      response_consistency: stddev(C.map(c => c.duration_ms)),
+      response_time_distribution: {
+        fast: count(C where duration_ms < 5000) / total_conversations,
+        normal: count(C where 5000 ≤ duration_ms < 30000) / total_conversations,
+        slow: count(C where duration_ms ≥ 30000) / total_conversations
+      }
+    },
+
+    tool_usage_efficiency: {
+      avg_tools_per_response: avg(assistant_messages.map(m => m.tool_use_count)),
+      tools_by_context: {
+        rich_context: avg_tools(C where user_multi_file_refs),
+        minimal_context: avg_tools(C where user_no_refs),
+        context_efficiency: (minimal - rich) / minimal
+      },
+      over_tooling_rate: count(assistant_messages where tool_use_count > 5) / total_responses,
+      appropriate_tool_use: measure_tool_appropriateness(assistant_messages)
+    },
+
+    conversation_flow_quality: {
+      satisfaction_rate: {
+        satisfied_turns: count(C where no_user_correction_follows),
+        correction_turns: count(C where user_correction_follows),
+        rate: satisfied / (satisfied + corrections)
+      },
+      clarification_overhead: count(C where user_asks_clarification) / total_conversations,
+      completion_rate: count(C where task_completed_successfully) / total_conversations
+    },
+
+    response_quality_indicators: {
+      response_length_appropriateness: analyze_response_length_match(C),
+      response_complexity_match: analyze_response_complexity_match(assistant_messages),
+      token_efficiency: avg(assistant_messages.map(m => m.tokens_output / m.text_length))
+    }
   },
 
   workflow_maturity: {
@@ -126,6 +182,49 @@ recommend(F, S, M) = {
 
     clarification_reduction: if clarification_rate is high then
       suggest("Provide more complete context upfront to reduce back-and-forth")
+  },
+
+  interaction_optimization: {
+    response_time_improvement: if M.interaction_quality.response_efficiency.context_benefit > 0.3 then
+      suggest("Providing @file references reduces response time by " + percentage + "%"),
+
+    tool_efficiency_gain: if M.interaction_quality.tool_usage_efficiency.context_efficiency > 0.5 then
+      suggest("Complete context reduces tool calls by " + percentage + "%"),
+
+    conversation_flow: if M.interaction_quality.conversation_flow_quality.satisfaction_rate < 0.7 then
+      suggest("Consider providing more upfront context to reduce corrections"),
+
+    over_tooling_alert: if M.interaction_quality.tool_usage_efficiency.over_tooling_rate > 0.2 then
+      suggest("High tool usage detected - try providing more complete context upfront")
+  },
+
+  workflow_health_indicators: {
+    green_flags: [
+      if M.interaction_quality.conversation_flow_quality.satisfaction_rate > 0.8 then
+        "✓ High satisfaction rate (minimal corrections)",
+      if M.interaction_quality.response_efficiency.response_consistency < 10000 then
+        "✓ Consistent response times",
+      if M.interaction_quality.tool_usage_efficiency.appropriate_tool_use > 0.8 then
+        "✓ Appropriate tool usage"
+    ],
+
+    yellow_flags: [
+      if M.interaction_quality.conversation_flow_quality.clarification_overhead > 0.3 then
+        "⚠ Frequent clarifications needed",
+      if M.interaction_quality.response_efficiency.response_consistency > 20000 then
+        "⚠ Variable response times",
+      if M.interaction_quality.tool_usage_efficiency.over_tooling_rate > 0.2 then
+        "⚠ Over-tooling detected"
+    ],
+
+    red_flags: [
+      if M.interaction_quality.conversation_flow_quality.satisfaction_rate < 0.5 then
+        "⚠ Low satisfaction rate (many corrections)",
+      if M.interaction_quality.response_efficiency.avg_response_time > 60000 then
+        "⚠ Slow average response time (>1min)",
+      if M.interaction_quality.tool_usage_efficiency.context_efficiency > 0.7 then
+        "⚠ Significant context-related inefficiencies"
+    ]
   },
 
   skill_development: {
@@ -178,8 +277,20 @@ output(A) = {
     }
   },
 
+  interaction_quality_analysis: {
+    response_efficiency: {
+      avg_response_time: format_duration(A.metrics.interaction_quality.response_efficiency.avg_response_time),
+      response_time_by_context: A.metrics.interaction_quality.response_efficiency.response_time_by_context,
+      response_time_distribution: A.metrics.interaction_quality.response_efficiency.response_time_distribution
+    },
+    tool_usage_efficiency: A.metrics.interaction_quality.tool_usage_efficiency,
+    conversation_flow_quality: A.metrics.interaction_quality.conversation_flow_quality
+  },
+
   recommendations: {
     immediate: A.action_plan.immediate_improvements,
+    interaction_optimization: A.action_plan.interaction_optimization,
+    workflow_health: A.action_plan.workflow_health_indicators,
     skill_building: A.action_plan.skill_development,
     long_term: A.action_plan.long_term_patterns
   }

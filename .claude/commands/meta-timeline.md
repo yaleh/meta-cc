@@ -17,6 +17,15 @@ collect(S) = {
     scope=scope
   ),
 
+  assistant_messages: mcp_meta_cc.query_assistant_messages(
+    pattern=".*",
+    scope=scope
+  ),
+
+  conversations: mcp_meta_cc.query_conversation(
+    scope=scope
+  ),
+
   high_level_tools: mcp_meta_cc.query_tools(
     scope=scope,
     jq_filter='select(.ToolName | test("^(Task|SlashCommand|mcp__)"))'
@@ -97,6 +106,25 @@ construct_timeline(E) = {
       intent: classify_intent(msg.content)
     }),
 
+    E.assistant_messages.map(msg => {
+      timestamp: msg.timestamp,
+      type: "assistant_response",
+      text_length: msg.text_length,
+      tool_use_count: msg.tool_use_count,
+      tokens_output: msg.tokens_output,
+      response_complexity: classify_response_complexity(msg)
+    }),
+
+    E.conversations.map(conv => {
+      timestamp: conv.timestamp,
+      type: "conversation_turn",
+      turn_sequence: conv.turn_sequence,
+      duration_ms: conv.duration_ms,
+      has_user: conv.user_message != null,
+      has_assistant: conv.assistant_message != null,
+      response_latency: conv.duration_ms
+    }),
+
     E.high_level_tools.map(tool => {
       timestamp: tool.Timestamp,
       type: "high_level_operation",
@@ -128,6 +156,13 @@ construct_timeline(E) = {
 measure_latency :: Timeline → LatencyMetrics
 measure_latency(T) = {
   user_to_response: {
+    conversation_latency: measure_time(user_message → assistant_response),
+    avg_response_time: avg(T.conversations.map(c => c.duration_ms)),
+    response_time_distribution: {
+      fast: count(conversations where duration_ms < 5000),      # < 5s
+      normal: count(conversations where 5000 ≤ duration_ms < 30000),  # 5-30s
+      slow: count(conversations where duration_ms ≥ 30000)     # ≥ 30s
+    },
     subagent_launch: measure_time(user_@agent → Task_completion),
     slash_command: measure_time(user_/command → SlashCommand_completion),
     mcp_query: measure_time(Claude_call → mcp_response),
@@ -212,6 +247,10 @@ visualize_timeline(T) = {
 
     symbols: {
       user_action: "●",
+      assistant_response: "◎",
+      response_fast: "◎(<5s)",
+      response_normal: "◎(5-30s)",
+      response_slow: "◎(>30s)",
       subagent_launch: "⚡",
       slash_command: "/",
       mcp_query: "◆",
@@ -235,6 +274,7 @@ visualize_timeline(T) = {
     column_widths: {
       time: 20_chars,
       user: 10_chars,
+      assistant: 12_chars,
       ops: 11_chars,
       phase: 15_chars,
       events: 24_chars

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Slash Command Enhancements**: Integrated new message query capabilities
+  - `/meta-timeline` now includes assistant response analysis and conversation latency metrics
+  - `/meta-coach` now includes interaction quality analysis with response time, tool efficiency, and satisfaction metrics
+
 ## [v0.14.0] - 2025-10-09
 
 ### Added
