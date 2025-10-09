@@ -46,11 +46,16 @@ func TestRefactored_QueryTools(t *testing.T) {
 	cleanup := setupTestSessionForRefactor(t)
 	defer cleanup()
 
+	// Reset flags from previous tests
+	queryToolsCmd.Flags().Set("status", "")
+	queryToolsCmd.Flags().Set("tool", "")
+	queryToolsCmd.Flags().Set("limit", "0")
+
 	// Test basic query - should output tool calls in JSONL format
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "tools", "--limit", "10"})
+	rootCmd.SetArgs([]string{"query", "tools", "--session-only", "--limit", "10"})
 
 	err := rootCmd.Execute()
 	if err != nil {

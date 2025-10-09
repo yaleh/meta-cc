@@ -77,34 +77,48 @@ func TestBuildConversationTurns(t *testing.T) {
 		t.Fatalf("expected 2 turns, got %d", len(turns))
 	}
 
-	// Verify turn 1
-	if turns[0].TurnSequence != 1 {
-		t.Errorf("turn 1: expected sequence 1, got %d", turns[0].TurnSequence)
+	// Find turn 1 and turn 2 (order is not guaranteed from map iteration)
+	var turn1, turn2 *ConversationTurn
+	for i := range turns {
+		if turns[i].TurnSequence == 1 {
+			turn1 = &turns[i]
+		} else if turns[i].TurnSequence == 2 {
+			turn2 = &turns[i]
+		}
 	}
-	if turns[0].UserMessage == nil {
+
+	if turn1 == nil {
+		t.Fatal("turn 1 not found")
+	}
+	if turn2 == nil {
+		t.Fatal("turn 2 not found")
+	}
+
+	// Verify turn 1
+	if turn1.UserMessage == nil {
 		t.Fatal("turn 1: user message is nil")
 	}
-	if turns[0].UserMessage.Content != "Hello world" {
-		t.Errorf("turn 1: expected user content 'Hello world', got '%s'", turns[0].UserMessage.Content)
+	if turn1.UserMessage.Content != "Hello world" {
+		t.Errorf("turn 1: expected user content 'Hello world', got '%s'", turn1.UserMessage.Content)
 	}
-	if turns[0].AssistantMessage == nil {
+	if turn1.AssistantMessage == nil {
 		t.Fatal("turn 1: assistant message is nil")
 	}
-	if turns[0].AssistantMessage.TextLength != 22 {
-		t.Errorf("turn 1: expected text length 22, got %d", turns[0].AssistantMessage.TextLength)
+	if turn1.AssistantMessage.TextLength != 22 {
+		t.Errorf("turn 1: expected text length 22, got %d", turn1.AssistantMessage.TextLength)
 	}
-	if turns[0].Duration <= 0 {
-		t.Errorf("turn 1: expected positive duration, got %d", turns[0].Duration)
+	if turn1.Duration <= 0 {
+		t.Errorf("turn 1: expected positive duration, got %d", turn1.Duration)
 	}
 
 	// Verify turn 2
-	if turns[1].TurnSequence != 2 {
-		t.Errorf("turn 2: expected sequence 2, got %d", turns[1].TurnSequence)
+	if turn2.TurnSequence != 2 {
+		t.Errorf("turn 2: expected sequence 2, got %d", turn2.TurnSequence)
 	}
-	if turns[1].UserMessage == nil {
+	if turn2.UserMessage == nil {
 		t.Fatal("turn 2: user message is nil")
 	}
-	if turns[1].AssistantMessage == nil {
+	if turn2.AssistantMessage == nil {
 		t.Fatal("turn 2: assistant message is nil")
 	}
 }
@@ -301,26 +315,43 @@ func TestConversationIncompleteTurns(t *testing.T) {
 		t.Fatalf("expected 2 turns (including incomplete), got %d", len(turns))
 	}
 
+	// Find turn 1 and turn 2 (order is not guaranteed from map iteration)
+	var turn1, turn2 *ConversationTurn
+	for i := range turns {
+		if turns[i].TurnSequence == 1 {
+			turn1 = &turns[i]
+		} else if turns[i].TurnSequence == 2 {
+			turn2 = &turns[i]
+		}
+	}
+
+	if turn1 == nil {
+		t.Fatal("turn 1 not found")
+	}
+	if turn2 == nil {
+		t.Fatal("turn 2 not found")
+	}
+
 	// Turn 1 should have user but no assistant
-	if turns[0].UserMessage == nil {
+	if turn1.UserMessage == nil {
 		t.Error("turn 1: expected user message")
 	}
-	if turns[0].AssistantMessage != nil {
+	if turn1.AssistantMessage != nil {
 		t.Error("turn 1: expected no assistant message")
 	}
-	if turns[0].Duration != 0 {
-		t.Errorf("turn 1: expected zero duration, got %d", turns[0].Duration)
+	if turn1.Duration != 0 {
+		t.Errorf("turn 1: expected zero duration, got %d", turn1.Duration)
 	}
 
 	// Turn 2 should have both
-	if turns[1].UserMessage == nil {
+	if turn2.UserMessage == nil {
 		t.Error("turn 2: expected user message")
 	}
-	if turns[1].AssistantMessage == nil {
+	if turn2.AssistantMessage == nil {
 		t.Error("turn 2: expected assistant message")
 	}
-	if turns[1].Duration <= 0 {
-		t.Errorf("turn 2: expected positive duration, got %d", turns[1].Duration)
+	if turn2.Duration <= 0 {
+		t.Errorf("turn 2: expected positive duration, got %d", turn2.Duration)
 	}
 }
 
