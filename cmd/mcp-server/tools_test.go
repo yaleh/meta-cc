@@ -338,3 +338,157 @@ func TestLimitParameterBehavior(t *testing.T) {
 		})
 	}
 }
+
+// TestQueryAssistantMessagesToolDefinition verifies the query_assistant_messages tool is correctly defined
+func TestQueryAssistantMessagesToolDefinition(t *testing.T) {
+	tools := getToolDefinitions()
+
+	var tool *Tool
+	for i := range tools {
+		if tools[i].Name == "query_assistant_messages" {
+			tool = &tools[i]
+			break
+		}
+	}
+
+	if tool == nil {
+		t.Fatal("query_assistant_messages tool not found")
+	}
+
+	// Verify description
+	if !strings.Contains(tool.Description, "assistant messages") {
+		t.Errorf("description should mention 'assistant messages', got: %s", tool.Description)
+	}
+
+	if !strings.HasSuffix(tool.Description, "Default scope: project.") {
+		t.Errorf("description should end with 'Default scope: project.', got: %s", tool.Description)
+	}
+
+	// Verify required parameters exist
+	props := tool.InputSchema.Properties
+	requiredParams := []string{
+		"pattern", "min_tools", "max_tools", "min_tokens_output",
+		"min_length", "max_length", "limit",
+	}
+
+	for _, param := range requiredParams {
+		if _, exists := props[param]; !exists {
+			t.Errorf("query_assistant_messages missing parameter: %s", param)
+		}
+	}
+
+	// Verify parameter types
+	if props["pattern"].Type != "string" {
+		t.Errorf("pattern should be string, got %s", props["pattern"].Type)
+	}
+	if props["min_tools"].Type != "number" {
+		t.Errorf("min_tools should be number, got %s", props["min_tools"].Type)
+	}
+	if props["max_tools"].Type != "number" {
+		t.Errorf("max_tools should be number, got %s", props["max_tools"].Type)
+	}
+	if props["min_tokens_output"].Type != "number" {
+		t.Errorf("min_tokens_output should be number, got %s", props["min_tokens_output"].Type)
+	}
+	if props["limit"].Type != "number" {
+		t.Errorf("limit should be number, got %s", props["limit"].Type)
+	}
+
+	// Verify standard parameters exist
+	standardParams := []string{"scope", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes", "output_format"}
+	for _, param := range standardParams {
+		if _, exists := props[param]; !exists {
+			t.Errorf("query_assistant_messages missing standard parameter: %s", param)
+		}
+	}
+}
+
+// TestQueryConversationToolDefinition verifies the query_conversation tool is correctly defined
+func TestQueryConversationToolDefinition(t *testing.T) {
+	tools := getToolDefinitions()
+
+	var tool *Tool
+	for i := range tools {
+		if tools[i].Name == "query_conversation" {
+			tool = &tools[i]
+			break
+		}
+	}
+
+	if tool == nil {
+		t.Fatal("query_conversation tool not found")
+	}
+
+	// Verify description
+	if !strings.Contains(tool.Description, "conversation") {
+		t.Errorf("description should mention 'conversation', got: %s", tool.Description)
+	}
+
+	if !strings.HasSuffix(tool.Description, "Default scope: project.") {
+		t.Errorf("description should end with 'Default scope: project.', got: %s", tool.Description)
+	}
+
+	// Verify required parameters exist
+	props := tool.InputSchema.Properties
+	requiredParams := []string{
+		"start_turn", "end_turn", "pattern", "pattern_target",
+		"min_duration", "max_duration", "limit",
+	}
+
+	for _, param := range requiredParams {
+		if _, exists := props[param]; !exists {
+			t.Errorf("query_conversation missing parameter: %s", param)
+		}
+	}
+
+	// Verify parameter types
+	if props["start_turn"].Type != "number" {
+		t.Errorf("start_turn should be number, got %s", props["start_turn"].Type)
+	}
+	if props["end_turn"].Type != "number" {
+		t.Errorf("end_turn should be number, got %s", props["end_turn"].Type)
+	}
+	if props["pattern"].Type != "string" {
+		t.Errorf("pattern should be string, got %s", props["pattern"].Type)
+	}
+	if props["pattern_target"].Type != "string" {
+		t.Errorf("pattern_target should be string, got %s", props["pattern_target"].Type)
+	}
+	if props["min_duration"].Type != "number" {
+		t.Errorf("min_duration should be number, got %s", props["min_duration"].Type)
+	}
+	if props["max_duration"].Type != "number" {
+		t.Errorf("max_duration should be number, got %s", props["max_duration"].Type)
+	}
+	if props["limit"].Type != "number" {
+		t.Errorf("limit should be number, got %s", props["limit"].Type)
+	}
+
+	// Verify standard parameters exist
+	standardParams := []string{"scope", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes", "output_format"}
+	for _, param := range standardParams {
+		if _, exists := props[param]; !exists {
+			t.Errorf("query_conversation missing standard parameter: %s", param)
+		}
+	}
+}
+
+// TestToolCountIncreasedTo14 verifies that the tool count has increased from 12 to 14
+func TestToolCountIncreasedTo14(t *testing.T) {
+	tools := getToolDefinitions()
+
+	// Phase 19 adds 2 new tools: query_assistant_messages, query_conversation
+	// Total should be 14 tools (was 12 before Phase 19)
+	expectedCount := 14
+	actualCount := len(tools)
+
+	if actualCount != expectedCount {
+		t.Errorf("expected %d tools after Phase 19, got %d", expectedCount, actualCount)
+
+		// List all tool names for debugging
+		t.Log("Current tools:")
+		for _, tool := range tools {
+			t.Logf("  - %s", tool.Name)
+		}
+	}
+}

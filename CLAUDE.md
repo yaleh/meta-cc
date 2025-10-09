@@ -144,7 +144,7 @@ meta-cc provides programmatic access to session data. Claude can autonomously qu
 
 For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes.md).
 
-### Query Tools (13 available)
+### Query Tools (14 available)
 
 **Basic Queries**:
 - `get_session_stats` - Session statistics and metrics
@@ -153,6 +153,14 @@ For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes
 - `query_user_messages` - Search user messages with regex patterns
   - Parameters: `pattern` (required, regex), `limit`
   - Example: `query_user_messages(pattern="fix.*bug")`
+  - Note: By default, uses hybrid mode for large results (no truncation)
+- `query_assistant_messages` - Search assistant response messages with regex patterns
+  - Parameters: `pattern` (required, regex), `limit`
+  - Example: `query_assistant_messages(pattern="test.*passed")`
+  - Note: By default, uses hybrid mode for large results (no truncation)
+- `query_conversation` - Search conversation messages (user + assistant) with regex patterns
+  - Parameters: `pattern` (required, regex), `limit`, `role` (optional: "user" or "assistant")
+  - Example: `query_conversation(pattern="error", role="assistant")`
   - Note: By default, uses hybrid mode for large results (no truncation)
 - `query_files` - File-level operation statistics
 

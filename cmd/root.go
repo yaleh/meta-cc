@@ -69,9 +69,23 @@ func Execute() error {
 
 // getGlobalOptions returns GlobalOptions from global flags
 func getGlobalOptions() GlobalOptions {
+	projPath := projectPath
+
+	// Phase 13: 默认使用当前工作目录作为项目路径（principles.md §7）
+	// 条件：
+	//  - 未明确指定 --project
+	//  - 未设置 --session 或 --session-only
+	//  - 未设置环境变量 CC_SESSION_ID（用于测试和特殊场景）
+	if projPath == "" && sessionID == "" && !sessionOnly && os.Getenv("CC_SESSION_ID") == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			projPath = cwd
+		}
+		// 如果获取当前目录失败，保持空字符串，让 pipeline 处理错误
+	}
+
 	return GlobalOptions{
 		SessionID:   sessionID,
-		ProjectPath: projectPath,
+		ProjectPath: projPath,
 		SessionOnly: sessionOnly,
 	}
 }
