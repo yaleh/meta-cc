@@ -151,15 +151,15 @@ render_executive_dashboard(M) = {
     trends: summarize_directions(M.trends, symbols="↗→↘")
   },
 
-  layout: ╔═══╗ box drawing, 80 columns width
+  layout: ╔═══╗ box drawing, 50-60 columns width (mobile-friendly)
 }
 
 render_detailed_charts :: Distributions → Charts
 render_detailed_charts(D) = {
   horizontal_bars: for each distribution where type="percentage" {
-    label: left_align(name, 20_chars),
-    bar: render_bar(value, symbols="░▒▓█", width=30),
-    value: right_align(percentage, 6_chars),
+    label: left_align(name, 15_chars),
+    bar: render_bar(value, symbols="░▒▓█", width=20),
+    value: right_align(percentage, 5_chars),
     trend: append_indicator(trend_direction, symbols="↗→↘")
   },
 
@@ -170,9 +170,10 @@ render_detailed_charts(D) = {
   },
 
   flow_diagrams: for each sequence where type="workflow" {
-    nodes: render_boxes(steps, style="┌─┐│└┘"),
-    arrows: connect_nodes(symbol="→"),
-    annotations: add_metrics(success_rate, avg_time)
+    # Mobile-friendly vertical layout for process flows
+    nodes: render_vertical_sequence(steps, style="└─►", max_width=50),
+    connectors: render_vertical_arrows(symbol="↓"),
+    annotations: add_inline_metrics(success_rate, avg_time)
   },
 
   comparison_charts: for each pair where type="before_after" {
@@ -210,14 +211,14 @@ render_actionable_items(R) = {
 
   item_format: {
     title: recommendation.title,
-    separator: "─────────────────────────────────────",
-    rationale: "Rationale: " + evidence,
-    evidence: "Evidence: " + data_source,
-    success_probability: "Success: " + percentage + "% (historical)",
-    urgency: "Urgency: " + render_bar(urgency_score),
-    ready_prompt: render_copy_paste_prompt(template),
-    expected_workflow: "Expected: " + step_sequence,
-    estimated_time: "Time: ~" + minutes + " minutes"
+    separator: "────────────────────",
+    rationale: "Why: " + evidence,
+    evidence: "Data: " + data_source,
+    success_probability: "Success: " + percentage + "%",
+    urgency: "Priority: " + render_bar(urgency_score),
+    ready_prompt: render_compact_prompt(template),
+    expected_workflow: "Steps: " + step_sequence,
+    estimated_time: "Time: ~" + minutes + "min"
   }
 }
 
@@ -286,7 +287,7 @@ visualization_types = {
   percentage_data: {
     visual: horizontal_bar,
     symbols: "░▒▓█",
-    width: 30,
+    width: 20,  # Reduced for mobile compatibility
     annotations: [value, trend]
   },
 
@@ -309,9 +310,9 @@ visualization_types = {
   },
 
   sequence_data: {
-    visual: flow_diagram,
-    symbols: "→↓" + box_drawing,
-    annotations: [step_name, metrics]
+    visual: vertical_flow_diagram,  # Mobile-friendly vertical layout
+    symbols: "↓►" + compact_box_drawing,
+    annotations: [step_name, compact_metrics]
   },
 
   score_data: {
@@ -336,9 +337,9 @@ visualization_types = {
 output :: Visual_Report → Formatted_Output
 output(V) = {
   structure: [
-    "═══════════════════════════════════════════════════════════════════════════════",
+    "════════════════════════════════════════════════════════════════",
     title_section(V.title, V.context),
-    "═══════════════════════════════════════════════════════════════════════════════",
+    "════════════════════════════════════════════════════════════════",
     "",
     executive_dashboard(V.dashboard),
     "",
@@ -346,7 +347,7 @@ output(V) = {
     detailed_sections: [
       for each section in V.charts {
         section_title(section.name),
-        "───────────────────────────────────────────────────────────────────────────────",
+        "────────────────────────────────────",
         "",
         section.visuals,
         "",
@@ -357,11 +358,11 @@ output(V) = {
     "",
     recommendations_section(V.recommendations),
     "",
-    "═══════════════════════════════════════════════════════════════════════════════"
+    "════════════════════════════════════════════════════════════════"
   ],
 
   formatting: {
-    width: 80_columns,
+    width: 55_columns,  # Mobile-friendly width
     alignment: {
       title: center,
       headers: left,
@@ -372,6 +373,13 @@ output(V) = {
       between_sections: 2_blank_lines,
       within_sections: 1_blank_line,
       compact_lists: 0_blank_lines
+    },
+    # Mobile-specific optimizations
+    mobile_optimizations: {
+      vertical_flows: true,
+      compact_labels: true,
+      shorter_separators: true,
+      responsive_bars: true
     }
   }
 }
@@ -487,7 +495,8 @@ usage_examples:
 
 constraints:
 - visual_first: dashboard appears before detailed sections
-- terminal_friendly: 80 columns, monospace compatible
+- mobile_friendly: 55 columns width, vertical layouts for narrow screens
+- terminal_friendly: monospace compatible, responsive design
 - symbol_consistency: same symbols mean same things across all outputs
 - actionable: recommendations include ready-to-use prompts
 - evidence_based: all visualizations tied to actual data
@@ -499,23 +508,100 @@ constraints:
 - accessibility: use both symbols and text labels
 - performance: render in <2 seconds for typical inputs
 - extensible: easy to add new visualization types
+- process_visualization: vertical flow diagrams for mobile compatibility
 
 output_structure:
-1. Title Header (═══ box with context)
+1. Title Header (═══ box with context, 55 chars max)
 2. Executive Dashboard (╔═══╗ box with key metrics + health scores)
 3. Detailed Visualizations:
-   - Distribution Charts (horizontal bars)
-   - Progress Indicators (progress bars)
-   - Flow Diagrams (boxes + arrows)
-   - Comparison Charts (side-by-side)
-   - Radar/Profile Charts (ASCII radar)
-4. Actionable Recommendations (priority-ordered with ready prompts)
+   - Distribution Charts (compact horizontal bars, 20 char width)
+   - Progress Indicators (responsive progress bars)
+   - Vertical Flow Diagrams (process steps, mobile-friendly)
+   - Comparison Charts (compact side-by-side)
+   - Radar/Profile Charts (simplified ASCII radar)
+4. Actionable Recommendations (priority-ordered with compact prompts)
 5. Quick Actions / Summary Footer
 
 presentation_style:
 - visual_hierarchy: size, spacing, symbols indicate importance
+- mobile_optimized: vertical layouts, compact labels, shorter separators
 - scan_optimized: key insights jump out in 3-second glance
 - terminal_native: works perfectly in command-line interface
 - print_friendly: can be copy-pasted to documentation
 - color_blind_safe: use symbols + text, not just color coding
 - progressive_disclosure: summary → details → deep-dive
+- process_friendly: vertical flow diagrams for narrow screens
+
+# MOBILE-FRIENDLY PROCESS VISUALIZATION
+
+render_vertical_flow :: Sequence → Vertical_Diagram
+render_vertical_flow(S) = {
+  # Vertical layout for narrow screens (mobile compatibility)
+  max_width: 50_chars,
+
+  step_format: {
+    box_style: "└─►",  # Compact arrow box
+    max_text_length: 35_chars,
+    metric_inline: true,  # Metrics on same line when possible
+    wrap_long_text: true
+  },
+
+  connector_style: {
+    symbol: "│     ↓",  # Vertical connector with arrow
+    spacing: 1_blank_line,
+    alignment: left
+  },
+
+  example_rendering: {
+    input: "1. Phase 16 Execution: Comprehensive planning → Serial stage execution → Integration testing",
+
+    output:
+    "└─► Phase 16 Execution [Planning: 95%]",
+    "│     ↓",
+    "└─► Serial Stage Execution [Success: 90%]",
+    "│     ↓",
+    "└─► Integration Testing [Coverage: 100%]"
+  }
+}
+
+compact_box_drawing :: Box_Style
+compact_box_drawing = {
+  # Optimized for narrow screens
+  step_prefix: "└─►",
+  connector: "│     ↓",
+  max_label_width: 35,
+
+  # Metric display options
+  inline_metrics: "[Metric: Value]",
+  separate_metrics: false,  # Keep on same line when possible
+
+  # Text wrapping for long descriptions
+  wrap_threshold: 30_chars,
+  wrap_indent: "      "
+}
+
+mobile_optimization_rules :: Mobile_Rules
+mobile_optimization_rules = {
+  # Width constraints for different device sizes
+  width_constraints: {
+    mobile: 45_chars,    # Very narrow screens
+    tablet: 55_chars,    # Standard mobile width
+    desktop: 70_chars    # Optional wider support
+  },
+
+  # Layout adaptations
+  responsive_elements: {
+    horizontal_bars: width_scale(0.6),  # Shrink bars proportionally
+    labels: truncate_middle(25),       # Keep start and end, truncate middle
+    separators: shorten_by_30_percent,
+    spacing: reduce_by_20_percent
+  },
+
+  # Process flow adaptations
+  flow_adaptations: {
+    sequences: prefer_vertical_layout,
+    long_descriptions: wrap_to_multiple_lines,
+    metrics: inline_when_possible,
+    arrows: use_compact_symbols
+  }
+}
