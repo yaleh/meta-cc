@@ -263,7 +263,7 @@ meta-cc CLI 是系统的核心，提供清晰、简洁的对外接口：
 - 调用 meta-cc CLI 获取原始数据
 - 使用 gojq 应用 jq_filter 过滤
 - 统计聚合（stats_only/stats_first）
-- 输出长度控制（max_output_bytes）
+- 混合输出模式（inline/file_ref，阈值可配置 inline_threshold_bytes）
 
 **参数命名约定**：
 
@@ -333,7 +333,7 @@ Subagents 分为两类：
 |------|-----------|----------------|
 | 调用方式 | Claude 自主 | 用户 `/` |
 | 查询能力 | jq 过滤/统计 | 固定逻辑 |
-| 输出控制 | ✅ 内置（stats_only, max_output_bytes） | 固定格式 |
+| 输出控制 | ✅ 内置（stats_only, hybrid mode, inline_threshold_bytes） | 固定格式 |
 | 使用场景 | 对话中自然查询（80%） | 快速统计报告（20%） |
 
 **Subagent 层**（基于 MCP）：

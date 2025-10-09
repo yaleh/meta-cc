@@ -532,13 +532,13 @@ Query all Read tool calls and save to file (for testing)
 }
 ```
 
-### Example 4: Combining with Output Control
+### Example 4: Configuring Output Mode Threshold
 
-Hybrid output mode works with Phase 15 output control features:
+You can customize when hybrid mode switches from inline to file_ref:
 
 **User Query**:
 ```
-Show me error patterns across the project, but limit output size
+Show me error patterns with a custom threshold
 ```
 
 **MCP Call**:
@@ -548,23 +548,30 @@ Show me error patterns across the project, but limit output size
   "arguments": {
     "status": "error",
     "scope": "project",
-    "max_output_bytes": 10000
+    "inline_threshold_bytes": 4096
   }
 }
 ```
 
 **Behavior**:
 - Query returns 500 error records (~50KB)
-- `max_output_bytes` truncates to 10KB (~100 records)
-- Mode forced to "inline" (since truncated data is now small)
+- Custom threshold set to 4KB (instead of default 8KB)
+- Data exceeds 4KB, so file_ref mode is selected
+- All 500 records preserved in temp file (no truncation)
 
 **Response**:
 ```json
 {
-  "mode": "inline",
-  "data": [
-    // ... 100 error records
-  ]
+  "mode": "file_ref",
+  "file_ref": {
+    "path": "/tmp/meta-cc-mcp-abc123-1234567890-query_tools.jsonl",
+    "size_bytes": 51200,
+    "line_count": 500,
+    "fields": ["Timestamp", "ToolName", "Status", "Error"],
+    "summary": {
+      "record_count": 500
+    }
+  }
 }
 ```
 
