@@ -7,14 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.13.0] - 2025-10-09
+
+### Added
+- **Bundled Release Artifacts**: Platform-specific bundles (.tar.gz) containing binaries, slash commands, subagents, and installation script
+  - 5 platform bundles: linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64
+  - Each bundle includes: meta-cc CLI, meta-cc-mcp server, 8 slash commands, 3 subagents
+  - One-command installation: `curl -L <bundle-url> | tar xz && ./install.sh`
+  - Total release artifacts: 16 files (10 binaries + 5 bundles + checksums)
+- **Installation Script**: `scripts/install.sh` for automated setup of binaries and Claude Code integration files
+- **Makefile Target**: `bundle-release` for creating platform bundles (requires VERSION=vX.Y.Z)
+- **Slash Command**: `/meta-next` for workflow continuation suggestions
+
 ### Changed
-- **Meta-insight to Meta-cc Renaming**: Comprehensive refactor to update all references from the old `mcp_meta_insight` / `meta‑insight` namespace to the new `mcp_meta_cc` / `meta‑cc` across:
-  - Agent definitions and command examples
-  - Command definitions in meta-coach, meta-errors, meta-guide, and related prompt templates
-  - Documentation descriptions and inline usage examples
-  - Updated `.gitignore` and various documentation files
-  - Test files and implementation plans
-  - This ensures consistency with the renamed meta-cc component and prevents confusion from stale meta-insight references
+- **GitHub Actions**: Updated to build Linux ARM64 MCP server binary and generate platform bundles
+- **Documentation**: Updated installation guides with bundle installation instructions
+- **Phase 16 Migration Guide**: Clarified `inline_threshold_bytes` vs `max_output_bytes` differences and migration strategy
+
+### Fixed
+- Improved Phase 16 migration documentation with clear comparison table and usage examples
 
 ## [v0.12.1] - 2025-10-08
 
