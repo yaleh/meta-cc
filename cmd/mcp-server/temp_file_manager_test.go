@@ -15,9 +15,10 @@ func TestCreateTempFilePath(t *testing.T) {
 
 	path := createTempFilePath(sessionHash, queryType)
 
-	// Check pattern: /tmp/meta-cc-mcp-{session_hash}-{timestamp}-{query_type}.jsonl
-	if !strings.HasPrefix(path, "/tmp/meta-cc-mcp-") {
-		t.Errorf("expected path to start with /tmp/meta-cc-mcp-, got %s", path)
+	// Check pattern: {TempDir}/meta-cc-mcp-{session_hash}-{timestamp}-{query_type}.jsonl
+	expectedPrefix := filepath.Join(os.TempDir(), "meta-cc-mcp-")
+	if !strings.HasPrefix(path, expectedPrefix) {
+		t.Errorf("expected path to start with %s, got %s", expectedPrefix, path)
 	}
 	if !strings.HasSuffix(path, ".jsonl") {
 		t.Errorf("expected path to end with .jsonl, got %s", path)
