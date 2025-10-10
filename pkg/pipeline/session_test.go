@@ -3,6 +3,7 @@ package pipeline
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -11,8 +12,11 @@ func createTestSession(t *testing.T, sessionID, projectPath string) string {
 	t.Helper()
 
 	homeDir, _ := os.UserHomeDir()
-	// Generate project hash from path (simplified)
-	projectHash := "-test-" + filepath.Base(projectPath)
+	// Generate project hash using same logic as pathToHash in locator
+	// Replace both / and \ with -, then replace : (Windows drive letters)
+	projectHash := strings.ReplaceAll(projectPath, "\\", "-")
+	projectHash = strings.ReplaceAll(projectHash, "/", "-")
+	projectHash = strings.ReplaceAll(projectHash, ":", "-")
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create session dir: %v", err)
@@ -78,14 +82,21 @@ func TestSessionPipeline_Load_ExplicitSessionID(t *testing.T) {
 
 func TestSessionPipeline_Load_ProjectPath(t *testing.T) {
 	sessionID := "test-project-session"
-	projectPath := "/test/project2"
+	// Use temp dir for cross-platform compatibility
+	tempDir, err := os.MkdirTemp("", "testproject2")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	projectPath := tempDir
 	createTestSession(t, sessionID, projectPath)
 
 	p := NewSessionPipeline(GlobalOptions{
 		ProjectPath: projectPath,
 	})
 
-	err := p.Load(LoadOptions{AutoDetect: false})
+	err = p.Load(LoadOptions{AutoDetect: false})
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
@@ -98,7 +109,14 @@ func TestSessionPipeline_Load_ProjectPath(t *testing.T) {
 func TestSessionPipeline_Load_AutoDetect(t *testing.T) {
 	// Create a session in a test directory and set it as ProjectPath
 	// (AutoDetect relies on the locator's default behavior which uses project path)
-	testProjectPath := "/test/auto-detect"
+	// Use temp dir for cross-platform compatibility
+	tempDir, err := os.MkdirTemp("", "testautodetect")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	testProjectPath := tempDir
 	sessionID := "test-auto-session"
 	createTestSession(t, sessionID, testProjectPath)
 
@@ -106,7 +124,7 @@ func TestSessionPipeline_Load_AutoDetect(t *testing.T) {
 		ProjectPath: testProjectPath,
 	})
 
-	err := p.Load(LoadOptions{AutoDetect: true})
+	err = p.Load(LoadOptions{AutoDetect: true})
 	if err != nil {
 		t.Fatalf("Load with AutoDetect failed: %v", err)
 	}

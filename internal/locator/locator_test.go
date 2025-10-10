@@ -52,7 +52,14 @@ func TestLocate_SessionIDNotFound(t *testing.T) {
 func TestLocate_WithProjectPath(t *testing.T) {
 	// 准备测试环境
 	homeDir, _ := os.UserHomeDir()
-	testProjectPath := "/test/project/path"
+	// Use temp dir for cross-platform compatibility
+	tempDir, err := os.MkdirTemp("", "testproject")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	testProjectPath := tempDir
 	projectHash := pathToHash(testProjectPath)
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
@@ -178,7 +185,14 @@ func TestLocate_EnvVarsIgnoredInProjectMode(t *testing.T) {
 
 	// 准备项目路径的会话
 	homeDir, _ := os.UserHomeDir()
-	testProjectPath := "/test/project/for/env/test"
+	// Use temp dir for cross-platform compatibility
+	tempDir, err := os.MkdirTemp("", "testproject")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	testProjectPath := tempDir
 	projectHash := pathToHash(testProjectPath)
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
