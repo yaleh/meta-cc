@@ -5,6 +5,20 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2025-10-10
+
+### Added
+- **Phase 21: Self-Hosted Marketplace**
+  - Stage 21.1: Plugin marketplace configuration (.claude-plugin/marketplace.json)
+  - Stage 21.2: Marketing documentation (docs/marketplace-listing.md)
+  - Stage 21.3: Visual demonstration structure (docs/screenshots/)
+  - Stage 21.4: Marketplace validation and testing
+- Plugin marketplace configuration:
+  - `.claude-plugin/marketplace.json` with rich metadata and component inventory
+  - Comprehensive plugin description with feature highlights
+  - GitHub Release asset references for all platforms
+  - Installation command documentation (/plugin install yaleh/meta-cc)
+
 ## [Unreleased]
 
 ### Added
