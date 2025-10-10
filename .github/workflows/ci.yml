@@ -36,6 +36,7 @@ jobs:
         run: go mod download
 
       - name: Verify plugin file sync
+        shell: bash
         run: |
           bash scripts/sync-plugin-files.sh
 
