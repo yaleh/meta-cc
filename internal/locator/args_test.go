@@ -94,8 +94,15 @@ func TestFromSessionID_MultipleProjects(t *testing.T) {
 func TestFromProjectPath_Success(t *testing.T) {
 	// 准备测试环境
 	homeDir, _ := os.UserHomeDir()
-	projectPath := "/home/yale/work/testproject"
-	projectHash := "-home-yale-work-testproject"
+	// Use temp dir for cross-platform compatibility
+	tempDir, err := os.MkdirTemp("", "testproject")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	projectPath := tempDir
+	projectHash := pathToHash(projectPath)
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
@@ -192,8 +199,15 @@ func TestFromProjectPath_RelativePath(t *testing.T) {
 func TestAllSessionsFromProject_Success(t *testing.T) {
 	// Test that AllSessionsFromProject returns all session files for a project
 	homeDir, _ := os.UserHomeDir()
-	projectPath := "/home/yale/work/testproject"
-	projectHash := "-home-yale-work-testproject"
+	// Use temp dir for cross-platform compatibility
+	tempDir, err := os.MkdirTemp("", "testproject")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	projectPath := tempDir
+	projectHash := pathToHash(projectPath)
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
