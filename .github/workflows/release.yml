@@ -34,6 +34,9 @@ jobs:
           jq --arg ver "${VERSION#v}" '.version = $ver' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
           mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
 
+      - name: Sync plugin files
+        run: bash scripts/sync-plugin-files.sh
+
       - name: Build binaries
         run: |
           mkdir -p build

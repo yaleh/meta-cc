@@ -35,6 +35,27 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
+      - name: Verify plugin file sync
+        run: |
+          bash scripts/sync-plugin-files.sh
+
+          # Check sync succeeded
+          if [ ! -d "commands" ] || [ ! -d "agents" ]; then
+            echo "ERROR: Plugin file sync failed"
+            exit 1
+          fi
+
+          # Check file count consistency
+          CLAUDE_CMD_COUNT=$(find .claude/commands -name "*.md" | wc -l)
+          ROOT_CMD_COUNT=$(find commands -name "*.md" | wc -l)
+
+          if [ "$CLAUDE_CMD_COUNT" != "$ROOT_CMD_COUNT" ]; then
+            echo "ERROR: Command file count mismatch"
+            exit 1
+          fi
+
+          echo "✓ Plugin files synced successfully"
+
       - name: Run tests
         run: make test
 

@@ -16,7 +16,7 @@ BINARY_NAME := meta-cc
 MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build build-cli build-mcp test test-all test-coverage clean install cross-compile bundle-release lint fmt vet help
+.PHONY: all build build-cli build-mcp test test-all test-coverage clean install cross-compile bundle-release lint fmt vet help sync-plugin-files dev
 
 all: lint test build
 
@@ -50,6 +50,7 @@ clean:
 	rm -f $(MCP_BINARY_NAME)
 	rm -rf $(BUILD_DIR)
 	rm -f coverage.out coverage.html
+	rm -rf commands agents  # Clean synced build artifacts
 
 install:
 	@echo "Installing..."
@@ -67,7 +68,15 @@ cross-compile:
 	done
 	@echo "Cross-compilation complete. Binaries in $(BUILD_DIR)/"
 
-bundle-release:
+sync-plugin-files:
+	@echo "Syncing plugin files from .claude/ to root..."
+	@bash scripts/sync-plugin-files.sh
+
+dev: build
+	@echo "Development build complete"
+	@echo "Plugin files in .claude/ are ready for immediate use in Claude Code"
+
+bundle-release: sync-plugin-files
 	@echo "Creating release bundles for all platforms..."
 	@if [ -z "$(VERSION)" ] || [ "$(VERSION)" = "dev" ]; then \
 		echo "ERROR: VERSION must be set (e.g., make bundle-release VERSION=v1.0.0)"; \
@@ -77,7 +86,7 @@ bundle-release:
 	@for platform in $(PLATFORMS); do \
 		PLATFORM_NAME=$${platform%/*}-$${platform#*/}; \
 		BUNDLE_DIR=$(BUILD_DIR)/bundles/meta-cc-$(VERSION)-$$PLATFORM_NAME; \
-		mkdir -p $$BUNDLE_DIR/bin $$BUNDLE_DIR/.claude/commands $$BUNDLE_DIR/.claude/agents; \
+		mkdir -p $$BUNDLE_DIR/bin $$BUNDLE_DIR/commands $$BUNDLE_DIR/agents $$BUNDLE_DIR/.claude-plugin $$BUNDLE_DIR/lib; \
 		if [ "$${platform%/*}" = "windows" ]; then \
 			cp $(BUILD_DIR)/$(BINARY_NAME)-$$PLATFORM_NAME.exe $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
 			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME.exe $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
@@ -85,9 +94,14 @@ bundle-release:
 			cp $(BUILD_DIR)/$(BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
 			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
 		fi; \
-		cp -r .claude/commands/* $$BUNDLE_DIR/.claude/commands/; \
-		cp -r .claude/agents/* $$BUNDLE_DIR/.claude/agents/; \
+		cp -r commands/* $$BUNDLE_DIR/commands/; \
+		cp -r agents/* $$BUNDLE_DIR/agents/; \
+		cp -r lib/* $$BUNDLE_DIR/lib/; \
+		cp -r .claude-plugin/* $$BUNDLE_DIR/.claude-plugin/; \
 		cp scripts/install.sh $$BUNDLE_DIR/; \
+		cp scripts/uninstall.sh $$BUNDLE_DIR/ 2>/dev/null || true; \
+		cp README.md $$BUNDLE_DIR/; \
+		cp LICENSE $$BUNDLE_DIR/; \
 		tar -czf $(BUILD_DIR)/meta-cc-bundle-$$PLATFORM_NAME.tar.gz -C $(BUILD_DIR)/bundles meta-cc-$(VERSION)-$$PLATFORM_NAME; \
 	done
 	@echo "Bundle creation complete. Archives in $(BUILD_DIR)/"
@@ -117,18 +131,20 @@ vet:
 
 help:
 	@echo "Available targets:"
-	@echo "  make build           - Build both meta-cc and meta-cc-mcp"
-	@echo "  make build-cli       - Build meta-cc CLI only"
-	@echo "  make build-mcp       - Build meta-cc-mcp MCP server only"
-	@echo "  make test            - Run tests (short mode, skips slow E2E tests)"
-	@echo "  make test-all        - Run all tests (including slow E2E tests ~30s)"
-	@echo "  make test-coverage   - Run tests with coverage report (includes E2E tests)"
-	@echo "  make lint            - Run static analysis (fmt + vet + golangci-lint)"
-	@echo "  make fmt             - Format code with gofmt"
-	@echo "  make vet             - Run go vet"
-	@echo "  make clean           - Remove build artifacts"
-	@echo "  make install         - Install to GOPATH/bin"
-	@echo "  make cross-compile   - Build for all platforms"
-	@echo "  make bundle-release  - Create release bundles (requires VERSION=vX.Y.Z)"
-	@echo "  make deps            - Download and tidy dependencies"
-	@echo "  make help            - Show this help message"
+	@echo "  make build             - Build both meta-cc and meta-cc-mcp"
+	@echo "  make build-cli         - Build meta-cc CLI only"
+	@echo "  make build-mcp         - Build meta-cc-mcp MCP server only"
+	@echo "  make dev               - Development build (use .claude/ for immediate testing)"
+	@echo "  make test              - Run tests (short mode, skips slow E2E tests)"
+	@echo "  make test-all          - Run all tests (including slow E2E tests ~30s)"
+	@echo "  make test-coverage     - Run tests with coverage report (includes E2E tests)"
+	@echo "  make lint              - Run static analysis (fmt + vet + golangci-lint)"
+	@echo "  make fmt               - Format code with gofmt"
+	@echo "  make vet               - Run go vet"
+	@echo "  make clean             - Remove build artifacts and synced files"
+	@echo "  make install           - Install to GOPATH/bin"
+	@echo "  make cross-compile     - Build for all platforms"
+	@echo "  make sync-plugin-files - Sync .claude/ files to root for packaging"
+	@echo "  make bundle-release    - Create release bundles (auto-syncs first, requires VERSION=vX.Y.Z)"
+	@echo "  make deps              - Download and tidy dependencies"
+	@echo "  make help              - Show this help message"

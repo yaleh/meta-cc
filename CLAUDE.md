@@ -50,15 +50,57 @@ See [docs/principles.md](docs/principles.md) for complete details.
 
 ```
 meta-cc/
-├── cmd/              # CLI commands and MCP server
-├── internal/         # Core logic (parser, analyzer, query, etc.)
-├── pkg/              # Public packages (output, pipeline)
-├── docs/             # Technical documentation
-├── plans/            # Phase-by-phase development plans
-└── tests/            # Test fixtures and integration tests
+├── .claude/              # Project-level Claude Code configuration
+│   ├── commands/        # SOURCE: Slash command files (edit here)
+│   ├── agents/          # SOURCE: Subagent files (edit here)
+│   └── hooks/           # Project hooks
+├── .claude-plugin/      # Plugin metadata for marketplace
+│   ├── plugin.json
+│   └── marketplace.json
+├── commands/            # BUILD ARTIFACT: Synced from .claude/commands/
+├── agents/              # BUILD ARTIFACT: Synced from .claude/agents/
+├── lib/                 # Shared library files (MCP config, utilities)
+├── cmd/                 # CLI commands and MCP server
+├── internal/            # Core logic (parser, analyzer, query, etc.)
+├── pkg/                 # Public packages (output, pipeline)
+├── docs/                # Technical documentation
+├── plans/               # Phase-by-phase development plans
+└── tests/               # Test fixtures and integration tests
 ```
 
+**Important Directory Roles**:
+- `.claude/commands/` and `.claude/agents/` - **SOURCE FILES** (tracked by Git, edit during development)
+- `commands/` and `agents/` - **BUILD ARTIFACTS** (NOT tracked by Git, generated via sync script)
+
 ## Development Workflow
+
+### Plugin Development Workflow
+
+**Local Development**:
+
+1. **Edit source files** in `.claude/commands/` and `.claude/agents/`
+2. **Test immediately** - Claude Code reads from `.claude/` directory (no build needed)
+3. **Run tests**: `make test` or `make test-all`
+4. **Build binaries**: `make build` or `make dev`
+
+**Before Committing**:
+
+1. **Verify changes** in `.claude/commands/` and `.claude/agents/`
+2. **Run all checks**: `make all`
+3. **Do NOT manually create `commands/` or `agents/` directories** - they are build artifacts
+
+**Release Process**:
+
+1. **Sync plugin files**: `make sync-plugin-files` (or automatic in `make bundle-release`)
+2. **Create release**: `make bundle-release VERSION=vX.Y.Z`
+3. **CI automatically syncs** during release workflow
+
+**Directory Structure Design**:
+
+- **Development**: `.claude/` directory enables real-time testing in Claude Code
+- **Release**: Root `commands/` and `agents/` match Claude Code plugin spec
+- **CI/CD**: No symlink dependencies, cross-platform compatible (Windows, Linux, macOS)
+- **Git**: Only source files tracked, build artifacts ignored via `.gitignore`
 
 ### Build and Test Requirements
 
