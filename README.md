@@ -154,11 +154,11 @@ After installing binaries, enable MCP tools in Claude Code using the `claude mcp
 
 ```bash
 # Add meta-cc MCP server to Claude Code
-claude mcp add meta-cc-mcp meta-cc-mcp
+claude mcp add meta-cc meta-cc-mcp
 ```
 
 **What this does:**
-- Registers `meta-cc-mcp` as an MCP server in `~/.claude/mcp.json`
+- Registers `meta-cc` as an MCP server in `~/.claude/mcp.json`
 - Enables 14 MCP query tools for session analysis
 - Allows Claude to autonomously query session data during conversations
 
