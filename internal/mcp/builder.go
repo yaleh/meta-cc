@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"fmt"
+	"sort"
 )
 
 // Semantic default limits (Phase 9 + Phase 14 standardization)
@@ -10,6 +11,13 @@ const (
 	DefaultLimitMedium = 20  // tool calls (moderate signal)
 	DefaultLimitLarge  = 100 // extract operations (bulk data)
 )
+
+// sortKeys sorts a slice of strings in place and returns it
+// Used to ensure deterministic command argument order
+func sortKeys(keys []string) []string {
+	sort.Strings(keys)
+	return keys
+}
 
 // CommandBuilder provides fluent interface for building meta-cc commands
 // Reduces duplication and improves maintainability (Phase 14 refactoring)
@@ -88,19 +96,31 @@ func (b *CommandBuilder) Build() []string {
 	// Add base command
 	cmd = append(cmd, b.baseCmd...)
 
-	// Add required parameters first
-	for key, value := range b.params {
-		cmd = append(cmd, "--"+key, value)
+	// Add required parameters first (sorted for deterministic output)
+	keys := make([]string, 0, len(b.params))
+	for key := range b.params {
+		keys = append(keys, key)
+	}
+	for _, key := range sortKeys(keys) {
+		cmd = append(cmd, "--"+key, b.params[key])
 	}
 
-	// Add filters
-	for key, value := range b.filters {
-		cmd = append(cmd, "--"+key, value)
+	// Add filters (sorted for deterministic output)
+	keys = make([]string, 0, len(b.filters))
+	for key := range b.filters {
+		keys = append(keys, key)
+	}
+	for _, key := range sortKeys(keys) {
+		cmd = append(cmd, "--"+key, b.filters[key])
 	}
 
-	// Add extra flags
-	for key, value := range b.extraFlags {
-		cmd = append(cmd, "--"+key, fmt.Sprintf("%v", value))
+	// Add extra flags (sorted for deterministic output)
+	keys = make([]string, 0, len(b.extraFlags))
+	for key := range b.extraFlags {
+		keys = append(keys, key)
+	}
+	for _, key := range sortKeys(keys) {
+		cmd = append(cmd, "--"+key, fmt.Sprintf("%v", b.extraFlags[key]))
 	}
 
 	// Add limit if non-zero

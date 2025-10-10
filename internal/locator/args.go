@@ -127,6 +127,14 @@ func (l *SessionLocator) AllSessionsFromProject(projectPath string) ([]string, e
 
 // pathToHash 将项目路径转换为哈希目录名
 // 例如：/home/yale/work/myproject → -home-yale-work-myproject
+// Windows: C:/Users/yale/work/myproject → C--Users-yale-work-myproject
 func pathToHash(path string) string {
-	return strings.ReplaceAll(path, "/", "-")
+	// Normalize path separators (both forward slash and backslash) to -
+	// First replace backslashes (Windows paths)
+	hash := strings.ReplaceAll(path, "\\", "-")
+	// Then replace forward slashes (Unix paths and normalized Windows paths)
+	hash = strings.ReplaceAll(hash, "/", "-")
+	// Finally replace colons (Windows drive letters like C:)
+	hash = strings.ReplaceAll(hash, ":", "-")
+	return hash
 }

@@ -84,17 +84,17 @@ install_claude_files() {
     CLAUDE_DIR="${HOME}/.claude"
     mkdir -p "$CLAUDE_DIR/commands" "$CLAUDE_DIR/agents"
 
-    # Check if .claude directory exists
-    if [ ! -d ".claude/commands" ]; then
-        error_exit ".claude/commands directory not found"
+    # Check if commands/agents directories exist
+    if [ ! -d "commands" ]; then
+        error_exit "commands directory not found"
     fi
-    if [ ! -d ".claude/agents" ]; then
-        error_exit ".claude/agents directory not found"
+    if [ ! -d "agents" ]; then
+        error_exit "agents directory not found"
     fi
 
     # Copy slash commands and subagents
-    cp .claude/commands/* "$CLAUDE_DIR/commands/" 2>/dev/null || error_exit "Failed to copy slash commands"
-    cp .claude/agents/* "$CLAUDE_DIR/agents/" 2>/dev/null || error_exit "Failed to copy subagents"
+    cp commands/* "$CLAUDE_DIR/commands/" 2>/dev/null || error_exit "Failed to copy slash commands"
+    cp agents/* "$CLAUDE_DIR/agents/" 2>/dev/null || error_exit "Failed to copy subagents"
 
     info "Claude Code files installed to $CLAUDE_DIR"
 }
@@ -102,7 +102,7 @@ install_claude_files() {
 # Merge MCP configuration
 merge_mcp_config() {
     MCP_CONFIG="${HOME}/.claude/mcp.json"
-    MCP_TEMPLATE=".claude/lib/mcp-config.json"
+    MCP_TEMPLATE="lib/mcp-config.json"
 
     # Check if template exists
     if [ ! -f "$MCP_TEMPLATE" ]; then

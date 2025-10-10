@@ -9,11 +9,35 @@ import (
 	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
+// setupTestProject creates a temporary project directory and returns the path and hash
+// This ensures cross-platform compatibility (Windows, macOS, Linux)
+func setupTestProject(t *testing.T, prefix string) (projectPath string, projectHash string, cleanup func()) {
+	t.Helper()
+
+	tempDir, err := os.MkdirTemp("", prefix)
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+
+	projectPath = tempDir
+	// Convert to forward slashes for consistency across platforms
+	projectHash = filepath.ToSlash(projectPath)
+	// Replace both / and : (Windows drive letter) with -
+	projectHash = strings.ReplaceAll(projectHash, "/", "-")
+	projectHash = strings.ReplaceAll(projectHash, ":", "-")
+
+	cleanup = func() {
+		os.RemoveAll(tempDir)
+	}
+
+	return projectPath, projectHash, cleanup
+}
+
 func TestSessionPipeline_LoadProjectLevel(t *testing.T) {
 	// Test that SessionPipeline loads all sessions when ProjectPath is set
 	homeDir, _ := os.UserHomeDir()
-	projectPath := "/home/yale/work/testproject"
-	projectHash := "-home-yale-work-testproject"
+	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject")
+	defer cleanupProject()
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
@@ -96,8 +120,8 @@ func TestSessionPipeline_LoadProjectLevel(t *testing.T) {
 func TestSessionPipeline_LoadSessionOnly(t *testing.T) {
 	// Test that SessionPipeline loads only latest session when SessionOnly is true
 	homeDir, _ := os.UserHomeDir()
-	projectPath := "/home/yale/work/testproject2"
-	projectHash := "-home-yale-work-testproject2"
+	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject2")
+	defer cleanupProject()
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
@@ -206,8 +230,8 @@ func TestNewSessionPipeline(t *testing.T) {
 // TestSessionPipeline_SessionPath verifies SessionPath accessor
 func TestSessionPipeline_SessionPath(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
-	projectPath := "/home/yale/work/testproject-sessionpath"
-	projectHash := "-home-yale-work-testproject-sessionpath"
+	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-sessionpath")
+	defer cleanupProject()
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
@@ -248,8 +272,8 @@ func TestSessionPipeline_SessionPath(t *testing.T) {
 // TestSessionPipeline_EntryCount verifies EntryCount accessor
 func TestSessionPipeline_EntryCount(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
-	projectPath := "/home/yale/work/testproject-entrycount"
-	projectHash := "-home-yale-work-testproject-entrycount"
+	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-entrycount")
+	defer cleanupProject()
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
@@ -294,8 +318,8 @@ func TestSessionPipeline_EntryCount(t *testing.T) {
 // TestSessionPipeline_GetEntries verifies GetEntries accessor
 func TestSessionPipeline_GetEntries(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
-	projectPath := "/home/yale/work/testproject-getentries"
-	projectHash := "-home-yale-work-testproject-getentries"
+	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-getentries")
+	defer cleanupProject()
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
@@ -338,8 +362,8 @@ func TestSessionPipeline_GetEntries(t *testing.T) {
 // TestSessionPipeline_BuildTurnIndex verifies BuildTurnIndex method
 func TestSessionPipeline_BuildTurnIndex(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
-	projectPath := "/home/yale/work/testproject-turnindex"
-	projectHash := "-home-yale-work-testproject-turnindex"
+	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-turnindex")
+	defer cleanupProject()
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
@@ -395,8 +419,8 @@ func TestSessionPipeline_BuildTurnIndex(t *testing.T) {
 // TestSessionPipeline_ExtractToolCalls verifies ExtractToolCalls method
 func TestSessionPipeline_ExtractToolCalls(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
-	projectPath := "/home/yale/work/testproject-toolcalls"
-	projectHash := "-home-yale-work-testproject-toolcalls"
+	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-toolcalls")
+	defer cleanupProject()
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
@@ -495,8 +519,8 @@ func TestSessionPipeline_LoadWithSessionID(t *testing.T) {
 // TestSessionPipeline_ProjectLevelSessionPath verifies session path in project mode
 func TestSessionPipeline_ProjectLevelSessionPath(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
-	projectPath := "/home/yale/work/testproject-projpath"
-	projectHash := "-home-yale-work-testproject-projpath"
+	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-projpath")
+	defer cleanupProject()
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {

@@ -35,6 +35,16 @@ func TestPathToHash(t *testing.T) {
 			input:    "",
 			expected: "",
 		},
+		{
+			name:     "Windows absolute path",
+			input:    "C:/Users/yale/work/myproject",
+			expected: "C--Users-yale-work-myproject",
+		},
+		{
+			name:     "Windows path with backslashes",
+			input:    `C:\Users\yale\work\myproject`,
+			expected: "C--Users-yale-work-myproject",
+		},
 	}
 
 	for _, tt := range tests {

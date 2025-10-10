@@ -9,6 +9,10 @@ import (
 )
 
 func TestParseExtractCommand_TypeTurns(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in CI - requires Claude session directory structure")
+	}
+
 	// Prepare test environment: create temporary session file
 	homeDir, _ := os.UserHomeDir()
 	projectHash := "-home-yale-work-test-parse"
@@ -60,6 +64,10 @@ func TestParseExtractCommand_TypeTurns(t *testing.T) {
 }
 
 func TestParseExtractCommand_TypeTools(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in CI - requires Claude session directory structure")
+	}
+
 	// Prepare test environment
 	homeDir, _ := os.UserHomeDir()
 	projectHash := "-home-yale-work-test-tools"
@@ -109,22 +117,33 @@ func TestParseExtractCommand_MissingSessionFile(t *testing.T) {
 
 	// Change to a temporary directory that has no session
 	tmpDir := t.TempDir()
-	oldWd, _ := os.Getwd()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("Failed to change directory: %v", err)
 	}
-	defer os.Chdir(oldWd)
+	defer func() {
+		if err := os.Chdir(oldWd); err != nil {
+			t.Errorf("Failed to restore directory: %v", err)
+		}
+	}()
 
 	// Reset rootCmd flags to clean state
-	rootCmd.Flags().Set("session", "")
-	rootCmd.Flags().Set("project", "")
+	if err := rootCmd.Flags().Set("session", ""); err != nil {
+		t.Fatalf("Failed to reset session flag: %v", err)
+	}
+	if err := rootCmd.Flags().Set("project", ""); err != nil {
+		t.Fatalf("Failed to reset project flag: %v", err)
+	}
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
 	rootCmd.SetArgs([]string{"parse", "extract", "--type", "turns"})
 
-	err := rootCmd.Execute()
+	err = rootCmd.Execute()
 	if err == nil {
 		t.Errorf("Expected error when session file not found, but command succeeded. Output: %s", buf.String())
 	}
@@ -256,22 +275,33 @@ func TestParseStatsCommand_MissingSession(t *testing.T) {
 
 	// Change to a temporary directory that has no session
 	tmpDir := t.TempDir()
-	oldWd, _ := os.Getwd()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("Failed to change directory: %v", err)
 	}
-	defer os.Chdir(oldWd)
+	defer func() {
+		if err := os.Chdir(oldWd); err != nil {
+			t.Errorf("Failed to restore directory: %v", err)
+		}
+	}()
 
 	// Reset rootCmd flags to clean state
-	rootCmd.Flags().Set("session", "")
-	rootCmd.Flags().Set("project", "")
+	if err := rootCmd.Flags().Set("session", ""); err != nil {
+		t.Fatalf("Failed to reset session flag: %v", err)
+	}
+	if err := rootCmd.Flags().Set("project", ""); err != nil {
+		t.Fatalf("Failed to reset project flag: %v", err)
+	}
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
 	rootCmd.SetArgs([]string{"parse", "stats"})
 
-	err := rootCmd.Execute()
+	err = rootCmd.Execute()
 	if err == nil {
 		t.Errorf("Expected error when session file not found, but command succeeded. Output: %s", buf.String())
 	}

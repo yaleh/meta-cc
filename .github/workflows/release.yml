@@ -31,8 +31,11 @@ jobs:
       - name: Update plugin.json version
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          jq --arg ver "${VERSION#v}" '.version = $ver' plugin.json > plugin.json.tmp
-          mv plugin.json.tmp plugin.json
+          jq --arg ver "${VERSION#v}" '.version = $ver' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
+          mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
+
+      - name: Sync plugin files
+        run: bash scripts/sync-plugin-files.sh
 
       - name: Build binaries
         run: |
@@ -67,7 +70,7 @@ jobs:
 
           for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64; do
             PKG_DIR=build/packages/meta-cc-plugin-${platform}
-            mkdir -p $PKG_DIR/bin $PKG_DIR/.claude/commands $PKG_DIR/.claude/agents $PKG_DIR/.claude/lib
+            mkdir -p $PKG_DIR/bin $PKG_DIR/.claude-plugin $PKG_DIR/commands $PKG_DIR/agents $PKG_DIR/lib
 
             # Copy binaries
             if [[ $platform == windows-* ]]; then
@@ -78,15 +81,15 @@ jobs:
               cp build/meta-cc-mcp-${platform} $PKG_DIR/bin/meta-cc-mcp
             fi
 
-            # Copy Claude Code integration files
-            cp -r .claude/commands/* $PKG_DIR/.claude/commands/
-            cp -r .claude/agents/* $PKG_DIR/.claude/agents/
-            cp -r .claude/lib/* $PKG_DIR/.claude/lib/
+            # Copy Claude Code plugin structure
+            cp -r .claude-plugin/* $PKG_DIR/.claude-plugin/
+            cp -r commands/* $PKG_DIR/commands/
+            cp -r agents/* $PKG_DIR/agents/
+            cp -r lib/* $PKG_DIR/lib/
 
             # Copy scripts and metadata
             cp scripts/install.sh $PKG_DIR/
             cp scripts/uninstall.sh $PKG_DIR/
-            cp plugin.json $PKG_DIR/
             cp README.md $PKG_DIR/
             cp LICENSE $PKG_DIR/
 
@@ -100,6 +103,13 @@ jobs:
         run: |
           cd build/packages
           sha256sum *.tar.gz > checksums.txt
+
+      - name: Create version-agnostic symlinks
+        run: |
+          cd build/packages
+          for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64; do
+            cp meta-cc-plugin-${{ steps.version.outputs.VERSION }}-${platform}.tar.gz meta-cc-plugin-${platform}.tar.gz
+          done
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
