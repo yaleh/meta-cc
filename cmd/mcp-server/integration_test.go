@@ -158,7 +158,9 @@ func TestCleanupTempFilesE2E(t *testing.T) {
 	}
 	// Set modification time to 10 days ago
 	oldTime := now.Add(-10 * 24 * time.Hour)
-	os.Chtimes(oldFilePath, oldTime, oldTime)
+	if err := os.Chtimes(oldFilePath, oldTime, oldTime); err != nil {
+		t.Fatalf("failed to set old file times: %v", err)
+	}
 
 	// Create recent file (2 days old)
 	recentFilePath := filepath.Join(os.TempDir(), "meta-cc-mcp-"+sessionHash+"-recent-query_tools.jsonl")
@@ -168,7 +170,9 @@ func TestCleanupTempFilesE2E(t *testing.T) {
 	}
 	// Set modification time to 2 days ago
 	recentTime := now.Add(-2 * 24 * time.Hour)
-	os.Chtimes(recentFilePath, recentTime, recentTime)
+	if err := os.Chtimes(recentFilePath, recentTime, recentTime); err != nil {
+		t.Fatalf("failed to set recent file times: %v", err)
+	}
 
 	// Execute cleanup (7 day threshold)
 	args := map[string]interface{}{

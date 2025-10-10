@@ -1009,7 +1009,9 @@ fi
 		t.Fatalf("failed to write test script: %v", err)
 	}
 	tmpFile.Close()
-	os.Chmod(tmpFile.Name(), 0755)
+	if err := os.Chmod(tmpFile.Name(), 0755); err != nil {
+		t.Fatalf("failed to make test script executable: %v", err)
+	}
 
 	executor := &ToolExecutor{metaCCPath: tmpFile.Name()}
 

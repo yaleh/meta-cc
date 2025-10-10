@@ -79,16 +79,24 @@ func TestCleanupOldFiles(t *testing.T) {
 
 	// Old file (8 days ago)
 	oldPath := filepath.Join(os.TempDir(), "meta-cc-mcp-old-123-test.jsonl")
-	os.WriteFile(oldPath, []byte("test"), 0644)
+	if err := os.WriteFile(oldPath, []byte("test"), 0644); err != nil {
+		t.Fatalf("Failed to create old test file: %v", err)
+	}
 	oldTime := now.Add(-8 * 24 * time.Hour)
-	os.Chtimes(oldPath, oldTime, oldTime)
+	if err := os.Chtimes(oldPath, oldTime, oldTime); err != nil {
+		t.Fatalf("Failed to set old file times: %v", err)
+	}
 	defer os.Remove(oldPath)
 
 	// Recent file (5 days ago)
 	recentPath := filepath.Join(os.TempDir(), "meta-cc-mcp-recent-456-test.jsonl")
-	os.WriteFile(recentPath, []byte("test"), 0644)
+	if err := os.WriteFile(recentPath, []byte("test"), 0644); err != nil {
+		t.Fatalf("Failed to create recent test file: %v", err)
+	}
 	recentTime := now.Add(-5 * 24 * time.Hour)
-	os.Chtimes(recentPath, recentTime, recentTime)
+	if err := os.Chtimes(recentPath, recentTime, recentTime); err != nil {
+		t.Fatalf("Failed to set recent file times: %v", err)
+	}
 	defer os.Remove(recentPath)
 
 	// Cleanup files older than 7 days
@@ -135,7 +143,9 @@ func BenchmarkFileWrite(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		writeJSONLFile(tmpPath, data)
+		if err := writeJSONLFile(tmpPath, data); err != nil {
+			b.Fatalf("Failed to write JSONL file: %v", err)
+		}
 	}
 	b.StopTimer()
 

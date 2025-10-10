@@ -67,20 +67,34 @@ func TestIsGitRepository(t *testing.T) {
 	tmpDir := setupTestRepo(t)
 	defer os.RemoveAll(tmpDir)
 
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Errorf("failed to restore original directory: %v", err)
+		}
+	}()
 
-	os.Chdir(tmpDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to test directory: %v", err)
+	}
 
 	if !IsGitRepository() {
 		t.Error("expected IsGitRepository to return true in a git repo")
 	}
 
 	// Test in a non-git directory
-	tmpDir2, _ := os.MkdirTemp("", "non-git-*")
+	tmpDir2, err := os.MkdirTemp("", "non-git-*")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
 	defer os.RemoveAll(tmpDir2)
 
-	os.Chdir(tmpDir2)
+	if err := os.Chdir(tmpDir2); err != nil {
+		t.Fatalf("failed to change to non-git directory: %v", err)
+	}
 
 	if IsGitRepository() {
 		t.Error("expected IsGitRepository to return false in a non-git directory")
