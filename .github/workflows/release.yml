@@ -101,6 +101,13 @@ jobs:
           cd build/packages
           sha256sum *.tar.gz > checksums.txt
 
+      - name: Create version-agnostic symlinks
+        run: |
+          cd build/packages
+          for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64; do
+            cp meta-cc-plugin-${{ steps.version.outputs.VERSION }}-${platform}.tar.gz meta-cc-plugin-${platform}.tar.gz
+          done
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
