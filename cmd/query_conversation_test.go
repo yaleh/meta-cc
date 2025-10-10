@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"testing"
-	"time"
 
 	"github.com/yaleh/meta-cc/internal/parser"
 )
@@ -408,10 +407,4 @@ func TestConversationDurationFiltering(t *testing.T) {
 	if len(filtered) != 2 {
 		t.Errorf("min-duration=5000, max-duration=10000: expected 2 turns, got %d", len(filtered))
 	}
-}
-
-// Helper function to parse timestamp
-func parseTimestamp(ts string) time.Time {
-	t, _ := time.Parse(time.RFC3339, ts)
-	return t
 }

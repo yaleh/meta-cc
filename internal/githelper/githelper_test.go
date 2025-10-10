@@ -105,10 +105,19 @@ func TestGetCommitsSince(t *testing.T) {
 	tmpDir := setupTestRepo(t)
 	defer os.RemoveAll(tmpDir)
 
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Errorf("failed to restore original directory: %v", err)
+		}
+	}()
 
-	os.Chdir(tmpDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to test directory: %v", err)
+	}
 
 	// Create some test commits
 	createTestCommit(t, tmpDir, "file1.txt", "line1\nline2\nline3\n", "First commit")
@@ -144,10 +153,19 @@ func TestGetCommitsBetween(t *testing.T) {
 	tmpDir := setupTestRepo(t)
 	defer os.RemoveAll(tmpDir)
 
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Errorf("failed to restore original directory: %v", err)
+		}
+	}()
 
-	os.Chdir(tmpDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to test directory: %v", err)
+	}
 
 	start := time.Now()
 	createTestCommit(t, tmpDir, "file1.txt", "content1\n", "Commit 1")

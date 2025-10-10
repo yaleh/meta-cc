@@ -116,8 +116,12 @@ func TestParseExtractCommand_MissingSessionFile(t *testing.T) {
 	defer os.Chdir(oldWd)
 
 	// Reset rootCmd flags to clean state
-	rootCmd.Flags().Set("session", "")
-	rootCmd.Flags().Set("project", "")
+	if err := rootCmd.Flags().Set("session", ""); err != nil {
+		t.Fatalf("Failed to reset session flag: %v", err)
+	}
+	if err := rootCmd.Flags().Set("project", ""); err != nil {
+		t.Fatalf("Failed to reset project flag: %v", err)
+	}
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -263,8 +267,12 @@ func TestParseStatsCommand_MissingSession(t *testing.T) {
 	defer os.Chdir(oldWd)
 
 	// Reset rootCmd flags to clean state
-	rootCmd.Flags().Set("session", "")
-	rootCmd.Flags().Set("project", "")
+	if err := rootCmd.Flags().Set("session", ""); err != nil {
+		t.Fatalf("Failed to reset session flag: %v", err)
+	}
+	if err := rootCmd.Flags().Set("project", ""); err != nil {
+		t.Fatalf("Failed to reset project flag: %v", err)
+	}
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
