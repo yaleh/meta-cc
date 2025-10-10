@@ -6,6 +6,8 @@
 
 **核心约束与设计原则**：详见 [设计原则文档](./principles.md)
 
+**架构决策**：详见 [ADR 索引](adr/README.md)
+
 **项目状态**：
 - ✅ **Phase 0-9 已完成**（核心查询 + 上下文管理）
 - ✅ **Phase 14 已完成**（架构重构 + MCP 独立可执行文件）
@@ -1576,13 +1578,15 @@ meta-cc query tools --where "invalid syntax" --output tsv
 
 ## Phase 14: 架构重构与 MCP 增强（Architecture Refactoring & MCP Enhancement）
 
+> **架构决策**：参见 [ADR-001: 两层架构设计](adr/ADR-001-two-layer-architecture.md)
+
 **目标**：重构命令实现以消除代码重复，**拆分 MCP 为独立可执行文件并增强查询能力**
 
 **代码量**：~900 行（重构 + MCP 增强 + Subagent）
 
 **优先级**：高（核心架构改进，解决 MCP 输出过大问题）
 
-**状态**：待实施
+**状态**：✅ 已完成
 
 **背景与问题**：
 - **问题 1**：MCP 输出过大（返回大量原始 JSONL，消耗 LLM tokens）
@@ -1833,6 +1837,8 @@ git diff --stat HEAD~1 HEAD | grep "deletions"
 
 ## Phase 15: MCP 输出控制与工具标准化（MCP Output Control & Tools Standardization）
 
+> **架构决策**：参见 [ADR-005: 作用域参数标准化](adr/ADR-005-scope-parameter-standardization.md)
+
 **目标**：实现 MCP 输出大小控制，统一工具参数，优化工具描述
 
 **代码量**：~350 行（输出控制 ~150 行 + 参数标准化 ~200 行）
@@ -2055,13 +2061,15 @@ Claude: "Show me the last 10 errors"
 
 ## Phase 16: MCP 输出模式优化（MCP Output Mode Optimization）
 
+> **架构决策**：参见 [ADR-004: 混合输出模式设计](adr/ADR-004-hybrid-output-mode.md)
+
 **目标**：实现混合输出模式（inline + file reference），彻底解决大查询结果的上下文溢出问题
 
 **代码量**：~400 行（文件输出引擎 + 决策逻辑 + 生命周期管理 + 文档）
 
 **优先级**：高（核心基础设施优化，为 Subagent 提供稳定数据访问）
 
-**状态**：待实施
+**状态**：✅ 已完成
 
 **背景与问题**：
 - **问题 1**：截断机制破坏 hybrid mode（数据在模式判断前被截断，导致 file_ref 模式失效）
@@ -3275,6 +3283,8 @@ sudo mv meta-cc /usr/local/bin/
 ---
 
 ## Phase 20: 插件打包与发布（Plugin Packaging & Release）
+
+> **架构决策**：参见 [ADR-002: 插件目录结构重构](adr/ADR-002-plugin-directory-structure.md)
 
 **目标**：打包为 Claude Code 插件，支持一键安装
 **代码量**：~400 行 | **优先级**：高 | **状态**：✅ 已完成
