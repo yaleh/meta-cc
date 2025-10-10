@@ -4,3 +4,7 @@ meta-cc-mcp
 /bin/
 coverage.html
 /.gemini/
+
+# Plugin build artifacts (synced from .claude/)
+/commands/
+/agents/
