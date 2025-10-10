@@ -28,7 +28,13 @@ analyze(S) = {
   project_files: mcp_meta_cc.query_files(
     scope=scope,
     threshold=10
-  )
+  ),
+
+  git_metrics: if is_git_repository() then {
+    recent_commits: get_commits_since(S.start_time),
+    commit_count_7d: get_recent_commit_count(days=7),
+    file_churn: get_file_churn_since(S.start_time)
+  } else null
 }
 
 extract :: Session_Data → Quality_Indicators
@@ -59,7 +65,14 @@ extract(D) = {
     tool_efficiency: calculate_tool_success_rate(D.recent_tool_history),
     session_completion: measure_task_completion_rate(D.recent_tool_history),
     iteration_patterns: analyze_refinement_cycles(D.recent_tool_history)
-  }
+  },
+
+  code_velocity_metrics: if D.git_metrics != null then {
+    lines_changed: sum(D.git_metrics.recent_commits.map(c => c.Insertions + c.Deletions)),
+    commit_frequency: D.git_metrics.commit_count_7d / 7.0,
+    avg_commit_size: avg(D.git_metrics.recent_commits.map(c => c.Insertions + c.Deletions)),
+    code_stability: measure_churn_concentration(D.git_metrics.file_churn)
+  } else null
 }
 
 evaluate :: Quality_Indicators → Quality_Scores
@@ -186,6 +199,37 @@ output(A) = {
     historical_trends: display_quality_trends(A.metrics.trend_analysis),
     benchmark_comparison: compare_to_benchmarks(A.metrics),
     improvement_targets: set_quality_targets(A.metrics)
+  },
+
+  code_velocity_report: if A.git_metrics != null then {
+    productivity_summary: {
+      total_commits: count(A.git_metrics.recent_commits),
+      total_lines_changed: A.indicators.code_velocity_metrics.lines_changed,
+      commits_per_day: A.indicators.code_velocity_metrics.commit_frequency,
+      avg_commit_size: A.indicators.code_velocity_metrics.avg_commit_size
+    },
+
+    velocity_quality: {
+      commit_size_healthiness: classify_commit_size(A.indicators.code_velocity_metrics.avg_commit_size),
+      commit_frequency_healthiness: classify_commit_frequency(A.indicators.code_velocity_metrics.commit_frequency),
+      code_stability_score: A.indicators.code_velocity_metrics.code_stability
+    },
+
+    real_progress_metrics: {
+      actual_code_delivered: A.indicators.code_velocity_metrics.lines_changed,
+      commits_with_substance: count(commits where lines_changed > 10),
+      tool_efficiency: A.session_statistics.TotalToolCalls / count(A.git_metrics.recent_commits),
+      work_to_delivery_ratio: measure_ratio(tool_calls, actual_commits)
+    },
+
+    velocity_recommendations: {
+      pace_assessment: assess_commit_pace(A.indicators.code_velocity_metrics.commit_frequency),
+      size_recommendation: recommend_commit_size(A.indicators.code_velocity_metrics.avg_commit_size),
+      stability_advice: if A.indicators.code_velocity_metrics.code_stability < 0.7 then
+        "High file churn detected - consider refactoring to reduce instability"
+    }
+  } else {
+    note: "Git integration not available - install git or run in a git repository for velocity metrics"
   }
 } where ¬execute(recommendations)
 
