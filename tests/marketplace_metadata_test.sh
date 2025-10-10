@@ -81,12 +81,13 @@ test_version_sync() {
 
 # Test 5: Plugin source and author configuration
 test_plugin_metadata() {
-    # Check source (should be full GitHub URL)
-    SOURCE=$(jq -r '.plugins[0].source' .claude-plugin/marketplace.json)
-    if [ "$SOURCE" = "https://github.com/yaleh/meta-cc" ]; then
-        pass "Plugin source correct: $SOURCE"
+    # Check source (should be object with source=github and repo=yaleh/meta-cc)
+    SOURCE_TYPE=$(jq -r '.plugins[0].source.source' .claude-plugin/marketplace.json)
+    SOURCE_REPO=$(jq -r '.plugins[0].source.repo' .claude-plugin/marketplace.json)
+    if [ "$SOURCE_TYPE" = "github" ] && [ "$SOURCE_REPO" = "yaleh/meta-cc" ]; then
+        pass "Plugin source correct: github repo $SOURCE_REPO"
     else
-        fail "Plugin source incorrect: got $SOURCE, expected https://github.com/yaleh/meta-cc"
+        fail "Plugin source incorrect: got source=$SOURCE_TYPE, repo=$SOURCE_REPO"
     fi
 
     # Check author (should be object with name and email)

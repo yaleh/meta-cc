@@ -9,9 +9,12 @@
   "plugins": [
     {
       "name": "meta-cc",
-      "source": "https://github.com/yaleh/meta-cc",
+      "source": {
+        "source": "github",
+        "repo": "yaleh/meta-cc"
+      },
       "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides workflow optimization insights, error pattern detection, and productivity analytics through 10 slash commands, 3 subagents, and 14 MCP tools.",
-      "version": "0.14.2",
+      "version": "0.14.3",
       "author": {
         "name": "Yale Huang",
         "email": "yaleh@ieee.org",
