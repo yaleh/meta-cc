@@ -20,8 +20,11 @@ func setupTestProject(t *testing.T, prefix string) (projectPath string, projectH
 	}
 
 	projectPath = tempDir
+	// Convert to forward slashes for consistency across platforms
 	projectHash = filepath.ToSlash(projectPath)
+	// Replace both / and : (Windows drive letter) with -
 	projectHash = strings.ReplaceAll(projectHash, "/", "-")
+	projectHash = strings.ReplaceAll(projectHash, ":", "-")
 
 	cleanup = func() {
 		os.RemoveAll(tempDir)
