@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +32,10 @@ func TestCreateTempFilePath(t *testing.T) {
 	}
 
 	// Check uniqueness - two calls should produce different paths
+	// Add small delay on Windows where nanosecond precision may be lower
+	if runtime.GOOS == "windows" {
+		time.Sleep(time.Millisecond)
+	}
 	path2 := createTempFilePath(sessionHash, queryType)
 	if path == path2 {
 		t.Errorf("expected unique paths, got same: %s", path)

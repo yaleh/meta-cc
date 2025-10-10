@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -878,6 +879,10 @@ func TestGetSessionHash(t *testing.T) {
 
 // TestExecuteMetaCC tests meta-cc command execution with a mock binary
 func TestExecuteMetaCC(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping test on Windows - requires bash shell")
+	}
+
 	// Create a temporary test script that simulates meta-cc
 	testScript := `#!/bin/bash
 if [[ "$1" == "parse" && "$2" == "stats" ]]; then
@@ -972,6 +977,10 @@ fi
 
 // TestExecuteTool tests the full ExecuteTool flow with mock binary
 func TestExecuteTool(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping test on Windows - requires bash shell")
+	}
+
 	// Create mock meta-cc script
 	testScript := `#!/bin/bash
 # Handle both session and project scopes
