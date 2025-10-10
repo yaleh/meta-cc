@@ -65,12 +65,12 @@ func writeJSONLFile(path string, data []interface{}) error {
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer file.Close()
 
 	// Write JSONL data
 	encoder := json.NewEncoder(file)
 	for _, record := range data {
 		if err := encoder.Encode(record); err != nil {
+			file.Close()
 			os.Remove(tmpPath)
 			return fmt.Errorf("failed to encode record: %w", err)
 		}
@@ -78,8 +78,15 @@ func writeJSONLFile(path string, data []interface{}) error {
 
 	// Sync to disk
 	if err := file.Sync(); err != nil {
+		file.Close()
 		os.Remove(tmpPath)
 		return fmt.Errorf("failed to sync file: %w", err)
+	}
+
+	// Close file before rename (required on Windows)
+	if err := file.Close(); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to close file: %w", err)
 	}
 
 	// Atomic rename
