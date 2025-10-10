@@ -23,8 +23,10 @@ func createTestSession(t *testing.T, sessionID, projectPath string) string {
 	}
 
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
-	content := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":"test"},"uuid":"uuid-1","parentUuid":null,"sessionId":"` + sessionID + `","cwd":"` + projectPath + `"}
-{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"id":"msg_01","type":"message","role":"assistant","model":"claude-sonnet-4","content":[{"type":"tool_use","id":"toolu_01","name":"Bash","input":{"command":"ls"}}],"stop_reason":"tool_use"},"uuid":"uuid-2","parentUuid":"uuid-1","sessionId":"` + sessionID + `","cwd":"` + projectPath + `"}
+	// Convert path to forward slashes for JSON (Windows paths have backslashes which break JSON parsing)
+	jsonSafePath := filepath.ToSlash(projectPath)
+	content := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","message":{"role":"user","content":"test"},"uuid":"uuid-1","parentUuid":null,"sessionId":"` + sessionID + `","cwd":"` + jsonSafePath + `"}
+{"type":"assistant","timestamp":"2025-10-02T06:08:57.769Z","message":{"id":"msg_01","type":"message","role":"assistant","model":"claude-sonnet-4","content":[{"type":"tool_use","id":"toolu_01","name":"Bash","input":{"command":"ls"}}],"stop_reason":"tool_use"},"uuid":"uuid-2","parentUuid":"uuid-1","sessionId":"` + sessionID + `","cwd":"` + jsonSafePath + `"}
 {"type":"user","timestamp":"2025-10-02T06:09:10.123Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01","content":"file1.txt\nfile2.txt"}]},"uuid":"uuid-3","parentUuid":"uuid-2","sessionId":"` + sessionID + `"}
 `
 	if err := os.WriteFile(sessionFile, []byte(content), 0644); err != nil {
