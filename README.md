@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/github/license/yaleh/meta-cc)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/yaleh/meta-cc)](https://github.com/yaleh/meta-cc/releases)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/yaleh/meta-cc)](go.mod)
+[![Plugin Marketplace](https://img.shields.io/badge/Claude_Code-Plugin_Marketplace-blue)](https://github.com/yaleh/meta-cc)
 
 Meta-Cognition tool for Claude Code - analyze session history for workflow optimization.
 
@@ -25,9 +26,29 @@ Meta-Cognition tool for Claude Code - analyze session history for workflow optim
 
 ## Installation
 
-### Plugin Installation (Recommended)
+### Marketplace Installation (Recommended)
 
-Download and install meta-cc as a Claude Code plugin with one command:
+Install meta-cc directly from the Claude Code plugin marketplace:
+
+```
+/plugin marketplace add yaleh/meta-cc
+/plugin install meta-cc
+```
+
+That's it! The plugin will be installed with all components (CLI, MCP server, slash commands, and subagents).
+
+**What's included:**
+- ✅ `meta-cc` CLI tool
+- ✅ `meta-cc-mcp` MCP server (auto-configured)
+- ✅ 10 slash commands (`.claude/commands/`)
+- ✅ 3 subagents (`.claude/agents/`)
+- ✅ 14 MCP query tools (auto-available)
+
+> See [visual demonstrations](docs/screenshots/) showing installation and key features in action.
+
+### Alternative: Plugin Package Installation
+
+For manual installation or if marketplace is unavailable, download platform-specific packages:
 
 #### Linux (x86_64)
 ```bash
@@ -64,13 +85,6 @@ curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-plugin
 cd meta-cc-plugin-windows-amd64
 ./install.sh
 ```
-
-**What's included:**
-- ✅ `meta-cc` CLI tool
-- ✅ `meta-cc-mcp` MCP server (auto-configured)
-- ✅ 11 slash commands (`.claude/commands/`)
-- ✅ 1 subagent (`.claude/agents/meta-coach`)
-- ✅ Automated MCP configuration
 
 **Features:**
 - 🔧 **Platform detection** - Automatically detects OS and architecture

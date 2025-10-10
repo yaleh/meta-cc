@@ -1,0 +1,69 @@
+{
+  "name": "meta-cc",
+  "displayName": "Meta-CC: Workflow Analysis for Claude Code",
+  "version": "0.13.0",
+  "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides workflow optimization insights, error pattern detection, and productivity analytics through 10 slash commands, 3 subagents, and 14 MCP tools.",
+  "longDescription": "meta-cc transforms Claude Code session logs into actionable workflow insights. Analyze tool usage patterns, detect error repetitions, track file access history, and optimize your development workflow with comprehensive metacognitive analysis.\n\nKey Features:\n- 📊 Session analytics with detailed statistics\n- 🔍 Error pattern detection and root cause analysis\n- 🎯 Workflow optimization recommendations\n- 📈 Visual dashboards with ASCII charts\n- 🤖 AI-powered coaching with @meta-coach subagent\n- 🔗 Seamless MCP integration (14 query tools)\n- 💡 Prompt optimization based on successful patterns\n\nPerfect for developers seeking to understand and improve their Claude Code workflows.",
+  "author": {
+    "name": "Yale Huang",
+    "email": "yaleh@ieee.org",
+    "url": "https://github.com/yaleh"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yaleh/meta-cc",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yaleh/meta-cc"
+  },
+  "documentation": "https://github.com/yaleh/meta-cc/blob/develop/README.md",
+  "keywords": [
+    "workflow-analysis",
+    "session-history",
+    "productivity",
+    "metacognition",
+    "analytics",
+    "optimization",
+    "error-detection",
+    "coaching"
+  ],
+  "categories": [
+    "Development Tools",
+    "Analytics",
+    "Productivity"
+  ],
+  "screenshots": [
+    "docs/screenshots/meta-coach-analysis.png",
+    "docs/screenshots/meta-viz-dashboard.png",
+    "docs/screenshots/installation-demo.gif"
+  ],
+  "components": {
+    "slash_commands": 10,
+    "subagents": 3,
+    "mcp_tools": 14
+  },
+  "platforms": [
+    "linux-amd64",
+    "linux-arm64",
+    "darwin-amd64",
+    "darwin-arm64",
+    "windows-amd64"
+  ],
+  "assets": {
+    "type": "github-release",
+    "repository": "yaleh/meta-cc",
+    "pattern": "meta-cc-plugin-v{version}-{platform}.tar.gz",
+    "latest": "https://github.com/yaleh/meta-cc/releases/latest"
+  },
+  "installation": {
+    "command": "/plugin install yaleh/meta-cc",
+    "requirements": {
+      "claude-code": ">=1.0.0"
+    }
+  },
+  "links": {
+    "issues": "https://github.com/yaleh/meta-cc/issues",
+    "changelog": "https://github.com/yaleh/meta-cc/blob/develop/CHANGELOG.md",
+    "documentation": "https://github.com/yaleh/meta-cc/blob/develop/docs/",
+    "examples": "https://github.com/yaleh/meta-cc/blob/develop/docs/examples-usage.md"
+  }
+}
