@@ -109,11 +109,18 @@ func TestParseExtractCommand_MissingSessionFile(t *testing.T) {
 
 	// Change to a temporary directory that has no session
 	tmpDir := t.TempDir()
-	oldWd, _ := os.Getwd()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("Failed to change directory: %v", err)
 	}
-	defer os.Chdir(oldWd)
+	defer func() {
+		if err := os.Chdir(oldWd); err != nil {
+			t.Errorf("Failed to restore directory: %v", err)
+		}
+	}()
 
 	// Reset rootCmd flags to clean state
 	if err := rootCmd.Flags().Set("session", ""); err != nil {
@@ -128,7 +135,7 @@ func TestParseExtractCommand_MissingSessionFile(t *testing.T) {
 	rootCmd.SetErr(&buf)
 	rootCmd.SetArgs([]string{"parse", "extract", "--type", "turns"})
 
-	err := rootCmd.Execute()
+	err = rootCmd.Execute()
 	if err == nil {
 		t.Errorf("Expected error when session file not found, but command succeeded. Output: %s", buf.String())
 	}
@@ -260,11 +267,18 @@ func TestParseStatsCommand_MissingSession(t *testing.T) {
 
 	// Change to a temporary directory that has no session
 	tmpDir := t.TempDir()
-	oldWd, _ := os.Getwd()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("Failed to change directory: %v", err)
 	}
-	defer os.Chdir(oldWd)
+	defer func() {
+		if err := os.Chdir(oldWd); err != nil {
+			t.Errorf("Failed to restore directory: %v", err)
+		}
+	}()
 
 	// Reset rootCmd flags to clean state
 	if err := rootCmd.Flags().Set("session", ""); err != nil {
@@ -279,7 +293,7 @@ func TestParseStatsCommand_MissingSession(t *testing.T) {
 	rootCmd.SetErr(&buf)
 	rootCmd.SetArgs([]string{"parse", "stats"})
 
-	err := rootCmd.Execute()
+	err = rootCmd.Execute()
 	if err == nil {
 		t.Errorf("Expected error when session file not found, but command succeeded. Output: %s", buf.String())
 	}
