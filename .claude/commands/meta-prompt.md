@@ -1,5 +1,5 @@
 ---
-description: Refine prompts based on successful prompt history using MCP meta-insight. Analyzes your input prompt against project's successful patterns to detect missing file references, agent delegations, constraints, or specificity issues, then generates up to 3 optimized alternatives with evidence-based improvements.
+description: Refine prompts using successful patterns from project history.
 argument-hint: [prompt]
 ---
 
@@ -12,9 +12,9 @@ refine(P) = analyze(history) ∧ detect(gaps) ∧ generate(alternatives)
 
 analyze :: Project_History → Success_Patterns
 analyze(H) = {
-  successful: mcp_meta_insight.query_successful_prompts(min_quality_score=0.8),
+  successful: mcp_meta_cc.query_successful_prompts(min_quality_score=0.8),
 
-  similar: mcp_meta_insight.query_user_messages(pattern=keywords(P)),
+  similar: mcp_meta_cc.query_user_messages(pattern=keywords(P)),
 
   features: extract(structure) ∧ extract(specificity) ∧ extract(constraints)
 }

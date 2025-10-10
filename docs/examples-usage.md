@@ -21,21 +21,55 @@ meta-cc is designed as a **powerful data retrieval and statistics tool** for Cla
 
 This separation allows Claude to perform complex analysis by making multiple meta-cc calls with varying parameters, while meta-cc focuses on fast, accurate data extraction.
 
-## Prerequisites
+## Installation
 
-1. **Install meta-cc**:
-   ```bash
-   cd /home/yale/work/meta-cc
-   go build -o meta-cc
-   sudo mv meta-cc /usr/local/bin/
-   # Or add to your PATH
-   ```
+### Option 1: Quick Install (Bundled Release) - Recommended
 
-2. **Verify installation**:
-   ```bash
-   which meta-cc
-   meta-cc --help
-   ```
+Download and extract the bundle for your platform:
+
+```bash
+# Linux/macOS
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-linux-amd64.tar.gz | tar xz
+cd meta-cc-v*/
+./install.sh
+
+# Verify installation
+meta-cc --version
+meta-cc-mcp --version
+```
+
+The bundle includes:
+- `meta-cc` CLI tool
+- `meta-cc-mcp` MCP server
+- 8 slash commands (`.claude/commands/`)
+- 3 subagents (`.claude/agents/`)
+
+### Option 2: Build from Source
+
+```bash
+git clone https://github.com/yaleh/meta-cc.git
+cd meta-cc
+make build           # Build both CLI and MCP server
+sudo cp meta-cc /usr/local/bin/
+sudo cp meta-cc-mcp /usr/local/bin/
+
+# Copy Claude Code integration files
+cp -r .claude/commands ~/.claude/projects/meta-cc/commands/
+cp -r .claude/agents ~/.claude/projects/meta-cc/agents/
+```
+
+### MCP Server Configuration
+
+Configure the MCP server for Claude Code:
+
+```bash
+# Quick setup
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+
+# Or manual configuration in ~/.claude/settings.json
+```
+
+See [README.md](../README.md) for detailed MCP setup instructions.
 
 ## Integration Hierarchy
 
@@ -47,12 +81,14 @@ meta-cc provides **three integration tiers** optimized for different use cases:
 
 Claude automatically calls MCP tools based on your questions. No special syntax needed.
 
-**Available**: 14 MCP tools including `query_tools`, `analyze_errors`, `query_user_messages`, `aggregate_stats`, `query_time_series`, `query_files`, etc.
+**Available**: 14 MCP tools including `query_tools`, `query_user_messages`, `query_assistant_messages`, `query_conversation`, `aggregate_stats`, `query_time_series`, `query_files`, etc.
 
 **Examples**:
 ```
 "Show me all Bash errors in this project"
 "Find user messages where I asked about testing"
+"Search assistant responses that mention 'test passed'"
+"Show me the conversation where we discussed refactoring"
 "Compare tool usage between this week and last week"
 "Which files have I edited the most across all sessions?"
 ```
@@ -189,48 +225,52 @@ Would you like me to create a custom Hook to validate grep commands before execu
 
 **Available MCP Tools** (14 total):
 
-#### Core Query Tools
+#### Message Query Tools
+```
+query_user_messages       # Search user messages with regex
+query_assistant_messages  # Search assistant response messages with regex
+query_conversation        # Search conversation (user + assistant) with optional role filter
+```
+
+#### Tool Query Tools
 ```
 query_tools              # Query tool call history
-query_user_messages      # Search user messages with regex
-query_errors             # Extract error records
-query_file_access        # File operation history
-query_context            # Context around specific events
-```
-
-#### Statistical Tools
-```
-aggregate_stats          # Grouped statistics (by tool, status, etc.)
-query_time_series        # Temporal pattern analysis
-query_files              # File-level operation statistics
-```
-
-#### Pattern Detection
-```
-analyze_errors           # Error pattern detection
-query_tool_sequences     # Repeated tool sequences
-query_successful_prompts # Identify high-quality prompts
-```
-
-#### Advanced Queries
-```
 query_tools_advanced     # SQL-like filtering
-extract_tools            # Bulk tool extraction with pagination
-get_session_stats        # Session-only statistics (backward compat)
+query_tool_sequences     # Repeated tool sequences
+```
+
+#### Analysis Tools
+```
+query_context            # Context around specific events
+query_file_access        # File operation history
+query_files              # File-level operation statistics
+query_project_state      # Project evolution tracking
+query_successful_prompts # Identify high-quality prompts
+query_time_series        # Temporal pattern analysis
+```
+
+#### Stats & Utilities
+```
+get_session_stats        # Session statistics and metrics
+cleanup_temp_files       # Remove old temporary files
 ```
 
 **Example Queries Using These Tools**:
 
 ```
-# Basic queries (Claude picks the right tool)
-"Show recent Bash errors"                    → query_tools
-"Find messages about testing"                → query_user_messages
-"What files did I edit most?"                → query_files
+# Message queries (Claude picks the right tool)
+"Find messages where I asked about testing"           → query_user_messages
+"Search assistant responses that mention 'passed'"    → query_assistant_messages
+"Show conversation about error handling"              → query_conversation
+
+# Tool queries
+"Show recent Bash errors"                             → query_tools
+"What files did I edit most?"                         → query_files
 
 # Advanced queries (Claude composes multiple tools)
-"Compare my workflow this week vs last week" → query_time_series + aggregate_stats
-"Find all errors related to test.py"         → query_errors + query_context
-"Show my most productive hours"              → query_time_series (tool-calls by hour)
+"Compare my workflow this week vs last week"          → query_time_series + aggregate_stats
+"Find all errors related to test.py"                  → query_tools + query_context
+"Show my most productive hours"                       → query_time_series (tool-calls by hour)
 ```
 ```
 
@@ -342,9 +382,9 @@ The MCP server provides 14 advanced query tools for programmatic access to sessi
    ```json
    {
      "mcpServers": {
-       "meta-insight": {
+       "meta-cc": {
          "command": "node",
-         "args": ["/home/yale/work/meta-cc/.claude/mcp-servers/meta-insight.js"],
+         "args": ["/home/yale/work/meta-cc/.claude/mcp-servers/meta-cc.js"],
          "transport": "stdio"
        }
      }
@@ -522,13 +562,13 @@ Query all Read tool calls and save to file (for testing)
 }
 ```
 
-### Example 4: Combining with Output Control
+### Example 4: Configuring Output Mode Threshold
 
-Hybrid output mode works with Phase 15 output control features:
+You can customize when hybrid mode switches from inline to file_ref:
 
 **User Query**:
 ```
-Show me error patterns across the project, but limit output size
+Show me error patterns with a custom threshold
 ```
 
 **MCP Call**:
@@ -538,23 +578,30 @@ Show me error patterns across the project, but limit output size
   "arguments": {
     "status": "error",
     "scope": "project",
-    "max_output_bytes": 10000
+    "inline_threshold_bytes": 4096
   }
 }
 ```
 
 **Behavior**:
 - Query returns 500 error records (~50KB)
-- `max_output_bytes` truncates to 10KB (~100 records)
-- Mode forced to "inline" (since truncated data is now small)
+- Custom threshold set to 4KB (instead of default 8KB)
+- Data exceeds 4KB, so file_ref mode is selected
+- All 500 records preserved in temp file (no truncation)
 
 **Response**:
 ```json
 {
-  "mode": "inline",
-  "data": [
-    // ... 100 error records
-  ]
+  "mode": "file_ref",
+  "file_ref": {
+    "path": "/tmp/meta-cc-mcp-abc123-1234567890-query_tools.jsonl",
+    "size_bytes": 51200,
+    "line_count": 500,
+    "fields": ["Timestamp", "ToolName", "Status", "Error"],
+    "summary": {
+      "record_count": 500
+    }
+  }
 }
 ```
 
@@ -657,7 +704,7 @@ Clean up old meta-cc temp files
 3. **Test server manually**:
    ```bash
    echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | \
-   node .claude/mcp-servers/meta-insight.js
+   node .claude/mcp-servers/meta-cc.js
    ```
 
 4. **Check Claude Code logs** for MCP connection errors

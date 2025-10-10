@@ -22,7 +22,7 @@ package "用户交互接口" {
   [/meta-analyze] as SlashAnalyze
   [/meta-apply] as SlashApply
   [@meta-coach] as Subagent
-  [meta-insight MCP] as MCP
+  [meta-cc MCP] as MCP
 }
 
 package "命令行分析工具 (cc-meta-cli)" {
@@ -669,7 +669,7 @@ end note
 @startuml
 !theme plain
 
-package "meta-insight MCP Server" {
+package "meta-cc MCP Server" {
   
   interface MCPServer {
     + name: string
@@ -875,11 +875,11 @@ note right of MetaInsightMCP
   **MCP Server 配置:**
   
   # 添加到 Claude Code
-  claude mcp add meta-insight \\
+  claude mcp add meta-cc \\
     npx cc-meta-mcp-server
   
   **使用示例:**
-  > Use meta-insight MCP to
+  > Use meta-cc MCP to
     search for similar debugging
     situations in my history
 end note
@@ -1211,7 +1211,7 @@ node "开发者机器" {
   }
   
   frame "MCP Server (可选)" {
-    component [meta-insight-mcp] as MCP
+    component [meta-cc-mcp] as MCP
   }
 }
 
@@ -1233,7 +1233,7 @@ end note
 
 note right of MCP
   **配置:**
-  claude mcp add meta-insight \\
+  claude mcp add meta-cc \\
     npx @cc-meta/mcp-server
 end note
 
@@ -1481,7 +1481,7 @@ note right of ToolCallRequest
   **MCP 工具调用:**
   
   Claude Code 通过 MCP 协议
-  调用 meta-insight 服务器的工具
+  调用 meta-cc 服务器的工具
   
   服务器委托给 cc-meta-cli
 end note
@@ -1610,10 +1610,10 @@ end note
 
 actor Developer as Dev
 participant "Claude Code" as CC
-participant "meta-insight\nMCP Server" as MCP
+participant "meta-cc\nMCP Server" as MCP
 participant "cc-meta-cli" as CLI
 
-Dev -> CC : "Use meta-insight MCP to\nsearch for past solutions\nto database migration issues"
+Dev -> CC : "Use meta-cc MCP to\nsearch for past solutions\nto database migration issues"
 
 activate CC
 

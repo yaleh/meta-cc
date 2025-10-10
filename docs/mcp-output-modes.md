@@ -2,7 +2,7 @@
 
 ## Overview
 
-The meta-cc MCP server implements a **hybrid output mode** to efficiently handle both small and large query results. Instead of returning all data inline (which can cause context overflow for large results), the system intelligently selects between:
+The meta-cc MCP server provides **14 query tools** with a **hybrid output mode** to efficiently handle both small and large query results. Instead of returning all data inline (which can cause context overflow for large results), the system intelligently selects between:
 
 - **Inline Mode**: Returns data directly in the MCP response (≤8KB results)
 - **File Reference Mode**: Writes data to a temporary file and returns metadata (>8KB results)
@@ -387,15 +387,17 @@ query_tools(status="error", inline_threshold_bytes=4096)
 ### Removed Parameters
 
 The following parameters were **removed in Phase 16.6**:
-- `max_output_bytes` - No longer needed (hybrid mode handles size)
+- `max_output_bytes` - Replaced by hybrid output mode with configurable threshold
 
 ### Migration from max_output_bytes
+
+If you were using `max_output_bytes` to control output size, the new behavior is different and better:
 
 **Old behavior** (pre-Phase 16.6):
 
 ```json
 {
-  "max_output_bytes": 51200  // Truncate at 50KB
+  "max_output_bytes": 51200  // Truncate at 50KB, lose data
 }
 ```
 
@@ -403,13 +405,24 @@ The following parameters were **removed in Phase 16.6**:
 
 ```json
 {
-  "inline_threshold_bytes": 8192  // Switch to file_ref at 8KB (no truncation)
+  "inline_threshold_bytes": 8192  // Switch to file_ref at 8KB, preserve all data
 }
 ```
 
-**Key Difference**:
-- **Old**: `max_output_bytes` truncated data and returned `[OUTPUT TRUNCATED]` warning
-- **New**: `inline_threshold_bytes` switches output mode but **never truncates data**
+**Key Differences**:
+
+| Aspect | Old (`max_output_bytes`) | New (`inline_threshold_bytes`) |
+|--------|--------------------------|--------------------------------|
+| **Data handling** | Truncates data at limit | Preserves all data |
+| **Output mode** | Always inline | Auto-switches to file_ref |
+| **Information loss** | ❌ Yes (`[OUTPUT TRUNCATED]`) | ✅ No (complete data in temp file) |
+| **Use case** | Limit context size | Control mode switching threshold |
+
+**Migration Strategy**:
+- **Don't use `inline_threshold_bytes` to limit data** - it doesn't truncate
+- **Trust hybrid mode** - it automatically handles large results via file_ref
+- **Use `limit` parameter** - if you need fewer records (e.g., `"limit": 100`)
+- **Use `jq_filter`** - if you need specific fields (e.g., `'jq_filter': '.[] | {Timestamp, ToolName}'`)
 
 ## Integration with Output Control Features
 
@@ -690,6 +703,34 @@ Existing MCP clients expecting raw data arrays can use legacy mode:
 | Phase 15 Truncation | ❌ Data truncated | ✅ Inline only | ❌ Fixed 500 chars |
 | Phase 16 Hybrid Mode | ✅ Complete data | ✅ Adaptive (inline/file_ref) | ✅ Read/Grep on demand |
 
+## Available MCP Tools (14 Total)
+
+The meta-cc MCP server provides the following query tools:
+
+### Message Queries
+- `query_user_messages` - Search user messages with regex patterns
+- `query_assistant_messages` - Search assistant response messages with regex patterns
+- `query_conversation` - Search conversation messages (user + assistant) with optional role filter
+
+### Tool Queries
+- `query_tools` - Filter tool calls by name, status (error/success)
+- `query_tools_advanced` - SQL-like filtering expressions
+- `query_tool_sequences` - Workflow pattern detection
+
+### Analysis Queries
+- `query_context` - Error context with surrounding tool calls
+- `query_file_access` - File operation history
+- `query_files` - File-level operation statistics
+- `query_project_state` - Project evolution tracking
+- `query_successful_prompts` - High-quality prompt patterns
+- `query_time_series` - Metrics over time (hourly/daily/weekly)
+
+### Stats & Utilities
+- `get_session_stats` - Session statistics and metrics
+- `cleanup_temp_files` - Remove old temporary files
+
+All query tools support hybrid output mode with configurable thresholds.
+
 ## See Also
 
 - [Examples & Usage](examples-usage.md) - Practical hybrid output examples
@@ -697,3 +738,4 @@ Existing MCP clients expecting raw data arrays can use legacy mode:
 - [Technical Proposal](proposals/meta-cognition-proposal.md) - Architecture details
 - [Phase 15 Plan](../plans/15/plan.md) - Output control features
 - [Phase 16 Plan](../plans/16/plan.md) - Hybrid output implementation
+- [Phase 19 Plan](../plans/19/plan.md) - Assistant message and conversation query features

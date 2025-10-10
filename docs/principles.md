@@ -263,7 +263,7 @@ meta-cc CLI 是系统的核心，提供清晰、简洁的对外接口：
 - 调用 meta-cc CLI 获取原始数据
 - 使用 gojq 应用 jq_filter 过滤
 - 统计聚合（stats_only/stats_first）
-- 输出长度控制（max_output_bytes）
+- 混合输出模式（inline/file_ref，阈值可配置 inline_threshold_bytes）
 
 **参数命名约定**：
 
@@ -289,7 +289,7 @@ Subagents 分为两类：
 - ✅ 示例：`meta-cc query tools | jq ... | sort | uniq -c`
 
 **业务型 Agent**（独立的元认知分析助手）：
-- ✅ 各 Subagent 独立调用 MCP meta-insight 工具
+- ✅ 各 Subagent 独立调用 meta-cc 工具
 - ✅ **互不依赖或调用**（保持独立性）
 - ✅ **必须说明 MCP 输出控制策略**（参考 `.claude/agents/meta-coach.md`）
 - ✅ 支持多轮对话和上下文关联（在单个 Subagent 内部）
@@ -333,7 +333,7 @@ Subagents 分为两类：
 |------|-----------|----------------|
 | 调用方式 | Claude 自主 | 用户 `/` |
 | 查询能力 | jq 过滤/统计 | 固定逻辑 |
-| 输出控制 | ✅ 内置（stats_only, max_output_bytes） | 固定格式 |
+| 输出控制 | ✅ 内置（stats_only, hybrid mode, inline_threshold_bytes） | 固定格式 |
 | 使用场景 | 对话中自然查询（80%） | 快速统计报告（20%） |
 
 **Subagent 层**（基于 MCP）：
@@ -424,8 +424,115 @@ Subagents 分为两类：
 
 ---
 
+## 十、打包与发布原则（Phase 20）
+
+### 插件结构标准化
+
+**目录组织**：
+```
+meta-cc-plugin/
+├── plugin.json              # 插件清单
+├── bin/install.sh           # 安装脚本
+├── .claude/
+│   ├── commands/            # Slash commands
+│   └── subagents/           # Subagent 定义
+└── mcp/meta-cc-server.json  # MCP 配置模板
+```
+
+### 安装流程
+
+1. **构建二进制**：编译或下载预构建的 `meta-cc` 和 `meta-cc-mcp`
+2. **安装到用户目录**：复制到 `~/.claude/plugins/meta-cc/bin/`
+3. **集成配置**：复制 slash commands/subagents，更新 MCP 配置
+4. **验证**：测试 MCP 连接和 slash command 可用性
+
+### 发布自动化
+
+**GitHub Release 工作流**：
+- 多平台构建（linux-amd64, darwin-arm64, windows-amd64）
+- 打包插件结构为 ZIP
+- 自动创建 Release 和上传 artifacts
+- 版本号从 git tag 提取（`v1.0.0`）
+
+### 版本管理
+
+- **语义化版本**：`MAJOR.MINOR.PATCH`（遵循 SemVer）
+- **Git Tags**：`v1.0.0` 触发 Release 工作流
+- **CHANGELOG**：每个 Release 包含变更摘要
+
+---
+
 ## 参考文档
 
 - [meta-cc 项目总体实施计划](./plan.md)
 - [Claude Code 元认知分析系统 - 技术方案](./proposals/meta-cognition-proposal.md)
 - [Claude Code 官方文档](https://docs.claude.com/en/docs/claude-code/overview)
+
+---
+
+## 七、消息查询接口设计原则（Phase 19）
+
+### 接口分层策略
+
+**1. 专用接口**（细粒度，性能优化）：
+- `query_user_messages`：仅查询用户消息
+  - ✅ 已存在，历史兼容
+  - ✅ 性能优化：只加载 user entries
+  - ✅ 用于分析用户输入模式
+
+- `query_assistant_messages`：仅查询 assistant 响应
+  - ✅ 独立分析 assistant 行为
+  - ✅ 支持响应长度、工具使用过滤
+  - ✅ 用于响应质量评估
+
+**2. 统一接口**（粗粒度，关联分析）：
+- `query_conversation`：查询完整对话（user + assistant）
+  - ✅ 自动关联 user prompt 和 assistant response
+  - ✅ 支持 turn 范围查询（`--start-turn`, `--end-turn`）
+  - ✅ 包含响应时间（`duration_ms` 字段）
+  - ✅ 用于分析交互模式、迭代效率
+
+### 设计原则
+
+1. **向后兼容**：保留现有 `query_user_messages` 接口，不破坏已有工具
+2. **职责清晰**：3 个工具各司其职（user, assistant, conversation）
+3. **延迟决策**：提供完整对话数据，分析交给 Claude/jq
+4. **性能优化**：专用接口避免加载无关数据
+
+### 查询模式选择
+
+| 分析目标 | 推荐工具 | 原因 |
+|---------|---------|------|
+| 用户输入模式 | `query_user_messages` | 性能最优，只加载 user |
+| Assistant 响应质量 | `query_assistant_messages` | 专注响应分析 |
+| 交互模式/响应时间 | `query_conversation` | 完整上下文 + 时间维度 |
+
+### 数据结构设计
+
+```go
+// ConversationTurn 结构（关联查询）
+type ConversationTurn struct {
+    TurnSequence      int               `json:"turn_sequence"`
+    UserMessage       *UserMessage      `json:"user_message,omitempty"`
+    AssistantMessage  *AssistantMessage `json:"assistant_message,omitempty"`
+    Duration          int               `json:"duration_ms"`  // user → assistant 响应时间
+    Timestamp         string            `json:"timestamp"`     // 对话开始时间
+}
+```
+
+### 混合输出策略（Phase 16 应用）
+
+**输出大小预估**：
+- `query_user_messages`：平均 ~1.6KB/message
+  - 1000 条 → ~1.6MB → file_ref 模式
+- `query_assistant_messages`：平均 ~2-5KB/message（含 tool blocks）
+  - 500 条 → ~1-2.5MB → file_ref 模式
+- `query_conversation`：平均 ~5-10KB/turn
+  - 200 turns → ~1-2MB → file_ref 模式
+
+**阈值配置建议**：
+- 默认 8KB 适合 2-5 条消息（inline 模式）
+- 大批量查询自动切换 file_ref 模式
+- 可通过 `inline_threshold_bytes` 参数或 `META_CC_INLINE_THRESHOLD` 环境变量调整
+
+---

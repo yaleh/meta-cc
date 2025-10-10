@@ -1,6 +1,6 @@
 ---
 name: meta-timeline
-description: Construct project development timeline using MCP meta-insight to analyze user messages and system responses. Focuses on workflow-level events (user actions, subagent/slash/MCP usage, build/test failures, interruptions) with temporal analysis and latency tracking.
+description: Visualize project evolution timeline with workflow events.
 ---
 
 λ(scope) → development_timeline | ∀event ∈ {user_actions, high_level_operations, workflow_failures}:
@@ -12,26 +12,44 @@ analyze(M) = collect(events) ∧ sequence(timeline) ∧ detect(patterns) ∧ mea
 
 collect :: Scope → EventData
 collect(S) = {
-  user_messages: mcp_meta_insight.query_user_messages(
+  user_messages: mcp_meta_cc.query_user_messages(
     pattern=".*",
     scope=scope
   ),
 
-  high_level_tools: mcp_meta_insight.query_tools(
+  assistant_messages: mcp_meta_cc.query_assistant_messages(
+    pattern=".*",
+    scope=scope
+  ),
+
+  conversations: mcp_meta_cc.query_conversation(
+    scope=scope
+  ),
+
+  high_level_tools: mcp_meta_cc.query_tools(
     scope=scope,
     jq_filter='select(.ToolName | test("^(Task|SlashCommand|mcp__)"))'
   ),
 
-  error_events: mcp_meta_insight.query_tools(
+  error_events: mcp_meta_cc.query_tools(
     status="error",
     scope=scope,
     jq_filter='select(.ToolName | test("^(Task|SlashCommand|mcp__|Bash)") and (.Error | test("fail|error|interrupt", "i")))'
   ),
 
-  tool_sequences: mcp_meta_insight.query_tool_sequences(
+  tool_sequences: mcp_meta_cc.query_tool_sequences(
     min_occurrences=2,
     scope=scope
-  )
+  ),
+
+  git_history: if is_git_repository() then collect_git_data(S) else null
+}
+
+collect_git_data :: Scope → GitData
+collect_git_data(S) = {
+  commits: get_commits_in_timeline_range(S.start_time, S.end_time),
+  file_churn: get_file_churn_since(S.start_time),
+  commit_frequency: calculate_commit_rate(commits)
 }
 
 extract_user_actions :: UserMessages → UserEvents
@@ -49,7 +67,7 @@ classify_operations :: HighLevelTools → OperationTypes
 classify_operations(T) = {
   subagent_ops: filter(T, tool="Task") |> group_by(subagent_type),
   slash_ops: filter(T, tool="SlashCommand") |> extract_command_names,
-  mcp_queries: filter(T, tool_pattern="mcp__meta-insight__*") |> group_by(query_type),
+  mcp_queries: filter(T, tool_pattern="mcp__meta_cc__*") |> group_by(query_type),
 
   operation_outcomes: {
     successful: count(T, status="success"),
@@ -97,6 +115,25 @@ construct_timeline(E) = {
       intent: classify_intent(msg.content)
     }),
 
+    E.assistant_messages.map(msg => {
+      timestamp: msg.timestamp,
+      type: "assistant_response",
+      text_length: msg.text_length,
+      tool_use_count: msg.tool_use_count,
+      tokens_output: msg.tokens_output,
+      response_complexity: classify_response_complexity(msg)
+    }),
+
+    E.conversations.map(conv => {
+      timestamp: conv.timestamp,
+      type: "conversation_turn",
+      turn_sequence: conv.turn_sequence,
+      duration_ms: conv.duration_ms,
+      has_user: conv.user_message != null,
+      has_assistant: conv.assistant_message != null,
+      response_latency: conv.duration_ms
+    }),
+
     E.high_level_tools.map(tool => {
       timestamp: tool.Timestamp,
       type: "high_level_operation",
@@ -113,7 +150,18 @@ construct_timeline(E) = {
       tool: err.ToolName,
       error_type: classify_error(err.Error),
       context: find_preceding_user_message(err.Timestamp)
-    })
+    }),
+
+    if E.git_history != null then E.git_history.commits.map(commit => {
+      timestamp: commit.Timestamp,
+      type: "git_commit",
+      hash: commit.Hash,
+      message: commit.Message,
+      files_changed: commit.FilesChanged,
+      insertions: commit.Insertions,
+      deletions: commit.Deletions,
+      total_changes: commit.Insertions + commit.Deletions
+    }) else []
   ]),
 
   phase_boundaries: identify_temporal_phases([
@@ -128,6 +176,13 @@ construct_timeline(E) = {
 measure_latency :: Timeline → LatencyMetrics
 measure_latency(T) = {
   user_to_response: {
+    conversation_latency: measure_time(user_message → assistant_response),
+    avg_response_time: avg(T.conversations.map(c => c.duration_ms)),
+    response_time_distribution: {
+      fast: count(conversations where duration_ms < 5000),      # < 5s
+      normal: count(conversations where 5000 ≤ duration_ms < 30000),  # 5-30s
+      slow: count(conversations where duration_ms ≥ 30000)     # ≥ 30s
+    },
     subagent_launch: measure_time(user_@agent → Task_completion),
     slash_command: measure_time(user_/command → SlashCommand_completion),
     mcp_query: measure_time(Claude_call → mcp_response),
@@ -206,15 +261,22 @@ visualize_timeline(T) = {
       time_column: format_timestamps_and_ranges(T),
       user_column: aggregate_user_actions_by_time(T),
       ops_column: aggregate_operations_by_time(T),
+      git_column: if has_git_data(T) then aggregate_git_commits_by_time(T) else null,
       phase_column: show_phase_boundaries_and_names(T),
       events_column: annotate_milestones_and_events(T)
     ],
 
     symbols: {
       user_action: "●",
+      assistant_response: "◎",
+      response_fast: "◎(<5s)",
+      response_normal: "◎(5-30s)",
+      response_slow: "◎(>30s)",
       subagent_launch: "⚡",
       slash_command: "/",
       mcp_query: "◆",
+      git_commit: "⬢",
+      git_commit_large: "⬣",
       build_success: "✓",
       build_failure: "✗",
       test_failure: "⊗",
@@ -235,6 +297,7 @@ visualize_timeline(T) = {
     column_widths: {
       time: 20_chars,
       user: 10_chars,
+      assistant: 12_chars,
       ops: 11_chars,
       phase: 15_chars,
       events: 24_chars
@@ -530,7 +593,33 @@ output(A) = {
       annotate_time_elapsed: true,
       highlight_causal_chains: render_causal_chain_graph
     }
-  }
+  },
+
+  git_correlation: if A.git_history != null then {
+    commits_summary: {
+      total_commits: count(A.git_history.commits),
+      total_lines_changed: sum(commits.map(c => c.Insertions + c.Deletions)),
+      commit_frequency: calculate_commits_per_hour(A.git_history.commits),
+      avg_commit_size: avg(commits.map(c => c.Insertions + c.Deletions))
+    },
+
+    activity_to_commits: {
+      tool_calls_per_commit: count(A.high_level_operations) / count(A.git_history.commits),
+      errors_before_commits: identify_error_commits(A.error_events, A.git_history.commits),
+      time_to_commit: measure_time_between([user_action, tool_activity, git_commit])
+    },
+
+    high_churn_files: {
+      top_files: top_n(A.git_history.file_churn, n=10),
+      correlation_with_errors: correlate_churn_with_errors(A.git_history.file_churn, A.error_events)
+    },
+
+    commit_quality_indicators: {
+      commits_with_tests: detect_test_commits(A.git_history.commits),
+      commits_after_verification: correlate_commits_with_verification(A.git_history.commits, A.workflow_events),
+      commit_message_quality: analyze_commit_message_completeness(A.git_history.commits)
+    }
+  } else null
 } where ¬execute(recommendations)
 
 ascii_art_examples:
@@ -582,6 +671,7 @@ ascii_art_examples:
   LEGEND:
     ● User Message (1-4 msgs/hour)    ⚡ Subagent Launch    / Slash Command
     ◆ MCP Query Activity              ⊘ Interruption        ★ Milestone
+    ⬢ Git Commit (<50 lines)          ⬣ Large Commit (≥50)
     ║ Phase Boundary                  ═ Productive Flow     █ Peak Activity
     ░ Low   ▒ Medium   ▓ High   █ Peak (activity density)
 

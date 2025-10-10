@@ -16,7 +16,7 @@ BINARY_NAME := meta-cc
 MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build build-cli build-mcp test test-all test-coverage clean install cross-compile lint fmt vet help
+.PHONY: all build build-cli build-mcp test test-all test-coverage clean install cross-compile bundle-release lint fmt vet help
 
 all: lint test build
 
@@ -67,6 +67,31 @@ cross-compile:
 	done
 	@echo "Cross-compilation complete. Binaries in $(BUILD_DIR)/"
 
+bundle-release:
+	@echo "Creating release bundles for all platforms..."
+	@if [ -z "$(VERSION)" ] || [ "$(VERSION)" = "dev" ]; then \
+		echo "ERROR: VERSION must be set (e.g., make bundle-release VERSION=v1.0.0)"; \
+		exit 1; \
+	fi
+	@mkdir -p $(BUILD_DIR)/bundles
+	@for platform in $(PLATFORMS); do \
+		PLATFORM_NAME=$${platform%/*}-$${platform#*/}; \
+		BUNDLE_DIR=$(BUILD_DIR)/bundles/meta-cc-$(VERSION)-$$PLATFORM_NAME; \
+		mkdir -p $$BUNDLE_DIR/bin $$BUNDLE_DIR/.claude/commands $$BUNDLE_DIR/.claude/agents; \
+		if [ "$${platform%/*}" = "windows" ]; then \
+			cp $(BUILD_DIR)/$(BINARY_NAME)-$$PLATFORM_NAME.exe $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
+			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME.exe $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
+		else \
+			cp $(BUILD_DIR)/$(BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
+			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
+		fi; \
+		cp -r .claude/commands/* $$BUNDLE_DIR/.claude/commands/; \
+		cp -r .claude/agents/* $$BUNDLE_DIR/.claude/agents/; \
+		cp scripts/install.sh $$BUNDLE_DIR/; \
+		tar -czf $(BUILD_DIR)/meta-cc-bundle-$$PLATFORM_NAME.tar.gz -C $(BUILD_DIR)/bundles meta-cc-$(VERSION)-$$PLATFORM_NAME; \
+	done
+	@echo "Bundle creation complete. Archives in $(BUILD_DIR)/"
+
 deps:
 	@echo "Downloading dependencies..."
 	$(GOMOD) download
@@ -104,5 +129,6 @@ help:
 	@echo "  make clean           - Remove build artifacts"
 	@echo "  make install         - Install to GOPATH/bin"
 	@echo "  make cross-compile   - Build for all platforms"
+	@echo "  make bundle-release  - Create release bundles (requires VERSION=vX.Y.Z)"
 	@echo "  make deps            - Download and tidy dependencies"
 	@echo "  make help            - Show this help message"

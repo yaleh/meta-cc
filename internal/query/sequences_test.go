@@ -272,7 +272,7 @@ func TestExtractToolCallsWithBuiltinFilter(t *testing.T) {
 	entries := createSequenceEntries(now, []string{
 		"Bash",                            // Built-in (should be filtered)
 		"Read",                            // Built-in (should be filtered)
-		"mcp__meta-insight__query_tools",  // MCP tool (should be kept)
+		"mcp__meta_cc__query_tools",       // MCP tool (should be kept)
 		"Edit",                            // Built-in (should be filtered)
 		"mcp__playwright__browser_click",  // MCP tool (should be kept)
 		"Grep",                            // Built-in (should be filtered)
@@ -381,14 +381,14 @@ func TestSequencePatternQualityWithFilter(t *testing.T) {
 	// Create realistic session with noise (many Bash calls) and signal (MCP workflow)
 	entries := createSequenceEntries(now, []string{
 		"Bash", "Bash", "Bash", // Noise pattern
-		"mcp__meta-insight__query_tools",
-		"mcp__meta-insight__query_user_messages",
+		"mcp__meta_cc__query_tools",
+		"mcp__meta_cc__query_user_messages",
 		"Bash", "Bash", "Bash", // More noise
-		"mcp__meta-insight__query_tools",
-		"mcp__meta-insight__query_user_messages",
+		"mcp__meta_cc__query_tools",
+		"mcp__meta_cc__query_user_messages",
 		"Read", "Edit", "Write", // More built-in noise
-		"mcp__meta-insight__query_tools",
-		"mcp__meta-insight__query_user_messages",
+		"mcp__meta_cc__query_tools",
+		"mcp__meta_cc__query_user_messages",
 	})
 
 	// Test WITHOUT filter (includeBuiltin=true) - should find "Bash → Bash" as top pattern
@@ -431,17 +431,17 @@ func TestBuildToolSequenceQueryEmptyPatternExcludesBuiltin(t *testing.T) {
 	// Create entries with both built-in tools and MCP tools
 	// Pattern: MCP1 → Bash → MCP2 → Read → (repeat 3 times)
 	entries := createSequenceEntries(now, []string{
-		"mcp__meta-insight__query_tools",
+		"mcp__meta_cc__query_tools",
 		"Bash",
-		"mcp__meta-insight__query_user_messages",
+		"mcp__meta_cc__query_user_messages",
 		"Read",
-		"mcp__meta-insight__query_tools",
+		"mcp__meta_cc__query_tools",
 		"Bash",
-		"mcp__meta-insight__query_user_messages",
+		"mcp__meta_cc__query_user_messages",
 		"Edit",
-		"mcp__meta-insight__query_tools",
+		"mcp__meta_cc__query_tools",
 		"Bash",
-		"mcp__meta-insight__query_user_messages",
+		"mcp__meta_cc__query_user_messages",
 	})
 
 	// Test with includeBuiltin=false and empty pattern
@@ -494,14 +494,14 @@ func TestBuildToolSequenceQueryWithFilter(t *testing.T) {
 			name: "filter out built-in tools",
 			tools: []string{
 				"Bash", "Read",
-				"mcp__meta-insight__query_tools",
-				"mcp__meta-insight__query_user_messages",
+				"mcp__meta_cc__query_tools",
+				"mcp__meta_cc__query_user_messages",
 				"Bash", "Read",
-				"mcp__meta-insight__query_tools",
-				"mcp__meta-insight__query_user_messages",
+				"mcp__meta_cc__query_tools",
+				"mcp__meta_cc__query_user_messages",
 				"Bash", "Read",
-				"mcp__meta-insight__query_tools",
-				"mcp__meta-insight__query_user_messages",
+				"mcp__meta_cc__query_tools",
+				"mcp__meta_cc__query_user_messages",
 			},
 			includeBuiltin: false,
 			minOccurrences: 3,

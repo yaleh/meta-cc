@@ -8,13 +8,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- New features will be listed here
+- **Phase 20: Plugin Packaging & Release**
+  - Stage 20.1: Plugin structure definition with plugin.json manifest
+  - Stage 20.2: Automated installation script with platform detection and MCP configuration merging
+  - Stage 20.3: Multi-platform GitHub Release workflow enhancements
+  - Stage 20.4: Comprehensive installation documentation and testing checklists
+- Plugin packaging structure:
+  - `plugin.json` with metadata, dependencies, and platform definitions
+  - `.claude/lib/mcp-config.json` template for MCP server configuration
+  - Enhanced `install.sh` with platform detection (Linux, macOS, Windows)
+  - New `uninstall.sh` for clean component removal
+- Multi-platform plugin packages (5 platforms):
+  - linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64
+  - Each package includes binaries, Claude Code integration files, and install/uninstall scripts
+- Installation documentation:
+  - `docs/installation.md` with platform-specific instructions and troubleshooting
+  - `tests/PLUGIN_VERIFICATION.md` for comprehensive pre-release testing
+- GitHub Release workflow enhancements:
+  - Automated plugin package creation for all platforms
+  - Checksum generation and verification
+  - Auto-generated release notes
 
 ### Changed
-- Changes to existing functionality will be listed here
+- **Slash Command Enhancements**: Integrated new message query capabilities
+  - `/meta-timeline` now includes assistant response analysis and conversation latency metrics
+  - `/meta-coach` now includes interaction quality analysis with response time, tool efficiency, and satisfaction metrics
+- **Installation Process**: Enhanced with platform detection and safe MCP configuration merging
+  - `install.sh` now detects OS and architecture automatically
+  - MCP configuration merged safely without overwriting existing servers
+  - Post-install verification ensures correct setup
+- **Release Workflow**: Now creates plugin packages instead of bare binaries
+  - Each release includes 5 platform-specific plugin packages
+  - One-command installation: `curl -L <url> | tar xz && ./install.sh`
+  - Checksums provided for integrity verification
+
+## [v0.14.0] - 2025-10-09
+
+### Added
+- **Phase 19: Assistant Message and Conversation Query**
+  - Stage 19.1: AssistantMessage serialization support
+  - Stage 19.2: `query-assistant-messages` CLI command with regex search
+  - Stage 19.3: `query-conversation` CLI command with role filter support
+  - Stage 19.4: MCP integration with `query_assistant_messages` and `query_conversation` tools
+  - Stage 19.5: Comprehensive documentation updates
+- New MCP tools (14 total, up from 12):
+  - `mcp__meta_cc__query_assistant_messages` - Search assistant responses with regex
+  - `mcp__meta_cc__query_conversation` - Search conversation messages with optional role filter
+- CLI commands:
+  - `meta-cc query assistant-messages --pattern <regex>` - Search assistant messages
+  - `meta-cc query conversation --pattern <regex> [--role user|assistant]` - Search conversation
+
+### Changed
+- Documentation updated to reflect 14 MCP tools (previously 12)
+- All message query tools now use hybrid output mode for large results
+- Enhanced conversation analysis capabilities with role-based filtering
+
+### Technical Details
+- Supports regex pattern matching across assistant responses
+- Conversation query can filter by role (user, assistant, or both)
+- Full hybrid output mode support with configurable thresholds
+- Consistent parameter naming with existing message query tools
+
+## [v0.13.0] - 2025-10-09
+
+### Added
+- **Bundled Release Artifacts**: Platform-specific bundles (.tar.gz) containing binaries, slash commands, subagents, and installation script
+  - 5 platform bundles: linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64
+  - Each bundle includes: meta-cc CLI, meta-cc-mcp server, 8 slash commands, 3 subagents
+  - One-command installation: `curl -L <bundle-url> | tar xz && ./install.sh`
+  - Total release artifacts: 16 files (10 binaries + 5 bundles + checksums)
+- **Installation Script**: `scripts/install.sh` for automated setup of binaries and Claude Code integration files
+- **Makefile Target**: `bundle-release` for creating platform bundles (requires VERSION=vX.Y.Z)
+- **Slash Command**: `/meta-next` for workflow continuation suggestions
+
+### Changed
+- **GitHub Actions**: Updated to build Linux ARM64 MCP server binary and generate platform bundles
+- **Documentation**: Updated installation guides with bundle installation instructions
+- **Phase 16 Migration Guide**: Clarified `inline_threshold_bytes` vs `max_output_bytes` differences and migration strategy
 
 ### Fixed
-- Bug fixes will be listed here
+- Improved Phase 16 migration documentation with clear comparison table and usage examples
+
+## [v0.12.1] - 2025-10-08
+
+### Changed
+- **Meta-insight to Meta-cc Renaming**: Comprehensive refactor to update all references from the old `mcp_meta_insight` / `meta‑insight` namespace to the new `mcp_meta_cc` / `meta‑cc` across documentation, agents, commands, and tests. This ensures consistency with the renamed meta-cc component and prevents confusion from stale meta-insight references.
 
 ## [v0.12.0] - 2025-10-08
 
@@ -87,10 +165,10 @@ To create a new release:
   - Stage 10.3: Time-series analysis (`query-time-series` with hourly/daily/weekly buckets)
   - Stage 10.4: File-level statistics (`query-files` with operation counts and error rates)
 - Advanced MCP tools:
-  - `mcp__meta-insight__query_tools_advanced`
-  - `mcp__meta-insight__aggregate_stats`
-  - `mcp__meta-insight__query_time_series`
-  - `mcp__meta-insight__query_files`
+  - `mcp__meta_cc__query_tools_advanced`
+  - `mcp__meta_cc__aggregate_stats`
+  - `mcp__meta_cc__query_time_series`
+  - `mcp__meta_cc__query_files`
 
 ### Changed
 - Enhanced query engine with SQL-like expression parsing
@@ -104,9 +182,9 @@ To create a new release:
   - Stage 9.2: Tool sequence detection (`query-tool-sequences` for workflow patterns)
   - Stage 9.3: File access history (`query-file-access` for read/edit/write tracking)
 - MCP server tools:
-  - `mcp__meta-insight__query_context`
-  - `mcp__meta-insight__query_tool_sequences`
-  - `mcp__meta-insight__query_file_access`
+  - `mcp__meta_cc__query_context`
+  - `mcp__meta_cc__query_tool_sequences`
+  - `mcp__meta_cc__query_file_access`
 
 ### Changed
 - Enhanced pattern detection with sequence analysis
@@ -121,11 +199,11 @@ To create a new release:
   - Stage 8.7-8.9: Message search with regex (`query-user-messages --pattern`)
   - Stage 8.10-8.12: Project state and successful prompt analysis
 - MCP server tools:
-  - `mcp__meta-insight__extract_tools`
-  - `mcp__meta-insight__query_tools`
-  - `mcp__meta-insight__query_user_messages`
-  - `mcp__meta-insight__query_project_state`
-  - `mcp__meta-insight__query_successful_prompts`
+  - `mcp__meta_cc__extract_tools`
+  - `mcp__meta_cc__query_tools`
+  - `mcp__meta_cc__query_user_messages`
+  - `mcp__meta_cc__query_project_state`
+  - `mcp__meta_cc__query_successful_prompts`
 
 ### Changed
 - All query commands now support pagination and filtering
@@ -138,7 +216,7 @@ To create a new release:
   - Stage 7.1-7.3: MCP server foundation with stdio transport
   - Stage 7.4-7.6: Tool exposure (`get_session_stats`, `analyze_errors`, `extract_tools`)
   - Stage 7.7-7.9: Integration testing and error handling
-- MCP server binary: `meta-insight-mcp`
+- MCP server binary: `meta-cc-mcp`
 - MCP configuration documentation in `docs/mcp-setup.md`
 
 ### Changed

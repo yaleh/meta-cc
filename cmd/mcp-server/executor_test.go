@@ -979,6 +979,11 @@ if [[ "$1" == "--project" ]]; then
 	shift 2  # Skip --project and path
 fi
 
+# Handle session-only flag (Phase 19 fix)
+if [[ "$1" == "--session-only" ]]; then
+	shift  # Skip --session-only flag
+fi
+
 if [[ "$1" == "parse" && "$2" == "stats" ]]; then
 	echo '{"total_turns":10,"tool_calls":25,"errors":2}'
 	exit 0

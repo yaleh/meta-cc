@@ -25,47 +25,107 @@ Meta-Cognition tool for Claude Code - analyze session history for workflow optim
 
 ## Installation
 
-### Option 1: Download Pre-compiled Binary (Recommended)
+### Plugin Installation (Recommended)
 
-Download the latest release for your platform:
+Download and install meta-cc as a Claude Code plugin with one command:
 
 #### Linux (x86_64)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-plugin-linux-amd64.tar.gz | tar xz
+cd meta-cc-plugin-linux-amd64
+./install.sh
+```
+
+#### Linux (ARM64)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-plugin-linux-arm64.tar.gz | tar xz
+cd meta-cc-plugin-linux-arm64
+./install.sh
+```
+
+#### macOS (Intel)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-plugin-darwin-amd64.tar.gz | tar xz
+cd meta-cc-plugin-darwin-amd64
+./install.sh
+```
+
+#### macOS (Apple Silicon)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-plugin-darwin-arm64.tar.gz | tar xz
+cd meta-cc-plugin-darwin-arm64
+./install.sh
+```
+
+#### Windows (x86_64)
+```bash
+# Using Git Bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-plugin-windows-amd64.tar.gz | tar xz
+cd meta-cc-plugin-windows-amd64
+./install.sh
+```
+
+**What's included:**
+- ✅ `meta-cc` CLI tool
+- ✅ `meta-cc-mcp` MCP server (auto-configured)
+- ✅ 11 slash commands (`.claude/commands/`)
+- ✅ 1 subagent (`.claude/agents/meta-coach`)
+- ✅ Automated MCP configuration
+
+**Features:**
+- 🔧 **Platform detection** - Automatically detects OS and architecture
+- 🔐 **Safe MCP merging** - Preserves existing MCP server configurations
+- ✅ **Post-install verification** - Ensures correct setup
+- 🗑️ **Clean uninstall** - Removes all components with `./uninstall.sh`
+
+See [Installation Guide](docs/installation.md) for detailed instructions, troubleshooting, and alternative installation methods.
+
+[View all releases →](https://github.com/yaleh/meta-cc/releases)
+
+### Option 2: Individual Binaries
+
+Download only the CLI or MCP server:
+
+<details>
+<summary>Click to expand individual binary instructions</summary>
+
+#### CLI Only - Linux (x86_64)
 ```bash
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
 chmod +x meta-cc
 sudo mv meta-cc /usr/local/bin/
 ```
 
-#### Linux (ARM64)
+#### CLI Only - Linux (ARM64)
 ```bash
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-arm64 -o meta-cc
 chmod +x meta-cc
 sudo mv meta-cc /usr/local/bin/
 ```
 
-#### macOS (Intel)
+#### CLI Only - macOS (Intel)
 ```bash
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-darwin-amd64 -o meta-cc
 chmod +x meta-cc
 sudo mv meta-cc /usr/local/bin/
 ```
 
-#### macOS (Apple Silicon)
+#### CLI Only - macOS (Apple Silicon)
 ```bash
 curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-darwin-arm64 -o meta-cc
 chmod +x meta-cc
 sudo mv meta-cc /usr/local/bin/
 ```
 
-#### Windows (PowerShell)
+#### CLI Only - Windows (PowerShell)
 ```powershell
 Invoke-WebRequest -Uri "https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-windows-amd64.exe" -OutFile "meta-cc.exe"
 # Move to a directory in your PATH
 ```
 
-[View all releases →](https://github.com/yaleh/meta-cc/releases)
+</details>
 
-### Option 2: Build from Source
+### Option 3: Build from Source
 
 ```bash
 git clone https://github.com/yaleh/meta-cc.git
@@ -79,10 +139,143 @@ make install
 
 ### Verify Installation
 
+After plugin installation:
+
 ```bash
+# Check binary version
 meta-cc --version
-meta-cc --help
+
+# Verify MCP server
+meta-cc-mcp --version
+
+# Check PATH
+which meta-cc
 ```
+
+**In Claude Code:**
+1. Test slash command: `/meta-stats`
+2. Test subagent: `@meta-coach`
+3. Test MCP tools: Ask "What are my recent tool usage patterns?"
+
+If you encounter issues, see the [Troubleshooting Guide](docs/installation.md#troubleshooting).
+
+## MCP Server Integration
+
+Deploy meta-cc as an MCP server to analyze sessions directly within Claude Code.
+
+### Quick Setup
+
+**If you installed using the bundle (Option 1)**, the MCP server is already installed! Just configure Claude Code:
+
+```bash
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+```
+
+**If you need MCP server only**, download individual binaries:
+
+<details>
+<summary>Click to expand MCP server download instructions</summary>
+
+#### Linux (x86_64)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-linux-amd64 -o meta-cc-mcp
+chmod +x meta-cc-mcp
+sudo mv meta-cc-mcp /usr/local/bin/
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+```
+
+#### Linux (ARM64)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-linux-arm64 -o meta-cc-mcp
+chmod +x meta-cc-mcp
+sudo mv meta-cc-mcp /usr/local/bin/
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+```
+
+#### macOS (Intel)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-darwin-amd64 -o meta-cc-mcp
+chmod +x meta-cc-mcp
+sudo mv meta-cc-mcp /usr/local/bin/
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+```
+
+#### macOS (Apple Silicon)
+```bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-darwin-arm64 -o meta-cc-mcp
+chmod +x meta-cc-mcp
+sudo mv meta-cc-mcp /usr/local/bin/
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+```
+
+#### Windows (PowerShell)
+```powershell
+Invoke-WebRequest -Uri "https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-windows-amd64.exe" -OutFile "meta-cc-mcp.exe"
+# Move to a directory in your PATH, then configure Claude Code
+```
+
+[View all releases →](https://github.com/yaleh/meta-cc/releases)
+
+</details>
+
+### Manual Configuration
+
+**1. Install the MCP server:**
+
+**Option A: Download Pre-compiled Binary (Recommended)**
+```bash
+# Download for your platform (see examples above)
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-linux-amd64 -o meta-cc-mcp
+chmod +x meta-cc-mcp
+sudo mv meta-cc-mcp /usr/local/bin/
+```
+
+**Option B: Build from Source**
+```bash
+git clone https://github.com/yaleh/meta-cc.git
+cd meta-cc
+make build-mcp
+cp meta-cc-mcp ~/.local/bin/
+```
+
+**2. Configure Claude Code:**
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `~/.config/claude/claude_desktop_config.json` (Linux):
+
+```json
+{
+  "mcpServers": {
+    "meta-cc": {
+      "type": "stdio",
+      "command": "meta-cc-mcp",
+      "args": [],
+      "env": {
+        "META_CC_INLINE_THRESHOLD": "8192"
+      }
+    }
+  }
+}
+```
+
+**3. Restart Claude Code** to load the server.
+
+**4. Test the integration:**
+```
+@meta-cc get_session_stats
+@meta-cc query_tools --limit=10
+@meta-cc query_user_messages --pattern=".*error.*"
+```
+
+### Available MCP Tools
+
+- **`get_session_stats`** - Session statistics
+- **`query_tools`** - Tool call analysis
+- **`query_user_messages`** - Search user messages
+- **`query_tool_sequences`** - Workflow patterns
+- **`query_time_series`** - Time-based analysis
+- **`cleanup_temp_files`** - File management
+
+*See [MCP Tools Reference](docs/mcp-tools-reference.md) for complete documentation.*
 
 ## Usage
 
@@ -1124,12 +1317,14 @@ make test-coverage
 ### Available Make Targets
 
 ```bash
-make build           # Build for current platform
+make build           # Build CLI and MCP server
+make build-cli       # Build CLI only
+make build-mcp       # Build MCP server only
 make test            # Run tests (short mode, skips slow E2E tests)
 make test-all        # Run all tests (including slow E2E tests ~30s)
 make test-coverage   # Run tests with coverage report (includes E2E tests)
 make clean           # Remove build artifacts
-make install         # Install to GOPATH/bin
+make install         # Install CLI to GOPATH/bin
 make cross-compile   # Build for all platforms
 make deps            # Download and tidy dependencies
 make help            # Show help message

@@ -1,6 +1,6 @@
 ---
 name: meta-habits
-description: Analyze user's work habits and patterns using MCP meta-insight. Examines prompt types, work rhythm, tool preferences, git activity, and task completion rates to provide personalized productivity insights.
+description: Analyze work patterns and productivity habits insights.
 ---
 
 λ(scope) → user_behavior_insights | ∀habit ∈ {prompt_patterns, tool_usage, workflow_sequences}:
@@ -12,17 +12,22 @@ analyze(U) = collect(prompts) ∧ extract(features) ∧ detect(sequences) ∧ ch
 
 collect :: Scope → UserPrompts
 collect(S) = {
-  all_prompts: mcp_meta_insight.query_user_messages(
+  all_prompts: mcp_meta_cc.query_user_messages(
     pattern=".*",
     limit=200,
     scope=scope
   ),
 
-  successful_patterns: mcp_meta_insight.query_successful_prompts(
+  successful_patterns: mcp_meta_cc.query_successful_prompts(
     min_quality_score=0.8,
     limit=30,
     scope=scope
-  )
+  ),
+
+  git_activity: if is_git_repository() then {
+    commits: get_commits_since(S.start_time),
+    file_churn: get_file_churn_since(S.start_time)
+  } else null
 }
 
 extract :: UserPrompts → PromptFeatures
@@ -148,7 +153,35 @@ output(A) = {
     strengths: identify_from(A.user_style, A.workflow),
     improvements: suggest_from(A.tool_metrics, A.successful_patterns),
     next_level_techniques: recommend_advanced(A.tool_proficiency)
-  }
+  },
+
+  delivery_habits: if A.git_activity != null then {
+    commit_patterns: {
+      total_commits: count(A.git_activity.commits),
+      commit_frequency: count(A.git_activity.commits) / duration_in_days(A.all_prompts),
+      avg_commit_size: avg(A.git_activity.commits.map(c => c.Insertions + c.Deletions)),
+      commit_timing: analyze_commit_timing_distribution(A.git_activity.commits)
+    },
+
+    work_to_delivery: {
+      prompts_per_commit: count(A.all_prompts) / count(A.git_activity.commits),
+      high_churn_files: top_n(A.git_activity.file_churn, n=5),
+      file_focus_consistency: measure_file_focus_stability(A.git_activity.file_churn)
+    },
+
+    quality_indicators: {
+      commit_message_quality: analyze_commit_messages(A.git_activity.commits),
+      commit_size_distribution: categorize_commits_by_size(A.git_activity.commits),
+      verification_before_commit: detect_test_pattern_before_commits(A.all_prompts, A.git_activity.commits)
+    },
+
+    delivery_style: classify_delivery_based_on({
+      "Incremental": frequent_small_commits ∧ steady_pace,
+      "Batch": infrequent_large_commits,
+      "Test-Driven": tests_before_commits ∧ high_verification_rate,
+      "Exploratory": high_file_churn ∧ many_modifications
+    })
+  } else null
 } where ¬execute(recommendations)
 
 implementation_notes:

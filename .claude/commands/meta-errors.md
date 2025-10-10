@@ -1,6 +1,6 @@
 ---
 name: meta-errors
-description: Analyze user-facing error patterns using MCP meta-insight. Focuses on workflow failures (test failures, build errors, interrupted tasks), subagent/slash/MCP errors, and user-triggered issues rather than internal tool errors.
+description: Analyze error patterns and prevention recommendations.
 ---
 
 λ(scope) → error_insights | ∀error ∈ {workflow_failures, user_interruptions, high_level_tool_errors}:
@@ -12,21 +12,26 @@ analyze(U) = collect(messages) ∧ detect(errors) ∧ classify(patterns) ∧ dia
 
 collect :: Scope → ErrorContext
 collect(S) = {
-  all_messages: mcp_meta_insight.query_user_messages(
+  all_messages: mcp_meta_cc.query_user_messages(
     pattern=".*",
     limit=200,
     scope=scope
   ),
 
-  tool_calls: mcp_meta_insight.query_tools(
+  tool_calls: mcp_meta_cc.query_tools(
     status="error",
     scope=scope
   ),
 
-  tool_sequences: mcp_meta_insight.query_tool_sequences(
+  tool_sequences: mcp_meta_cc.query_tool_sequences(
     min_occurrences=2,
     scope=scope
-  )
+  ),
+
+  git_context: if is_git_repository() then {
+    recent_commits: get_commits_since(S.start_time),
+    file_churn: get_file_churn_since(S.start_time)
+  } else null
 }
 
 detect :: ErrorContext → ErrorEvents
@@ -95,8 +100,8 @@ classify(E) = {
   by_frequency: group_and_rank(E, threshold=2)
 }
 
-diagnose :: (ErrorEvents, ErrorPatterns) → RootCauses
-diagnose(E, P) = {
+diagnose :: (ErrorEvents, ErrorPatterns, GitContext) → RootCauses
+diagnose(E, P, G) = {
   workflow_issues: {
     test_instability: if P.by_category.workflow_level.test_failures > 3 then
       analyze_test_failure_messages(E.workflow_failures.test),
@@ -107,6 +112,12 @@ diagnose(E, P) = {
     git_workflow: if P.by_category.workflow_level.git_conflicts > 1 then
       analyze_git_error_patterns(E.workflow_failures.git)
   },
+
+  code_change_correlation: if G != null then {
+    errors_after_commits: identify_errors_following_commits(E.error_events, G.recent_commits),
+    high_error_files: correlate_errors_with_churn(E.error_events, G.file_churn),
+    commit_introduced_errors: find_commits_preceding_errors(E.error_events, G.recent_commits, window=5min)
+  } else null,
 
   tool_usage_issues: {
     subagent_misuse: if P.by_category.high_level_tools.subagent_failures > 0 then
@@ -199,7 +210,26 @@ output(A) = {
     workflow_improvements: suggest_workflow_changes(A.root_causes.workflow_issues),
     tool_usage_tips: suggest_better_practices(A.root_causes.tool_usage_issues),
     context_guidelines: suggest_context_improvements(A.root_causes.context_problems)
-  }
+  },
+
+  git_insights: if A.git_context != null then {
+    problematic_commits: {
+      commits_before_errors: A.root_causes.code_change_correlation.commit_introduced_errors,
+      recommendation: "Review these commits for potential issues introduced"
+    },
+
+    high_risk_files: {
+      files_with_errors: A.root_causes.code_change_correlation.high_error_files,
+      churn_analysis: "Files with high churn and errors may need refactoring",
+      recommendation: "Consider stabilizing these files with better tests"
+    },
+
+    error_prevention: {
+      pattern: if count(A.root_causes.code_change_correlation.errors_after_commits) > 3 then
+        "Errors frequently occur after commits - consider pre-commit hooks",
+      suggestion: "Run tests before committing to catch issues earlier"
+    }
+  } else null
 } where ¬execute(recommendations)
 
 implementation_notes:

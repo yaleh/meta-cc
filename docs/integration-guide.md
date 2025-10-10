@@ -28,6 +28,46 @@ This guide helps you understand the **core differences** between these methods a
 
 ---
 
+## Quick Start: MCP Server Setup
+
+For most users, the **MCP Server** provides the best balance of power and convenience:
+
+### Step 1: Install and Build
+```bash
+git clone https://github.com/yaleh/meta-cc.git
+cd meta-cc
+make build-mcp
+cp meta-cc-mcp ~/.local/bin/
+```
+
+### Step 2: Configure Claude Code
+```bash
+# Quick setup
+claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
+
+# Or manual configuration - edit claude_desktop_config.json
+{
+  "mcpServers": {
+    "meta-cc": {
+      "type": "stdio",
+      "command": "meta-cc-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+### Step 3: Test Integration
+```
+@meta-cc get_session_stats
+@meta-cc query_tools --limit=10
+@meta-cc query_user_messages --pattern=".*error.*"
+```
+
+**You're ready!** Claude will now automatically call meta-cc tools when you ask questions about your session data.
+
+---
+
 ## Part I: Core Differences Deep Dive
 
 ### 1.1 Context Isolation Mechanism
@@ -122,7 +162,7 @@ User: "What's my session error rate?"
   ↓
 Claude thinks: "User wants stats... I should use get_session_stats"
   ↓
-Claude calls: mcp__meta-insight__get_session_stats(output_format: "json")
+Claude calls: mcp__meta_cc__get_session_stats(output_format: "json")
   ↓
 Result: {"ErrorRate": 0.0, "ErrorCount": 0, ...}
   ↓
@@ -966,7 +1006,7 @@ meta-cc analyze toolchains --output json
 **Solution**:
 ```
 Instead of: "How am I doing?"
-Try: "Get my session statistics" or "Use meta-insight to show my stats"
+Try: "Get my session statistics" or "Use meta-cc to show my stats"
 ```
 
 ---

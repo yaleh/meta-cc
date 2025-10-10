@@ -1835,7 +1835,7 @@ cd /home/yale/work/meta-cc
 
 # Verify MCP server registration
 claude mcp list
-# Expected: meta-insight registered with meta-cc-mcp
+# Expected: meta-cc registered with meta-cc-mcp
 
 # Test in Claude Code
 # User: "统计本项目所有错误，按工具分组"
@@ -1951,7 +1951,7 @@ echo "Review docs/mcp-migration-phase15.md for migration patterns."
 ```json
 {
   "mcpServers": {
-    "meta-insight": {
+    "meta-cc": {
       "command": "/home/yale/work/meta-cc/meta-cc-mcp",
       "args": [],
       "env": {}
@@ -1963,11 +1963,11 @@ echo "Review docs/mcp-migration-phase15.md for migration patterns."
 **验证**:
 ```bash
 # Re-register is NOT required (but safe to do)
-claude mcp add meta-insight /home/yale/work/meta-cc/meta-cc-mcp
+claude mcp add meta-cc /home/yale/work/meta-cc/meta-cc-mcp
 
 # Verify connection
 claude mcp list
-# Expected: meta-insight: /path/to/meta-cc-mcp - ✓ Connected
+# Expected: meta-cc: /path/to/meta-cc-mcp - ✓ Connected
 
 # Verify tool count
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./meta-cc-mcp | jq '.result.tools | length'

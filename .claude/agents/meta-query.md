@@ -309,7 +309,7 @@ User: "@meta-coach 帮我分析项目中的错误模式"
 3. **Suggest simpler alternatives**:
    ```
    Complex pipeline failed.
-   Try using MCP tool instead: mcp__meta-insight__aggregate_stats
+   Try using MCP tool instead: mcp__meta_cc__aggregate_stats
    ```
 
 ---
