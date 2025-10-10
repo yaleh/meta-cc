@@ -1,7 +1,7 @@
 {
   "name": "meta-cc",
   "displayName": "Meta-CC: Workflow Analysis for Claude Code",
-  "version": "0.13.0",
+  "version": "0.20.0",
   "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides workflow optimization insights, error pattern detection, and productivity analytics through 10 slash commands, 3 subagents, and 14 MCP tools.",
   "longDescription": "meta-cc transforms Claude Code session logs into actionable workflow insights. Analyze tool usage patterns, detect error repetitions, track file access history, and optimize your development workflow with comprehensive metacognitive analysis.\n\nKey Features:\n- 📊 Session analytics with detailed statistics\n- 🔍 Error pattern detection and root cause analysis\n- 🎯 Workflow optimization recommendations\n- 📈 Visual dashboards with ASCII charts\n- 🤖 AI-powered coaching with @meta-coach subagent\n- 🔗 Seamless MCP integration (14 query tools)\n- 💡 Prompt optimization based on successful patterns\n\nPerfect for developers seeking to understand and improve their Claude Code workflows.",
   "author": {
