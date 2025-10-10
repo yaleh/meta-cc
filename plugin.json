@@ -1,6 +1,6 @@
 {
   "name": "meta-cc",
-  "version": "0.14.4",
+  "version": "0.15.0",
   "description": "Meta-Cognition tool for Claude Code - analyze session history for workflow optimization",
   "author": {
     "name": "Yale Huang",
@@ -27,10 +27,10 @@
   "integration": {
     "mcp": {
       "server": "meta-cc-mcp",
-      "config_template": ".claude/lib/mcp-config.json"
+      "config_template": "lib/mcp-config.json"
     },
-    "slash_commands": ".claude/commands/",
-    "subagents": ".claude/agents/"
+    "slash_commands": "commands/",
+    "subagents": "agents/"
   },
   "install": {
     "script": "install.sh",
