@@ -25,49 +25,60 @@ Meta-Cognition tool for Claude Code - analyze session history for workflow optim
 
 ## Installation
 
-### Option 1: Quick Install with Bundle (Recommended)
+### Plugin Installation (Recommended)
 
-Download and install meta-cc with MCP server, slash commands, and subagents in one command:
+Download and install meta-cc as a Claude Code plugin with one command:
 
 #### Linux (x86_64)
 ```bash
-curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-linux-amd64.tar.gz | tar xz
-cd meta-cc-v*/
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-plugin-linux-amd64.tar.gz | tar xz
+cd meta-cc-plugin-linux-amd64
 ./install.sh
 ```
 
 #### Linux (ARM64)
 ```bash
-curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-linux-arm64.tar.gz | tar xz
-cd meta-cc-v*/
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-plugin-linux-arm64.tar.gz | tar xz
+cd meta-cc-plugin-linux-arm64
 ./install.sh
 ```
 
 #### macOS (Intel)
 ```bash
-curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-darwin-amd64.tar.gz | tar xz
-cd meta-cc-v*/
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-plugin-darwin-amd64.tar.gz | tar xz
+cd meta-cc-plugin-darwin-amd64
 ./install.sh
 ```
 
 #### macOS (Apple Silicon)
 ```bash
-curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-darwin-arm64.tar.gz | tar xz
-cd meta-cc-v*/
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-plugin-darwin-arm64.tar.gz | tar xz
+cd meta-cc-plugin-darwin-arm64
 ./install.sh
 ```
 
-#### Windows
-```powershell
-# Download and extract meta-cc-bundle-windows-amd64.tar.gz
-# Run install.sh in Git Bash or WSL
+#### Windows (x86_64)
+```bash
+# Using Git Bash
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-plugin-windows-amd64.tar.gz | tar xz
+cd meta-cc-plugin-windows-amd64
+./install.sh
 ```
 
 **What's included:**
 - ✅ `meta-cc` CLI tool
-- ✅ `meta-cc-mcp` MCP server
-- ✅ 8 slash commands (`.claude/commands/`)
-- ✅ 3 subagents (`.claude/agents/`)
+- ✅ `meta-cc-mcp` MCP server (auto-configured)
+- ✅ 11 slash commands (`.claude/commands/`)
+- ✅ 1 subagent (`.claude/agents/meta-coach`)
+- ✅ Automated MCP configuration
+
+**Features:**
+- 🔧 **Platform detection** - Automatically detects OS and architecture
+- 🔐 **Safe MCP merging** - Preserves existing MCP server configurations
+- ✅ **Post-install verification** - Ensures correct setup
+- 🗑️ **Clean uninstall** - Removes all components with `./uninstall.sh`
+
+See [Installation Guide](docs/installation.md) for detailed instructions, troubleshooting, and alternative installation methods.
 
 [View all releases →](https://github.com/yaleh/meta-cc/releases)
 
@@ -128,10 +139,25 @@ make install
 
 ### Verify Installation
 
+After plugin installation:
+
 ```bash
+# Check binary version
 meta-cc --version
-meta-cc --help
+
+# Verify MCP server
+meta-cc-mcp --version
+
+# Check PATH
+which meta-cc
 ```
+
+**In Claude Code:**
+1. Test slash command: `/meta-stats`
+2. Test subagent: `@meta-coach`
+3. Test MCP tools: Ask "What are my recent tool usage patterns?"
+
+If you encounter issues, see the [Troubleshooting Guide](docs/installation.md#troubleshooting).
 
 ## MCP Server Integration
 

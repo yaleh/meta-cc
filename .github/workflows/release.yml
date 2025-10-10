@@ -28,6 +28,12 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+      - name: Update plugin.json version
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          jq --arg ver "${VERSION#v}" '.version = $ver' plugin.json > plugin.json.tmp
+          mv plugin.json.tmp plugin.json
+
       - name: Build binaries
         run: |
           mkdir -p build
@@ -54,46 +60,78 @@ jobs:
           GOOS=darwin GOARCH=arm64 go build -o build/meta-cc-mcp-darwin-arm64 ./cmd/mcp-server
           GOOS=windows GOARCH=amd64 go build -o build/meta-cc-mcp-windows-amd64.exe ./cmd/mcp-server
 
-      - name: Create bundles
+      - name: Create plugin packages
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          mkdir -p build/bundles
+          mkdir -p build/packages
 
           for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64; do
-            BUNDLE_DIR=build/bundles/meta-cc-${VERSION}-${platform}
-            mkdir -p $BUNDLE_DIR/bin $BUNDLE_DIR/.claude/commands $BUNDLE_DIR/.claude/agents
+            PKG_DIR=build/packages/meta-cc-plugin-${platform}
+            mkdir -p $PKG_DIR/bin $PKG_DIR/.claude/commands $PKG_DIR/.claude/agents $PKG_DIR/.claude/lib
 
             # Copy binaries
             if [[ $platform == windows-* ]]; then
-              cp build/meta-cc-${platform}.exe $BUNDLE_DIR/bin/
-              cp build/meta-cc-mcp-${platform}.exe $BUNDLE_DIR/bin/
+              cp build/meta-cc-${platform}.exe $PKG_DIR/bin/meta-cc.exe
+              cp build/meta-cc-mcp-${platform}.exe $PKG_DIR/bin/meta-cc-mcp.exe
             else
-              cp build/meta-cc-${platform} $BUNDLE_DIR/bin/
-              cp build/meta-cc-mcp-${platform} $BUNDLE_DIR/bin/
+              cp build/meta-cc-${platform} $PKG_DIR/bin/meta-cc
+              cp build/meta-cc-mcp-${platform} $PKG_DIR/bin/meta-cc-mcp
             fi
 
             # Copy Claude Code integration files
-            cp -r .claude/commands/* $BUNDLE_DIR/.claude/commands/
-            cp -r .claude/agents/* $BUNDLE_DIR/.claude/agents/
+            cp -r .claude/commands/* $PKG_DIR/.claude/commands/
+            cp -r .claude/agents/* $PKG_DIR/.claude/agents/
+            cp -r .claude/lib/* $PKG_DIR/.claude/lib/
 
-            # Copy install script
-            cp scripts/install.sh $BUNDLE_DIR/
+            # Copy scripts and metadata
+            cp scripts/install.sh $PKG_DIR/
+            cp scripts/uninstall.sh $PKG_DIR/
+            cp plugin.json $PKG_DIR/
+            cp README.md $PKG_DIR/
+            cp LICENSE $PKG_DIR/
 
             # Create archive
-            tar -czf build/meta-cc-bundle-${platform}.tar.gz -C build/bundles meta-cc-${VERSION}-${platform}
+            cd build/packages
+            tar -czf meta-cc-plugin-${VERSION}-${platform}.tar.gz meta-cc-plugin-${platform}
+            cd ../..
           done
 
       - name: Generate checksums
         run: |
-          cd build
-          sha256sum * > checksums.txt
+          cd build/packages
+          sha256sum *.tar.gz > checksums.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: build/*
+          files: build/packages/*
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
+          body: |
+            ## Installation
+
+            Download the appropriate package for your platform and run:
+
+            ```bash
+            tar -xzf meta-cc-plugin-${{ steps.version.outputs.VERSION }}-<platform>.tar.gz
+            cd meta-cc-plugin-<platform>
+            ./install.sh
+            ```
+
+            ### Platforms
+            - `linux-amd64`: Linux x86_64
+            - `linux-arm64`: Linux ARM64
+            - `darwin-amd64`: macOS Intel
+            - `darwin-arm64`: macOS Apple Silicon
+            - `windows-amd64`: Windows x86_64
+
+            See [Installation Guide](https://github.com/yaleh/meta-cc#installation) for detailed instructions and troubleshooting.
+
+            ### Verification
+            After installation, verify with:
+            ```bash
+            meta-cc --version
+            ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

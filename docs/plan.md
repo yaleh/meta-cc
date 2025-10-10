@@ -3267,3 +3267,48 @@ sudo mv meta-cc /usr/local/bin/
 **工作量**：~6h | ~600 lines (80+150+200+100+70)
 
 详细计划见 `plans/19/plan.md`
+
+---
+
+## Phase 20: 插件打包与发布（Plugin Packaging & Release）
+
+**目标**：打包为 Claude Code 插件，支持一键安装
+**代码量**：~400 行 | **优先级**：高 | **状态**：⏳ 待开始
+
+### 背景
+
+当前安装需要手动复制 slash commands、subagents、配置 MCP server。插件化可实现一键安装和版本管理。
+
+### Stage 20.1: 插件结构（~100 行，1.5h）
+- 创建 `plugin.json` manifest
+- 定义安装脚本 `bin/install.sh`
+- 组织 `.claude/` 目录（commands + subagents）
+- **交付**：`plugin.json`, `bin/install.sh`, 目录结构
+
+### Stage 20.2: 自动化安装（~150 行，2h）
+- 构建 `meta-cc` 和 `meta-cc-mcp` 二进制
+- 安装到 `~/.claude/plugins/meta-cc/bin/`
+- 复制 slash commands 和 subagents
+- 更新 `~/.claude/mcp.json` 配置
+- **交付**：`install.sh` 完整实现
+
+### Stage 20.3: GitHub Release 工作流（~100 行，1.5h）
+- 配置 `.github/workflows/release.yml`
+- 构建多平台二进制（linux/darwin/windows）
+- 打包插件 ZIP
+- 自动创建 GitHub Release
+- **交付**：CI/CD 发布自动化
+
+### Stage 20.4: 文档与测试（~50 行，1h）
+- 编写安装文档 `README.md`
+- 测试 Linux/macOS/Windows 安装
+- 更新 CHANGELOG
+- **交付**：用户安装指南
+
+### 完成标准
+- ✅ `plugin.json` 正确 | `install.sh` 通过测试 | GitHub Actions 发布成功
+- ✅ 多平台测试通过 | 文档完整
+
+**工作量**：~6h | ~400 lines
+
+详细计划见 `plans/20/plan.md`

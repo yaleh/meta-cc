@@ -7,10 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Phase 20: Plugin Packaging & Release**
+  - Stage 20.1: Plugin structure definition with plugin.json manifest
+  - Stage 20.2: Automated installation script with platform detection and MCP configuration merging
+  - Stage 20.3: Multi-platform GitHub Release workflow enhancements
+  - Stage 20.4: Comprehensive installation documentation and testing checklists
+- Plugin packaging structure:
+  - `plugin.json` with metadata, dependencies, and platform definitions
+  - `.claude/lib/mcp-config.json` template for MCP server configuration
+  - Enhanced `install.sh` with platform detection (Linux, macOS, Windows)
+  - New `uninstall.sh` for clean component removal
+- Multi-platform plugin packages (5 platforms):
+  - linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64
+  - Each package includes binaries, Claude Code integration files, and install/uninstall scripts
+- Installation documentation:
+  - `docs/installation.md` with platform-specific instructions and troubleshooting
+  - `tests/PLUGIN_VERIFICATION.md` for comprehensive pre-release testing
+- GitHub Release workflow enhancements:
+  - Automated plugin package creation for all platforms
+  - Checksum generation and verification
+  - Auto-generated release notes
+
 ### Changed
 - **Slash Command Enhancements**: Integrated new message query capabilities
   - `/meta-timeline` now includes assistant response analysis and conversation latency metrics
   - `/meta-coach` now includes interaction quality analysis with response time, tool efficiency, and satisfaction metrics
+- **Installation Process**: Enhanced with platform detection and safe MCP configuration merging
+  - `install.sh` now detects OS and architecture automatically
+  - MCP configuration merged safely without overwriting existing servers
+  - Post-install verification ensures correct setup
+- **Release Workflow**: Now creates plugin packages instead of bare binaries
+  - Each release includes 5 platform-specific plugin packages
+  - One-command installation: `curl -L <url> | tar xz && ./install.sh`
+  - Checksums provided for integrity verification
 
 ## [v0.14.0] - 2025-10-09
 

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "meta-cc": {
+      "command": "meta-cc-mcp",
+      "args": [],
+      "env": {},
+      "disabled": false,
+      "alwaysAllow": []
+    }
+  }
+}

@@ -424,6 +424,44 @@ Subagents 分为两类：
 
 ---
 
+## 十、打包与发布原则（Phase 20）
+
+### 插件结构标准化
+
+**目录组织**：
+```
+meta-cc-plugin/
+├── plugin.json              # 插件清单
+├── bin/install.sh           # 安装脚本
+├── .claude/
+│   ├── commands/            # Slash commands
+│   └── subagents/           # Subagent 定义
+└── mcp/meta-cc-server.json  # MCP 配置模板
+```
+
+### 安装流程
+
+1. **构建二进制**：编译或下载预构建的 `meta-cc` 和 `meta-cc-mcp`
+2. **安装到用户目录**：复制到 `~/.claude/plugins/meta-cc/bin/`
+3. **集成配置**：复制 slash commands/subagents，更新 MCP 配置
+4. **验证**：测试 MCP 连接和 slash command 可用性
+
+### 发布自动化
+
+**GitHub Release 工作流**：
+- 多平台构建（linux-amd64, darwin-arm64, windows-amd64）
+- 打包插件结构为 ZIP
+- 自动创建 Release 和上传 artifacts
+- 版本号从 git tag 提取（`v1.0.0`）
+
+### 版本管理
+
+- **语义化版本**：`MAJOR.MINOR.PATCH`（遵循 SemVer）
+- **Git Tags**：`v1.0.0` 触发 Release 工作流
+- **CHANGELOG**：每个 Release 包含变更摘要
+
+---
+
 ## 参考文档
 
 - [meta-cc 项目总体实施计划](./plan.md)
