@@ -10,6 +10,10 @@ import (
 )
 
 func TestAnalyzeFileChurnCommand_OutputFormat(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in CI - requires real git history")
+	}
+
 	// Test: verify that analyze file-churn outputs array of objects (not wrapped)
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -61,6 +65,10 @@ func TestAnalyzeFileChurnCommand_OutputFormat(t *testing.T) {
 }
 
 func TestAnalyzeFileChurnCommand_MatchesSequencesFormat(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in CI - requires real git history")
+	}
+
 	// Test: verify file-churn output format matches sequences format (array of objects)
 	// Both should output JSONL without wrapper objects
 

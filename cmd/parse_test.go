@@ -9,6 +9,10 @@ import (
 )
 
 func TestParseExtractCommand_TypeTurns(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in CI - requires Claude session directory structure")
+	}
+
 	// Prepare test environment: create temporary session file
 	homeDir, _ := os.UserHomeDir()
 	projectHash := "-home-yale-work-test-parse"
@@ -60,6 +64,10 @@ func TestParseExtractCommand_TypeTurns(t *testing.T) {
 }
 
 func TestParseExtractCommand_TypeTools(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in CI - requires Claude session directory structure")
+	}
+
 	// Prepare test environment
 	homeDir, _ := os.UserHomeDir()
 	projectHash := "-home-yale-work-test-tools"
