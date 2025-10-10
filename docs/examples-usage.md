@@ -111,12 +111,13 @@ The subagent combines MCP tools with LLM reasoning for personalized guidance.
 
 **Use for**: Fast, pre-defined analyses without typing queries
 
-**Available Commands** (4 core commands):
+**Available Commands** (5 core commands):
 
 | Command | Description | Arguments |
 |---------|-------------|-----------|
 | `/meta-stats` | Session statistics | None |
-| `/meta-errors` | Error pattern analysis | None |
+| `/meta-errors` | Tool error pattern analysis | None |
+| `/meta-bugs` | Project-level bug & fix analysis | None |
 | `/meta-timeline` | Timeline view | `[limit]` (default: 50) |
 | `/meta-help` | Help and usage guide | None |
 
@@ -137,7 +138,43 @@ Simply restart Claude Code and use them:
 
 ## Detailed Usage Examples
 
-### Example 1: Using MCP for Natural Queries
+### Example 1: Understanding `/meta-errors` vs `/meta-bugs`
+
+**`/meta-errors`** focuses on **tool-level technical errors**:
+- Bash command failures
+- File not found errors
+- Permission denied errors
+- Tool execution timeouts
+- **Output**: Error signatures, tool error patterns, technical fixes
+
+**`/meta-bugs`** focuses on **project-level workflow issues**:
+- Test failures (TDD cycles broken)
+- Build failures (make errors)
+- Lint failures (code quality issues)
+- Git conflicts and errors
+- User corrections (interrupts, rejections, retries)
+- Fix effectiveness (repeated issues, resolution rate)
+- **Output**: Workflow insights, process improvements, prevention strategies
+
+**Example Use Cases**:
+
+| Scenario | Use Command |
+|----------|-------------|
+| "Bash keeps failing with exit code 1" | `/meta-errors` |
+| "Tests keep failing after refactoring" | `/meta-bugs` |
+| "Read tool can't find files" | `/meta-errors` |
+| "Build breaks frequently during development" | `/meta-bugs` |
+| "I keep interrupting Claude's work" | `/meta-bugs` |
+| "MCP tool returns syntax error" | `/meta-errors` |
+
+**Workflow Suggestion**:
+1. Run `/meta-bugs` first to understand high-level workflow issues
+2. Run `/meta-errors` if you need to debug specific tool failures
+3. Use `@meta-coach` for comprehensive analysis combining both perspectives
+
+---
+
+### Example 2: Using MCP for Natural Queries
 
 **Scenario**: You want to understand error patterns across your project.
 
@@ -419,6 +456,7 @@ Run these tests:
 # Tier 3: Slash Commands
 /meta-stats
 /meta-errors
+/meta-bugs
 /meta-timeline 10
 /meta-help
 

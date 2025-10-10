@@ -2,6 +2,8 @@
 
 本文档定义了 meta-cc 项目的核心设计原则、开发约束和架构决策。
 
+> **注意**：详细的架构决策已迁移至 [Architecture Decision Records (ADRs)](adr/README.md)。本文档保留核心原则和快速参考。
+
 ---
 
 ## 一、核心约束
@@ -23,6 +25,8 @@
 ---
 
 ## 二、架构设计原则
+
+> **详细决策**：参见 [ADR-001: 两层架构设计](adr/ADR-001-two-layer-architecture.md)
 
 ### 1. 职责最小化原则
 
@@ -211,6 +215,11 @@ if err := flagSet.Set("output", "json"); err != nil {
 
 ## 六、MCP Server 设计原则
 
+> **详细决策**：
+> - [ADR-003: MCP Server 集成策略](adr/ADR-003-mcp-server-integration.md)
+> - [ADR-004: 混合输出模式设计](adr/ADR-004-hybrid-output-mode.md)
+> - [ADR-005: 作用域参数标准化](adr/ADR-005-scope-parameter-standardization.md)
+
 ### 架构分离：CLI vs MCP
 
 **meta-cc CLI**（核心数据层）：
@@ -223,77 +232,41 @@ if err := flagSet.Set("output", "json"); err != nil {
 - ✅ 处理流程：CLI 获取数据 → gojq 过滤 → 统计聚合 → 混合输出模式
 - ✅ 混合输出：输出 ≤ 阈值(8KB) → inline；输出 > 阈值 → file_ref
 
-### MCP 输出模式（Phase 16）
+### 查询范围与输出控制（快速参考）
 
-**混合输出策略**：根据输出大小自动选择输出模式
+**查询范围**：
+- ✅ 默认：`scope: "project"` （所有会话）
+- ✅ 显式覆盖：`scope: "session"` （仅当前会话）
 
-1. **Inline 模式**（输出 ≤ 8KB）：直接返回数据，单轮交互完成
-2. **File Reference 模式**（输出 > 8KB）：写入临时文件，返回元数据，Claude 使用 Read/Grep/Bash 检索
+**结果数量限制**：
+- ✅ 默认：无限制（依赖混合输出模式）
+- ✅ 显式限制：`limit: N` （仅在明确需要时使用）
 
-**阈值配置：**
-- 参数：`inline_threshold_bytes`（默认 8192）
-- 环境变量：`META_CC_INLINE_THRESHOLD`
-
-**文件生命周期：**
-- 临时文件：`/tmp/meta-cc-mcp-{session_hash}-{timestamp}-{query_type}.jsonl`
-- MCP 启动时自动清理 7 天前文件
-- 手动清理：`cleanup_temp_files` 工具
-
-### 默认查询范围与输出控制
-
-**查询范围：**
-- ✅ 默认查询范围为项目级（所有会话）
-- ✅ 工具名带 `_session` 后缀表示仅查询当前会话
-- ✅ API 清晰：无后缀 = 项目级，`_session` = 会话级
-
-**结果数量限制：**
-- ✅ 默认无结果数量限制（依赖混合输出模式）
-- ✅ Claude 可显式传递 `limit` 参数控制结果数量
-- ✅ meta-cc-mcp 不预判用户需要多少数据
-
-**何时显式使用 limit 参数：**
-1. 用户明确要求"前 N 个结果"（如"最近 10 个错误"）
-2. 只需要样本数据（如"给我看几个例子"）
-3. 快速探索场景（先看少量数据，再决定是否扩展）
+**混合输出模式**：
+- ✅ 自动选择：≤8KB → inline；>8KB → file_ref
+- ✅ 阈值配置：`inline_threshold_bytes` 或 `META_CC_INLINE_THRESHOLD`
 
 ---
 
 ## 七、职责分离与集成层次
 
-### CLI 工具职责（meta-cc 核心）
+> **详细决策**：参见 [ADR-003: MCP Server 集成策略](adr/ADR-003-mcp-server-integration.md)
 
-- ✅ JSONL 解析和数据提取
-- ✅ 基于规则的模式检测（错误重复、工具频率）
-- ✅ 结构化数据输出（JSONL/TSV）
-- ✅ 索引构建和查询优化
+### 集成层次概览
 
-### Claude Code 集成层次
+**1. MCP Server（核心层，80% 使用场景）**
+- meta-cc-mcp 作为主要接入点
+- Claude 自主决策何时调用
+- 支持 jq 表达式过滤和统计
 
-**1. MCP Server（核心层）**
-- ✅ meta-cc-mcp 作为主要接入点（80% 使用场景）
-- ✅ Claude 自主决策何时调用
-- ✅ 支持 jq 表达式过滤和统计
-- ✅ 混合输出模式（inline/file_ref）
-
-**2. Subagents（语义层）**
-
-**工具型 Agent**：
-- @meta-query：组织 CLI + Unix 管道进行复杂聚合
-
-**业务型 Agent**（互不依赖）：
+**2. Subagents（语义层，5% 使用场景）**
 - @meta-coach：综合分析、语义理解、建议生成
 - @error-analyst：错误模式分析、根本原因诊断
 - @workflow-tuner：工作流优化、自动化建议
 
-**MCP 输出控制要求**：
-- `stats_only=true`：仅统计（>99% 压缩）
-- Hybrid Mode（默认）：自动选择 inline/file_ref，无数据截断
-- `limit=10-20`：限制结果数量（仅在明确需要时使用）
-
-**3. Slash Commands（快捷层）**
-- ✅ 直接调用 meta-cc CLI（20% 使用场景）
-- ✅ 固定格式的快速报告
-- ✅ 适合重复性查询
+**3. Slash Commands（快捷层，15% 使用场景）**
+- 固定格式的快速报告
+- 适合重复性查询
 
 ---
 
@@ -360,92 +333,24 @@ test-all:
 
 ## 十、打包与发布原则（Phase 20）
 
-### 插件结构标准化
+> **详细决策**：参见 [ADR-002: 插件目录结构重构](adr/ADR-002-plugin-directory-structure.md)
 
-**开发环境目录组织**（Git 跟踪）：
+### 插件结构（快速参考）
+
+**开发**：编辑 `.claude/commands/` 和 `.claude/agents/` （Git 跟踪）
+**发布**：运行 `make sync-plugin-files` 同步到 `commands/` 和 `agents/` （Git 忽略）
+
+**关键命令**：
+```bash
+# 本地开发（无需构建）
+vi .claude/commands/meta-stats.md
+
+# 发布前同步
+make sync-plugin-files
+
+# 创建发布包
+make bundle-release VERSION=v1.0.0
 ```
-meta-cc/
-├── .claude/
-│   ├── commands/            # SOURCE: Slash commands（开发时编辑）
-│   └── agents/              # SOURCE: Subagent 定义（开发时编辑）
-├── .claude-plugin/
-│   ├── plugin.json          # 插件清单
-│   └── marketplace.json     # Marketplace 元数据
-├── lib/                     # 共享库文件（MCP 配置模板等）
-└── scripts/
-    └── sync-plugin-files.sh # 同步脚本
-```
-
-**发布打包目录组织**（构建产物，不跟踪）：
-```
-meta-cc-release/
-├── commands/                # BUILD ARTIFACT: 从 .claude/commands/ 同步
-├── agents/                  # BUILD ARTIFACT: 从 .claude/agents/ 同步
-├── .claude-plugin/
-│   ├── plugin.json
-│   └── marketplace.json
-└── lib/
-    └── mcp-config.json
-```
-
-**关键设计原则：**
-- ✅ **开发阶段**：编辑 `.claude/commands/` 和 `.claude/agents/`，Claude Code 实时读取
-- ✅ **发布阶段**：运行 `make sync-plugin-files`，同步到根目录 `commands/` 和 `agents/`
-- ✅ **Git 管理**：仅跟踪 `.claude/` 源文件，`.gitignore` 排除根目录构建产物
-- ✅ **CI/CD**：GitHub Actions 自动运行同步脚本验证一致性
-
-### 插件 Schema 规范
-
-**plugin.json 标准字段**（仅使用以下字段）：
-```json
-{
-  "name": "meta-cc",
-  "version": "0.16.0",
-  "description": "Meta-cognition analysis for Claude Code",
-  "author": "Your Name <email@example.com>",
-  "license": "MIT",
-  "homepage": "https://github.com/user/meta-cc",
-  "repository": "https://github.com/user/meta-cc",
-  "keywords": ["meta-cognition", "workflow", "analysis"]
-}
-```
-
-**非标准字段（不要使用）：**
-- ❌ `dependencies` → 由安装脚本处理
-- ❌ `platforms` → 多平台构建，无需声明
-- ❌ `binaries` → 安装脚本负责
-- ❌ `integration` → 分离到 lib/mcp-config.json
-- ❌ `install` / `uninstall` → 使用标准 install.sh
-
-**marketplace.json 规范：**
-```json
-{
-  "name": "meta-cc",
-  "version": "0.16.0",
-  "source": "https://github.com/user/meta-cc"  // 完整 URL
-}
-```
-
-**验证流程：**
-1. 参考官方 Claude Code plugin 规范
-2. 本地测试：`claude plugin install <directory>`
-3. 验证命令出现在 Claude Code UI
-4. 提交前检查 schema 一致性
-
-### 安装流程
-
-1. **构建二进制**：编译或下载预构建的 `meta-cc` 和 `meta-cc-mcp`
-2. **安装到用户目录**：复制到 `~/.claude/plugins/meta-cc/bin/`
-3. **集成配置**：复制 slash commands/subagents，更新 MCP 配置
-4. **验证**：测试 MCP 连接和 slash command 可用性
-
-### 发布自动化
-
-**GitHub Release 工作流：**
-- 多平台构建（linux-amd64, darwin-arm64, windows-amd64）
-- 打包插件结构为 ZIP
-- 自动创建 Release 和上传 artifacts
-- 版本号从 git tag 提取（`v1.0.0`）
 
 ### 版本管理
 
@@ -490,6 +395,15 @@ meta-cc-release/
 
 ## 参考文档
 
+### 架构决策记录（ADRs）
+- [ADR 索引](adr/README.md) - 所有架构决策记录
+- [ADR-001: 两层架构设计](adr/ADR-001-two-layer-architecture.md)
+- [ADR-002: 插件目录结构重构](adr/ADR-002-plugin-directory-structure.md)
+- [ADR-003: MCP Server 集成策略](adr/ADR-003-mcp-server-integration.md)
+- [ADR-004: 混合输出模式设计](adr/ADR-004-hybrid-output-mode.md)
+- [ADR-005: 作用域参数标准化](adr/ADR-005-scope-parameter-standardization.md)
+
+### 项目文档
 - [meta-cc 项目总体实施计划](./plan.md)
 - [Claude Code 元认知分析系统 - 技术方案](./proposals/meta-cognition-proposal.md)
 - [Claude Code 官方文档](https://docs.claude.com/en/docs/claude-code/overview)
