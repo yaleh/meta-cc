@@ -79,21 +79,24 @@ test_version_sync() {
     fi
 }
 
-# Test 5: Plugin source configuration
-test_plugin_source() {
-    SOURCE_TYPE=$(jq -r '.plugins[0].source.type' .claude-plugin/marketplace.json)
-    SOURCE_URL=$(jq -r '.plugins[0].source.url' .claude-plugin/marketplace.json)
-
-    if [ "$SOURCE_TYPE" = "github" ]; then
-        pass "Plugin source type correct: $SOURCE_TYPE"
+# Test 5: Plugin source and author configuration
+test_plugin_metadata() {
+    # Check source (should be string format: owner/repo)
+    SOURCE=$(jq -r '.plugins[0].source' .claude-plugin/marketplace.json)
+    if [ "$SOURCE" = "yaleh/meta-cc" ]; then
+        pass "Plugin source correct: $SOURCE"
     else
-        fail "Plugin source type incorrect: got $SOURCE_TYPE, expected github"
+        fail "Plugin source incorrect: got $SOURCE, expected yaleh/meta-cc"
     fi
 
-    if [ "$SOURCE_URL" = "https://github.com/yaleh/meta-cc" ]; then
-        pass "Plugin source URL correct: $SOURCE_URL"
+    # Check author (should be object with name and email)
+    AUTHOR_NAME=$(jq -r '.plugins[0].author.name' .claude-plugin/marketplace.json)
+    AUTHOR_EMAIL=$(jq -r '.plugins[0].author.email' .claude-plugin/marketplace.json)
+
+    if [ "$AUTHOR_NAME" != "null" ] && [ "$AUTHOR_EMAIL" != "null" ]; then
+        pass "Plugin author object correct: $AUTHOR_NAME <$AUTHOR_EMAIL>"
     else
-        fail "Plugin source URL incorrect: $SOURCE_URL"
+        fail "Plugin author format incorrect: expected object with name and email"
     fi
 }
 
@@ -103,7 +106,7 @@ test_marketplace_json_exists
 test_marketplace_json_valid
 test_required_fields
 test_version_sync
-test_plugin_source
+test_plugin_metadata
 
 echo ""
 echo -e "${GREEN}All marketplace metadata tests passed!${NC}"
