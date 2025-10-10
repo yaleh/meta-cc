@@ -153,8 +153,12 @@ func TestQueryToolsCommand_FilterByTool(t *testing.T) {
 	defer os.Unsetenv("CC_PROJECT_HASH")
 
 	// Reset flags from previous tests
-	queryToolsCmd.Flags().Set("status", "")
-	queryToolsCmd.Flags().Set("tool", "")
+	if err := queryToolsCmd.Flags().Set("status", ""); err != nil {
+		t.Fatalf("Failed to reset status flag: %v", err)
+	}
+	if err := queryToolsCmd.Flags().Set("tool", ""); err != nil {
+		t.Fatalf("Failed to reset tool flag: %v", err)
+	}
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -205,9 +209,15 @@ func TestQueryToolsCommand_Limit(t *testing.T) {
 	defer os.Unsetenv("CC_PROJECT_HASH")
 
 	// Reset flags from previous tests
-	queryToolsCmd.Flags().Set("status", "")
-	queryToolsCmd.Flags().Set("tool", "")
-	queryToolsCmd.Flags().Set("limit", "0")
+	if err := queryToolsCmd.Flags().Set("status", ""); err != nil {
+		t.Fatalf("Failed to reset status flag: %v", err)
+	}
+	if err := queryToolsCmd.Flags().Set("tool", ""); err != nil {
+		t.Fatalf("Failed to reset tool flag: %v", err)
+	}
+	if err := queryToolsCmd.Flags().Set("limit", "0"); err != nil {
+		t.Fatalf("Failed to reset limit flag: %v", err)
+	}
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)

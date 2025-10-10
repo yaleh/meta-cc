@@ -735,11 +735,20 @@ func TestExecuteToolE2E_QuerySuccessfulPrompts(t *testing.T) {
 	}
 
 	// Save and restore working directory
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Errorf("failed to restore directory: %v", err)
+		}
+	}()
 
 	// Change to project root (two levels up from cmd/mcp-server)
-	os.Chdir("../..")
+	if err := os.Chdir("../.."); err != nil {
+		t.Fatalf("failed to change to project root: %v", err)
+	}
 
 	executor := NewToolExecutor()
 
@@ -803,11 +812,20 @@ func TestExecuteToolE2E_AllTools(t *testing.T) {
 	}
 
 	// Save and restore working directory
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Errorf("failed to restore directory: %v", err)
+		}
+	}()
 
 	// Change to project root (two levels up from cmd/mcp-server)
-	os.Chdir("../..")
+	if err := os.Chdir("../.."); err != nil {
+		t.Fatalf("failed to change to project root: %v", err)
+	}
 
 	executor := NewToolExecutor()
 

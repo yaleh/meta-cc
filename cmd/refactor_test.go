@@ -47,9 +47,15 @@ func TestRefactored_QueryTools(t *testing.T) {
 	defer cleanup()
 
 	// Reset flags from previous tests
-	queryToolsCmd.Flags().Set("status", "")
-	queryToolsCmd.Flags().Set("tool", "")
-	queryToolsCmd.Flags().Set("limit", "0")
+	if err := queryToolsCmd.Flags().Set("status", ""); err != nil {
+		t.Fatalf("Failed to reset status flag: %v", err)
+	}
+	if err := queryToolsCmd.Flags().Set("tool", ""); err != nil {
+		t.Fatalf("Failed to reset tool flag: %v", err)
+	}
+	if err := queryToolsCmd.Flags().Set("limit", "0"); err != nil {
+		t.Fatalf("Failed to reset limit flag: %v", err)
+	}
 
 	// Test basic query - should output tool calls in JSONL format
 	var buf bytes.Buffer
