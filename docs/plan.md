@@ -14,14 +14,18 @@
 - ✅ **Phase 17 已完成**（Subagent 形式化实现）
 - ✅ **Phase 18 已完成**（GitHub Release 准备）
 - ✅ **Phase 19 已完成**（Assistant 响应查询 + 对话分析）
+- ✅ **Phase 20 已完成**（插件打包与发布）
+- ✅ **Phase 21 已完成**（自托管插件市场）
 - ✅ 单元测试全部通过（新增 assistant messages + conversation 测试）
 - ✅ 3 个真实项目验证通过（0% 错误率）
-- ✅ 2 个 Slash Commands 可用（`/meta-stats`, `/meta-errors`）
-- ✅ MCP Server 独立可执行文件（`meta-cc-mcp`，15 个工具，支持混合输出模式）
+- ✅ 11 个 Slash Commands 可用
+- ✅ 3 个 Subagents 可用
+- ✅ MCP Server 独立可执行文件（`meta-cc-mcp`，16 个工具，支持混合输出模式）
 - ✅ MCP 输出压缩率 80%+（10.7k → ~1-2k tokens）
 - ✅ 混合输出模式：自动处理大数据（≤8KB inline，>8KB file_ref，无截断）
 - ✅ 开源基础设施完成：LICENSE, CI/CD, 发布自动化
 - ✅ 消息查询完整：user messages + assistant messages + conversation turns
+- ✅ 插件打包：多平台包（5 平台）+ 自动安装脚本
 
 ---
 
@@ -3273,7 +3277,7 @@ sudo mv meta-cc /usr/local/bin/
 ## Phase 20: 插件打包与发布（Plugin Packaging & Release）
 
 **目标**：打包为 Claude Code 插件，支持一键安装
-**代码量**：~400 行 | **优先级**：高 | **状态**：⏳ 待开始
+**代码量**：~400 行 | **优先级**：高 | **状态**：✅ 已完成
 
 ### 背景
 
@@ -3312,3 +3316,53 @@ sudo mv meta-cc /usr/local/bin/
 **工作量**：~6h | ~400 lines
 
 详细计划见 `plans/20/plan.md`
+
+---
+
+## Phase 21: 自托管插件市场（Self-Hosted Marketplace）
+
+**目标**：创建 Claude Code 插件市场配置，支持一键安装
+**代码量**：~200 行 | **优先级**：高 | **状态**：✅ 已完成
+
+### 背景
+
+当前用户需要手动下载 GitHub Release 包并运行安装脚本。通过创建插件市场配置，用户可使用 `/plugin install yaleh/meta-cc` 命令一键安装。
+
+### Stage 21.1: 市场元数据（~80 行，1h）
+- 创建 `.claude-plugin/marketplace.json`
+- 定义插件元数据（名称、版本、描述、分类）
+- 配置 GitHub Release 资源引用
+- 添加组件统计（slash commands、subagents、MCP tools）
+- **交付**：`.claude-plugin/marketplace.json`, 市场元数据测试
+
+### Stage 21.2: 安装命令文档（~60 行，1h）
+- 更新 README.md 添加市场安装说明
+- 创建 `docs/marketplace-listing.md` 营销文案
+- 添加市场安装徽章
+- 文档化 `/plugin install` 使用方法
+- **交付**：更新的 README.md, marketplace-listing.md
+
+### Stage 21.3: 演示素材（~30 行，1.5h）
+- 创建安装演示 GIF/视频
+- 截取功能演示图片（meta-coach, meta-viz）
+- 添加到 `docs/screenshots/` 目录
+- 更新文档引用截图
+- **交付**：`docs/screenshots/`, 视觉演示素材
+
+### Stage 21.4: 测试与验证（~30 行，30min）
+- 测试市场 JSON 格式验证
+- 验证 `/plugin marketplace add yaleh/meta-cc` 命令
+- 验证 `/plugin install meta-cc` 安装流程
+- 更新 CHANGELOG
+- **交付**：市场安装验证通过
+
+### 完成标准
+- ✅ `.claude-plugin/marketplace.json` 格式正确
+- ✅ `/plugin install` 命令可用
+- ✅ README 包含市场安装说明
+- ✅ 演示素材完整（GIF + 截图）
+- ✅ 文档更新完成
+
+**工作量**：~4h | ~200 lines
+
+详细计划见 `plans/21/plan.md`

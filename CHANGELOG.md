@@ -5,9 +5,54 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2025-10-10
+
+### Added
+- **Phase 21: Self-Hosted Marketplace**
+  - Stage 21.1: Plugin marketplace configuration (.claude-plugin/marketplace.json)
+  - Stage 21.2: Marketing documentation (docs/marketplace-listing.md)
+  - Stage 21.3: Visual demonstration structure (docs/screenshots/)
+  - Stage 21.4: Marketplace validation and testing
+- Plugin marketplace configuration:
+  - `.claude-plugin/marketplace.json` with rich metadata and component inventory
+  - Comprehensive plugin description with feature highlights
+  - GitHub Release asset references for all platforms
+  - Installation command documentation (/plugin install yaleh/meta-cc)
+
 ## [Unreleased]
 
 ### Added
+- **Phase 21: Self-Hosted Marketplace**
+  - Stage 21.1: Plugin marketplace configuration (.claude-plugin/marketplace.json)
+  - Stage 21.2: Marketing documentation (docs/marketplace-listing.md)
+  - Stage 21.3: Visual demonstration structure (docs/screenshots/)
+  - Stage 21.4: Marketplace validation and testing
+- Plugin marketplace configuration:
+  - `.claude-plugin/marketplace.json` with rich metadata and component inventory
+  - Comprehensive plugin description with feature highlights
+  - GitHub Release asset references for all platforms
+  - Installation command documentation (/plugin install yaleh/meta-cc)
+- Marketing documentation:
+  - `docs/marketplace-listing.md` with compelling feature showcase
+  - Visual asset structure in `docs/screenshots/` directory
+  - Installation badges for marketplace and GitHub releases
+- Marketplace validation:
+  - `tests/marketplace_validation_test.sh` for format and consistency checks
+  - Version synchronization verification across plugin.json and marketplace.json
+  - Documentation cross-reference validation
+
+### Changed
+- README.md now prioritizes marketplace installation as recommended method
+- Installation guide expanded with /plugin install workflow
+- Documentation references updated to include marketplace installation
+- Component inventory documented (10 slash commands, 3 subagents, 14 MCP tools)
+
+### Improved
+- Plugin discoverability via Claude Code marketplace
+- One-command installation experience
+- Professional visual documentation structure
+- Installation workflow streamlined
+
 - **Phase 20: Plugin Packaging & Release**
   - Stage 20.1: Plugin structure definition with plugin.json manifest
   - Stage 20.2: Automated installation script with platform detection and MCP configuration merging
