@@ -71,23 +71,50 @@ order_by_pattern(composite) = {
 # Main workflow
 main :: intent → void
 main(I) = {
+  # Step 1: Discover and match
   index: discover(),
   scored: match(I, index),
 
-  # No match case
+  # Step 2: Report matching results
+  report_matching_results(I, index, scored),
+
+  # Step 3: Determine execution plan
   if empty(scored):
     display_available_capabilities(index),
     return,
 
-  # Composite or single execution
   composite: detect_composite(scored),
 
   if composite:
-    display_composite_intent(composite),
+    report_composite_plan(composite),
     execute_best_match(scored[0]),  # User can request full pipeline
   else:
-    display_best_match_with_alternatives(scored),
+    report_single_execution_plan(scored),
     execute(scored[0].capability.name)
+}
+
+report_matching_results :: (intent, CapabilityIndex, ScoredCapabilities) → void
+report_matching_results(I, index, scored) = {
+  # Display: total capabilities loaded, intent, match count, top matches
+  display_discovery_summary(index),
+  display_intent(I),
+  display_match_summary(scored)
+}
+
+report_composite_plan :: (CompositeIntent) → void
+report_composite_plan(composite) = {
+  # Display: composite detection, pipeline pattern, execution plan
+  display_composite_detection(composite),
+  display_pipeline_pattern(composite.pattern),
+  display_execution_plan(composite, type="composite")
+}
+
+report_single_execution_plan :: (ScoredCapabilities) → void
+report_single_execution_plan(scored) = {
+  # Display: best match, score, alternatives if any, execution plan
+  display_best_match(scored[0]),
+  display_alternatives_if_close(scored),
+  display_execution_plan(scored[0], type="single")
 }
 
 main($1)
