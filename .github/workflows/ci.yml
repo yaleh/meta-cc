@@ -46,16 +46,17 @@ jobs:
             exit 1
           fi
 
-          # Check file count (1 from .claude/commands + 13 from capabilities/commands)
+          # Check file count (only unified meta.md, capabilities distributed separately)
           DIST_CMD_COUNT=$(find dist/commands -name "*.md" | wc -l)
-          EXPECTED_COUNT=14
+          EXPECTED_COUNT=1
 
           if [ "$DIST_CMD_COUNT" -ne "$EXPECTED_COUNT" ]; then
-            echo "ERROR: Command file count mismatch: expected $EXPECTED_COUNT, got $DIST_CMD_COUNT"
+            echo "ERROR: Command file count mismatch: expected $EXPECTED_COUNT (unified meta.md only), got $DIST_CMD_COUNT"
             exit 1
           fi
 
-          echo "✓ Plugin files synced successfully ($DIST_CMD_COUNT command files)"
+          echo "✓ Plugin files synced successfully ($DIST_CMD_COUNT command file: unified meta.md)"
+          echo "  Note: 13 capability files distributed separately in capabilities-latest.tar.gz"
 
       - name: Run tests
         run: make test
