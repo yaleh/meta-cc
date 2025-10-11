@@ -40,22 +40,22 @@ jobs:
         run: |
           bash scripts/sync-plugin-files.sh
 
-          # Check sync succeeded
-          if [ ! -d "commands" ] || [ ! -d "agents" ]; then
-            echo "ERROR: Plugin file sync failed"
+          # Check sync succeeded (new structure uses dist/)
+          if [ ! -d "dist/commands" ] || [ ! -d "dist/agents" ]; then
+            echo "ERROR: Plugin file sync failed - dist/ directory not created"
             exit 1
           fi
 
-          # Check file count consistency
-          CLAUDE_CMD_COUNT=$(find .claude/commands -name "*.md" | wc -l)
-          ROOT_CMD_COUNT=$(find commands -name "*.md" | wc -l)
+          # Check file count (1 from .claude/commands + 13 from capabilities/commands)
+          DIST_CMD_COUNT=$(find dist/commands -name "*.md" | wc -l)
+          EXPECTED_COUNT=14
 
-          if [ "$CLAUDE_CMD_COUNT" != "$ROOT_CMD_COUNT" ]; then
-            echo "ERROR: Command file count mismatch"
+          if [ "$DIST_CMD_COUNT" -ne "$EXPECTED_COUNT" ]; then
+            echo "ERROR: Command file count mismatch: expected $EXPECTED_COUNT, got $DIST_CMD_COUNT"
             exit 1
           fi
 
-          echo "✓ Plugin files synced successfully"
+          echo "✓ Plugin files synced successfully ($DIST_CMD_COUNT command files)"
 
       - name: Run tests
         run: make test

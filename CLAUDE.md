@@ -50,27 +50,55 @@ See [docs/principles.md](docs/principles.md) for complete details.
 
 ```
 meta-cc/
-├── .claude/              # Project-level Claude Code configuration
-│   ├── commands/        # SOURCE: Slash command files (edit here)
-│   ├── agents/          # SOURCE: Subagent files (edit here)
-│   └── hooks/           # Project hooks
-├── .claude-plugin/      # Plugin metadata for marketplace
-│   ├── plugin.json
-│   └── marketplace.json
-├── commands/            # BUILD ARTIFACT: Synced from .claude/commands/
-├── agents/              # BUILD ARTIFACT: Synced from .claude/agents/
-├── lib/                 # Shared library files (MCP config, utilities)
-├── cmd/                 # CLI commands and MCP server
-├── internal/            # Core logic (parser, analyzer, query, etc.)
-├── pkg/                 # Public packages (output, pipeline)
-├── docs/                # Technical documentation
-├── plans/               # Phase-by-phase development plans
-└── tests/               # Test fixtures and integration tests
+├── .claude/
+│   ├── commands/              # Entry point for Claude Code
+│   │   └── meta.md           # Unified /meta command (single entry point)
+│   ├── agents/                # Subagent definitions
+│   └── hooks/                 # Project hooks
+│
+├── capabilities/              # Capability source files (Git tracked)
+│   ├── commands/             # Command capabilities (meta-errors, meta-quality-scan, etc.)
+│   └── agents/               # Agent capabilities (future)
+│
+├── .capabilities-cache/       # Runtime capability cache (Git ignored)
+│   ├── github/               # Cached capabilities from GitHub
+│   │   └── {owner}/{repo}/{branch}/{subdir}/
+│   ├── packages/             # Cached capability packages
+│   │   └── {hash}/           # Package cache by URL hash
+│   └── .meta-cc-cache.json   # Cache metadata (TTL, download times)
+│
+├── dist/                      # Build artifacts (Git ignored)
+│   ├── commands/             # Merged: .claude/commands + capabilities/commands
+│   └── agents/               # Merged: .claude/agents + capabilities/agents
+│
+├── .claude-plugin/            # Plugin metadata for marketplace
+├── lib/                       # Shared library files (MCP config, utilities)
+├── cmd/                       # CLI commands and MCP server
+├── internal/                  # Core logic (parser, analyzer, query, etc.)
+├── pkg/                       # Public packages (output, pipeline)
+├── docs/                      # Technical documentation
+├── plans/                     # Phase-by-phase development plans
+└── tests/                     # Test fixtures and integration tests
 ```
 
-**Important Directory Roles**:
-- `.claude/commands/` and `.claude/agents/` - **SOURCE FILES** (tracked by Git, edit during development)
-- `commands/` and `agents/` - **BUILD ARTIFACTS** (NOT tracked by Git, generated via sync script)
+**Directory Purposes**:
+
+**Development Workflow**:
+- `.claude/commands/` → Claude Code recognizes `/meta` command
+- `capabilities/commands/` → Edit capability files here
+
+**Local Development Configuration**:
+```bash
+export META_CC_CAPABILITY_SOURCES="capabilities/commands"
+```
+
+**Build and Release**:
+- `make sync-plugin-files` → Merges files to `dist/`
+- `make bundle-release` → Packages `dist/` into releases
+
+**Production Runtime**:
+- Default source: `yaleh/meta-cc@main/commands` (GitHub)
+- Cache location: `.capabilities-cache/github/yaleh/meta-cc/main/commands/`
 
 ## Development Workflow
 
@@ -78,29 +106,43 @@ meta-cc/
 
 **Local Development**:
 
-1. **Edit source files** in `.claude/commands/` and `.claude/agents/`
+1. **Edit source files**:
+   - `.claude/commands/meta.md` - Entry point for `/meta` command
+   - `capabilities/commands/*.md` - Individual capability files
+   - `.claude/agents/*.md` - Subagent files
+
 2. **Test immediately** - Claude Code reads from `.claude/` directory (no build needed)
-3. **Run tests**: `make test` or `make test-all`
-4. **Build binaries**: `make build` or `make dev`
+
+3. **For capability development**, set environment variable:
+   ```bash
+   export META_CC_CAPABILITY_SOURCES="capabilities/commands"
+   ```
+   This makes `/meta` load capabilities from local source (no cache, immediate reflection)
+
+4. **Run tests**: `make test` or `make test-all`
+
+5. **Build binaries**: `make build` or `make dev`
 
 **Before Committing**:
 
-1. **Verify changes** in `.claude/commands/` and `.claude/agents/`
+1. **Verify changes** in `.claude/commands/`, `capabilities/commands/`, `.claude/agents/`
 2. **Run all checks**: `make all`
-3. **Do NOT manually create `commands/` or `agents/` directories** - they are build artifacts
+3. **Do NOT manually create `dist/` directory** - it's a build artifact
 
 **Release Process**:
 
-1. **Sync plugin files**: `make sync-plugin-files` (or automatic in `make bundle-release`)
-2. **Create release**: `make bundle-release VERSION=vX.Y.Z`
+1. **Sync plugin files**: `make sync-plugin-files` (merges `.claude/` + `capabilities/` → `dist/`)
+2. **Create release**: `make bundle-release VERSION=vX.Y.Z` (auto-syncs first)
 3. **CI automatically syncs** during release workflow
 
 **Directory Structure Design**:
 
 - **Development**: `.claude/` directory enables real-time testing in Claude Code
-- **Release**: Root `commands/` and `agents/` match Claude Code plugin spec
+- **Capabilities**: `capabilities/` stores capability source files (Git tracked)
+- **Build artifacts**: `dist/` contains merged files for release (Git ignored)
+- **Runtime cache**: `.capabilities-cache/` stores downloaded GitHub capabilities (Git ignored)
 - **CI/CD**: No symlink dependencies, cross-platform compatible (Windows, Linux, macOS)
-- **Git**: Only source files tracked, build artifacts ignored via `.gitignore`
+- **Git**: Only source files tracked, artifacts and cache ignored via `.gitignore`
 
 ### Build and Test Requirements
 
@@ -180,13 +222,164 @@ Include the Claude Code attribution footer:
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
+## Unified Meta Command
+
+Phase 22 introduces the `/meta` command - a unified entry point for all meta-cognition capabilities with natural language intent matching.
+
+### Usage
+
+```
+/meta "natural language intent"
+```
+
+**Examples**:
+```
+/meta "show errors"           → Executes meta-errors
+/meta "quality check"         → Executes meta-quality-scan
+/meta "visualize timeline"    → Executes meta-timeline
+/meta "analyze architecture"  → Executes meta-architecture
+/meta "show tech debt"        → Executes meta-tech-debt
+```
+
+### How It Works
+
+1. **Discovery**: Loads capabilities from configured sources
+2. **Matching**: Semantic keyword matching scores each capability
+3. **Execution**: Runs best match or shows available capabilities
+
+### Multi-Source Configuration
+
+Configure capability sources via environment variable:
+
+```bash
+# Single local source
+export META_CC_CAPABILITY_SOURCES="~/.config/meta-cc/capabilities"
+
+# Package file (GitHub Release)
+export META_CC_CAPABILITY_SOURCES="https://github.com/yaleh/meta-cc/releases/latest/download/capabilities-latest.tar.gz"
+
+# Local package file
+export META_CC_CAPABILITY_SOURCES="/path/to/capabilities.tar.gz"
+
+# Multiple sources (priority: left-to-right, left = highest)
+export META_CC_CAPABILITY_SOURCES="~/dev/my-caps:/local/caps.tar.gz:https://example.com/caps.tar.gz"
+
+# Mix package, directory, and GitHub sources
+export META_CC_CAPABILITY_SOURCES="~/dev/test:./capabilities.tar.gz:yaleh/meta-cc@main/commands"
+```
+
+**Source Types**:
+- **Local directories**: Immediate reflection, no cache (for development, e.g., `capabilities/commands`)
+- **Package files** (`.tar.gz`): Cached with TTL (7 days for releases, 1 hour for branches)
+- **GitHub repositories**: Smart caching via jsDelivr CDN (format: `owner/repo@branch/subdir` or `owner/repo/subdir`)
+- **Default source**: `yaleh/meta-cc@main/commands` (production GitHub source)
+
+**Branch/Tag Specification**:
+
+Use the `@` symbol to specify a branch, tag, or commit:
+
+```bash
+# Specific branch
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@develop/commands"
+
+# Specific tag (version pinning, recommended for production)
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@v1.0.0/commands"
+
+# Specific commit hash
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@abc123def/commands"
+
+# Default branch (main)
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc/commands"
+```
+
+### CDN and Caching
+
+GitHub sources use jsDelivr CDN (https://cdn.jsdelivr.net) for improved performance:
+
+**Benefits**:
+- No GitHub API rate limits
+- Global CDN delivery (faster)
+- Automatic caching with smart TTL
+
+**Cache Strategy**:
+- **Branches**: 1-hour cache (mutable, changes frequently)
+- **Tags**: 7-day cache (immutable, stable versions)
+- **Package files**:
+  - Release packages (`/releases/`): 7-day cache (immutable)
+  - Custom packages: 1-hour cache (may change)
+- **Local sources**: No cache (always fresh)
+
+**Package File Distribution**:
+
+Capabilities can be distributed as prebuilt `.tar.gz` packages for:
+- **Offline-friendly**: Download once, cache locally
+- **Reliable**: No CDN dependencies, no rate limits
+- **Fast**: No network calls after initial download
+
+Cache directory for packages: `~/.capabilities-cache/packages/<hash>/`
+
+**Build Capability Packages**:
+```bash
+# Build package from capabilities directory
+make bundle-capabilities
+# Creates: build/capabilities-latest.tar.gz
+
+# Verify package structure
+tar -tzf build/capabilities-latest.tar.gz | head -20
+```
+
+**Network Resilience**:
+
+meta-cc automatically handles network failures:
+
+- **5xx server errors**: Exponential backoff retry (3 attempts: 1s, 2s, 4s)
+- **Network unreachable**: Falls back to stale cache (up to 7 days old)
+- **404 errors**: Clear error messages with troubleshooting suggestions
+
+**Cache Metadata**:
+
+Package cache metadata is stored in `~/.capabilities-cache/.meta-cc-cache.json`:
+- Tracks download time, TTL, and package URL
+- Enables smart cache validation
+- Automatic cleanup of expired entries (>7 days)
+
+### Default Source
+
+If `META_CC_CAPABILITY_SOURCES` is not set, capabilities are loaded from:
+```
+yaleh/meta-cc@main/commands
+```
+
+**For local development**, explicitly set the environment variable:
+```bash
+export META_CC_CAPABILITY_SOURCES="capabilities/commands"
+```
+
+### MCP Tools for Capability Discovery
+
+New MCP tools enable programmatic capability access:
+
+- `list_capabilities()` - Get capability index from all sources
+- `get_capability(name)` - Retrieve complete capability content
+
+### Local Development
+
+For capability development, use local sources (no cache):
+
+```bash
+export META_CC_CAPABILITY_SOURCES="~/dev/capabilities:capabilities/commands"
+# Changes reflect immediately without cache invalidation
+```
+
+See [docs/capabilities-guide.md](docs/capabilities-guide.md) for capability development guide.
+
 ## Using meta-cc
 
 meta-cc provides programmatic access to session data. Claude can autonomously query this data when analyzing workflows, debugging issues, or providing recommendations.
 
 For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes.md).
 
-### Query Tools (14 available)
+### Query Tools (16 available)
 
 **Basic Queries**:
 - `get_session_stats` - Session statistics and metrics

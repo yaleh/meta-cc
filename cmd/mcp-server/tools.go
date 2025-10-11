@@ -336,6 +336,32 @@ func getToolDefinitions() []Tool {
 				},
 			},
 		},
+		{
+			Name:        "list_capabilities",
+			Description: "List all available capabilities from configured sources. Returns compact capability index.",
+			InputSchema: ToolSchema{
+				Type:       "object",
+				Properties: map[string]Property{
+					// No public parameters
+					// Hidden test parameters (_sources, _disable_cache) are not exposed in schema
+				},
+			},
+		},
+		{
+			Name:        "get_capability",
+			Description: "Retrieve complete capability content by name from configured sources.",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"name": {
+						Type:        "string",
+						Description: "Name of the capability to retrieve (without .md extension)",
+					},
+					// Hidden test parameters (_sources) are not exposed in schema
+				},
+				Required: []string{"name"},
+			},
+		},
 	}
 }
 

@@ -34,6 +34,16 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 		return executeCleanupTool(args)
 	}
 
+	// Handle list_capabilities tool separately (no meta-cc command needed)
+	if toolName == "list_capabilities" {
+		return executeListCapabilitiesTool(args)
+	}
+
+	// Handle get_capability tool separately (no meta-cc command needed)
+	if toolName == "get_capability" {
+		return executeGetCapabilityTool(args)
+	}
+
 	// Extract common parameters
 	jqFilter := getStringParam(args, "jq_filter", ".[]")
 	statsOnly := getBoolParam(args, "stats_only", false)

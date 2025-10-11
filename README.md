@@ -284,6 +284,150 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 
 *See [MCP Tools Reference](docs/mcp-tools-reference.md) for complete documentation.*
 
+## Unified Meta Command
+
+Use natural language to invoke meta-cognition capabilities:
+
+```bash
+/meta "show errors"           # Error analysis
+/meta "quality check"         # Code quality scan
+/meta "visualize timeline"    # Project timeline
+/meta "analyze architecture"  # Architecture analysis
+/meta "show tech debt"        # Technical debt tracking
+```
+
+### Zero-Configuration Setup
+
+meta-cc works out of the box with no configuration required. Capabilities are automatically loaded from GitHub via jsDelivr CDN:
+
+```
+yaleh/meta-cc@main/commands
+```
+
+**Benefits**:
+- **Latest capabilities**: Always up-to-date with the main branch
+- **No local files needed**: Capabilities loaded from jsDelivr CDN
+- **Fast and reliable**: Global CDN delivery with smart caching
+- **No rate limits**: Avoids GitHub API rate limiting
+
+**Alternative: Package File Distribution** (Future Default):
+
+Capabilities can also be distributed as prebuilt `.tar.gz` packages for improved offline support:
+
+```bash
+export META_CC_CAPABILITY_SOURCES="https://github.com/yaleh/meta-cc/releases/latest/download/capabilities-latest.tar.gz"
+```
+
+**Benefits**:
+- **Offline-friendly**: Download once, cache for 7 days
+- **Reliable**: No CDN dependencies
+- **Fast**: No network calls after initial download
+- **Build your own**: `make bundle-capabilities` creates `build/capabilities-latest.tar.gz`
+
+### Local Development
+
+For local capability development, override the default source:
+
+```bash
+export META_CC_CAPABILITY_SOURCES="capabilities/commands"
+```
+
+**Benefits**:
+- **Real-time reflection**: Changes appear immediately (no cache)
+- **Testing before commit**: Verify changes locally
+- **Offline work**: No network dependency
+
+### Version Pinning
+
+Pin capabilities to a specific version for stability:
+
+```bash
+# Use a specific release tag (recommended for production)
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@v1.0.0/commands"
+
+# Benefits:
+# - 7-day cache (tags are immutable)
+# - Predictable behavior (no unexpected changes)
+# - Explicit version control
+```
+
+### Branch Specification
+
+Test capabilities from different branches:
+
+```bash
+# Test from develop branch
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@develop/commands"
+
+# Test from feature branch
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@feature/new-capability/commands"
+
+# Cache: 1 hour (branches are mutable)
+```
+
+### Multi-Source Capabilities
+
+Load capabilities from multiple sources (local directories, package files, or GitHub repositories):
+
+```bash
+# Mix local, package, and GitHub sources
+export META_CC_CAPABILITY_SOURCES="~/my-caps:/local/caps.tar.gz:yaleh/meta-cc-extras@main"
+
+# Local and package files
+export META_CC_CAPABILITY_SOURCES="./dev-caps:https://example.com/caps.tar.gz"
+```
+
+**Supported Sources**:
+- **Local directories**: Immediate reflection, no cache (ideal for development)
+- **Package files** (`.tar.gz`): Cached with TTL (7 days for releases, 1 hour for custom)
+- **GitHub repositories**: jsDelivr CDN with smart caching (1h branches, 7d tags)
+- **Priority-based merging**: Left = highest priority (override capabilities with same name)
+
+**Build Package Files**:
+```bash
+# Build capability package
+make bundle-capabilities
+# Creates: build/capabilities-latest.tar.gz
+
+# Use local package
+export META_CC_CAPABILITY_SOURCES="/path/to/capabilities-latest.tar.gz"
+
+# Distribute via GitHub Releases or web server
+```
+
+### Capability Development
+
+Create custom capabilities and extend meta-cc functionality. See [docs/capabilities-guide.md](docs/capabilities-guide.md) for:
+- Capability structure and frontmatter metadata
+- Local development workflow (real-time reflection)
+- Publishing to GitHub repositories
+- Integration with MCP tools
+
+**Quick Example**:
+```bash
+# Create capability directory
+mkdir -p ~/dev/my-capabilities
+
+# Add custom capability
+cat > ~/dev/my-capabilities/my-feature.md <<EOF
+---
+name: my-feature
+description: My custom feature analysis.
+keywords: feature, custom, analysis
+category: analysis
+---
+
+# My Feature Implementation
+...
+EOF
+
+# Configure source (local has highest priority)
+export META_CC_CAPABILITY_SOURCES="~/dev/my-capabilities:commands"
+
+# Use immediately
+/meta "my feature"
+```
+
 ## Usage
 
 ```bash
