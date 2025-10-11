@@ -12,6 +12,9 @@ import (
 
 // TestParseCapabilitySources tests parsing environment variable into source list
 func TestParseCapabilitySources(t *testing.T) {
+	// Use platform-specific path separator for test data
+	sep := string(os.PathListSeparator)
+
 	tests := []struct {
 		name     string
 		envVar   string
@@ -37,19 +40,19 @@ func TestParseCapabilitySources(t *testing.T) {
 		},
 		{
 			name:     "multiple sources with colon separator",
-			envVar:   "/home/user/caps:yaleh/meta-cc-capabilities:./local",
+			envVar:   "/home/user/caps" + sep + "yaleh/meta-cc-capabilities" + sep + "./local",
 			expected: 3,
 			sources:  []string{"/home/user/caps", "yaleh/meta-cc-capabilities", "./local"},
 		},
 		{
 			name:     "sources with whitespace",
-			envVar:   " /home/user/caps : yaleh/meta-cc : ./local ",
+			envVar:   " /home/user/caps " + sep + " yaleh/meta-cc " + sep + " ./local ",
 			expected: 3,
 			sources:  []string{"/home/user/caps", "yaleh/meta-cc", "./local"},
 		},
 		{
 			name:     "empty segments ignored",
-			envVar:   "/home/user/caps::yaleh/meta-cc",
+			envVar:   "/home/user/caps" + sep + sep + "yaleh/meta-cc",
 			expected: 2,
 			sources:  []string{"/home/user/caps", "yaleh/meta-cc"},
 		},
