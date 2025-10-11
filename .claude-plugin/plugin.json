@@ -11,6 +11,6 @@
   "homepage": "https://github.com/yaleh/meta-cc",
   "repository": "https://github.com/yaleh/meta-cc",
   "keywords": ["workflow-analysis", "session-history", "productivity", "metacognition", "analytics", "optimization", "mcp", "subagents"],
-  "commands": "./.claude/commands",
-  "agents": "./.claude/agents"
+  "commands": "./.claude/commands/",
+  "agents": "./.claude/agents/"
 }
