@@ -711,7 +711,7 @@ func enhanceNotFoundError(name string, source GitHubSource) error {
 	msg += "  3. Repository or subdirectory is incorrect\n"
 	msg += "\nSuggestion: Run /meta to see available capabilities"
 
-	return fmt.Errorf(msg)
+	return fmt.Errorf("%s", msg)
 }
 
 // executeGetCapabilityTool handles the get_capability MCP tool
