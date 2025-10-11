@@ -82,7 +82,7 @@ func parseCapabilitySources(envVar string) []CapabilitySource {
 		return []CapabilitySource{}
 	}
 
-	parts := strings.Split(envVar, ":")
+	parts := strings.Split(envVar, string(os.PathListSeparator))
 	sources := make([]CapabilitySource, 0, len(parts))
 
 	priority := 0
