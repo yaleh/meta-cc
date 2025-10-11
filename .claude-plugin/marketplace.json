@@ -13,8 +13,8 @@
         "source": "github",
         "repo": "yaleh/meta-cc"
       },
-      "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides workflow optimization insights, error pattern detection, and productivity analytics through 10 slash commands, 3 subagents, and 14 MCP tools.",
-      "version": "0.16.0",
+      "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides unified /meta command with natural language intent matching, 13 capabilities, 3 subagents, and 16 MCP tools. Features package distribution for >10x faster loading.",
+      "version": "0.26.0",
       "author": {
         "name": "Yale Huang",
         "email": "yaleh@ieee.org",

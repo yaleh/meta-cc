@@ -34,6 +34,12 @@ jobs:
           jq --arg ver "${VERSION#v}" '.version = $ver' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
           mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
 
+      - name: Update marketplace.json version
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          jq --arg ver "${VERSION#v}" '.plugins[0].version = $ver' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
+          mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
+
       - name: Sync plugin files
         run: bash scripts/sync-plugin-files.sh
 
