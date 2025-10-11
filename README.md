@@ -284,6 +284,64 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 
 *See [MCP Tools Reference](docs/mcp-tools-reference.md) for complete documentation.*
 
+## Unified Meta Command
+
+Use natural language to invoke meta-cognition capabilities:
+
+```bash
+/meta "show errors"           # Error analysis
+/meta "quality check"         # Code quality scan
+/meta "visualize timeline"    # Project timeline
+/meta "analyze architecture"  # Architecture analysis
+/meta "show tech debt"        # Technical debt tracking
+```
+
+### Multi-Source Capabilities
+
+Load capabilities from multiple sources (local directories or GitHub repositories):
+
+```bash
+export META_CC_CAPABILITY_SOURCES="~/my-caps:.claude/commands:yaleh/meta-cc-extras"
+```
+
+**Supported Sources**:
+- **Local directories**: Immediate reflection, no cache (ideal for development)
+- **GitHub repositories**: 1-hour cache (format: `owner/repo` or `owner/repo/subpath`)
+- **Priority-based merging**: Left = highest priority (override capabilities with same name)
+
+### Capability Development
+
+Create custom capabilities and extend meta-cc functionality. See [docs/capabilities-guide.md](docs/capabilities-guide.md) for:
+- Capability structure and frontmatter metadata
+- Local development workflow (real-time reflection)
+- Publishing to GitHub repositories
+- Integration with MCP tools
+
+**Quick Example**:
+```bash
+# Create capability directory
+mkdir -p ~/dev/my-capabilities
+
+# Add custom capability
+cat > ~/dev/my-capabilities/my-feature.md <<EOF
+---
+name: my-feature
+description: My custom feature analysis.
+keywords: feature, custom, analysis
+category: analysis
+---
+
+# My Feature Implementation
+...
+EOF
+
+# Configure source
+export META_CC_CAPABILITY_SOURCES="~/dev/my-capabilities:.claude/commands"
+
+# Use immediately
+/meta "my feature"
+```
+
 ## Usage
 
 ```bash

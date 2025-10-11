@@ -1,6 +1,8 @@
 ---
 name: meta-quality-scan
 description: Quick quality assessment of recent work with scorecard and improvement recommendations.
+keywords: quality, assessment, code-review, technical-debt, best-practices, standards
+category: assessment
 ---
 
 λ(project_scope) → quality_assessment | ∀metric ∈ {code_quality, test_coverage, documentation, workflow_health}:

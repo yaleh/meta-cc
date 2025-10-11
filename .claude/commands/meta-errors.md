@@ -1,6 +1,8 @@
 ---
 name: meta-errors
 description: Analyze error patterns and prevention recommendations.
+keywords: error, debug, troubleshooting, diagnostics, failure, exception, crash
+category: diagnostics
 ---
 
 λ(scope) → error_insights | ∀error ∈ {workflow_failures, user_interruptions, high_level_tool_errors}:

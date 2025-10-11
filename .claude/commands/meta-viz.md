@@ -1,6 +1,8 @@
 ---
 name: meta-viz
 description: Create ASCII dashboards and charts from any analysis data.
+keywords: visualization, dashboard, chart, graph, metrics, reporting
+category: visualization
 ---
 
 λ(analysis_data) → visual_dashboard | ∀visualization ∈ {dashboard, charts, recommendations}:

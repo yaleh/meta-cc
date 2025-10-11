@@ -1,5 +1,8 @@
 ---
+name: meta-guide
 description: Get intelligent guidance and prioritized action recommendations.
+keywords: guide, help, recommendations, actions, next-steps, priorities
+category: guidance
 ---
 
 λ(session_state) → prioritized_suggestions | ∀suggestion ∈ {high, medium, low}:

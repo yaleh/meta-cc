@@ -1,6 +1,8 @@
 ---
 name: meta-focus-analyzer
 description: Analyze attention patterns and focus distribution across projects and files.
+keywords: focus, attention, concentration, context-switching, multitasking
+category: analysis
 ---
 
 λ(project_scope) → focus_analysis | ∀insight ∈ {attention_patterns, context_switching, optimization_opportunities}:

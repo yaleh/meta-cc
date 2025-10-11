@@ -1,6 +1,8 @@
 ---
 name: meta-coach
 description: Get workflow optimization recommendations and coaching insights.
+keywords: coaching, optimization, improvement, guidance, recommendations, advice
+category: guidance
 ---
 
 λ(scope) → workflow_coaching | ∀insight ∈ {user_patterns, interaction_quality, recommendations}:

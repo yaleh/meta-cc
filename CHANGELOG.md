@@ -22,7 +22,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Phase 21: Self-Hosted Marketplace**
+
+#### Phase 22: Unified Meta Command & Multi-Source Capability Discovery
+- **Unified `/meta` command** with natural language intent matching
+  - Semantic keyword scoring for capability selection
+  - Natural language interface: `/meta "show errors"`, `/meta "quality check"`, etc.
+  - Automatic capability discovery from configured sources
+- **Multi-source capability loading system**
+  - Local directory support (immediate reflection, no cache)
+  - GitHub repository support (1-hour cache)
+  - Priority-based merging (left = highest priority)
+  - Environment variable configuration: `META_CC_CAPABILITY_SOURCES`
+- **New MCP tools**:
+  - `list_capabilities()` - Get capability index from all sources
+  - `get_capability(name)` - Retrieve complete capability content
+- **Frontmatter metadata** for all 13 existing slash commands
+  - Structured metadata: name, description, keywords, category
+  - Enables semantic capability discovery and matching
+- **Capability development guide** (docs/capabilities-guide.md)
+  - Local development workflow with real-time reflection
+  - Publishing to GitHub repositories
+  - Integration with MCP tools
+  - Community contribution guidelines
+
+### Changed
+- Total MCP tools increased from 14 to 16 (added 2 capability discovery tools)
+- Documentation updated with unified `/meta` command usage
+- CLAUDE.md expanded with multi-source configuration guide
+- README.md includes capability development quick start
+
+#### Phase 21: Self-Hosted Marketplace
   - Stage 21.1: Plugin marketplace configuration (.claude-plugin/marketplace.json)
   - Stage 21.2: Marketing documentation (docs/marketplace-listing.md)
   - Stage 21.3: Visual demonstration structure (docs/screenshots/)

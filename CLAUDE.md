@@ -180,13 +180,75 @@ Include the Claude Code attribution footer:
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
+## Unified Meta Command
+
+Phase 22 introduces the `/meta` command - a unified entry point for all meta-cognition capabilities with natural language intent matching.
+
+### Usage
+
+```
+/meta "natural language intent"
+```
+
+**Examples**:
+```
+/meta "show errors"           → Executes meta-errors
+/meta "quality check"         → Executes meta-quality-scan
+/meta "visualize timeline"    → Executes meta-timeline
+/meta "analyze architecture"  → Executes meta-architecture
+/meta "show tech debt"        → Executes meta-tech-debt
+```
+
+### How It Works
+
+1. **Discovery**: Loads capabilities from configured sources
+2. **Matching**: Semantic keyword matching scores each capability
+3. **Execution**: Runs best match or shows available capabilities
+
+### Multi-Source Configuration
+
+Configure capability sources via environment variable:
+
+```bash
+# Single local source
+export META_CC_CAPABILITY_SOURCES="~/.config/meta-cc/capabilities"
+
+# Multiple sources (priority: left-to-right, left = highest)
+export META_CC_CAPABILITY_SOURCES="~/dev/my-caps:yaleh/meta-cc-capabilities"
+
+# Mix local and GitHub
+export META_CC_CAPABILITY_SOURCES="~/dev/test:.claude/commands:community/extras"
+```
+
+**Source Types**:
+- **Local directories**: Immediate reflection, no cache (for development)
+- **GitHub repositories**: 1-hour cache (format: `owner/repo` or `owner/repo/subpath`)
+
+### MCP Tools for Capability Discovery
+
+New MCP tools enable programmatic capability access:
+
+- `list_capabilities()` - Get capability index from all sources
+- `get_capability(name)` - Retrieve complete capability content
+
+### Local Development
+
+For capability development, use local sources (no cache):
+
+```bash
+export META_CC_CAPABILITY_SOURCES="~/dev/capabilities:.claude/commands"
+# Changes reflect immediately without cache invalidation
+```
+
+See [docs/capabilities-guide.md](docs/capabilities-guide.md) for capability development guide.
+
 ## Using meta-cc
 
 meta-cc provides programmatic access to session data. Claude can autonomously query this data when analyzing workflows, debugging issues, or providing recommendations.
 
 For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes.md).
 
-### Query Tools (14 available)
+### Query Tools (16 available)
 
 **Basic Queries**:
 - `get_session_stats` - Session statistics and metrics

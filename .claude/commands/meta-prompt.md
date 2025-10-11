@@ -1,6 +1,9 @@
 ---
+name: meta-prompt
 description: Refine prompts using successful patterns from project history.
 argument-hint: [prompt]
+keywords: prompt, refinement, optimization, effectiveness, clarity
+category: guidance
 ---
 
 λ(prompt_raw) → prompt_refined | ∀pattern ∈ successful_history:

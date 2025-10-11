@@ -1,6 +1,8 @@
 ---
 name: meta-tech-debt
 description: Track technical debt accumulation, repayment rate, and prioritized remediation plan.
+keywords: technical-debt, refactoring, code-smell, maintenance, cleanup
+category: assessment
 ---
 
 λ(scope) → debt_insights | ∀debt ∈ {code, test, documentation, design, infrastructure}:

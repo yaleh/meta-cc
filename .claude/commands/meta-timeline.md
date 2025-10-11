@@ -1,6 +1,8 @@
 ---
 name: meta-timeline
 description: Visualize project evolution timeline with workflow events.
+keywords: timeline, history, evolution, progression, chronology, activity
+category: visualization
 ---
 
 λ(scope) → development_timeline | ∀event ∈ {user_actions, high_level_operations, workflow_failures}:

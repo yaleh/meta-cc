@@ -1,5 +1,8 @@
 ---
+name: meta-next
 description: Generate ready-to-use prompts for natural next steps (no MCP execution).
+keywords: next-steps, continuation, prompts, suggestions, follow-up
+category: guidance
 ---
 
 λ(conversation_context) → executable_prompts | ∀prompt ∈ {immediate, alternative, exploratory}:

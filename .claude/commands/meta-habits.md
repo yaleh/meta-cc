@@ -1,6 +1,8 @@
 ---
 name: meta-habits
 description: Analyze work patterns and productivity habits insights.
+keywords: habits, patterns, productivity, workflow, efficiency, behavior
+category: analysis
 ---
 
 λ(scope) → user_behavior_insights | ∀habit ∈ {prompt_patterns, tool_usage, workflow_sequences}:

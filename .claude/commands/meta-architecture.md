@@ -1,6 +1,8 @@
 ---
 name: meta-architecture
 description: Analyze architecture evolution, module stability, and structural decisions.
+keywords: architecture, design, structure, modularity, dependencies, coupling
+category: analysis
 ---
 
 λ(scope) → architecture_insights | ∀module ∈ {decisions, stability, dependencies, debt}:

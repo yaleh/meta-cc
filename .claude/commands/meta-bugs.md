@@ -1,6 +1,8 @@
 ---
 name: meta-bugs
 description: Analyze project-level bugs, workflow failures, and fix patterns using meta-cognitive analysis.
+keywords: bugs, defects, issues, failures, root-cause, fix-patterns
+category: diagnostics
 ---
 
 λ(scope) → bug_insights | ∀bug ∈ {workflow_failures, user_corrections, fix_patterns}:
