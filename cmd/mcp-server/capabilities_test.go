@@ -1,6 +1,8 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -193,7 +195,7 @@ keywords: [ unclosed
 			expectError: true,
 		},
 		{
-			name: "CRLF line endings (Windows)",
+			name:    "CRLF line endings (Windows)",
 			content: "---\r\nname: test-crlf\r\ndescription: Test CRLF line endings.\r\nkeywords: test, crlf, windows\r\ncategory: test\r\n---\r\n\r\n# Test Content",
 			expected: CapabilityMetadata{
 				Name:        "test-crlf",
@@ -1277,5 +1279,399 @@ func TestIsCacheStale(t *testing.T) {
 
 	if isCacheStale(sources) {
 		t.Error("cache should not be stale when beyond 7 days (too old to use)")
+	}
+}
+
+// Test package source detection
+func TestDetectSourceTypePackage(t *testing.T) {
+	tests := []struct {
+		location string
+		expected SourceType
+	}{
+		// Package sources
+		{"https://example.com/caps.tar.gz", SourceTypePackage},
+		{"/path/to/caps.tar.gz", SourceTypePackage},
+		{"~/downloads/caps.tgz", SourceTypePackage},
+		{"./local/caps.tar.gz", SourceTypePackage},
+
+		// GitHub sources
+		{"yaleh/meta-cc", SourceTypeGitHub},
+		{"yaleh/meta-cc@main/commands", SourceTypeGitHub},
+
+		// Local sources
+		{"/path/to/dir", SourceTypeLocal},
+		{"~/config/caps", SourceTypeLocal},
+		{"./relative/path", SourceTypeLocal},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.location, func(t *testing.T) {
+			result := detectSourceType(tt.location)
+			if result != tt.expected {
+				t.Errorf("detectSourceType(%q) = %v, want %v",
+					tt.location, result, tt.expected)
+			}
+		})
+	}
+}
+
+// Test package cache directory generation
+func TestGetPackageCacheDir(t *testing.T) {
+	tests := []struct {
+		location string
+		wantErr  bool
+	}{
+		{"https://example.com/caps.tar.gz", false},
+		{"/local/path/caps.tar.gz", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.location, func(t *testing.T) {
+			cacheDir, err := getPackageCacheDir(tt.location)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getPackageCacheDir(%q) error = %v, wantErr %v",
+					tt.location, err, tt.wantErr)
+			}
+			if !tt.wantErr && cacheDir == "" {
+				t.Errorf("getPackageCacheDir(%q) returned empty path", tt.location)
+			}
+			if !tt.wantErr {
+				// Verify cache dir contains "packages" and hash
+				if !strings.Contains(cacheDir, "packages") {
+					t.Errorf("cache dir should contain 'packages': %s", cacheDir)
+				}
+			}
+		})
+	}
+}
+
+// Helper: create test package
+func createTestPackage(t *testing.T, path string, files map[string]string) {
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("failed to create package: %v", err)
+	}
+	defer file.Close()
+
+	gzw := gzip.NewWriter(file)
+	defer gzw.Close()
+
+	tw := tar.NewWriter(gzw)
+	defer tw.Close()
+
+	for name, content := range files {
+		// Write header
+		header := &tar.Header{
+			Name: name,
+			Mode: 0644,
+			Size: int64(len(content)),
+		}
+		if err := tw.WriteHeader(header); err != nil {
+			t.Fatalf("failed to write header: %v", err)
+		}
+
+		// Write content
+		if _, err := tw.Write([]byte(content)); err != nil {
+			t.Fatalf("failed to write content: %v", err)
+		}
+	}
+}
+
+// Test package extraction
+func TestExtractPackage(t *testing.T) {
+	// Create test package
+	tmpDir := t.TempDir()
+	packagePath := filepath.Join(tmpDir, "test.tar.gz")
+
+	createTestPackage(t, packagePath, map[string]string{
+		"commands/test.md": "# Test Capability",
+		"agents/test.md":   "# Test Agent",
+	})
+
+	// Extract package
+	extractDir := filepath.Join(tmpDir, "extract")
+	err := extractPackage(packagePath, extractDir)
+	if err != nil {
+		t.Fatalf("extractPackage failed: %v", err)
+	}
+
+	// Verify extracted files
+	testFile := filepath.Join(extractDir, "commands", "test.md")
+	if _, err := os.Stat(testFile); os.IsNotExist(err) {
+		t.Errorf("expected file not found: %s", testFile)
+	}
+
+	// Verify content
+	content, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatalf("failed to read extracted file: %v", err)
+	}
+	if string(content) != "# Test Capability" {
+		t.Errorf("unexpected content: %s", string(content))
+	}
+}
+
+// Test loading capabilities from package
+func TestLoadPackageCapabilities(t *testing.T) {
+	// Create test package
+	tmpDir := t.TempDir()
+	packagePath := filepath.Join(tmpDir, "test.tar.gz")
+
+	createTestPackage(t, packagePath, map[string]string{
+		"commands/meta-test.md": `---
+name: meta-test
+description: Test capability.
+keywords: test
+category: test
+---
+# Test`,
+	})
+
+	// Load capabilities from package
+	caps, err := loadPackageCapabilities(packagePath)
+	if err != nil {
+		t.Fatalf("loadPackageCapabilities failed: %v", err)
+	}
+
+	// Verify loaded capabilities
+	if len(caps) != 1 {
+		t.Errorf("expected 1 capability, got %d", len(caps))
+	}
+	if caps[0].Name != "meta-test" {
+		t.Errorf("expected name 'meta-test', got %q", caps[0].Name)
+	}
+}
+
+// Test package source integration with mergeSources
+func TestMergeSourcesWithPackage(t *testing.T) {
+	// Create test package
+	tmpDir := t.TempDir()
+	packagePath := filepath.Join(tmpDir, "test.tar.gz")
+
+	createTestPackage(t, packagePath, map[string]string{
+		"commands/meta-package-test.md": `---
+name: meta-package-test
+description: Package test capability.
+keywords: package, test
+category: test
+---
+# Package Test`,
+	})
+
+	// Test merging with package source
+	sources := []CapabilitySource{
+		{Type: SourceTypePackage, Location: packagePath, Priority: 0},
+	}
+
+	index, err := mergeSources(sources)
+	if err != nil {
+		t.Fatalf("mergeSources failed: %v", err)
+	}
+
+	// Verify capability loaded
+	if len(index) != 1 {
+		t.Errorf("expected 1 capability, got %d", len(index))
+	}
+
+	cap, exists := index["meta-package-test"]
+	if !exists {
+		t.Error("expected capability 'meta-package-test' not found")
+	}
+	if cap.Description != "Package test capability." {
+		t.Errorf("unexpected description: %s", cap.Description)
+	}
+}
+
+// TestGetPackageTTL tests TTL calculation for packages
+func TestGetPackageTTL(t *testing.T) {
+	tests := []struct {
+		name        string
+		packageURL  string
+		expectedTTL time.Duration
+	}{
+		{
+			name:        "GitHub release package",
+			packageURL:  "https://github.com/yaleh/meta-cc/releases/latest/download/capabilities-latest.tar.gz",
+			expectedTTL: 7 * 24 * time.Hour,
+		},
+		{
+			name:        "GitHub versioned release",
+			packageURL:  "https://github.com/yaleh/meta-cc/releases/download/v1.0.0/capabilities-v1.0.0.tar.gz",
+			expectedTTL: 7 * 24 * time.Hour,
+		},
+		{
+			name:        "Custom URL package",
+			packageURL:  "https://example.com/caps.tar.gz",
+			expectedTTL: 1 * time.Hour,
+		},
+		{
+			name:        "Local package file",
+			packageURL:  "/path/to/caps.tar.gz",
+			expectedTTL: 1 * time.Hour,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getPackageTTL(tt.packageURL)
+			if result != tt.expectedTTL {
+				t.Errorf("getPackageTTL(%q) = %v, want %v",
+					tt.packageURL, result, tt.expectedTTL)
+			}
+		})
+	}
+}
+
+// TestIsReleasePackage tests release package detection
+func TestIsReleasePackage(t *testing.T) {
+	tests := []struct {
+		name       string
+		packageURL string
+		expected   bool
+	}{
+		{
+			name:       "GitHub release latest",
+			packageURL: "https://github.com/yaleh/meta-cc/releases/latest/download/caps.tar.gz",
+			expected:   true,
+		},
+		{
+			name:       "GitHub release versioned",
+			packageURL: "https://github.com/yaleh/meta-cc/releases/download/v1.0.0/caps.tar.gz",
+			expected:   true,
+		},
+		{
+			name:       "Custom URL",
+			packageURL: "https://example.com/caps.tar.gz",
+			expected:   false,
+		},
+		{
+			name:       "Local file",
+			packageURL: "/path/to/caps.tar.gz",
+			expected:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isReleasePackage(tt.packageURL)
+			if result != tt.expected {
+				t.Errorf("isReleasePackage(%q) = %v, want %v",
+					tt.packageURL, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestPackageCacheMetadata tests cache metadata persistence
+func TestPackageCacheMetadata(t *testing.T) {
+	// Create temporary cache directory
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	// Test saving metadata
+	metadata := &CacheMetadataFile{
+		Version: "1.0",
+		Packages: map[string]PackageCacheMetadata{
+			"abc123": {
+				PackageURL:    "https://example.com/caps.tar.gz",
+				DownloadTime:  time.Now(),
+				ExtractedPath: filepath.Join(tmpDir, "extracted"),
+				TTL:           3600,
+				IsRelease:     false,
+			},
+		},
+	}
+
+	err := saveCacheMetadata(metadata)
+	if err != nil {
+		t.Fatalf("saveCacheMetadata failed: %v", err)
+	}
+
+	// Test loading metadata
+	loaded, err := loadCacheMetadata()
+	if err != nil {
+		t.Fatalf("loadCacheMetadata failed: %v", err)
+	}
+
+	// Verify loaded data
+	if loaded.Version != "1.0" {
+		t.Errorf("expected version '1.0', got %q", loaded.Version)
+	}
+
+	pkg, exists := loaded.Packages["abc123"]
+	if !exists {
+		t.Fatal("package 'abc123' not found in loaded metadata")
+	}
+
+	if pkg.PackageURL != "https://example.com/caps.tar.gz" {
+		t.Errorf("unexpected package URL: %s", pkg.PackageURL)
+	}
+	if pkg.TTL != 3600 {
+		t.Errorf("expected TTL 3600, got %d", pkg.TTL)
+	}
+}
+
+// TestCacheValidation tests cache validation logic
+func TestCacheValidation(t *testing.T) {
+	// Create temporary cache directory
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	packageURL := "https://example.com/caps.tar.gz"
+
+	// Initially, cache should be invalid (doesn't exist)
+	if isCacheValidForPackage(packageURL) {
+		t.Error("expected cache to be invalid initially")
+	}
+
+	// Create cache metadata with recent download
+	hash := getPackageHash(packageURL)
+	metadata := &CacheMetadataFile{
+		Version: "1.0",
+		Packages: map[string]PackageCacheMetadata{
+			hash: {
+				PackageURL:    packageURL,
+				DownloadTime:  time.Now(),
+				ExtractedPath: filepath.Join(tmpDir, "extracted"),
+				TTL:           3600, // 1 hour
+				IsRelease:     false,
+			},
+		},
+	}
+
+	if err := saveCacheMetadata(metadata); err != nil {
+		t.Fatalf("failed to save metadata: %v", err)
+	}
+
+	// Now cache should be valid
+	if !isCacheValidForPackage(packageURL) {
+		t.Error("expected cache to be valid")
+	}
+
+	// Test expired cache (mock old download time)
+	metadata.Packages[hash] = PackageCacheMetadata{
+		PackageURL:    packageURL,
+		DownloadTime:  time.Now().Add(-2 * time.Hour), // 2 hours ago
+		ExtractedPath: filepath.Join(tmpDir, "extracted"),
+		TTL:           3600, // 1 hour
+		IsRelease:     false,
+	}
+
+	if err := saveCacheMetadata(metadata); err != nil {
+		t.Fatalf("failed to save metadata: %v", err)
+	}
+
+	// Cache should be invalid (expired)
+	if isCacheValidForPackage(packageURL) {
+		t.Error("expected cache to be invalid (expired)")
+	}
+
+	// But should be stale (not too old)
+	if !isCacheStaleForPackage(packageURL) {
+		t.Error("expected cache to be stale")
 	}
 }

@@ -310,6 +310,20 @@ yaleh/meta-cc@main/commands
 - **Fast and reliable**: Global CDN delivery with smart caching
 - **No rate limits**: Avoids GitHub API rate limiting
 
+**Alternative: Package File Distribution** (Future Default):
+
+Capabilities can also be distributed as prebuilt `.tar.gz` packages for improved offline support:
+
+```bash
+export META_CC_CAPABILITY_SOURCES="https://github.com/yaleh/meta-cc/releases/latest/download/capabilities-latest.tar.gz"
+```
+
+**Benefits**:
+- **Offline-friendly**: Download once, cache for 7 days
+- **Reliable**: No CDN dependencies
+- **Fast**: No network calls after initial download
+- **Build your own**: `make bundle-capabilities` creates `build/capabilities-latest.tar.gz`
+
 ### Local Development
 
 For local capability development, override the default source:
@@ -353,16 +367,33 @@ export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@feature/new-capability/commands
 
 ### Multi-Source Capabilities
 
-Load capabilities from multiple sources (local directories or GitHub repositories):
+Load capabilities from multiple sources (local directories, package files, or GitHub repositories):
 
 ```bash
-export META_CC_CAPABILITY_SOURCES="~/my-caps:commands:yaleh/meta-cc-extras@main"
+# Mix local, package, and GitHub sources
+export META_CC_CAPABILITY_SOURCES="~/my-caps:/local/caps.tar.gz:yaleh/meta-cc-extras@main"
+
+# Local and package files
+export META_CC_CAPABILITY_SOURCES="./dev-caps:https://example.com/caps.tar.gz"
 ```
 
 **Supported Sources**:
 - **Local directories**: Immediate reflection, no cache (ideal for development)
+- **Package files** (`.tar.gz`): Cached with TTL (7 days for releases, 1 hour for custom)
 - **GitHub repositories**: jsDelivr CDN with smart caching (1h branches, 7d tags)
 - **Priority-based merging**: Left = highest priority (override capabilities with same name)
+
+**Build Package Files**:
+```bash
+# Build capability package
+make bundle-capabilities
+# Creates: build/capabilities-latest.tar.gz
+
+# Use local package
+export META_CC_CAPABILITY_SOURCES="/path/to/capabilities-latest.tar.gz"
+
+# Distribute via GitHub Releases or web server
+```
 
 ### Capability Development
 

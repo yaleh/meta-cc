@@ -61,8 +61,11 @@ meta-cc/
 │   └── agents/               # Agent capabilities (future)
 │
 ├── .capabilities-cache/       # Runtime capability cache (Git ignored)
-│   └── github/               # Cached capabilities from GitHub
-│       └── {owner}/{repo}/{branch}/{subdir}/
+│   ├── github/               # Cached capabilities from GitHub
+│   │   └── {owner}/{repo}/{branch}/{subdir}/
+│   ├── packages/             # Cached capability packages
+│   │   └── {hash}/           # Package cache by URL hash
+│   └── .meta-cc-cache.json   # Cache metadata (TTL, download times)
 │
 ├── dist/                      # Build artifacts (Git ignored)
 │   ├── commands/             # Merged: .claude/commands + capabilities/commands
@@ -252,15 +255,22 @@ Configure capability sources via environment variable:
 # Single local source
 export META_CC_CAPABILITY_SOURCES="~/.config/meta-cc/capabilities"
 
-# Multiple sources (priority: left-to-right, left = highest)
-export META_CC_CAPABILITY_SOURCES="~/dev/my-caps:yaleh/meta-cc-capabilities"
+# Package file (GitHub Release)
+export META_CC_CAPABILITY_SOURCES="https://github.com/yaleh/meta-cc/releases/latest/download/capabilities-latest.tar.gz"
 
-# Mix local and GitHub
-export META_CC_CAPABILITY_SOURCES="~/dev/test:capabilities/commands:community/extras"
+# Local package file
+export META_CC_CAPABILITY_SOURCES="/path/to/capabilities.tar.gz"
+
+# Multiple sources (priority: left-to-right, left = highest)
+export META_CC_CAPABILITY_SOURCES="~/dev/my-caps:/local/caps.tar.gz:https://example.com/caps.tar.gz"
+
+# Mix package, directory, and GitHub sources
+export META_CC_CAPABILITY_SOURCES="~/dev/test:./capabilities.tar.gz:yaleh/meta-cc@main/commands"
 ```
 
 **Source Types**:
 - **Local directories**: Immediate reflection, no cache (for development, e.g., `capabilities/commands`)
+- **Package files** (`.tar.gz`): Cached with TTL (7 days for releases, 1 hour for branches)
 - **GitHub repositories**: Smart caching via jsDelivr CDN (format: `owner/repo@branch/subdir` or `owner/repo/subdir`)
 - **Default source**: `yaleh/meta-cc@main/commands` (production GitHub source)
 
@@ -294,7 +304,29 @@ GitHub sources use jsDelivr CDN (https://cdn.jsdelivr.net) for improved performa
 **Cache Strategy**:
 - **Branches**: 1-hour cache (mutable, changes frequently)
 - **Tags**: 7-day cache (immutable, stable versions)
+- **Package files**:
+  - Release packages (`/releases/`): 7-day cache (immutable)
+  - Custom packages: 1-hour cache (may change)
 - **Local sources**: No cache (always fresh)
+
+**Package File Distribution**:
+
+Capabilities can be distributed as prebuilt `.tar.gz` packages for:
+- **Offline-friendly**: Download once, cache locally
+- **Reliable**: No CDN dependencies, no rate limits
+- **Fast**: No network calls after initial download
+
+Cache directory for packages: `~/.capabilities-cache/packages/<hash>/`
+
+**Build Capability Packages**:
+```bash
+# Build package from capabilities directory
+make bundle-capabilities
+# Creates: build/capabilities-latest.tar.gz
+
+# Verify package structure
+tar -tzf build/capabilities-latest.tar.gz | head -20
+```
 
 **Network Resilience**:
 
@@ -303,6 +335,13 @@ meta-cc automatically handles network failures:
 - **5xx server errors**: Exponential backoff retry (3 attempts: 1s, 2s, 4s)
 - **Network unreachable**: Falls back to stale cache (up to 7 days old)
 - **404 errors**: Clear error messages with troubleshooting suggestions
+
+**Cache Metadata**:
+
+Package cache metadata is stored in `~/.capabilities-cache/.meta-cc-cache.json`:
+- Tracks download time, TTL, and package URL
+- Enables smart cache validation
+- Automatic cleanup of expired entries (>7 days)
 
 ### Default Source
 

@@ -150,6 +150,58 @@ git push origin v1.0.0
 export META_CC_CAPABILITY_SOURCES="username/meta-cc-capabilities@v1.0.0/capabilities"
 ```
 
+### Method 1a: GitHub Release Package (Recommended)
+
+Distribute capabilities as prebuilt `.tar.gz` packages for improved offline support and reliability:
+
+1. **Build the package**:
+   ```bash
+   cd my-capabilities-project
+   tar -czf capabilities-latest.tar.gz -C capabilities commands agents
+   # Or use make target: make bundle-capabilities
+   ```
+
+2. **Create GitHub Release**:
+   ```bash
+   # Create release tag
+   git tag -a v1.0.0 -m "Release v1.0.0"
+   git push origin v1.0.0
+
+   # Upload package via GitHub web interface or gh CLI
+   gh release create v1.0.0 capabilities-latest.tar.gz
+   ```
+
+3. **Users install via**:
+   ```bash
+   # Latest release (automatic updates)
+   export META_CC_CAPABILITY_SOURCES="https://github.com/username/repo/releases/latest/download/capabilities-latest.tar.gz"
+
+   # Specific version (pinned)
+   export META_CC_CAPABILITY_SOURCES="https://github.com/username/repo/releases/download/v1.0.0/capabilities-v1.0.0.tar.gz"
+   ```
+
+**Benefits**:
+- **7-day cache**: Release packages cached for 7 days (immutable)
+- **Offline-friendly**: Download once, no CDN dependency
+- **Reliable**: No rate limits, no CDN failures
+- **Fast**: No network calls after initial download
+- **Version control**: Users can pin to specific versions
+
+**Package Structure**:
+```
+capabilities.tar.gz
+├── commands/
+│   ├── meta-feature1.md
+│   └── meta-feature2.md
+└── agents/          # Optional
+    └── agent1.md
+```
+
+**Cache Behavior**:
+- Release packages (`/releases/`): 7-day cache
+- Custom packages: 1-hour cache
+- Local packages: Re-extracted on each use
+
 ### Method 2: Fork and PR
 
 1. Fork `yaleh/meta-cc`

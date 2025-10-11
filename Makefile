@@ -14,11 +14,12 @@ GOMOD := $(GOCMD) mod
 BUILD_DIR := build
 DIST_DIR := dist
 CAPABILITIES_DIR := capabilities
+CAPABILITIES_ARCHIVE := capabilities-latest.tar.gz
 BINARY_NAME := meta-cc
 MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build build-cli build-mcp test test-all test-coverage clean install cross-compile bundle-release lint fmt vet help sync-plugin-files dev
+.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint fmt vet help sync-plugin-files dev
 
 all: lint test build
 
@@ -45,7 +46,27 @@ test-coverage:
 	$(GOTEST) -v -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 
-clean:
+bundle-capabilities:
+	@echo "Creating capability package: $(CAPABILITIES_ARCHIVE)..."
+	@if [ ! -d "$(CAPABILITIES_DIR)/commands" ]; then \
+		echo "ERROR: $(CAPABILITIES_DIR)/commands/ directory not found"; \
+		exit 1; \
+	fi
+	@mkdir -p $(BUILD_DIR)
+	@tar -czf $(BUILD_DIR)/$(CAPABILITIES_ARCHIVE) -C $(CAPABILITIES_DIR) commands agents 2>/dev/null || \
+		tar -czf $(BUILD_DIR)/$(CAPABILITIES_ARCHIVE) -C $(CAPABILITIES_DIR) commands
+	@echo "✓ Package created: $(BUILD_DIR)/$(CAPABILITIES_ARCHIVE)"
+	@echo "  Size: $$(du -h $(BUILD_DIR)/$(CAPABILITIES_ARCHIVE) | cut -f1)"
+	@echo "  Files: $$(tar -tzf $(BUILD_DIR)/$(CAPABILITIES_ARCHIVE) | wc -l)"
+
+clean-capabilities:
+	@echo "Cleaning capability packages..."
+	@rm -f $(BUILD_DIR)/$(CAPABILITIES_ARCHIVE)
+
+test-capability-package:
+	@bash tests/integration/test-capability-package.sh
+
+clean: clean-capabilities
 	@echo "Cleaning..."
 	$(GOCLEAN)
 	rm -f $(BINARY_NAME)
@@ -148,20 +169,23 @@ vet:
 
 help:
 	@echo "Available targets:"
-	@echo "  make build             - Build both meta-cc and meta-cc-mcp"
-	@echo "  make build-cli         - Build meta-cc CLI only"
-	@echo "  make build-mcp         - Build meta-cc-mcp MCP server only"
-	@echo "  make dev               - Development build (use .claude/ for immediate testing)"
-	@echo "  make test              - Run tests (short mode, skips slow E2E tests)"
-	@echo "  make test-all          - Run all tests (including slow E2E tests ~30s)"
-	@echo "  make test-coverage     - Run tests with coverage report (includes E2E tests)"
-	@echo "  make lint              - Run static analysis (fmt + vet + golangci-lint)"
-	@echo "  make fmt               - Format code with gofmt"
-	@echo "  make vet               - Run go vet"
-	@echo "  make clean             - Remove build artifacts ($(BUILD_DIR)/, $(DIST_DIR)/)"
-	@echo "  make install           - Install to GOPATH/bin"
-	@echo "  make cross-compile     - Build for all platforms"
-	@echo "  make sync-plugin-files - Prepare plugin files in $(DIST_DIR)/ for packaging"
-	@echo "  make bundle-release    - Create release bundles (auto-syncs first, requires VERSION=vX.Y.Z)"
-	@echo "  make deps              - Download and tidy dependencies"
-	@echo "  make help              - Show this help message"
+	@echo "  make build                   - Build both meta-cc and meta-cc-mcp"
+	@echo "  make build-cli               - Build meta-cc CLI only"
+	@echo "  make build-mcp               - Build meta-cc-mcp MCP server only"
+	@echo "  make dev                     - Development build (use .claude/ for immediate testing)"
+	@echo "  make test                    - Run tests (short mode, skips slow E2E tests)"
+	@echo "  make test-all                - Run all tests (including slow E2E tests ~30s)"
+	@echo "  make test-coverage           - Run tests with coverage report (includes E2E tests)"
+	@echo "  make test-capability-package - Test capability package creation and extraction"
+	@echo "  make lint                    - Run static analysis (fmt + vet + golangci-lint)"
+	@echo "  make fmt                     - Format code with gofmt"
+	@echo "  make vet                     - Run go vet"
+	@echo "  make clean                   - Remove build artifacts ($(BUILD_DIR)/, $(DIST_DIR)/)"
+	@echo "  make clean-capabilities      - Remove capability packages only"
+	@echo "  make install                 - Install to GOPATH/bin"
+	@echo "  make cross-compile           - Build for all platforms"
+	@echo "  make bundle-capabilities     - Create capability package (.tar.gz)"
+	@echo "  make sync-plugin-files       - Prepare plugin files in $(DIST_DIR)/ for packaging"
+	@echo "  make bundle-release          - Create release bundles (auto-syncs first, requires VERSION=vX.Y.Z)"
+	@echo "  make deps                    - Download and tidy dependencies"
+	@echo "  make help                    - Show this help message"

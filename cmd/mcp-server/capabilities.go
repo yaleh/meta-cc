@@ -1,6 +1,10 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,6 +27,8 @@ const (
 	SourceTypeLocal SourceType = "local"
 	// SourceTypeGitHub represents a GitHub repository
 	SourceTypeGitHub SourceType = "github"
+	// SourceTypePackage represents a tar.gz package file (URL or local path)
+	SourceTypePackage SourceType = "package"
 
 	// DefaultCapabilitySource is the default source when no env var is set
 	// Uses GitHub repository with main branch for zero-configuration deployment
@@ -103,8 +109,13 @@ func parseCapabilitySources(envVar string) []CapabilitySource {
 	return sources
 }
 
-// detectSourceType determines if a location is a local path or GitHub repository
+// detectSourceType determines if a location is a local path, package file, or GitHub repository
 func detectSourceType(location string) SourceType {
+	// Check for package file (tar.gz or tgz)
+	if strings.HasSuffix(location, ".tar.gz") || strings.HasSuffix(location, ".tgz") {
+		return SourceTypePackage
+	}
+
 	// Absolute paths start with "/"
 	if strings.HasPrefix(location, "/") {
 		return SourceTypeLocal
@@ -115,8 +126,13 @@ func detectSourceType(location string) SourceType {
 		return SourceTypeLocal
 	}
 
+	// Tilde-prefixed paths (home directory)
+	if strings.HasPrefix(location, "~") {
+		return SourceTypeLocal
+	}
+
 	// GitHub format: "owner/repo" or "owner/repo/subdir"
-	// Simple heuristic: contains "/" but doesn't start with "/" or "."
+	// Simple heuristic: contains "/" but doesn't start with "/" or "." or "~"
 	if strings.Contains(location, "/") {
 		return SourceTypeGitHub
 	}
@@ -217,6 +233,202 @@ func loadGitHubCapabilities(repo string) ([]CapabilityMetadata, error) {
 	return nil, fmt.Errorf("GitHub capability loading not yet implemented")
 }
 
+// getPackageCacheDir returns the cache directory for a package source
+func getPackageCacheDir(packageLocation string) (string, error) {
+	// Compute hash of package location for cache directory name
+	hash := sha256.Sum256([]byte(packageLocation))
+	hashStr := hex.EncodeToString(hash[:])[:16] // Use first 16 chars
+
+	// Cache directory: ~/.capabilities-cache/packages/<hash>/
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	cacheDir := filepath.Join(homeDir, CapabilityCacheDir, "packages", hashStr)
+	return cacheDir, nil
+}
+
+// downloadPackage downloads a package from URL to destination path
+func downloadPackage(url string, destPath string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to download package: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("download failed with status %d", resp.StatusCode)
+	}
+
+	// Create destination file
+	out, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer out.Close()
+
+	// Copy data
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
+// extractPackage extracts a tar.gz package to destination directory
+func extractPackage(packagePath string, destDir string) error {
+	// Open package file
+	file, err := os.Open(packagePath)
+	if err != nil {
+		return fmt.Errorf("failed to open package: %w", err)
+	}
+	defer file.Close()
+
+	// Create gzip reader
+	gzr, err := gzip.NewReader(file)
+	if err != nil {
+		return fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer gzr.Close()
+
+	// Create tar reader
+	tr := tar.NewReader(gzr)
+
+	// Extract files
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("tar read error: %w", err)
+		}
+
+		// Construct destination path
+		target := filepath.Join(destDir, header.Name)
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			// Create directory
+			if err := os.MkdirAll(target, 0755); err != nil {
+				return fmt.Errorf("failed to create directory: %w", err)
+			}
+		case tar.TypeReg:
+			// Create parent directory
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				return fmt.Errorf("failed to create parent directory: %w", err)
+			}
+
+			// Create file
+			outFile, err := os.Create(target)
+			if err != nil {
+				return fmt.Errorf("failed to create file: %w", err)
+			}
+
+			// Copy content
+			if _, err := io.Copy(outFile, tr); err != nil {
+				outFile.Close()
+				return fmt.Errorf("failed to write file: %w", err)
+			}
+			outFile.Close()
+		}
+	}
+
+	return nil
+}
+
+// expandTilde expands ~ to the user's home directory
+func expandTilde(path string) string {
+	if !strings.HasPrefix(path, "~") {
+		return path
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return path // Return unchanged if home dir can't be determined
+	}
+
+	if path == "~" {
+		return homeDir
+	}
+
+	if strings.HasPrefix(path, "~/") {
+		return filepath.Join(homeDir, path[2:])
+	}
+
+	return path // Return unchanged if it starts with ~ but not ~/
+}
+
+// downloadAndExtractPackage downloads (if URL) and extracts a package
+func downloadAndExtractPackage(packageLocation string, cacheDir string) error {
+	var packagePath string
+
+	// Check if URL or local path
+	if strings.HasPrefix(packageLocation, "http://") || strings.HasPrefix(packageLocation, "https://") {
+		// Download package
+		packagePath = filepath.Join(cacheDir, "package.tar.gz")
+		if err := os.MkdirAll(filepath.Dir(packagePath), 0755); err != nil {
+			return err
+		}
+		if err := downloadPackage(packageLocation, packagePath); err != nil {
+			return err
+		}
+	} else {
+		// Local path, expand tilde
+		packagePath = expandTilde(packageLocation)
+		if _, err := os.Stat(packagePath); os.IsNotExist(err) {
+			return fmt.Errorf("package file not found: %s", packagePath)
+		}
+	}
+
+	// Extract package
+	if err := extractPackage(packagePath, cacheDir); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// loadPackageCapabilities loads capabilities from a package source
+func loadPackageCapabilities(packageLocation string) ([]CapabilityMetadata, error) {
+	// Get cache directory
+	cacheDir, err := getPackageCacheDir(packageLocation)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if cache is valid
+	if !isCacheValidForPackage(packageLocation) {
+		// Cache expired or doesn't exist, download and extract
+		if err := downloadAndExtractPackage(packageLocation, cacheDir); err != nil {
+			// If network error, try using stale cache
+			if isCacheStaleForPackage(packageLocation) {
+				fmt.Fprintf(os.Stderr, "Warning: Using stale cached package (network error)\n")
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			} else {
+				return nil, err
+			}
+		} else {
+			// Update cache metadata
+			if err := updateCacheMetadata(packageLocation, cacheDir); err != nil {
+				// Non-fatal, log warning
+				fmt.Fprintf(os.Stderr, "Warning: Failed to update cache metadata: %v\n", err)
+			}
+		}
+	}
+
+	// Load capabilities from extracted package
+	commandsDir := filepath.Join(cacheDir, "commands")
+	caps, err := loadLocalCapabilities(commandsDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load package capabilities: %w", err)
+	}
+
+	return caps, nil
+}
+
 // mergeSources merges capabilities from multiple sources with priority-based overriding
 func mergeSources(sources []CapabilitySource) (CapabilityIndex, error) {
 	index := make(CapabilityIndex)
@@ -234,6 +446,8 @@ func mergeSources(sources []CapabilitySource) (CapabilityIndex, error) {
 			capabilities, err = loadLocalCapabilities(source.Location)
 		case SourceTypeGitHub:
 			capabilities, err = loadGitHubCapabilities(source.Location)
+		case SourceTypePackage:
+			capabilities, err = loadPackageCapabilities(source.Location)
 		default:
 			return nil, fmt.Errorf("unknown source type: %s", source.Type)
 		}
@@ -262,6 +476,21 @@ type CapabilityCache struct {
 
 var globalCapabilityCache *CapabilityCache
 var cacheMutex sync.RWMutex
+
+// PackageCacheMetadata tracks cached package information
+type PackageCacheMetadata struct {
+	PackageURL    string    `json:"package_url"`
+	DownloadTime  time.Time `json:"download_time"`
+	ExtractedPath string    `json:"extracted_path"`
+	TTL           int64     `json:"ttl_seconds"` // TTL in seconds
+	IsRelease     bool      `json:"is_release"`  // Release vs branch
+}
+
+// CacheMetadataFile represents the cache metadata file structure
+type CacheMetadataFile struct {
+	Version  string                          `json:"version"`
+	Packages map[string]PackageCacheMetadata `json:"packages"` // Key: cache hash
+}
 
 // getCapabilityIndex returns capability index with caching support
 func getCapabilityIndex(sources []CapabilitySource, disableCache bool) (CapabilityIndex, error) {
@@ -355,6 +584,179 @@ func isCacheStale(sources []CapabilitySource) bool {
 
 	// Cache is stale if: expired (age >= TTL) but within maxStaleAge
 	return age >= globalCapabilityCache.TTL && age < maxStaleAge
+}
+
+// getPackageHash computes the hash for a package URL (for cache directory naming)
+func getPackageHash(packageURL string) string {
+	hash := sha256.Sum256([]byte(packageURL))
+	return hex.EncodeToString(hash[:])[:16] // Use first 16 chars
+}
+
+// loadCacheMetadata loads cache metadata from disk
+func loadCacheMetadata() (*CacheMetadataFile, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	metadataPath := filepath.Join(homeDir, CapabilityCacheDir, ".meta-cc-cache.json")
+
+	// Check if file exists
+	if _, err := os.Stat(metadataPath); os.IsNotExist(err) {
+		// Return empty metadata
+		return &CacheMetadataFile{
+			Version:  "1.0",
+			Packages: make(map[string]PackageCacheMetadata),
+		}, nil
+	}
+
+	// Read metadata file
+	data, err := os.ReadFile(metadataPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var metadata CacheMetadataFile
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return nil, err
+	}
+
+	return &metadata, nil
+}
+
+// saveCacheMetadata saves cache metadata to disk
+func saveCacheMetadata(metadata *CacheMetadataFile) error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	cacheDir := filepath.Join(homeDir, CapabilityCacheDir)
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return err
+	}
+
+	metadataPath := filepath.Join(cacheDir, ".meta-cc-cache.json")
+
+	data, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(metadataPath, data, 0644)
+}
+
+// getPackageTTL returns TTL for a package based on URL type
+func getPackageTTL(packageURL string) time.Duration {
+	// Release packages: 7 days (immutable)
+	if isReleasePackage(packageURL) {
+		return 7 * 24 * time.Hour
+	}
+
+	// Branch packages: 1 hour (mutable)
+	return 1 * time.Hour
+}
+
+// isReleasePackage checks if package URL points to a release
+func isReleasePackage(packageURL string) bool {
+	return strings.Contains(packageURL, "/releases/")
+}
+
+// isCacheValidForPackage checks if cached package is still valid
+func isCacheValidForPackage(packageURL string) bool {
+	metadata, err := loadCacheMetadata()
+	if err != nil {
+		return false
+	}
+
+	// Get cache hash
+	hash := getPackageHash(packageURL)
+
+	pkg, exists := metadata.Packages[hash]
+	if !exists {
+		return false
+	}
+
+	// Check TTL
+	age := time.Since(pkg.DownloadTime)
+	ttl := time.Duration(pkg.TTL) * time.Second
+
+	return age < ttl
+}
+
+// isCacheStaleForPackage checks if cache is expired but still usable (< 7 days old)
+func isCacheStaleForPackage(packageURL string) bool {
+	metadata, err := loadCacheMetadata()
+	if err != nil {
+		return false
+	}
+
+	hash := getPackageHash(packageURL)
+
+	pkg, exists := metadata.Packages[hash]
+	if !exists {
+		return false
+	}
+
+	age := time.Since(pkg.DownloadTime)
+	ttl := time.Duration(pkg.TTL) * time.Second
+	maxStaleAge := 7 * 24 * time.Hour
+
+	return age >= ttl && age < maxStaleAge
+}
+
+// updateCacheMetadata updates cache metadata after downloading a package
+func updateCacheMetadata(packageURL string, cacheDir string) error {
+	metadata, err := loadCacheMetadata()
+	if err != nil {
+		return err
+	}
+
+	hash := getPackageHash(packageURL)
+	ttl := getPackageTTL(packageURL)
+
+	metadata.Packages[hash] = PackageCacheMetadata{
+		PackageURL:    packageURL,
+		DownloadTime:  time.Now(),
+		ExtractedPath: cacheDir,
+		TTL:           int64(ttl.Seconds()),
+		IsRelease:     isReleasePackage(packageURL),
+	}
+
+	return saveCacheMetadata(metadata)
+}
+
+// cleanupExpiredCache removes expired cache entries
+func cleanupExpiredCache() error {
+	metadata, err := loadCacheMetadata()
+	if err != nil {
+		return err
+	}
+
+	maxStaleAge := 7 * 24 * time.Hour
+	modified := false
+
+	for hash, pkg := range metadata.Packages {
+		age := time.Since(pkg.DownloadTime)
+
+		// Remove if older than max stale age
+		if age >= maxStaleAge {
+			// Remove cache directory
+			if err := os.RemoveAll(pkg.ExtractedPath); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to remove cache directory: %v\n", err)
+			}
+
+			// Remove from metadata
+			delete(metadata.Packages, hash)
+			modified = true
+		}
+	}
+
+	if modified {
+		return saveCacheMetadata(metadata)
+	}
+
+	return nil
 }
 
 // isServerError checks if error is a 5xx server error

@@ -3460,55 +3460,64 @@ Claude: 执行能力实现
 - 添加使用示例和开发指南
 - **交付**：测试文件 (+120), 文档更新 (+80)
 
-### Stage 22.8: jsDelivr CDN 集成（~150 行，2h）
-- 修改 GitHub URL 从 `raw.githubusercontent.com` 改为 `cdn.jsdelivr.net/gh`
-- 实现 @ 符号分支解析（`owner/repo@branch/subdir`）
-- 支持分支、标签、commit hash
-- 实现版本类型检测（分支 vs 标签，决定缓存 TTL）
-- **交付**：`cmd/mcp-server/capabilities.go` 修改 (+150), 测试 (+80)
+### Stage 22.8: Capability 打包与分发（~200 行，3h）
+- 实现构建时打包：`make bundle-capabilities` 生成 `.tar.gz`
+- 修改 GitHub Actions 自动上传包文件到 Release 资产
+- 支持稳定链接：`releases/latest/download/capabilities-latest.tar.gz`
+- **交付**：Makefile (+30), `.github/workflows/release.yml` (+20), 测试 (+50)
 
-### Stage 22.9: 默认源调整为 GitHub（~50 行，1h）
-- 修改默认源从本地改为 `yaleh/meta-cc@main/commands`
-- 调整缓存策略（分支 1h TTL, 标签 7d TTL）
-- 移除 `.claude/commands` 作为默认源
-- **交付**：`cmd/mcp-server/capabilities.go` 修改 (+50), 测试调整 (+30)
+### Stage 22.9: MCP 包文件源支持（~250 行，4h）
+- 扩展 `parseCapabilitySources` 支持包文件 URL/路径
+- 实现 `SourceTypePackage` 类型和 `loadPackageCapabilities` 函数
+- 实现包文件下载、解压、缓存逻辑（`.capabilities-cache/packages/`）
+- 支持 HTTP/本地文件路径
+- **交付**：`cmd/mcp-server/capabilities.go` (+200), 测试 (+150)
 
-### Stage 22.10: 错误处理和降级策略（~100 行，1.5h）
-- 实现 jsDelivr 错误处理（404, 5xx, 网络不可达）
-- 实现重试逻辑（exponential backoff）
-- 实现降级策略（使用过期缓存）
-- 优化错误信息（清晰的用户提示）
-- **交付**：`cmd/mcp-server/capabilities.go` 修改 (+100), 测试 (+60)
+### Stage 22.10: 包文件缓存策略（~100 行，1.5h）
+- 实现包文件缓存元数据（`.meta-cc-cache.json`）
+- 实现缓存 TTL 验证（7天 for releases, 1h for branches）
+- 实现缓存清理机制
+- **交付**：`cmd/mcp-server/capabilities.go` (+80), 测试 (+50)
 
-### Stage 22.11: 文档更新（jsDelivr 版本）（~120 行，2h）
-- 更新 CLAUDE.md（jsDelivr CDN, @ 符号格式, 缓存策略）
-- 更新 README.md（零配置使用, CDN 优势）
-- 更新 docs/capabilities-guide.md（版本固定, 分支测试）
-- 更新 CHANGELOG.md（Breaking Changes: 默认源改为 GitHub）
+### Stage 22.11: 默认源调整为包文件（~80 行，1.5h）
+- 修改 `DefaultCapabilitySource` 为 release 包文件 URL
+- 实现智能 fallback（包文件 → GitHub API + Raw → 本地缓存）
+- 处理 `latest` 重定向
+- **交付**：`cmd/mcp-server/capabilities.go` (+50), 测试 (+30)
+
+### Stage 22.12: 文档更新（包文件版本）（~120 行，2h）
+- 更新 CLAUDE.md（包文件打包、默认源、缓存策略）
+- 更新 README.md（零配置使用、离线友好）
+- 更新 docs/capabilities-guide.md（包文件格式、自定义打包）
+- 更新 CHANGELOG.md（Breaking Changes: 默认源改为包文件）
 - **交付**：文档更新 (+120)
 
 ### 完成标准（更新）
 - ✅ Stage 22.1-22.7: 已完成（基础多源能力系统）
-- ⬜ Stage 22.8: jsDelivr CDN 集成完成
-  - ✅ @ 符号分支解析正确
-  - ✅ jsDelivr URL 构建正确
-  - ✅ 版本类型检测工作（分支/标签）
-- ⬜ Stage 22.9: 默认源调整完成
-  - ✅ 默认加载 `yaleh/meta-cc@main/commands`
-  - ✅ 本地开发需配置 `META_CC_CAPABILITY_SOURCES="commands"`
-  - ✅ 缓存策略正确（分支 1h, 标签 7d）
-- ⬜ Stage 22.10: 错误处理完成
-  - ✅ jsDelivr 错误场景处理正确
-  - ✅ 降级策略工作（过期缓存兜底）
-  - ✅ 错误信息清晰易懂
-- ⬜ Stage 22.11: 文档更新完成
-  - ✅ 所有文档反映 jsDelivr 和默认源变更
+- ⬜ Stage 22.8: Capability 打包与分发完成
+  - ✅ Makefile 支持 `bundle-capabilities` target
+  - ✅ GitHub Actions 自动上传包文件到 Release
+  - ✅ 包文件格式正确（.tar.gz, 包含 commands/ 和 agents/）
+- ⬜ Stage 22.9: MCP 包文件源支持完成
+  - ✅ 识别包文件 URL（https://.../*.tar.gz）和本地路径
+  - ✅ 下载、解压、缓存正确
+  - ✅ `loadPackageCapabilities` 工作正常
+- ⬜ Stage 22.10: 包文件缓存策略完成
+  - ✅ 缓存元数据正确存储
+  - ✅ TTL 验证工作（7天 releases, 1h branches）
+  - ✅ 过期缓存清理机制
+- ⬜ Stage 22.11: 默认源调整完成
+  - ✅ 默认加载最新 release 包文件
+  - ✅ 智能 fallback 工作（包文件 → GitHub → 本地）
+  - ✅ `latest` 重定向处理正确
+- ⬜ Stage 22.12: 文档更新完成
+  - ✅ 所有文档反映包文件分发策略
   - ✅ Breaking Changes 说明清晰
   - ✅ 迁移指南完整
 
 **工作量**：
 - Stage 22.1-22.7: ~15h | ~800 lines (已完成)
-- Stage 22.8-22.11: ~6.5h | ~420 lines (新增)
-- **总计**: ~21.5h | ~1220 lines
+- Stage 22.8-22.12: ~12h | ~750 lines (新增)
+- **总计**: ~27h | ~1550 lines
 
 详细计划见 `plans/22/plan.md`

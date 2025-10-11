@@ -61,6 +61,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fallback to stale cache on network failure (up to 7 days)
   - Clear, actionable error messages for 404 and network errors
 
+**Phase 22.8-22.10: Capability Package Distribution** (NEW)
+- **Build tooling** for capability packages
+  - `make bundle-capabilities` creates `.tar.gz` packages
+  - GitHub Actions automatically uploads packages to releases
+  - Package format: `commands/` and `agents/` directories
+- **Package source support**:
+  - MCP recognizes `.tar.gz` URLs and local paths
+  - Automatic download and extraction
+  - Format: `export META_CC_CAPABILITY_SOURCES="/path/to/caps.tar.gz"`
+  - Mix package files with other source types
+- **Package cache strategy**:
+  - Release packages (`/releases/`): 7-day cache (immutable)
+  - Custom packages: 1-hour cache (mutable)
+  - Cache directory: `~/.capabilities-cache/packages/<hash>/`
+  - Cache metadata: `.meta-cc-cache.json` tracks TTL and versions
+  - Automatic cleanup of expired cache (>7 days)
+- **Intelligent fallback**:
+  - Primary: Package file (if configured)
+  - Fallback 1: GitHub raw access
+  - Fallback 2: Stale cache (up to 7 days old)
+  - Clear error messages guide users to solutions
+- **Benefits**:
+  - **Offline-friendly**: Download once, cache locally
+  - **Reliable**: No CDN dependencies, no rate limits
+  - **Fast**: No network calls after initial download
+  - **Simple**: Standard tar.gz format, easy to verify and debug
+
 ### Changed
 
 **Phase 22.1-22.7**:

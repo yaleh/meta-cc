@@ -63,6 +63,12 @@ jobs:
           GOOS=darwin GOARCH=arm64 go build -o build/meta-cc-mcp-darwin-arm64 ./cmd/mcp-server
           GOOS=windows GOARCH=amd64 go build -o build/meta-cc-mcp-windows-amd64.exe ./cmd/mcp-server
 
+      - name: Package Capabilities
+        run: |
+          make bundle-capabilities
+          echo "Capability package created: build/capabilities-latest.tar.gz"
+          ls -lh build/capabilities-latest.tar.gz
+
       - name: Create plugin packages
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
@@ -114,7 +120,9 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: build/packages/*
+          files: |
+            build/packages/*
+            build/capabilities-latest.tar.gz
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
