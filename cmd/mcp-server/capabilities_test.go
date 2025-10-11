@@ -192,6 +192,17 @@ keywords: [ unclosed
 ---`,
 			expectError: true,
 		},
+		{
+			name: "CRLF line endings (Windows)",
+			content: "---\r\nname: test-crlf\r\ndescription: Test CRLF line endings.\r\nkeywords: test, crlf, windows\r\ncategory: test\r\n---\r\n\r\n# Test Content",
+			expected: CapabilityMetadata{
+				Name:        "test-crlf",
+				Description: "Test CRLF line endings.",
+				Category:    "test",
+				Keywords:    []string{"test", "crlf", "windows"},
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {

@@ -128,7 +128,8 @@ func detectSourceType(location string) SourceType {
 // parseFrontmatter extracts capability metadata from markdown content
 func parseFrontmatter(content string) (CapabilityMetadata, error) {
 	// Regex to extract frontmatter between --- delimiters
-	frontmatterRegex := regexp.MustCompile(`(?s)^---\n(.*?)\n---`)
+	// Support both LF (\n) and CRLF (\r\n) line endings
+	frontmatterRegex := regexp.MustCompile(`(?s)^---\r?\n(.*?)\r?\n---`)
 	matches := frontmatterRegex.FindStringSubmatch(content)
 
 	if len(matches) < 2 {
