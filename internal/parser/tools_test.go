@@ -205,7 +205,7 @@ func TestExtractToolCalls_NoToolCalls(t *testing.T) {
 }
 
 // TestExtractToolCallsWithIsError tests that tool calls with is_error=true are correctly extracted
-// This test documents the bug: ToolResult doesn't parse is_error field
+// Verifies that the Error field is properly populated when IsError=true
 func TestExtractToolCallsWithIsError(t *testing.T) {
 	// Simulating a real session where MCP tool failed with is_error=true
 	entries := []SessionEntry{
@@ -269,11 +269,10 @@ func TestExtractToolCallsWithIsError(t *testing.T) {
 		t.Errorf("Expected Output to contain error message, got %q", tc.Output)
 	}
 
-	// THIS IS THE KEY TEST: When is_error=true, Error field should be populated
-	// Currently this will FAIL because ToolResult doesn't have IsError field
+	// Verify that when is_error=true, Error field is correctly populated
 	if tc.Error == "" {
-		t.Errorf("BUG: Expected Error field to be populated when is_error=true in JSONL, got empty string")
+		t.Errorf("Expected Error field to be populated when is_error=true in JSONL, got empty string")
 		t.Logf("Current ToolCall: %+v", tc)
-		t.Logf("This test documents the bug: ToolResult struct doesn't parse 'is_error' field from JSONL")
+		t.FailNow()
 	}
 }

@@ -213,6 +213,6 @@ func TestFormatJSONL_ProperJSONLFormat(t *testing.T) {
 
 	// Verify it does NOT start with '[' (JSON Array marker)
 	if strings.HasPrefix(output, "[") {
-		t.Error("BUG: JSONL output should NOT be JSON Array format (should not start with '[')")
+		t.Error("JSONL output should NOT be JSON Array format (should not start with '[')")
 	}
 }
