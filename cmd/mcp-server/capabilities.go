@@ -31,8 +31,8 @@ const (
 	SourceTypePackage SourceType = "package"
 
 	// DefaultCapabilitySource is the default source when no env var is set
-	// Uses GitHub repository with main branch for zero-configuration deployment
-	DefaultCapabilitySource = "yaleh/meta-cc@main/commands"
+	// Uses GitHub Release package for fast, reliable, offline-friendly distribution
+	DefaultCapabilitySource = "https://github.com/yaleh/meta-cc/releases/latest/download/capabilities-latest.tar.gz"
 
 	// LocalCapabilitySource defines the local capability source for development
 	LocalCapabilitySource = "capabilities/commands"
@@ -890,9 +890,9 @@ func executeListCapabilitiesTool(args map[string]interface{}) (string, error) {
 	// Parse sources
 	sources := parseCapabilitySources(sourcesEnv)
 	if len(sources) == 0 {
-		// Default to GitHub repository if no sources configured
+		// Default to GitHub Release package if no sources configured
 		sources = []CapabilitySource{
-			{Type: SourceTypeGitHub, Location: DefaultCapabilitySource, Priority: 0},
+			{Type: SourceTypePackage, Location: DefaultCapabilitySource, Priority: 0},
 		}
 	}
 
@@ -1202,9 +1202,9 @@ func executeGetCapabilityTool(args map[string]interface{}) (string, error) {
 	// Parse sources
 	sources := parseCapabilitySources(sourcesEnv)
 	if len(sources) == 0 {
-		// Default to GitHub repository if no sources configured
+		// Default to GitHub Release package if no sources configured
 		sources = []CapabilitySource{
-			{Type: SourceTypeGitHub, Location: DefaultCapabilitySource, Priority: 0},
+			{Type: SourceTypePackage, Location: DefaultCapabilitySource, Priority: 0},
 		}
 	}
 
