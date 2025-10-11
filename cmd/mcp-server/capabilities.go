@@ -794,38 +794,12 @@ func updateCacheMetadata(packageURL string, cacheDir string) error {
 	return saveCacheMetadata(metadata)
 }
 
-// cleanupExpiredCache removes expired cache entries
-func cleanupExpiredCache() error {
-	metadata, err := loadCacheMetadata()
-	if err != nil {
-		return err
-	}
-
-	maxStaleAge := 7 * 24 * time.Hour
-	modified := false
-
-	for hash, pkg := range metadata.Packages {
-		age := time.Since(pkg.DownloadTime)
-
-		// Remove if older than max stale age
-		if age >= maxStaleAge {
-			// Remove cache directory
-			if err := os.RemoveAll(pkg.ExtractedPath); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: Failed to remove cache directory: %v\n", err)
-			}
-
-			// Remove from metadata
-			delete(metadata.Packages, hash)
-			modified = true
-		}
-	}
-
-	if modified {
-		return saveCacheMetadata(metadata)
-	}
-
-	return nil
-}
+// TODO: Integrate package cache cleanup into cleanup_temp_files MCP tool
+// The cleanup logic should:
+// - Remove package cache entries older than 7 days
+// - Remove associated cache directories
+// - Update cache metadata file
+// See temp_file_manager.go:executeCleanupTool for integration point
 
 // isServerError checks if error is a 5xx server error
 func isServerError(err error) bool {
