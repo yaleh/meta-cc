@@ -14,10 +14,27 @@ discover :: intent → CapabilityIndex
 discover(I) = {
   index: mcp_meta_cc.list_capabilities(),
 
+  # Help mode: empty or help-like intent → show capabilities
+  if is_help_request(I):
+    display_help(index),
+    halt,
+
   display_discovery_summary(index),
   display_intent(I),
 
   return index
+}
+
+is_help_request :: intent → bool
+is_help_request(I) = {
+  empty(I) ∨ I.toLowerCase() in ["help", "?", "list", "show", "capabilities"]
+}
+
+display_help :: CapabilityIndex → void
+display_help(index) = {
+  display_welcome_message(),
+  display_available_capabilities(index),
+  display_usage_examples()
 }
 
 match :: (intent, CapabilityIndex) → ScoredCapabilities
