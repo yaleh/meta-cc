@@ -5,6 +5,23 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] - 2025-10-11
+
+### Fixed
+- **Technical Debt Resolution**
+  - Clean up test validation debt by removing false-positive bug references
+  - Update Go dependencies to resolve infrastructure debt (5 packages updated)
+  - Verify JSONL output format for query errors with improved test coverage
+
+### Changed
+- **Internal Improvements**
+  - Enhanced MCP server builder reliability
+  - Improved JSON output format validation
+  - Refactored test assertions for better clarity
+
+### Security
+- Updated dependencies to latest stable versions for improved security
+
 ## [0.20.0] - 2025-10-10
 
 ### Added
