@@ -89,8 +89,8 @@ jobs:
 
             # Copy Claude Code plugin structure
             cp -r .claude-plugin/* $PKG_DIR/.claude-plugin/
-            cp -r commands/* $PKG_DIR/commands/
-            cp -r agents/* $PKG_DIR/agents/
+            cp -r dist/commands/* $PKG_DIR/commands/
+            cp -r dist/agents/* $PKG_DIR/agents/ 2>/dev/null || true
             cp -r lib/* $PKG_DIR/lib/
 
             # Copy scripts and metadata
