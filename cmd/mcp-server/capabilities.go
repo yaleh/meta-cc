@@ -88,7 +88,9 @@ func parseCapabilitySources(envVar string) []CapabilitySource {
 		return []CapabilitySource{}
 	}
 
-	parts := strings.Split(envVar, string(os.PathListSeparator))
+	// Split by path separator, but handle URLs specially
+	// URLs contain : which conflicts with path separator on Unix
+	parts := smartSplitSources(envVar)
 	sources := make([]CapabilitySource, 0, len(parts))
 
 	priority := 0
@@ -109,8 +111,63 @@ func parseCapabilitySources(envVar string) []CapabilitySource {
 	return sources
 }
 
+// smartSplitSources splits sources by path separator, but handles URLs correctly
+func smartSplitSources(envVar string) []string {
+	if envVar == "" {
+		return []string{}
+	}
+
+	// On Unix, path separator is :, but URLs also contain :
+	// We need to avoid splitting on : that's part of http:// or https://
+	sep := string(os.PathListSeparator)
+	if sep != ":" {
+		// On Windows, path separator is ;, no conflict with URLs
+		return strings.Split(envVar, sep)
+	}
+
+	// Unix: split on : but not in URLs
+	var parts []string
+	current := ""
+	i := 0
+	for i < len(envVar) {
+		if envVar[i] == ':' {
+			// Check if this is part of a URL scheme (http:// or https://)
+			if i+2 < len(envVar) && envVar[i+1] == '/' && envVar[i+2] == '/' {
+				// This is a URL scheme, include it in current part
+				current += "://"
+				i += 3
+			} else {
+				// This is a separator, save current part and start new one
+				if current != "" {
+					parts = append(parts, current)
+				}
+				current = ""
+				i++
+			}
+		} else {
+			current += string(envVar[i])
+			i++
+		}
+	}
+	// Don't forget the last part
+	if current != "" {
+		parts = append(parts, current)
+	}
+
+	return parts
+}
+
 // detectSourceType determines if a location is a local path, package file, or GitHub repository
 func detectSourceType(location string) SourceType {
+	// Check for URLs first (before checking for / in path)
+	if strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://") {
+		// Check if URL points to package file
+		if strings.HasSuffix(location, ".tar.gz") || strings.HasSuffix(location, ".tgz") {
+			return SourceTypePackage
+		}
+		return SourceTypeGitHub // URLs default to GitHub
+	}
+
 	// Check for package file (tar.gz or tgz)
 	if strings.HasSuffix(location, ".tar.gz") || strings.HasSuffix(location, ".tgz") {
 		return SourceTypePackage
@@ -206,13 +263,13 @@ func loadLocalCapabilities(path string) ([]CapabilityMetadata, error) {
 	for _, filePath := range matches {
 		content, err := os.ReadFile(filePath)
 		if err != nil {
-			// Log warning but continue processing other files
+			// Skip files that can't be read
 			continue
 		}
 
 		metadata, err := parseFrontmatter(string(content))
 		if err != nil {
-			// Log warning but continue processing other files
+			// Skip files with invalid frontmatter
 			continue
 		}
 
@@ -674,6 +731,17 @@ func isCacheValidForPackage(packageURL string) bool {
 
 	pkg, exists := metadata.Packages[hash]
 	if !exists {
+		return false
+	}
+
+	// Check if cache directory actually exists
+	cacheDir, err := getPackageCacheDir(packageURL)
+	if err != nil {
+		return false
+	}
+	commandsDir := filepath.Join(cacheDir, "commands")
+	if _, err := os.Stat(commandsDir); os.IsNotExist(err) {
+		// Cache metadata exists but directory is missing - invalidate cache
 		return false
 	}
 

@@ -1628,6 +1628,13 @@ func TestCacheValidation(t *testing.T) {
 		t.Error("expected cache to be invalid initially")
 	}
 
+	// Create cache directory structure
+	cacheDir, _ := getPackageCacheDir(packageURL)
+	commandsDir := filepath.Join(cacheDir, "commands")
+	if err := os.MkdirAll(commandsDir, 0755); err != nil {
+		t.Fatalf("failed to create cache directory: %v", err)
+	}
+
 	// Create cache metadata with recent download
 	hash := getPackageHash(packageURL)
 	metadata := &CacheMetadataFile{
