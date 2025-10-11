@@ -12,6 +12,8 @@ GOTEST := $(GOCMD) test
 GOCLEAN := $(GOCMD) clean
 GOMOD := $(GOCMD) mod
 BUILD_DIR := build
+DIST_DIR := dist
+CAPABILITIES_DIR := capabilities
 BINARY_NAME := meta-cc
 MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
@@ -49,8 +51,8 @@ clean:
 	rm -f $(BINARY_NAME)
 	rm -f $(MCP_BINARY_NAME)
 	rm -rf $(BUILD_DIR)
+	rm -rf $(DIST_DIR)
 	rm -f coverage.out coverage.html
-	rm -rf commands agents  # Clean synced build artifacts
 
 install:
 	@echo "Installing..."
@@ -69,12 +71,27 @@ cross-compile:
 	@echo "Cross-compilation complete. Binaries in $(BUILD_DIR)/"
 
 sync-plugin-files:
-	@echo "Syncing plugin files from .claude/ to root..."
-	@bash scripts/sync-plugin-files.sh
+	@echo "Preparing plugin files for release packaging..."
+	@mkdir -p $(DIST_DIR)/commands $(DIST_DIR)/agents
+	@echo "  Copying entry point from .claude/commands/..."
+	@cp .claude/commands/meta.md $(DIST_DIR)/commands/
+	@echo "  Copying capabilities from $(CAPABILITIES_DIR)/commands/..."
+	@cp $(CAPABILITIES_DIR)/commands/*.md $(DIST_DIR)/commands/ 2>/dev/null || true
+	@echo "  Copying agents from .claude/agents/..."
+	@cp .claude/agents/*.md $(DIST_DIR)/agents/ 2>/dev/null || true
+	@echo "  Copying agents from $(CAPABILITIES_DIR)/agents/..."
+	@cp $(CAPABILITIES_DIR)/agents/*.md $(DIST_DIR)/agents/ 2>/dev/null || true
+	@echo "✓ Plugin files synced to $(DIST_DIR)/"
+	@CMD_COUNT=$$(find $(DIST_DIR)/commands -name "*.md" 2>/dev/null | wc -l); \
+	AGENT_COUNT=$$(find $(DIST_DIR)/agents -name "*.md" 2>/dev/null | wc -l); \
+	echo "✓ Total: $$CMD_COUNT command files, $$AGENT_COUNT agent files"
 
 dev: build
 	@echo "Development build complete"
 	@echo "Plugin files in .claude/ are ready for immediate use in Claude Code"
+	@echo ""
+	@echo "For local capability development, set:"
+	@echo "  export META_CC_CAPABILITY_SOURCES=\"$(CAPABILITIES_DIR)/commands\""
 
 bundle-release: sync-plugin-files
 	@echo "Creating release bundles for all platforms..."
@@ -94,8 +111,8 @@ bundle-release: sync-plugin-files
 			cp $(BUILD_DIR)/$(BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
 			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
 		fi; \
-		cp -r commands/* $$BUNDLE_DIR/commands/; \
-		cp -r agents/* $$BUNDLE_DIR/agents/; \
+		cp -r $(DIST_DIR)/commands/* $$BUNDLE_DIR/commands/; \
+		cp -r $(DIST_DIR)/agents/* $$BUNDLE_DIR/agents/; \
 		cp -r lib/* $$BUNDLE_DIR/lib/; \
 		cp -r .claude-plugin/* $$BUNDLE_DIR/.claude-plugin/; \
 		cp scripts/install.sh $$BUNDLE_DIR/; \
@@ -141,10 +158,10 @@ help:
 	@echo "  make lint              - Run static analysis (fmt + vet + golangci-lint)"
 	@echo "  make fmt               - Format code with gofmt"
 	@echo "  make vet               - Run go vet"
-	@echo "  make clean             - Remove build artifacts and synced files"
+	@echo "  make clean             - Remove build artifacts ($(BUILD_DIR)/, $(DIST_DIR)/)"
 	@echo "  make install           - Install to GOPATH/bin"
 	@echo "  make cross-compile     - Build for all platforms"
-	@echo "  make sync-plugin-files - Sync .claude/ files to root for packaging"
+	@echo "  make sync-plugin-files - Prepare plugin files in $(DIST_DIR)/ for packaging"
 	@echo "  make bundle-release    - Create release bundles (auto-syncs first, requires VERSION=vX.Y.Z)"
 	@echo "  make deps              - Download and tidy dependencies"
 	@echo "  make help              - Show this help message"

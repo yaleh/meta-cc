@@ -1,36 +1,53 @@
 #!/bin/bash
-# Sync plugin files from .claude/ to root for release
+# Prepare plugin files for release packaging
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+DIST_DIR="$PROJECT_ROOT/dist"
+CAPABILITIES_DIR="$PROJECT_ROOT/capabilities"
 
-echo "Syncing plugin files from .claude/ to root directories..."
+echo "Preparing plugin files for release packaging..."
 
 # Verify source directories exist
-if [ ! -d "$PROJECT_ROOT/.claude/commands" ]; then
-    echo "ERROR: .claude/commands directory not found"
+if [ ! -f "$PROJECT_ROOT/.claude/commands/meta.md" ]; then
+    echo "ERROR: .claude/commands/meta.md not found"
     exit 1
 fi
 
-if [ ! -d "$PROJECT_ROOT/.claude/agents" ]; then
-    echo "ERROR: .claude/agents directory not found"
+if [ ! -d "$CAPABILITIES_DIR/commands" ]; then
+    echo "ERROR: $CAPABILITIES_DIR/commands directory not found"
     exit 1
 fi
 
-# Remove old root directories if they exist
-rm -rf "$PROJECT_ROOT/commands" "$PROJECT_ROOT/agents"
+# Create dist directories
+mkdir -p "$DIST_DIR/commands" "$DIST_DIR/agents"
 
-# Copy from .claude/ to root
-cp -r "$PROJECT_ROOT/.claude/commands" "$PROJECT_ROOT/commands"
-cp -r "$PROJECT_ROOT/.claude/agents" "$PROJECT_ROOT/agents"
+# Copy entry point
+echo "  Copying entry point from .claude/commands/..."
+cp "$PROJECT_ROOT/.claude/commands/meta.md" "$DIST_DIR/commands/"
 
-echo "✓ Synced commands/ and agents/ from .claude/"
+# Copy capabilities
+echo "  Copying capabilities from $CAPABILITIES_DIR/commands/..."
+if ls "$CAPABILITIES_DIR/commands/"*.md 1> /dev/null 2>&1; then
+    cp "$CAPABILITIES_DIR/commands/"*.md "$DIST_DIR/commands/"
+fi
 
-# Count files for verification
-CMD_COUNT=$(find "$PROJECT_ROOT/commands" -name "*.md" | wc -l)
-AGENT_COUNT=$(find "$PROJECT_ROOT/agents" -name "*.md" | wc -l)
+# Copy agents
+echo "  Copying agents from .claude/agents/..."
+if ls "$PROJECT_ROOT/.claude/agents/"*.md 1> /dev/null 2>&1; then
+    cp "$PROJECT_ROOT/.claude/agents/"*.md "$DIST_DIR/agents/"
+fi
 
-echo "✓ Synced $CMD_COUNT command files and $AGENT_COUNT agent files"
-echo "Files ready for plugin packaging"
+if [ -d "$CAPABILITIES_DIR/agents" ] && ls "$CAPABILITIES_DIR/agents/"*.md 1> /dev/null 2>&1; then
+    echo "  Copying agents from $CAPABILITIES_DIR/agents/..."
+    cp "$CAPABILITIES_DIR/agents/"*.md "$DIST_DIR/agents/"
+fi
+
+# Count files
+CMD_COUNT=$(find "$DIST_DIR/commands" -name "*.md" | wc -l)
+AGENT_COUNT=$(find "$DIST_DIR/agents" -name "*.md" | wc -l)
+
+echo "✓ Plugin files synced to $DIST_DIR/"
+echo "✓ Total: $CMD_COUNT command files, $AGENT_COUNT agent files"

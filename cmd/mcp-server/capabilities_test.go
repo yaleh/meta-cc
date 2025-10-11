@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -788,5 +789,479 @@ func TestExecuteGetCapabilityTool(t *testing.T) {
 				t.Error("expected 'content' field in response")
 			}
 		})
+	}
+}
+
+// TestParseGitHubSource tests parsing of GitHub source strings with @ symbol
+func TestParseGitHubSource(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    GitHubSource
+		expectError bool
+	}{
+		{
+			name:  "branch with subdirectory",
+			input: "yaleh/meta-cc@main/commands",
+			expected: GitHubSource{
+				Owner:  "yaleh",
+				Repo:   "meta-cc",
+				Branch: "main",
+				Subdir: "commands",
+			},
+			expectError: false,
+		},
+		{
+			name:  "tag with subdirectory",
+			input: "yaleh/meta-cc@v1.0.0/commands",
+			expected: GitHubSource{
+				Owner:  "yaleh",
+				Repo:   "meta-cc",
+				Branch: "v1.0.0",
+				Subdir: "commands",
+			},
+			expectError: false,
+		},
+		{
+			name:  "branch without subdirectory",
+			input: "yaleh/meta-cc@develop",
+			expected: GitHubSource{
+				Owner:  "yaleh",
+				Repo:   "meta-cc",
+				Branch: "develop",
+				Subdir: "",
+			},
+			expectError: false,
+		},
+		{
+			name:  "no @ symbol with subdirectory (defaults to main)",
+			input: "yaleh/meta-cc/commands",
+			expected: GitHubSource{
+				Owner:  "yaleh",
+				Repo:   "meta-cc",
+				Branch: "main",
+				Subdir: "commands",
+			},
+			expectError: false,
+		},
+		{
+			name:  "no @ symbol without subdirectory (defaults to main)",
+			input: "yaleh/meta-cc",
+			expected: GitHubSource{
+				Owner:  "yaleh",
+				Repo:   "meta-cc",
+				Branch: "main",
+				Subdir: "",
+			},
+			expectError: false,
+		},
+		{
+			name:  "commit hash",
+			input: "yaleh/meta-cc@abc123def",
+			expected: GitHubSource{
+				Owner:  "yaleh",
+				Repo:   "meta-cc",
+				Branch: "abc123def",
+				Subdir: "",
+			},
+			expectError: false,
+		},
+		{
+			name:        "invalid format - missing repo",
+			input:       "yaleh",
+			expectError: true,
+		},
+		{
+			name:        "invalid format - only slash",
+			input:       "invalid",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseGitHubSource(tt.input)
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if result.Owner != tt.expected.Owner {
+				t.Errorf("Owner: expected %q, got %q", tt.expected.Owner, result.Owner)
+			}
+			if result.Repo != tt.expected.Repo {
+				t.Errorf("Repo: expected %q, got %q", tt.expected.Repo, result.Repo)
+			}
+			if result.Branch != tt.expected.Branch {
+				t.Errorf("Branch: expected %q, got %q", tt.expected.Branch, result.Branch)
+			}
+			if result.Subdir != tt.expected.Subdir {
+				t.Errorf("Subdir: expected %q, got %q", tt.expected.Subdir, result.Subdir)
+			}
+		})
+	}
+}
+
+// TestBuildJsDelivrURL tests jsDelivr URL generation
+func TestBuildJsDelivrURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		source   GitHubSource
+		filename string
+		expected string
+	}{
+		{
+			name: "main branch with subdirectory",
+			source: GitHubSource{
+				Owner:  "yaleh",
+				Repo:   "meta-cc",
+				Branch: "main",
+				Subdir: "commands",
+			},
+			filename: "meta-errors.md",
+			expected: "https://cdn.jsdelivr.net/gh/yaleh/meta-cc@main/commands/meta-errors.md",
+		},
+		{
+			name: "tag with subdirectory",
+			source: GitHubSource{
+				Owner:  "yaleh",
+				Repo:   "meta-cc",
+				Branch: "v1.0.0",
+				Subdir: "commands",
+			},
+			filename: "meta-errors.md",
+			expected: "https://cdn.jsdelivr.net/gh/yaleh/meta-cc@v1.0.0/commands/meta-errors.md",
+		},
+		{
+			name: "branch without subdirectory",
+			source: GitHubSource{
+				Owner:  "yaleh",
+				Repo:   "meta-cc",
+				Branch: "develop",
+				Subdir: "",
+			},
+			filename: "README.md",
+			expected: "https://cdn.jsdelivr.net/gh/yaleh/meta-cc@develop/README.md",
+		},
+		{
+			name: "commit hash without subdirectory",
+			source: GitHubSource{
+				Owner:  "community",
+				Repo:   "extras",
+				Branch: "abc123def",
+				Subdir: "",
+			},
+			filename: "capability.md",
+			expected: "https://cdn.jsdelivr.net/gh/community/extras@abc123def/capability.md",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildJsDelivrURL(tt.source, tt.filename)
+			if result != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestDetectVersionType tests version type detection (branch vs tag)
+func TestDetectVersionType(t *testing.T) {
+	tests := []struct {
+		name     string
+		version  string
+		expected VersionType
+	}{
+		{
+			name:     "semantic version with v prefix",
+			version:  "v1.0.0",
+			expected: VersionTypeTag,
+		},
+		{
+			name:     "semantic version without v prefix",
+			version:  "1.0.0",
+			expected: VersionTypeTag,
+		},
+		{
+			name:     "semantic version with v and patch",
+			version:  "v1.2.3",
+			expected: VersionTypeTag,
+		},
+		{
+			name:     "semantic version with prerelease",
+			version:  "1.2.3-beta",
+			expected: VersionTypeTag,
+		},
+		{
+			name:     "main branch",
+			version:  "main",
+			expected: VersionTypeBranch,
+		},
+		{
+			name:     "develop branch",
+			version:  "develop",
+			expected: VersionTypeBranch,
+		},
+		{
+			name:     "feature branch with slash",
+			version:  "feature/xyz",
+			expected: VersionTypeBranch,
+		},
+		{
+			name:     "commit hash",
+			version:  "abc123def",
+			expected: VersionTypeBranch,
+		},
+		{
+			name:     "numeric branch name",
+			version:  "123",
+			expected: VersionTypeBranch,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := detectVersionType(tt.version)
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestGetCacheTTL tests cache TTL based on version type
+func TestGetCacheTTL(t *testing.T) {
+	tests := []struct {
+		name        string
+		versionType VersionType
+		expected    time.Duration
+	}{
+		{
+			name:        "tag version (7 days)",
+			versionType: VersionTypeTag,
+			expected:    7 * 24 * time.Hour,
+		},
+		{
+			name:        "branch version (1 hour)",
+			versionType: VersionTypeBranch,
+			expected:    1 * time.Hour,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getCacheTTL(tt.versionType)
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestDefaultSourceIsGitHub verifies that the default source is GitHub when no env var is set
+func TestDefaultSourceIsGitHub(t *testing.T) {
+	// Clear environment variable
+	oldEnv := os.Getenv("META_CC_CAPABILITY_SOURCES")
+	os.Unsetenv("META_CC_CAPABILITY_SOURCES")
+	defer func() {
+		if oldEnv != "" {
+			os.Setenv("META_CC_CAPABILITY_SOURCES", oldEnv)
+		}
+	}()
+
+	// Test list_capabilities - should use GitHub default
+	args := map[string]interface{}{}
+	_, err := executeListCapabilitiesTool(args)
+
+	// We expect an error because GitHub loading is not yet fully implemented
+	// But the error should indicate it's trying to load from GitHub, not local
+	if err == nil {
+		t.Error("expected error for unimplemented GitHub loading")
+	} else if !strings.Contains(err.Error(), "GitHub") {
+		t.Errorf("expected GitHub-related error, got: %v", err)
+	}
+
+	// Test get_capability - should also use GitHub default
+	args = map[string]interface{}{
+		"name": "test-cap",
+	}
+	_, err = executeGetCapabilityTool(args)
+
+	// Should also fail with GitHub-related error
+	if err == nil {
+		t.Error("expected error for unimplemented GitHub loading")
+	}
+	// Don't check error message here as it goes through getCapabilityContent which may have different error
+}
+
+// TestDefaultSourceConstant verifies the default source constant value
+func TestDefaultSourceConstant(t *testing.T) {
+	expected := "yaleh/meta-cc@main/commands"
+	if DefaultCapabilitySource != expected {
+		t.Errorf("expected DefaultCapabilitySource to be %q, got %q", expected, DefaultCapabilitySource)
+	}
+}
+
+// TestIsServerError tests detection of 5xx server errors
+func TestIsServerError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "500 error",
+			err:      fmt.Errorf("jsDelivr returned status 500"),
+			expected: true,
+		},
+		{
+			name:     "503 service unavailable",
+			err:      fmt.Errorf("jsDelivr returned status 503 (server error)"),
+			expected: true,
+		},
+		{
+			name:     "404 not found",
+			err:      fmt.Errorf("jsDelivr returned status 404"),
+			expected: false,
+		},
+		{
+			name:     "200 success",
+			err:      fmt.Errorf("jsDelivr returned status 200"),
+			expected: false,
+		},
+		{
+			name:     "network error",
+			err:      fmt.Errorf("no such host"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isServerError(tt.err)
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestIsNetworkUnreachableError tests detection of network errors
+func TestIsNetworkUnreachableError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "no such host",
+			err:      fmt.Errorf("no such host"),
+			expected: true,
+		},
+		{
+			name:     "connection refused",
+			err:      fmt.Errorf("connection refused"),
+			expected: true,
+		},
+		{
+			name:     "network is unreachable",
+			err:      fmt.Errorf("network is unreachable"),
+			expected: true,
+		},
+		{
+			name:     "404 error",
+			err:      fmt.Errorf("jsDelivr returned status 404"),
+			expected: false,
+		},
+		{
+			name:     "500 error",
+			err:      fmt.Errorf("jsDelivr returned status 500"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isNetworkUnreachableError(tt.err)
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestIsCacheStale tests stale cache detection
+func TestIsCacheStale(t *testing.T) {
+	sources := []CapabilitySource{
+		{Type: SourceTypeGitHub, Location: "yaleh/meta-cc@main/commands", Priority: 0},
+	}
+
+	// Test with no cache
+	cacheMutex.Lock()
+	globalCapabilityCache = nil
+	cacheMutex.Unlock()
+
+	if isCacheStale(sources) {
+		t.Error("cache should not be stale when nil")
+	}
+
+	// Test with fresh cache (within TTL)
+	cacheMutex.Lock()
+	globalCapabilityCache = &CapabilityCache{
+		Index:     make(CapabilityIndex),
+		Timestamp: time.Now().Add(-30 * time.Minute), // 30 minutes old
+		TTL:       1 * time.Hour,                     // 1 hour TTL
+		Sources:   sources,
+	}
+	cacheMutex.Unlock()
+
+	if isCacheStale(sources) {
+		t.Error("cache should not be stale when within TTL")
+	}
+
+	// Test with stale cache (expired but within 7 days)
+	cacheMutex.Lock()
+	globalCapabilityCache = &CapabilityCache{
+		Index:     make(CapabilityIndex),
+		Timestamp: time.Now().Add(-2 * time.Hour), // 2 hours old
+		TTL:       1 * time.Hour,                  // 1 hour TTL (expired)
+		Sources:   sources,
+	}
+	cacheMutex.Unlock()
+
+	if !isCacheStale(sources) {
+		t.Error("cache should be stale when expired but within 7 days")
+	}
+
+	// Test with very old cache (beyond 7 days)
+	cacheMutex.Lock()
+	globalCapabilityCache = &CapabilityCache{
+		Index:     make(CapabilityIndex),
+		Timestamp: time.Now().Add(-8 * 24 * time.Hour), // 8 days old
+		TTL:       1 * time.Hour,
+		Sources:   sources,
+	}
+	cacheMutex.Unlock()
+
+	if isCacheStale(sources) {
+		t.Error("cache should not be stale when beyond 7 days (too old to use)")
 	}
 }

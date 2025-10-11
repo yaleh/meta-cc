@@ -296,17 +296,72 @@ Use natural language to invoke meta-cognition capabilities:
 /meta "show tech debt"        # Technical debt tracking
 ```
 
+### Zero-Configuration Setup
+
+meta-cc works out of the box with no configuration required. Capabilities are automatically loaded from GitHub via jsDelivr CDN:
+
+```
+yaleh/meta-cc@main/commands
+```
+
+**Benefits**:
+- **Latest capabilities**: Always up-to-date with the main branch
+- **No local files needed**: Capabilities loaded from jsDelivr CDN
+- **Fast and reliable**: Global CDN delivery with smart caching
+- **No rate limits**: Avoids GitHub API rate limiting
+
+### Local Development
+
+For local capability development, override the default source:
+
+```bash
+export META_CC_CAPABILITY_SOURCES="capabilities/commands"
+```
+
+**Benefits**:
+- **Real-time reflection**: Changes appear immediately (no cache)
+- **Testing before commit**: Verify changes locally
+- **Offline work**: No network dependency
+
+### Version Pinning
+
+Pin capabilities to a specific version for stability:
+
+```bash
+# Use a specific release tag (recommended for production)
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@v1.0.0/commands"
+
+# Benefits:
+# - 7-day cache (tags are immutable)
+# - Predictable behavior (no unexpected changes)
+# - Explicit version control
+```
+
+### Branch Specification
+
+Test capabilities from different branches:
+
+```bash
+# Test from develop branch
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@develop/commands"
+
+# Test from feature branch
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@feature/new-capability/commands"
+
+# Cache: 1 hour (branches are mutable)
+```
+
 ### Multi-Source Capabilities
 
 Load capabilities from multiple sources (local directories or GitHub repositories):
 
 ```bash
-export META_CC_CAPABILITY_SOURCES="~/my-caps:.claude/commands:yaleh/meta-cc-extras"
+export META_CC_CAPABILITY_SOURCES="~/my-caps:commands:yaleh/meta-cc-extras@main"
 ```
 
 **Supported Sources**:
 - **Local directories**: Immediate reflection, no cache (ideal for development)
-- **GitHub repositories**: 1-hour cache (format: `owner/repo` or `owner/repo/subpath`)
+- **GitHub repositories**: jsDelivr CDN with smart caching (1h branches, 7d tags)
 - **Priority-based merging**: Left = highest priority (override capabilities with same name)
 
 ### Capability Development
@@ -335,8 +390,8 @@ category: analysis
 ...
 EOF
 
-# Configure source
-export META_CC_CAPABILITY_SOURCES="~/dev/my-capabilities:.claude/commands"
+# Configure source (local has highest priority)
+export META_CC_CAPABILITY_SOURCES="~/dev/my-capabilities:commands"
 
 # Use immediately
 /meta "my feature"

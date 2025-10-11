@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,6 +23,16 @@ const (
 	SourceTypeLocal SourceType = "local"
 	// SourceTypeGitHub represents a GitHub repository
 	SourceTypeGitHub SourceType = "github"
+
+	// DefaultCapabilitySource is the default source when no env var is set
+	// Uses GitHub repository with main branch for zero-configuration deployment
+	DefaultCapabilitySource = "yaleh/meta-cc@main/commands"
+
+	// LocalCapabilitySource defines the local capability source for development
+	LocalCapabilitySource = "capabilities/commands"
+
+	// CapabilityCacheDir defines the directory for caching downloaded capabilities
+	CapabilityCacheDir = ".capabilities-cache"
 )
 
 // CapabilitySource represents a source of capabilities
@@ -45,6 +57,24 @@ type CapabilityMetadata struct {
 
 // CapabilityIndex maps capability names to their metadata
 type CapabilityIndex map[string]CapabilityMetadata
+
+// GitHubSource represents a parsed GitHub source with branch/tag
+type GitHubSource struct {
+	Owner  string // Repository owner
+	Repo   string // Repository name
+	Branch string // Branch, tag, or commit hash
+	Subdir string // Optional subdirectory
+}
+
+// VersionType represents the type of version reference
+type VersionType string
+
+const (
+	// VersionTypeBranch represents a branch reference (mutable)
+	VersionTypeBranch VersionType = "branch"
+	// VersionTypeTag represents a tag reference (immutable)
+	VersionTypeTag VersionType = "tag"
+)
 
 // parseCapabilitySources parses the environment variable into a list of capability sources
 func parseCapabilitySources(envVar string) []CapabilitySource {
@@ -226,6 +256,7 @@ type CapabilityCache struct {
 	Index     CapabilityIndex
 	Timestamp time.Time
 	TTL       time.Duration
+	Sources   []CapabilitySource // Track sources for validation
 }
 
 var globalCapabilityCache *CapabilityCache
@@ -243,16 +274,42 @@ func getCapabilityIndex(sources []CapabilitySource, disableCache bool) (Capabili
 	// Load fresh data
 	index, err := mergeSources(sources)
 	if err != nil {
+		// If network error and stale cache available, use stale cache
+		if isNetworkUnreachableError(err) && isCacheStale(sources) {
+			cacheMutex.RLock()
+			defer cacheMutex.RUnlock()
+
+			fmt.Fprintf(os.Stderr, "Warning: Using cached capabilities (may be outdated)\n")
+			fmt.Fprintf(os.Stderr, "Network error: %v\n", err)
+
+			return globalCapabilityCache.Index, nil
+		}
+
 		return nil, err
 	}
 
 	// Update cache (only if no local sources)
 	if !hasLocalSources(sources) {
+		// Determine TTL based on version type
+		ttl := 1 * time.Hour // Default for branches
+
+		// Check if any source is a tag
+		for _, source := range sources {
+			if source.Type == SourceTypeGitHub {
+				ghSource, _ := parseGitHubSource(source.Location)
+				if detectVersionType(ghSource.Branch) == VersionTypeTag {
+					ttl = 7 * 24 * time.Hour
+					break
+				}
+			}
+		}
+
 		cacheMutex.Lock()
 		globalCapabilityCache = &CapabilityCache{
 			Index:     index,
 			Timestamp: time.Now(),
-			TTL:       1 * time.Hour,
+			TTL:       ttl,
+			Sources:   sources,
 		}
 		cacheMutex.Unlock()
 	}
@@ -283,6 +340,74 @@ func isCacheValid(sources []CapabilitySource) bool {
 	return age < globalCapabilityCache.TTL
 }
 
+// isCacheStale checks if cache is stale but still usable (expired but within 7 days)
+func isCacheStale(sources []CapabilitySource) bool {
+	cacheMutex.RLock()
+	defer cacheMutex.RUnlock()
+
+	if globalCapabilityCache == nil {
+		return false
+	}
+
+	age := time.Since(globalCapabilityCache.Timestamp)
+	maxStaleAge := 7 * 24 * time.Hour // 7 days
+
+	// Cache is stale if: expired (age >= TTL) but within maxStaleAge
+	return age >= globalCapabilityCache.TTL && age < maxStaleAge
+}
+
+// isServerError checks if error is a 5xx server error
+func isServerError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Check if error message contains "status 5"
+	return strings.Contains(err.Error(), "status 5")
+}
+
+// isNetworkUnreachableError checks if error is a network unreachable error
+func isNetworkUnreachableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Check for network-related errors
+	return strings.Contains(err.Error(), "no such host") ||
+		strings.Contains(err.Error(), "connection refused") ||
+		strings.Contains(err.Error(), "network is unreachable")
+}
+
+// retryWithBackoff performs exponential backoff retry for transient errors
+func retryWithBackoff(operation func() error, maxRetries int) error {
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		err := operation()
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+
+		// Don't retry on 404 (not found) or network unreachable
+		if isNotFoundError(err) || isNetworkUnreachableError(err) {
+			return err
+		}
+
+		// Only retry on 5xx server errors
+		if !isServerError(err) {
+			return err
+		}
+
+		// Exponential backoff: 1s, 2s, 4s
+		if attempt < maxRetries-1 {
+			delay := time.Duration(1<<attempt) * time.Second
+			time.Sleep(delay)
+		}
+	}
+
+	return lastErr
+}
+
 // executeListCapabilitiesTool handles the list_capabilities MCP tool
 func executeListCapabilitiesTool(args map[string]interface{}) (string, error) {
 	// Parse sources (test override or environment variable)
@@ -294,9 +419,9 @@ func executeListCapabilitiesTool(args map[string]interface{}) (string, error) {
 	// Parse sources
 	sources := parseCapabilitySources(sourcesEnv)
 	if len(sources) == 0 {
-		// Default to .claude/commands if no sources configured
+		// Default to GitHub repository if no sources configured
 		sources = []CapabilitySource{
-			{Type: SourceTypeLocal, Location: ".claude/commands", Priority: 0},
+			{Type: SourceTypeGitHub, Location: DefaultCapabilitySource, Priority: 0},
 		}
 	}
 
@@ -414,11 +539,179 @@ func readLocalCapability(name string, path string) (string, error) {
 	return string(content), nil
 }
 
-// readGitHubCapability reads a capability file from GitHub repository
-// This is a placeholder for future implementation
+// parseGitHubSource parses GitHub source with @ symbol
+// Format: "owner/repo@branch/subdir" or "owner/repo/subdir" (defaults to main)
+func parseGitHubSource(location string) (GitHubSource, error) {
+	var result GitHubSource
+
+	// Check for @ symbol (branch/tag specification)
+	atIndex := strings.Index(location, "@")
+
+	if atIndex >= 0 {
+		// Split at @ symbol
+		beforeAt := location[:atIndex]
+		afterAt := location[atIndex+1:]
+
+		// Parse owner/repo before @
+		parts := strings.SplitN(beforeAt, "/", 2)
+		if len(parts) < 2 {
+			return result, fmt.Errorf("invalid GitHub source format: %s", location)
+		}
+		result.Owner = parts[0]
+		result.Repo = parts[1]
+
+		// Parse branch/subdir after @
+		branchParts := strings.SplitN(afterAt, "/", 2)
+		result.Branch = branchParts[0]
+		if len(branchParts) > 1 {
+			result.Subdir = branchParts[1]
+		}
+	} else {
+		// No @ symbol, default to main branch
+		parts := strings.SplitN(location, "/", 3)
+		if len(parts) < 2 {
+			return result, fmt.Errorf("invalid GitHub source format: %s", location)
+		}
+		result.Owner = parts[0]
+		result.Repo = parts[1]
+		result.Branch = "main" // Default branch
+		if len(parts) > 2 {
+			result.Subdir = parts[2]
+		}
+	}
+
+	return result, nil
+}
+
+// buildJsDelivrURL generates jsDelivr CDN URL from GitHub source
+// Format: https://cdn.jsdelivr.net/gh/owner/repo@branch/subdir/file.md
+func buildJsDelivrURL(source GitHubSource, filename string) string {
+	// Base URL
+	url := fmt.Sprintf("https://cdn.jsdelivr.net/gh/%s/%s@%s",
+		source.Owner, source.Repo, source.Branch)
+
+	// Add subdirectory if present
+	if source.Subdir != "" {
+		url += "/" + source.Subdir
+	}
+
+	// Add filename
+	url += "/" + filename
+
+	return url
+}
+
+// detectVersionType determines if a version is a branch or tag
+// Tags typically match: v1.0.0, 1.0.0 (semantic versioning)
+// Branches: main, develop, feature/xyz, etc.
+func detectVersionType(version string) VersionType {
+	// Semantic version pattern: v?1.0.0
+	semverRegex := regexp.MustCompile(`^v?\d+\.\d+\.\d+`)
+
+	if semverRegex.MatchString(version) {
+		return VersionTypeTag
+	}
+
+	return VersionTypeBranch
+}
+
+// getCacheTTL returns cache TTL based on version type
+func getCacheTTL(versionType VersionType) time.Duration {
+	switch versionType {
+	case VersionTypeTag:
+		return 7 * 24 * time.Hour // 7 days for tags (immutable)
+	case VersionTypeBranch:
+		return 1 * time.Hour // 1 hour for branches (mutable)
+	default:
+		return 1 * time.Hour
+	}
+}
+
+// buildCachePath constructs the cache file path for a GitHub source
+// Cache directory structure: .capabilities-cache/github/{owner}/{repo}/{branch}/{subdir}/{filename}
+func buildCachePath(source GitHubSource, filename string) string {
+	parts := []string{
+		CapabilityCacheDir,
+		"github",
+		source.Owner,
+		source.Repo,
+		source.Branch,
+	}
+
+	if source.Subdir != "" {
+		parts = append(parts, source.Subdir)
+	}
+
+	parts = append(parts, filename)
+	return filepath.Join(parts...)
+}
+
+// readGitHubCapability reads a capability file from GitHub repository via jsDelivr
 func readGitHubCapability(name string, repo string) (string, error) {
-	// TODO: Implement GitHub API integration in future stage
-	return "", fmt.Errorf("GitHub capability loading not yet implemented")
+	// Parse GitHub source
+	source, err := parseGitHubSource(repo)
+	if err != nil {
+		return "", err
+	}
+
+	// Build jsDelivr URL
+	url := buildJsDelivrURL(source, name+".md")
+
+	// Retry logic for transient errors
+	var content string
+	err = retryWithBackoff(func() error {
+		// Fetch content from jsDelivr
+		resp, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == 404 {
+			// Distinguish between file not found and repo/branch not found
+			return enhanceNotFoundError(name, source)
+		}
+
+		if resp.StatusCode >= 500 {
+			return fmt.Errorf("jsDelivr returned status %d (server error)", resp.StatusCode)
+		}
+
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("jsDelivr returned status %d", resp.StatusCode)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+
+		content = string(body)
+		return nil
+	}, 3) // Max 3 retries
+
+	if err != nil {
+		return "", err
+	}
+
+	return content, nil
+}
+
+// enhanceNotFoundError provides actionable error messages for 404 errors
+func enhanceNotFoundError(name string, source GitHubSource) error {
+	msg := fmt.Sprintf("capability not found: %s\n", name)
+	msg += fmt.Sprintf("Source: %s/%s@%s", source.Owner, source.Repo, source.Branch)
+
+	if source.Subdir != "" {
+		msg += fmt.Sprintf("/%s", source.Subdir)
+	}
+
+	msg += "\n\nPossible causes:\n"
+	msg += "  1. Capability file does not exist\n"
+	msg += "  2. Branch/tag name is incorrect\n"
+	msg += "  3. Repository or subdirectory is incorrect\n"
+	msg += "\nSuggestion: Run /meta to see available capabilities"
+
+	return fmt.Errorf(msg)
 }
 
 // executeGetCapabilityTool handles the get_capability MCP tool
@@ -438,9 +731,9 @@ func executeGetCapabilityTool(args map[string]interface{}) (string, error) {
 	// Parse sources
 	sources := parseCapabilitySources(sourcesEnv)
 	if len(sources) == 0 {
-		// Default to .claude/commands if no sources configured
+		// Default to GitHub repository if no sources configured
 		sources = []CapabilitySource{
-			{Type: SourceTypeLocal, Location: ".claude/commands", Priority: 0},
+			{Type: SourceTypeGitHub, Location: DefaultCapabilitySource, Priority: 0},
 		}
 	}
 

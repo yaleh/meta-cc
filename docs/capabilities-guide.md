@@ -34,13 +34,27 @@ Can include:
 
 ## Local Development Workflow
 
+**Important**: meta-cc now defaults to loading capabilities from GitHub (`yaleh/meta-cc@main/commands`). For local development, you must explicitly configure a local source.
+
 ### 1. Create Capability Directory
 
 ```bash
 mkdir -p ~/dev/my-capabilities
 ```
 
-### 2. Create Capability File
+### 2. Configure Local Source
+
+```bash
+# REQUIRED for local development
+export META_CC_CAPABILITY_SOURCES="~/dev/my-capabilities"
+
+# Or combine with other sources (e.g., project's capability directory)
+export META_CC_CAPABILITY_SOURCES="~/dev/my-capabilities:capabilities/commands"
+```
+
+**Why this is needed**: Without explicit configuration, meta-cc will load capabilities from GitHub, and your local changes won't be visible.
+
+### 3. Create Capability File
 
 ```bash
 cat > ~/dev/my-capabilities/my-feature.md <<EOF
@@ -55,12 +69,6 @@ category: analysis
 
 Implementation here...
 EOF
-```
-
-### 3. Configure Source
-
-```bash
-export META_CC_CAPABILITY_SOURCES="~/dev/my-capabilities:.claude/commands"
 ```
 
 ### 4. Test Capability
@@ -82,6 +90,36 @@ echo '{"method":"tools/call","params":{"name":"get_capability","arguments":{"nam
 - Changes reflect immediately (no cache for local sources)
 - Test with `/meta` command
 
+## Testing Against Branches
+
+Test capabilities from different branches before merging:
+
+```bash
+# Test from develop branch
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@develop/commands"
+/meta "show errors"
+
+# Test from feature branch
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@feature/new-capability/commands"
+/meta "new capability"
+
+# Test from pull request commit
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@abc123def/commands"
+/meta "experimental"
+```
+
+**Cache Behavior**:
+- Branches: 1-hour cache (changes propagate within 1 hour)
+- To force refresh: Restart MCP server or wait for cache expiration
+- Local sources: No cache (immediate reflection)
+
+**Development Workflow**:
+1. Create feature branch with new capability
+2. Test via `META_CC_CAPABILITY_SOURCES="your-repo@feature-branch/commands"`
+3. Iterate on the branch until satisfied
+4. Submit pull request
+5. After merge, capability available via main branch
+
 ## Publishing Capabilities
 
 ### Method 1: GitHub Repository
@@ -90,15 +128,34 @@ echo '{"method":"tools/call","params":{"name":"get_capability","arguments":{"nam
 2. Add capabilities: `capabilities/my-feature.md`
 3. Users install via:
    ```bash
+   # Latest (main branch, 1-hour cache)
    export META_CC_CAPABILITY_SOURCES="username/meta-cc-capabilities/capabilities"
+
+   # Stable version (tag, 7-day cache, recommended)
+   export META_CC_CAPABILITY_SOURCES="username/meta-cc-capabilities@v1.0.0/capabilities"
    ```
+
+**Recommendation**: Use semantic versioning tags (v1.0.0, v1.1.0, etc.) for stable releases. This enables:
+- **7-day cache**: Faster loading, reduced CDN requests
+- **Version pinning**: Users can opt into specific versions for stability
+- **Immutability**: Tags don't change, ensuring consistency
+
+**Release Workflow**:
+```bash
+# Create a release tag
+git tag -a v1.0.0 -m "Release v1.0.0: Initial stable release"
+git push origin v1.0.0
+
+# Users can now pin to this version
+export META_CC_CAPABILITY_SOURCES="username/meta-cc-capabilities@v1.0.0/capabilities"
+```
 
 ### Method 2: Fork and PR
 
 1. Fork `yaleh/meta-cc`
-2. Add capability: `.claude/commands/meta-my-feature.md`
+2. Add capability: `commands/meta-my-feature.md`
 3. Submit PR
-4. After merge, available to all users
+4. After merge, available to all users via default source
 
 ## Best Practices
 

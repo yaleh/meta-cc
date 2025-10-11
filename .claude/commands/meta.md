@@ -26,9 +26,7 @@ discover(I) = {
 }
 
 is_help_request :: intent → bool
-is_help_request(I) = {
-  empty(I) ∨ I.toLowerCase() in ["help", "?", "list", "show", "capabilities"]
-}
+is_help_request(I) = empty(I) ∨ is_help_keyword(I)
 
 display_help :: CapabilityIndex → void
 display_help(index) = {

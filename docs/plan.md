@@ -3453,23 +3453,62 @@ Claude: 执行能力实现
 - 预定义常见组合模式（error+git, quality+viz）
 - **交付**：更新 `.claude/commands/meta.md` (+100)
 
-### Stage 22.7: 测试与文档（~70 行，2h）
+### Stage 22.7: 测试与文档（~70 行，2h）✅ 已完成
 - 单元测试：多源合并、优先级覆盖
 - 集成测试：本地源、GitHub 源、混合源
 - 更新 README.md 和 CLAUDE.md
 - 添加使用示例和开发指南
 - **交付**：测试文件 (+120), 文档更新 (+80)
 
-### 完成标准
-- ✅ MCP 工具 `list_capabilities` 和 `get_capability` 正常工作
-- ✅ 支持多源配置（环境变量冒号分隔）
-- ✅ 同名能力优先级覆盖正确
-- ✅ `/meta` 命令可语义匹配并执行能力
-- ✅ 支持单一能力和组合能力
-- ✅ 本地开发模式可实时反映修改
-- ✅ 测试覆盖率 ≥80%
-- ✅ 文档完整（README + 开发指南）
+### Stage 22.8: jsDelivr CDN 集成（~150 行，2h）
+- 修改 GitHub URL 从 `raw.githubusercontent.com` 改为 `cdn.jsdelivr.net/gh`
+- 实现 @ 符号分支解析（`owner/repo@branch/subdir`）
+- 支持分支、标签、commit hash
+- 实现版本类型检测（分支 vs 标签，决定缓存 TTL）
+- **交付**：`cmd/mcp-server/capabilities.go` 修改 (+150), 测试 (+80)
 
-**工作量**：~15h | ~800 lines (200+150+100+80+200+100+70)
+### Stage 22.9: 默认源调整为 GitHub（~50 行，1h）
+- 修改默认源从本地改为 `yaleh/meta-cc@main/commands`
+- 调整缓存策略（分支 1h TTL, 标签 7d TTL）
+- 移除 `.claude/commands` 作为默认源
+- **交付**：`cmd/mcp-server/capabilities.go` 修改 (+50), 测试调整 (+30)
+
+### Stage 22.10: 错误处理和降级策略（~100 行，1.5h）
+- 实现 jsDelivr 错误处理（404, 5xx, 网络不可达）
+- 实现重试逻辑（exponential backoff）
+- 实现降级策略（使用过期缓存）
+- 优化错误信息（清晰的用户提示）
+- **交付**：`cmd/mcp-server/capabilities.go` 修改 (+100), 测试 (+60)
+
+### Stage 22.11: 文档更新（jsDelivr 版本）（~120 行，2h）
+- 更新 CLAUDE.md（jsDelivr CDN, @ 符号格式, 缓存策略）
+- 更新 README.md（零配置使用, CDN 优势）
+- 更新 docs/capabilities-guide.md（版本固定, 分支测试）
+- 更新 CHANGELOG.md（Breaking Changes: 默认源改为 GitHub）
+- **交付**：文档更新 (+120)
+
+### 完成标准（更新）
+- ✅ Stage 22.1-22.7: 已完成（基础多源能力系统）
+- ⬜ Stage 22.8: jsDelivr CDN 集成完成
+  - ✅ @ 符号分支解析正确
+  - ✅ jsDelivr URL 构建正确
+  - ✅ 版本类型检测工作（分支/标签）
+- ⬜ Stage 22.9: 默认源调整完成
+  - ✅ 默认加载 `yaleh/meta-cc@main/commands`
+  - ✅ 本地开发需配置 `META_CC_CAPABILITY_SOURCES="commands"`
+  - ✅ 缓存策略正确（分支 1h, 标签 7d）
+- ⬜ Stage 22.10: 错误处理完成
+  - ✅ jsDelivr 错误场景处理正确
+  - ✅ 降级策略工作（过期缓存兜底）
+  - ✅ 错误信息清晰易懂
+- ⬜ Stage 22.11: 文档更新完成
+  - ✅ 所有文档反映 jsDelivr 和默认源变更
+  - ✅ Breaking Changes 说明清晰
+  - ✅ 迁移指南完整
+
+**工作量**：
+- Stage 22.1-22.7: ~15h | ~800 lines (已完成)
+- Stage 22.8-22.11: ~6.5h | ~420 lines (新增)
+- **总计**: ~21.5h | ~1220 lines
 
 详细计划见 `plans/22/plan.md`

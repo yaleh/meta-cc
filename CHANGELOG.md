@@ -24,13 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Phase 22: Unified Meta Command & Multi-Source Capability Discovery
+
+**Phase 22.1-22.7: Core Multi-Source System**
 - **Unified `/meta` command** with natural language intent matching
   - Semantic keyword scoring for capability selection
   - Natural language interface: `/meta "show errors"`, `/meta "quality check"`, etc.
   - Automatic capability discovery from configured sources
 - **Multi-source capability loading system**
   - Local directory support (immediate reflection, no cache)
-  - GitHub repository support (1-hour cache)
+  - GitHub repository support (smart caching via jsDelivr CDN)
   - Priority-based merging (left = highest priority)
   - Environment variable configuration: `META_CC_CAPABILITY_SOURCES`
 - **New MCP tools**:
@@ -45,11 +47,175 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integration with MCP tools
   - Community contribution guidelines
 
+**Phase 22.8-22.11: jsDelivr CDN Integration & Default Source Changes**
+- **jsDelivr CDN Integration**: GitHub capabilities now load via jsDelivr CDN (cdn.jsdelivr.net)
+  - Avoids GitHub raw API rate limiting
+  - Improved performance and reliability with global CDN
+  - Smart caching (1h branches, 7d tags)
+- **Branch/Tag Specification**: Use `@` symbol to specify versions
+  - Format: `owner/repo@branch/subdir`
+  - Examples: `yaleh/meta-cc@v1.0.0/commands`, `yaleh/meta-cc@develop/commands`
+  - Supports branches, tags, and commit hashes
+- **Enhanced Error Handling**:
+  - Exponential backoff retry for 5xx server errors (3 attempts: 1s, 2s, 4s)
+  - Fallback to stale cache on network failure (up to 7 days)
+  - Clear, actionable error messages for 404 and network errors
+
 ### Changed
+
+**Phase 22.1-22.7**:
 - Total MCP tools increased from 14 to 16 (added 2 capability discovery tools)
 - Documentation updated with unified `/meta` command usage
 - CLAUDE.md expanded with multi-source configuration guide
 - README.md includes capability development quick start
+
+**Phase 22.8-22.11**:
+- **Default Source Changed**: Capabilities now load from `yaleh/meta-cc@main/commands` by default
+  - Zero-configuration deployment for production users
+  - Local development requires: `export META_CC_CAPABILITY_SOURCES="commands"`
+- **Cache Strategy Enhanced**:
+  - Branches: 1-hour cache (mutable, changes frequently)
+  - Tags: 7-day cache (immutable, stable versions)
+  - Local sources: No cache (always fresh)
+- **GitHub URL Format**: raw.githubusercontent.com → cdn.jsdelivr.net/gh
+- **Documentation Comprehensively Updated**:
+  - CLAUDE.md: Added CDN and caching section, updated multi-source configuration
+  - README.md: Added zero-configuration setup, version pinning, and branch specification
+  - docs/capabilities-guide.md: Updated local development workflow, added branch testing section
+  - CHANGELOG.md: Added breaking changes and migration guide
+
+### Breaking Changes
+
+⚠️ **Default Capability Source Changed**: If you were relying on the default local source behavior, you must now explicitly configure it.
+
+**Impact**:
+- **Production users**: No changes needed - automatic GitHub loading via CDN (zero-configuration)
+- **Local developers**: Must set `export META_CC_CAPABILITY_SOURCES="commands"` for local development
+
+**Old behavior (Phase 22.1-22.7)**:
+```bash
+# Capabilities loaded from local directory by default
+# No explicit configuration needed for local development
+```
+
+**New behavior (Phase 22.8+)**:
+```bash
+# Default: Load from GitHub via jsDelivr CDN
+# Explicit configuration required for local development
+export META_CC_CAPABILITY_SOURCES="commands"
+```
+
+### Migration Guide
+
+#### For Local Development
+
+**Before Phase 22.8** (implicit local loading):
+```bash
+# No configuration needed
+# Capabilities automatically loaded from commands/ directory
+```
+
+**After Phase 22.8** (explicit configuration required):
+```bash
+# REQUIRED for local development
+export META_CC_CAPABILITY_SOURCES="commands"
+
+# Or add to your shell profile
+echo 'export META_CC_CAPABILITY_SOURCES="commands"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+#### For Production Deployment
+
+**Before Phase 22.8** (manual configuration):
+```bash
+# Required environment variable
+export META_CC_CAPABILITY_SOURCES=".claude/commands"
+```
+
+**After Phase 22.8** (zero-configuration):
+```bash
+# No configuration needed (uses GitHub default)
+# Capabilities automatically loaded from yaleh/meta-cc@main/commands via jsDelivr CDN
+
+# OR explicitly set for custom source
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@v1.0.0/commands"
+```
+
+#### Version Pinning (Recommended)
+
+Pin to specific release for production stability:
+
+```bash
+# Pin to specific release tag (7-day cache, immutable)
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@v1.0.0/commands"
+
+# Benefits:
+# - 7-day cache (faster loading, reduced CDN requests)
+# - Immutable (no unexpected changes)
+# - Explicit version control
+# - Predictable behavior
+```
+
+#### Testing Against Branches
+
+Test capabilities from feature branches:
+
+```bash
+# Test from develop branch
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@develop/commands"
+
+# Test from feature branch
+export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@feature/new-capability/commands"
+
+# Cache: 1 hour (changes propagate within 1 hour)
+```
+
+#### Multi-Source Configuration
+
+Combine local and GitHub sources:
+
+```bash
+# Local has highest priority (left = highest)
+export META_CC_CAPABILITY_SOURCES="~/dev/my-caps:commands:yaleh/meta-cc@main/commands"
+
+# Benefits:
+# - Local capabilities override GitHub versions
+# - Test changes before submitting PR
+# - Mix local development with production capabilities
+```
+
+### Technical Details
+
+**jsDelivr CDN URLs**:
+```
+# Old format (Phase 22.1-22.7)
+https://raw.githubusercontent.com/yaleh/meta-cc/main/commands/meta-errors.md
+
+# New format (Phase 22.8+)
+https://cdn.jsdelivr.net/gh/yaleh/meta-cc@main/commands/meta-errors.md
+```
+
+**Cache Behavior**:
+- Branches (e.g., `@main`, `@develop`): 1-hour TTL
+- Tags (e.g., `@v1.0.0`): 7-day TTL
+- Local sources: No cache (immediate reflection)
+
+**Network Resilience**:
+- 5xx errors: Exponential backoff retry (1s, 2s, 4s)
+- Network unreachable: Fallback to stale cache (up to 7 days)
+- 404 errors: Clear error messages with troubleshooting steps
+
+### Upgrade Checklist
+
+For smooth migration to Phase 22.8+:
+
+- [ ] **Local developers**: Set `export META_CC_CAPABILITY_SOURCES="commands"` in shell profile
+- [ ] **Production users**: Review zero-configuration behavior (default GitHub loading)
+- [ ] **CI/CD pipelines**: Update environment variable configuration if needed
+- [ ] **Documentation**: Update team documentation with new default behavior
+- [ ] **Version pinning**: Consider pinning to release tags for stability (`@v1.0.0`)
+- [ ] **Testing**: Verify capability loading works in all environments
 
 #### Phase 21: Self-Hosted Marketplace
   - Stage 21.1: Plugin marketplace configuration (.claude-plugin/marketplace.json)
