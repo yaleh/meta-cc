@@ -50,7 +50,7 @@ This is a test capability from the second source.
 
 	// Call list_capabilities via executeListCapabilitiesTool
 	args := map[string]interface{}{
-		"_sources":       tmpDir1 + ":" + tmpDir2,
+		"_sources":       tmpDir1 + string(os.PathListSeparator) + tmpDir2,
 		"_disable_cache": true,
 	}
 
@@ -134,7 +134,7 @@ Content from low priority source.
 
 	// Call list_capabilities (high priority first)
 	args := map[string]interface{}{
-		"_sources":       tmpDirHigh + ":" + tmpDirLow,
+		"_sources":       tmpDirHigh + string(os.PathListSeparator) + tmpDirLow,
 		"_disable_cache": true,
 	}
 
@@ -164,7 +164,7 @@ Content from low priority source.
 	// Get full capability content
 	getArgs := map[string]interface{}{
 		"name":           "duplicate",
-		"_sources":       tmpDirHigh + ":" + tmpDirLow,
+		"_sources":       tmpDirHigh + string(os.PathListSeparator) + tmpDirLow,
 		"_disable_cache": true,
 	}
 
