@@ -970,10 +970,10 @@ Effective documentation for Claude Code projects requires:
 
 ### From meta-cc Project
 
-- [DOCUMENTATION_MAP.md](DOCUMENTATION_MAP.md) - Navigation example
-- [CLAUDE.md](../CLAUDE.md) - Development entry point
-- [docs/principles.md](principles.md) - Design constraints
-- [docs/plan.md](plan.md) - Roadmap example
+- [DOCUMENTATION_MAP.md](../DOCUMENTATION_MAP.md) - Navigation example
+- [CLAUDE.md](../../CLAUDE.md) - Development entry point
+- [docs/principles.md](../principles.md) - Design constraints
+- [docs/plan.md](../plan.md) - Roadmap example
 
 ### External Resources
 

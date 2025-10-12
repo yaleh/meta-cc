@@ -149,50 +149,17 @@ graph TD
 | 4 | CLAUDE.md | 62 | Development workflow entry point |
 | 5 | docs/examples-usage.md | 62 | Setup tutorials, usage examples |
 
-## Documentation Optimization History
+---
 
-### Phase 23 (MCP Documentation Consolidation)
+## Universal Methodology
 
-1. **Reduce redundancy**: Consolidated 4 MCP documents → 1 comprehensive guide (mcp-guide.md)
-2. **Improve navigation**: Created CLAUDE.md quick links and FAQ section
-3. **Simplify completed phases**: Moved detailed phase docs to plans/ directory
-4. **Enhance discoverability**: Added this navigation map
+For universal, project-independent software development methodologies, see:
 
-### README Simplification (Post-Phase 23)
+**[docs/methodology/](methodology/)** - Software Development Methodology
 
-1. **Drastic size reduction**: README.md simplified from 1909 lines → 275 lines (85% reduction)
-2. **New reference docs**: Created cli-reference.md, jsonl-reference.md, features.md
-3. **Clear documentation hierarchy**:
-   - README: Quick start and overview (public-facing)
-   - Reference docs: Complete technical documentation
-   - CLAUDE.md: Development entry point (internal)
-4. **Benefits**:
-   - New users understand the project in < 2 minutes
-   - Advanced users find detailed docs easily
-   - Developers have clear separation from public docs
+- **[Documentation Management](methodology/documentation-management.md)**: Comprehensive guide to documentation management in Claude Code projects
+- **Future guides**: TDD, error handling, cross-platform development, version management, and more
 
-### CLAUDE.md Simplification & Documentation Reorganization (Latest)
+---
 
-1. **54% size reduction**: CLAUDE.md simplified from 607 lines → 278 lines
-2. **New task-specific guides**:
-   - plugin-development.md: Complete plugin workflow (467 lines)
-   - repository-structure.md: Directory organization (305 lines)
-   - unified-meta-command.md: /meta command guide (529 lines)
-   - git-hooks.md: Git hooks usage (complete guide)
-   - release-process.md: Release workflow (comprehensive)
-3. **Removed redundant files**:
-   - plugin-structure.md → merged into plugin-development.md
-   - plugin-sync-mechanism.md → merged into plugin-development.md
-   - marketplace-listing.md → content in .claude-plugin/marketplace.json
-4. **Archived historical docs**:
-   - optimization-complete.md, optimization-summary.md → docs/archive/
-   - migration-phase14.md → docs/archive/
-5. **Clear separation of concerns**:
-   - CLAUDE.md: Quick reference and navigation hub
-   - Task-specific docs: Detailed workflows (plugin, release, hooks)
-   - Reference docs: Complete specifications (MCP, CLI, JSONL)
-6. **Benefits**:
-   - Faster context loading for Claude Code (54% token reduction)
-   - Easier navigation with task-specific documents
-   - All information preserved with improved discoverability
-   - Clear documentation dependency graph
+**Last Updated**: 2025-10-12

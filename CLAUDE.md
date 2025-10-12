@@ -270,6 +270,10 @@ export META_CC_CAPABILITY_SOURCES="capabilities/commands"
 - [Technical Proposal](docs/proposals/meta-cognition-proposal.md) - Architecture design
 - [ADR Index](docs/adr/README.md) - Architecture decision records
 
+**Universal Methodology** (project-independent):
+- [Methodology Index](docs/methodology/) - Software development methodologies
+- [Documentation Management](docs/methodology/documentation-management.md) - Documentation methodology for Claude Code projects
+
 **Official Claude Code Documentation**:
 - [Overview](https://docs.claude.com/en/docs/claude-code/overview)
 - [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands)
