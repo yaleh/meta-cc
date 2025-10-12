@@ -228,6 +228,138 @@ verify_doc_health() {
 
 ---
 
+## Plans Directory: Detailed Implementation Plans
+
+### Purpose and Structure
+
+**Two-tier planning system**:
+- **docs/plan.md**: High-level roadmap (50-100 lines per phase)
+- **plans/N/**: Detailed implementation (2000-3000 lines per phase)
+
+**When to create plans/N/**:
+- Complex phases requiring multiple stages (≥3 stages)
+- Phases needing detailed TDD guidance
+- When using @agent-project-planner for systematic execution
+
+**Directory structure**:
+```
+plans/
+├── 8/
+│   ├── plan.md              # Detailed phase plan
+│   ├── README.md            # Quick reference (optional)
+│   └── stage-8.12.md        # Stage-specific details (optional)
+├── 13/
+│   ├── plan.md
+│   └── README.md
+└── 16/
+    └── plan.md
+```
+
+### Plan Generation Workflow
+
+**Step 1: Create phase overview in docs/plan.md**
+```markdown
+### Phase N: [Name]
+**Goal**: [What to achieve]
+**Stages**:
+- Stage N.1: [First stage]
+- Stage N.2: [Second stage]
+**Code limit**: ≤500 lines
+```
+
+**Step 2: Generate detailed plan**
+```
+User: "@docs/plan.md @docs/principles.md
+       使用 @agent-project-planner 为 Phase N 生成详细计划"
+
+Result: plans/N/plan.md created (~2000-3000 lines)
+```
+
+**Step 3: Execute stages sequentially**
+```
+User: "@plans/N/ 列出 Phase N 各 stage，
+       并使用 @agent-stage-executor 逐一执行"
+
+Flow: Stage N.1 → N.2 → N.3 → ... (serial execution)
+```
+
+### Plan Content Structure
+
+**Typical plans/N/plan.md structure**:
+```markdown
+# Phase N: [Name]
+
+## Overview
+- Background & Problems
+- Goals & Success Criteria
+- Architecture Design
+- Code Budget (~500 lines)
+
+## Stage N.1: [Name]
+- Objective
+- Acceptance Criteria
+- TDD Approach (tests first)
+- File Changes (new/modified/deleted)
+- Test Commands
+- Dependencies
+- Expected Code (~100-200 lines)
+
+## Stage N.2: [Name]
+[Same structure]
+
+## Integration Testing
+## Documentation Updates
+## Success Metrics
+```
+
+### Stage Execution Principles
+
+**Agent-assisted execution**:
+- **@agent-stage-executor** reads plans/N/plan.md
+- Follows TDD cycle automatically
+- Verifies tests pass after each stage
+- Reports detailed results
+
+**Execution pattern**:
+```
+For each Stage X.Y:
+  1. Read plans/N/plan.md Stage X.Y section
+  2. Write tests (TDD first)
+  3. Implement code
+  4. Run tests (must pass)
+  5. Report: files changed, tests passed, metrics
+```
+
+**Serial execution principle**:
+- One stage at a time (not parallel)
+- Wait for stage complete before next
+- Accumulate results for phase summary
+
+### Plans vs Documentation Updates
+
+**Update triggers**:
+- **During phase**: Update docs/plan.md (progress, status)
+- **Stage complete**: Note in docs/plan.md (Stage N.X ✅)
+- **Phase complete**: Mark docs/plan.md (Phase N ✅ + metrics)
+- **plans/N/plan.md**: Read-only during execution (no updates)
+
+**Anti-pattern**: Updating plans/N/plan.md during execution
+- Plan is reference, not journal
+- Use docs/plan.md for status tracking
+
+### Plans Directory Lifecycle
+
+**Creation**: Phase start (via @agent-project-planner)
+**Usage**: During phase execution (reference only)
+**Archival**: After phase complete (preserve as historical record)
+
+**Maintenance**:
+- Keep all plans/N/ directories (don't delete)
+- Useful for understanding past decisions
+- Reference for similar future phases
+
+---
+
 ## Essential Files and Templates
 
 ### Minimal Files (Phase 0)
@@ -608,6 +740,103 @@ From meta-cc's own analysis:
 3. **Navigation matters** - DOCUMENTATION_MAP.md crucial
 4. **Archive, don't delete** - Historical value
 5. **Measure access** - Use data to guide optimization
+
+### Document Update Principles
+
+**Three documents serve different update rhythms and purposes:**
+
+#### plan.md: High-Frequency Journal
+
+**Update triggers**:
+- Starting new phase/milestone
+- Completing tasks or phases
+- Discovering blockers or pivoting direction
+- Daily/weekly progress tracking
+
+**Update principle**: **Write-often, read-before-coding**
+- Treat as living roadmap, not static plan
+- Update status continuously (like a development journal)
+- Add notes about decisions, discoveries, blockers
+- Mark phases ✅ when complete, document actual outcomes
+
+**Anti-pattern**: Only updating at phase boundaries (plan becomes stale)
+
+#### principles.md: Low-Frequency Constitution
+
+**Update triggers**:
+- Establishing initial constraints (Phase 0)
+- Discovering new architectural patterns
+- Codifying repeated decisions into rules
+- Refining constraints based on experience
+
+**Update principle**: **Write-rarely, read-always**
+- Treat as project constitution (stable, authoritative)
+- Only update when patterns solidify into principles
+- Reference before implementing new features
+- Expand when architecture matures (not prematurely)
+
+**Anti-pattern**: Updating too frequently (principles should be stable)
+
+#### CLAUDE.md: FAQ-Driven Navigation
+
+**Update triggers**:
+- Questions arise during development (add to FAQ)
+- Development workflow changes (update commands)
+- Documentation grows (maintain navigation links)
+- New patterns emerge (simplify, link to guides)
+
+**Update principle**: **Accumulate-then-consolidate**
+- Add FAQ entries as questions come up
+- Periodically consolidate into guides
+- Evolve into navigation hub (links > duplication)
+- Keep concise (< 400 lines)
+
+**Anti-pattern**: Duplicating content from other docs (DRY violation)
+
+#### Combined Workflow
+
+**Phase start**:
+```
+1. Read principles.md (understand constraints)
+2. Update docs/plan.md (add phase overview ~100 lines)
+3. Generate plans/N/plan.md (@agent-project-planner)
+   - Detailed TDD implementation plan
+   - Stage-by-stage breakdown
+   - ~2000-3000 lines comprehensive
+4. Optional: Create plans/N/README.md (quick reference)
+```
+
+**During development**:
+```
+1. Execute stages sequentially (@agent-stage-executor)
+   - Read plans/N/plan.md Stage X.Y section
+   - Follow TDD cycle: tests → implement → verify
+   - Report results after each stage
+2. Update docs/plan.md (status, completed stages)
+3. Add to CLAUDE.md FAQ (as questions arise)
+4. Reference principles.md (ensure compliance)
+```
+
+**Phase complete**:
+```
+1. Mark phase complete in docs/plan.md (✅ + metrics)
+2. Update principles.md if new patterns emerged
+3. Update CLAUDE.md if workflow changed
+4. Archive plans/N/ (preserve as reference)
+```
+
+**Two-level planning**:
+- **docs/plan.md**: High-level phase overview (goal, stages, deliverables)
+- **plans/N/plan.md**: Detailed implementation (TDD cycles, file changes, tests)
+
+**Agent-assisted workflow**:
+- **@agent-project-planner**: Generate detailed plans from phase overview
+- **@agent-stage-executor**: Execute stages systematically with verification
+
+**Commit patterns**:
+- `docs:` prefix for documentation-only changes
+- `feat(phase-N): implement X` for features
+- Update docs/plan.md + plans/N/ together
 
 ---
 
