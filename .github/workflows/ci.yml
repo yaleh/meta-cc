@@ -35,6 +35,27 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
+      - name: Verify plugin manifest is up-to-date
+        shell: bash
+        run: |
+          echo "Checking if plugin.json is synchronized with actual files..."
+
+          # Run update script
+          bash scripts/update-plugin-manifest.sh
+
+          # Check if any changes were made
+          if ! git diff --quiet .claude-plugin/plugin.json; then
+            echo "ERROR: plugin.json is out of sync!"
+            echo "The following changes are needed:"
+            git diff .claude-plugin/plugin.json
+            echo ""
+            echo "Please run: bash scripts/update-plugin-manifest.sh"
+            echo "And commit the changes."
+            exit 1
+          fi
+
+          echo "✓ plugin.json is up-to-date"
+
       - name: Verify plugin file sync
         shell: bash
         run: |
