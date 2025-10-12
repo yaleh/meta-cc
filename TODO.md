@@ -6,28 +6,54 @@ Project-wide task tracking and future improvements.
 
 ### High Priority
 
-- [ ] **Create documentation link checker tool**
-  - **Context**: After docs reorganization (Phase 1+2), 18 files have 70+ broken internal links
-  - **Requirement**: Automated tool to detect and report broken markdown links
-  - **Scope**:
-    - Check all `*.md` files in `docs/` recursively
-    - Validate relative links (`../`, `./`, and same-directory)
-    - Validate anchor links (`#section`)
-    - Report broken links with file location and line number
-    - Support CI/CD integration (exit code on failure)
-  - **Output format**:
-    ```
-    ✗ docs/core/principles.md:45 - Broken link: adr/README.md
-    ✗ docs/guides/mcp.md:120 - Broken link: capabilities-guide.md
-    ```
-  - **Implementation options**:
-    - Shell script with `grep` and `find`
-    - Go tool (integrate with existing meta-cc codebase)
-    - GitHub Action using existing tools (e.g., markdown-link-check)
+- [x] **Create documentation link checker tool** ✅ **COMPLETED: 2025-10-12**
+  - **Implementation**: Created `capabilities/commands/meta-doc-links.md` (208 lines)
+  - **Access**: Via `/meta doc-links` or `/meta "check documentation links"`
+  - **Features**:
+    - Validates all internal markdown links in docs/, plans/, root .md files
+    - Checks file existence and anchor validity
+    - Severity-based classification (Critical/High/Medium/Low)
+    - Pre-commit safety check (blocks on critical issues only)
+    - Actionable output with file:line:target format
+  - **Usage**: `/meta doc-links` before committing documentation changes
   - **Related**: docs restructuring completed in branch `docs/restructure-directories`
   - **Files affected**: See [Link Test Report](#link-test-report) below
 
 ### Medium Priority
+
+- [x] **Create documentation synchronization checker (Capability)** ✅ **COMPLETED: 2025-10-12**
+  - **Phase**: Documentation Management Phase 2
+  - **Implementation**: Created `capabilities/commands/meta-doc-sync.md` (344 lines)
+  - **Access**: Via `/meta doc-sync` or `/meta "check documentation sync"`
+  - **Features**:
+    - Cross-reference validation between CLAUDE.md, plan.md, principles.md, README.md
+    - Phase status consistency check (plan.md vs plans/N/ directories)
+    - DOCUMENTATION_MAP.md completeness validation
+    - Code limits and constraints consistency verification
+    - Severity-based classification (Critical/High/Medium/Low)
+    - Pre-merge safety check with actionable fix recommendations
+  - **Use cases**:
+    - Pre-merge check before merging documentation changes
+    - Pre-release validation before creating releases
+    - Post-phase review after completing project phases
+  - **Usage**: `/meta doc-sync` before merging or releasing
+
+- [ ] **Create documentation structure validator (Capability)**
+  - **Phase**: Documentation Management Phase 3
+  - **Purpose**: Long-term documentation health monitoring
+  - **Implementation**: Capability `meta-doc-structure` (via `/meta`)
+  - **Scope**:
+    - DRY principle validation (detect duplicate content)
+    - Progressive Disclosure compliance (README → guides → reference hierarchy)
+    - Task-Oriented organization check (docs/guides/ structure)
+    - Document size validation (per methodology guidelines)
+    - Core document existence check (plan.md, principles.md)
+  - **Use cases**:
+    - Quarterly documentation health assessment
+    - New project methodology compliance
+    - Documentation refactoring guidance
+  - **Requirements**: LLM-powered semantic analysis
+  - **Priority**: Completes documentation management toolchain
 
 - [ ] **Fix internal documentation links**
   - Fix 70+ broken internal links across 18 files
