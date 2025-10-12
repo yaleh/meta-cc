@@ -40,7 +40,7 @@ cd meta-cc-plugin-linux-amd64
 ./install.sh
 ```
 
-**Other platforms**: See [Installation Guide](docs/installation.md) for macOS (Apple Silicon), Windows, and manual installation.
+**Other platforms**: See [Installation Guide](docs/tutorials/installation.md) for macOS (Apple Silicon), Windows, and manual installation.
 
 ### 3. Configure MCP Server
 
@@ -55,7 +55,7 @@ meta-cc --version          # Should show version number
 /meta "show stats"         # Should display session statistics
 ```
 
-**Troubleshooting**: See [Installation Guide](docs/installation.md#troubleshooting) for common issues.
+**Troubleshooting**: See [Installation Guide](docs/tutorials/installation.md#troubleshooting) for common issues.
 
 ---
 
@@ -87,7 +87,7 @@ Just ask Claude naturally - MCP tools are invoked automatically:
 "Compare error rates between sessions"
 ```
 
-**Available**: 16 MCP tools for comprehensive session analysis. See [MCP Guide](docs/mcp-guide.md) for complete reference.
+**Available**: 16 MCP tools for comprehensive session analysis. See [MCP Guide](docs/guides/mcp.md) for complete reference.
 
 ### 3. Interactive Coaching
 
@@ -132,7 +132,7 @@ meta-cc query tools | jq 'select(.Status == "error")'
 meta-cc query tools --output tsv | awk '{print $2}' | sort | uniq -c
 ```
 
-See [CLI Reference](docs/cli-reference.md) for complete command list and [CLI Composability](docs/cli-composability.md) for advanced pipeline patterns.
+See [CLI Reference](docs/reference/cli.md) for complete command list and [CLI Composability](docs/tutorials/cli-composability.md) for advanced pipeline patterns.
 
 ---
 
@@ -140,33 +140,33 @@ See [CLI Reference](docs/cli-reference.md) for complete command list and [CLI Co
 
 ### Getting Started
 
-- **[Installation Guide](docs/installation.md)** - Detailed setup for all platforms
-- **[Quick Start Tutorial](docs/examples-usage.md)** - Step-by-step examples
-- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
+- **[Installation Guide](docs/tutorials/installation.md)** - Detailed setup for all platforms
+- **[Quick Start Tutorial](docs/tutorials/examples.md)** - Step-by-step examples
+- **[Troubleshooting](docs/guides/troubleshooting.md)** - Common issues and solutions
 
 ### Integration
 
-- **[MCP Guide](docs/mcp-guide.md)** - Complete MCP tool reference (16 tools)
-- **[Integration Guide](docs/integration-guide.md)** - Choose MCP vs Slash vs Subagent
-- **[CLI Composability](docs/cli-composability.md)** - Unix pipeline patterns
+- **[MCP Guide](docs/guides/mcp.md)** - Complete MCP tool reference (16 tools)
+- **[Integration Guide](docs/guides/integration.md)** - Choose MCP vs Slash vs Subagent
+- **[CLI Composability](docs/tutorials/cli-composability.md)** - Unix pipeline patterns
 
 ### Advanced
 
-- **[CLI Reference](docs/cli-reference.md)** - Complete command reference
-- **[JSONL Reference](docs/jsonl-reference.md)** - Output format and jq patterns
-- **[Feature Overview](docs/features.md)** - Advanced features and capabilities
+- **[CLI Reference](docs/reference/cli.md)** - Complete command reference
+- **[JSONL Reference](docs/reference/jsonl.md)** - Output format and jq patterns
+- **[Feature Overview](docs/reference/features.md)** - Advanced features and capabilities
 
 ### Development
 
-- **[Capabilities Guide](docs/capabilities-guide.md)** - Create custom capabilities
+- **[Capabilities Guide](docs/guides/capabilities.md)** - Create custom capabilities
 - **[Contributing Guide](CONTRIBUTING.md)** - Development workflow and guidelines
 - **[Code of Conduct](CODE_OF_CONDUCT.md)** - Community standards
 
 ### For Claude Code
 
 - **[CLAUDE.md](CLAUDE.md)** - Project instructions for Claude Code development
-- **[Design Principles](docs/principles.md)** - Core constraints and architecture
-- **[Implementation Plan](docs/plan.md)** - Development roadmap
+- **[Design Principles](docs/core/principles.md)** - Core constraints and architecture
+- **[Implementation Plan](docs/core/plan.md)** - Development roadmap
 
 **Complete documentation map**: [DOCUMENTATION_MAP.md](docs/DOCUMENTATION_MAP.md)
 
@@ -184,7 +184,7 @@ See [CLI Reference](docs/cli-reference.md) for complete command list and [CLI Co
 - 🔧 **Extensible** - Create custom capabilities with markdown
 - 🧩 **Unix-friendly** - JSONL streaming, clean I/O, composable pipelines
 
-See [Feature Overview](docs/features.md) for detailed documentation.
+See [Feature Overview](docs/reference/features.md) for detailed documentation.
 
 ---
 
