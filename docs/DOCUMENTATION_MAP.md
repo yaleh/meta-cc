@@ -91,12 +91,17 @@ graph TD
 
 | Document | Role | Target Audience | Update Frequency |
 |----------|------|----------------|------------------|
-| **CLAUDE.md** | Development entry point | Claude Code | Every phase |
+| **CLAUDE.md** | Development entry point (simplified) | Claude Code | Every phase |
 | **README.md** | Public documentation (simplified) | End users | Major releases |
 | **docs/plan.md** | Roadmap and status | Developers | Continuous |
 | **docs/principles.md** | Design constraints | Developers | Rarely (stable) |
+| **docs/plugin-development.md** | Plugin development workflow | Plugin developers | When workflow changes |
+| **docs/repository-structure.md** | Directory organization guide | Developers | Rarely (stable) |
+| **docs/unified-meta-command.md** | /meta command complete guide | Users & Developers | When /meta evolves |
 | **docs/mcp-guide.md** | MCP complete reference | Users & Developers | As MCP evolves |
 | **docs/integration-guide.md** | Integration decisions | Advanced users | Stable |
+| **docs/release-process.md** | Release workflow | Maintainers | Rarely (stable) |
+| **docs/git-hooks.md** | Git hooks usage | Developers | Rarely (stable) |
 | **docs/examples-usage.md** | Step-by-step tutorials | New users | When features added |
 | **docs/cli-reference.md** | Complete CLI command reference | Advanced users | When commands added |
 | **docs/jsonl-reference.md** | Output format and jq patterns | Advanced users | Rarely (stable) |
