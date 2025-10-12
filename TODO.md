@@ -38,6 +38,44 @@ Project-wide task tracking and future improvements.
     - Post-phase review after completing project phases
   - **Usage**: `/meta doc-sync` before merging or releasing
 
+- [x] **Create project bootstrap capability based on documentation methodology** ✅ **COMPLETED: 2025-10-12**
+  - **Phase**: Documentation Management Phase 0 Automation
+  - **Implementation**: Created `capabilities/commands/meta-project-bootstrap.md` (1072 lines)
+  - **Access**: Via `/meta project-bootstrap` or `/meta "bootstrap new project"`
+  - **Features**:
+    - Fully implements Documentation Management Methodology v5.0 requirements
+    - Self-contained: Includes all necessary knowledge without external references
+    - Context-aware: Adapts to detected project type and language stack
+    - Creates all Phase 0 essential documents: plan.md, principles.md, CLAUDE.md, README.md
+    - Generates complete directory structure (docs/, core/, guides/, reference/, tutorials/, architecture/, methodology/, archive/)
+    - Provides language-specific guidance (Go, Rust, Python, JavaScript, C++, Ruby, C#)
+    - Includes verification checklist and quality assurance measures
+  - **Key Capabilities**:
+    - Project type detection (web/frontend, cli, api, library, system, data, embedded)
+    - Language stack analysis and appropriate template selection
+    - Existing project context preservation (backup to docs/archive/)
+    - Industry best practices integration
+    - Claude Code optimization (all documents structured for AI assistance)
+    - Interactive setup workflow with error handling
+  - **Use Cases**:
+    - New project initialization with proven documentation methodology
+    - Existing project documentation audit and restructuring
+    - Standardizing documentation across multiple projects
+    - Educational tool for learning documentation best practices
+  - **Methodology Compliance**:
+    - Follows Documentation Management Methodology v5.0 completely
+    - Implements all Phase 0 requirements from docs/methodology/documentation-management.md
+    - Avoids all documented anti-patterns (mega-README, redundant docs, premature complexity)
+    - Applies core principles: DRY, Progressive Disclosure, Task-Oriented Organization
+  - **Content Highlights**:
+    - Complete templates for all Phase 0 documents with language-specific customizations
+    - Detailed exit criteria checklist (7 verification points)
+    - Best practices and anti-patterns reference
+    - Multi-language support (8 major languages with specific guidance)
+    - Project-type specific examples (CLI, library, web app)
+  - **Usage**: `/meta project-bootstrap` in new project directory
+  - **Output**: Complete Phase 0 documentation structure ready for Claude Code assistance
+
 - [ ] **Create documentation structure validator (Capability)**
   - **Phase**: Documentation Management Phase 3
   - **Purpose**: Long-term documentation health monitoring
