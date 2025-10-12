@@ -5,6 +5,24 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Dynamic Version Injection** (Breaking Change)
+  - plugin.json and marketplace.json now use "dev" as version placeholder
+  - Actual version numbers injected from git tags during GitHub Actions build
+  - Eliminates version drift between git tags and metadata files
+  - Single source of truth: git tags only
+
+### Removed
+- Version numbers no longer stored in plugin.json and marketplace.json
+- release.sh no longer updates version files (now optional validation script)
+
+### Migration
+- **For releases**: Use `git tag vX.Y.Z && git push origin vX.Y.Z` (simplest)
+- **Or with validation**: Use `./scripts/release.sh vX.Y.Z` (runs tests + validates CHANGELOG)
+- **No breaking changes for users**: Release artifacts still contain correct versions
+
 ## [0.26.8] - 2025-10-12
 
 ### Changed

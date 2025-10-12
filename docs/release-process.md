@@ -4,26 +4,20 @@ This document describes the automated release process for meta-cc.
 
 ## Overview
 
-The release process is now **fully automated** to prevent version inconsistencies. The `scripts/release.sh` script handles all version updates, commits, tagging, and pushing.
+The release process uses **dynamic version injection** from git tags. Version numbers are stored only in git tags (single source of truth), and are automatically injected into release artifacts during the build process.
+
+**Key principle**: `plugin.json` and `marketplace.json` always show `"version": "dev"` in the repository. The actual version is injected by GitHub Actions from the git tag.
 
 ## Prerequisites
 
 1. **Required tools**:
-   - `jq` - JSON processor for updating version files
    - `git` - Version control
-   - `make` - Build automation
+   - `make` - Build automation (only if using release.sh)
 
-2. **Install jq** (if not already installed):
-   ```bash
-   # Ubuntu/Debian
-   sudo apt-get install jq
-
-   # macOS
-   brew install jq
-
-   # Windows (via Chocolatey)
-   choco install jq
-   ```
+2. **No version file editing required**:
+   - ✅ Version numbers are automatically injected from git tags
+   - ✅ No need to manually update plugin.json or marketplace.json
+   - ✅ No need to install jq for local releases
 
 ## Release Workflow
 
@@ -47,83 +41,96 @@ The release process is now **fully automated** to prevent version inconsistencie
    git pull origin main   # or develop
    ```
 
-### Step 2: Run Release Script
+### Step 2: Create Release
 
-**Single command to create release**:
+**Option A: Direct git tag (Simplest)**:
+
+```bash
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+```
+
+**Option B: Using release.sh (With validation)**:
 
 ```bash
 ./scripts/release.sh v1.0.0
 ```
 
-**What the script does automatically**:
+**What the script provides (optional)**:
 
 1. ✅ Validates version format (`vX.Y.Z` or `vX.Y.Z-beta`)
 2. ✅ Checks branch (must be `main` or `develop`)
 3. ✅ Checks working directory is clean
 4. ✅ Runs full test suite (`make all`)
-5. ✅ Updates `plugin.json` version
-6. ✅ Updates `marketplace.json` version
-7. ✅ Prompts you to update `CHANGELOG.md`
-8. ✅ Commits version updates with attribution
-9. ✅ Creates git tag
-10. ✅ Pushes commit and tag to remote
+5. ✅ Validates `CHANGELOG.md` updated
+6. ✅ Creates git tag
+7. ✅ Pushes tag to remote
+
+**Note**: The script no longer updates version files. Versions are injected dynamically by GitHub Actions.
 
 ### Step 3: Monitor GitHub Actions
 
 After pushing, GitHub Actions automatically:
 
-1. Verifies version consistency (plugin.json, marketplace.json, git tag)
-2. Builds cross-platform binaries
-3. Creates plugin packages
-4. Publishes GitHub Release
+1. **Injects version from git tag** into plugin.json and marketplace.json
+2. Syncs plugin files
+3. Builds cross-platform binaries
+4. Creates plugin packages
+5. Publishes GitHub Release
 
 Monitor progress at: https://github.com/yaleh/meta-cc/actions
 
 ## Version Update Example
 
-### Before running release.sh
+### Before creating release
 
 ```
-Current state:
-- plugin.json: 0.26.8
-- marketplace.json: 0.26.8
+Repository state:
+- plugin.json: "dev" (always)
+- marketplace.json: "dev" (always)
 - Latest tag: v0.26.8
 - Working directory: clean
 ```
 
-### Run release script
+### Option A: Direct tag (fastest)
+
+```bash
+git tag -a v0.27.0 -m "Release v0.27.0"
+git push origin v0.27.0
+```
+
+### Option B: Using release.sh (with validation)
 
 ```bash
 ./scripts/release.sh v0.27.0
 ```
 
-### Script execution flow
-
+Script execution flow:
 ```
 1. Validates: v0.27.0 ✓
 2. Checks branch: main ✓
 3. Checks clean: ✓
 4. Runs: make all ✓
-5. Updates: plugin.json → 0.27.0 ✓
-6. Updates: marketplace.json → 0.27.0 ✓
-7. Prompts: Update CHANGELOG.md...
-   [You edit CHANGELOG.md in another terminal]
+5. Prompts: Ensure CHANGELOG.md updated
    [Press Enter to continue]
-8. Verifies: CHANGELOG.md contains [0.27.0] ✓
-9. Commits: "chore: release v0.27.0" ✓
-10. Tags: v0.27.0 ✓
-11. Pushes: main + v0.27.0 ✓
+6. Verifies: CHANGELOG.md contains [0.27.0] ✓
+7. Tags: v0.27.0 ✓
+8. Pushes: v0.27.0 ✓
 ```
 
-### After release.sh completes
+### After tag pushed
 
 ```
-New state:
-- plugin.json: 0.27.0 ✓
-- marketplace.json: 0.27.0 ✓
+Repository state:
+- plugin.json: "dev" (unchanged)
+- marketplace.json: "dev" (unchanged)
 - Latest tag: v0.27.0 ✓
-- Commit: "chore: release v0.27.0"
 - GitHub Actions: Building... 🚀
+
+GitHub Actions will:
+- Inject version 0.27.0 into plugin.json
+- Inject version 0.27.0 into marketplace.json
+- Build release packages with correct version
 ```
 
 ## CHANGELOG.md Format
@@ -150,6 +157,30 @@ The script expects CHANGELOG.md to follow this format:
 
 **Important**: Use `[0.27.0]` format (without `v` prefix) in CHANGELOG.md.
 
+## Key Differences from Traditional Versioning
+
+### Traditional Approach (version in files)
+```
+plugin.json: "version": "0.27.0"
+↓
+git commit
+↓
+git tag v0.27.0
+↓
+Risk: Files can get out of sync with tags
+```
+
+### Dynamic Injection (this project)
+```
+plugin.json: "version": "dev"
+↓
+git tag v0.27.0
+↓
+GitHub Actions injects "0.27.0" during build
+↓
+Benefit: Single source of truth (git tag)
+```
+
 ## Troubleshooting
 
 ### Error: "Working directory not clean"
@@ -168,12 +199,6 @@ git commit -m "fix: description"
 # Or stash them
 git stash
 ```
-
-### Error: "jq is required but not installed"
-
-**Problem**: `jq` command not found.
-
-**Solution**: Install jq (see Prerequisites section).
 
 ## See Also
 
