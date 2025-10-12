@@ -5,7 +5,7 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.27.0] - 2025-10-12
 
 ### Changed
 - **Dynamic Version Injection** (Breaking Change)
@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **For releases**: Use `git tag vX.Y.Z && git push origin vX.Y.Z` (simplest)
 - **Or with validation**: Use `./scripts/release.sh vX.Y.Z` (runs tests + validates CHANGELOG)
 - **No breaking changes for users**: Release artifacts still contain correct versions
+
+### Benefits
+- Zero version drift between git tags and metadata
+- Simpler release process (direct git tag works)
+- No manual file editing required
+- No jq dependency needed
+- Clean repository (version files always show "dev")
 
 ## [0.26.8] - 2025-10-12
 
