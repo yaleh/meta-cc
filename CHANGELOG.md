@@ -5,7 +5,7 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.26.6] - 2025-10-12
 
 ### Fixed
 - **MCP Server Capability Loading**
@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `cmd/mcp-server/capabilities.go` - Added package source handling
   - `internal/locator/locator.go:25` - Fixed session-only condition
   - `cmd/parse_test.go` - Updated tests for correct behavior
+
+### Documentation
+- Enhanced troubleshooting guide with MCP server issues section
+- Added environment variables troubleshooting with design rationale
+- Documented upgrade path from older versions
 
 ## [0.24.0] - 2025-10-11
 
