@@ -1,6 +1,6 @@
 {
   "name": "meta-cc",
-  "version": "0.26.9",
+  "version": "0.28.0",
   "description": "Meta-Cognition tool for Claude Code - analyze session history for workflow optimization",
   "author": {
     "name": "Yale Huang",
