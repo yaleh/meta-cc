@@ -1,265 +1,182 @@
 # Release Process
 
-This document describes the process for creating and publishing a new release of meta-cc.
+This document describes the automated release process for meta-cc.
+
+## Overview
+
+The release process is now **fully automated** to prevent version inconsistencies. The `scripts/release.sh` script handles all version updates, commits, tagging, and pushing.
 
 ## Prerequisites
 
-- **Maintainer access**: Push access to the main branch
-- **Clean working directory**: All changes committed or stashed
-- **Tests passing**: Run `make all` successfully
-- **CHANGELOG updated**: Release notes prepared
+1. **Required tools**:
+   - `jq` - JSON processor for updating version files
+   - `git` - Version control
+   - `make` - Build automation
+
+2. **Install jq** (if not already installed):
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install jq
+
+   # macOS
+   brew install jq
+
+   # Windows (via Chocolatey)
+   choco install jq
+   ```
 
 ## Release Workflow
 
-### 1. Prepare Release
+### Step 1: Prepare Release
 
-Ensure you're on the main or develop branch and up to date:
+1. **Switch to the correct branch**:
+   ```bash
+   git checkout main      # For stable releases
+   # or
+   git checkout develop   # For beta/RC releases
+   ```
 
-```bash
-# Checkout main branch
-git checkout main
-git pull origin main
+2. **Ensure working directory is clean**:
+   ```bash
+   git status
+   # Should show: "nothing to commit, working tree clean"
+   ```
 
-# Verify tests pass
-make all
-```
+3. **Pull latest changes**:
+   ```bash
+   git pull origin main   # or develop
+   ```
 
-### 2. Update CHANGELOG.md
+### Step 2: Run Release Script
 
-Edit `CHANGELOG.md` to move items from `[Unreleased]` to the new version:
-
-```markdown
-## [v1.0.0] - 2025-10-08
-
-### Added
-- Feature X implementation
-- New command Y
-
-### Changed
-- Updated behavior of Z
-
-### Fixed
-- Bug fix for issue #123
-```
-
-Commit the CHANGELOG update:
-
-```bash
-git add CHANGELOG.md
-git commit -m "docs: update CHANGELOG for v1.0.0"
-git push origin main
-```
-
-### 3. Execute Release Script
-
-Run the automated release script:
+**Single command to create release**:
 
 ```bash
 ./scripts/release.sh v1.0.0
 ```
 
-The script will:
-1. Validate version format (e.g., `v1.0.0` or `v1.0.0-beta.1`)
-2. Check you're on main or develop branch
-3. Verify working directory is clean
-4. Run full test suite (`make all`)
-5. Prompt you to verify CHANGELOG was updated
-6. Create annotated git tag
-7. Push tag to GitHub
+**What the script does automatically**:
 
-### 4. Monitor GitHub Actions
+1. ✅ Validates version format (`vX.Y.Z` or `vX.Y.Z-beta`)
+2. ✅ Checks branch (must be `main` or `develop`)
+3. ✅ Checks working directory is clean
+4. ✅ Runs full test suite (`make all`)
+5. ✅ Updates `plugin.json` version
+6. ✅ Updates `marketplace.json` version
+7. ✅ Prompts you to update `CHANGELOG.md`
+8. ✅ Commits version updates with attribution
+9. ✅ Creates git tag
+10. ✅ Pushes commit and tag to remote
 
-Once the tag is pushed, GitHub Actions will automatically:
+### Step 3: Monitor GitHub Actions
 
-1. **Build binaries** for 5 platforms:
-   - Linux (amd64, arm64)
-   - macOS (amd64, arm64)
-   - Windows (amd64)
+After pushing, GitHub Actions automatically:
 
-2. **Create platform bundles** including:
-   - Binaries (`meta-cc`, `meta-cc-mcp`)
-   - Slash commands (`.claude/commands/`)
-   - Subagents (`.claude/agents/`)
-   - Installation script
+1. Verifies version consistency (plugin.json, marketplace.json, git tag)
+2. Builds cross-platform binaries
+3. Creates plugin packages
+4. Publishes GitHub Release
 
-3. **Create GitHub Release** with auto-generated release notes
+Monitor progress at: https://github.com/yaleh/meta-cc/actions
 
-4. **Upload artifacts** (16 total files per release)
+## Version Update Example
 
-Monitor the build progress at:
-https://github.com/yaleh/meta-cc/actions
+### Before running release.sh
 
-### 5. Verify Release
+```
+Current state:
+- plugin.json: 0.26.8
+- marketplace.json: 0.26.8
+- Latest tag: v0.26.8
+- Working directory: clean
+```
 
-After GitHub Actions completes:
+### Run release script
 
-1. **Check the release page**:
-   https://github.com/yaleh/meta-cc/releases
+```bash
+./scripts/release.sh v0.27.0
+```
 
-2. **Verify artifacts are attached**:
+### Script execution flow
 
-   **Individual binaries** (10 files):
-   - `meta-cc-linux-amd64`, `meta-cc-linux-arm64`
-   - `meta-cc-darwin-amd64`, `meta-cc-darwin-arm64`
-   - `meta-cc-windows-amd64.exe`
-   - `meta-cc-mcp-linux-amd64`, `meta-cc-mcp-linux-arm64`
-   - `meta-cc-mcp-darwin-amd64`, `meta-cc-mcp-darwin-arm64`
-   - `meta-cc-mcp-windows-amd64.exe`
+```
+1. Validates: v0.27.0 ✓
+2. Checks branch: main ✓
+3. Checks clean: ✓
+4. Runs: make all ✓
+5. Updates: plugin.json → 0.27.0 ✓
+6. Updates: marketplace.json → 0.27.0 ✓
+7. Prompts: Update CHANGELOG.md...
+   [You edit CHANGELOG.md in another terminal]
+   [Press Enter to continue]
+8. Verifies: CHANGELOG.md contains [0.27.0] ✓
+9. Commits: "chore: release v0.27.0" ✓
+10. Tags: v0.27.0 ✓
+11. Pushes: main + v0.27.0 ✓
+```
 
-   **Platform bundles** (5 files):
-   - `meta-cc-bundle-linux-amd64.tar.gz`
-   - `meta-cc-bundle-linux-arm64.tar.gz`
-   - `meta-cc-bundle-darwin-amd64.tar.gz`
-   - `meta-cc-bundle-darwin-arm64.tar.gz`
-   - `meta-cc-bundle-windows-amd64.tar.gz`
+### After release.sh completes
 
-   **Checksums** (1 file):
-   - `checksums.txt`
+```
+New state:
+- plugin.json: 0.27.0 ✓
+- marketplace.json: 0.27.0 ✓
+- Latest tag: v0.27.0 ✓
+- Commit: "chore: release v0.27.0"
+- GitHub Actions: Building... 🚀
+```
 
-3. **Test bundle installation**:
-   ```bash
-   # Download and extract bundle
-   curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-bundle-linux-amd64.tar.gz | tar xz
-   cd meta-cc-v*/
-   ./install.sh
+## CHANGELOG.md Format
 
-   # Verify installation
-   meta-cc --version
-   meta-cc-mcp --version
-   ls ~/.claude/projects/meta-cc/commands/
-   ls ~/.claude/projects/meta-cc/agents/
-   ```
+The script expects CHANGELOG.md to follow this format:
 
-4. **Test individual binary download**:
-   ```bash
-   curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
-   chmod +x meta-cc
-   ./meta-cc --version
-   ```
+```markdown
+# Changelog
 
-## Versioning Strategy
+## [0.27.0] - 2025-10-13
 
-meta-cc follows [Semantic Versioning](https://semver.org/):
+### Added
+- New feature description
 
-- **v0.x.x**: Pre-1.0 beta releases
-- **v1.0.0**: First stable release
-- **v1.x.0**: Minor version (new features, backward compatible)
-- **v1.0.x**: Patch version (bug fixes only)
-- **v1.0.0-beta.1**: Pre-release versions
+### Changed
+- Changed functionality description
+
+### Fixed
+- Bug fix description
+
+## [0.26.8] - 2025-10-12
+...
+```
+
+**Important**: Use `[0.27.0]` format (without `v` prefix) in CHANGELOG.md.
 
 ## Troubleshooting
 
-### Build Fails in GitHub Actions
+### Error: "Working directory not clean"
 
-1. Check the Actions tab for error logs
-2. Common issues:
-   - Syntax error in workflow files
-   - Missing dependencies
-   - Test failures on specific platforms
+**Problem**: Uncommitted changes in working directory.
 
-3. Fix the issue and create a new tag:
-   ```bash
-   # Delete the failed tag locally and remotely
-   git tag -d v1.0.0
-   git push --delete origin v1.0.0
-   
-   # Fix the issue, commit, and re-run release
-   ./scripts/release.sh v1.0.0
-   ```
-
-### Tag Already Exists
-
-If you need to recreate a tag:
-
+**Solution**:
 ```bash
-# Delete local tag
-git tag -d v1.0.0
+# Check what's changed
+git status
 
-# Delete remote tag
-git push --delete origin v1.0.0
+# Either commit changes
+git add .
+git commit -m "fix: description"
 
-# Recreate tag
-git tag -a v1.0.0 -m "Release v1.0.0"
-git push origin v1.0.0
+# Or stash them
+git stash
 ```
 
-### Binary Missing from Release
+### Error: "jq is required but not installed"
 
-If a binary is missing:
+**Problem**: `jq` command not found.
 
-1. Check `.github/workflows/release.yml` for typos
-2. Ensure all platforms are listed in the build matrix
-3. Re-run the workflow or create a new tag
+**Solution**: Install jq (see Prerequisites section).
 
-### Permission Denied when Pushing Tag
+## See Also
 
-Ensure you have write access to the repository:
-
-```bash
-# Check remote URL
-git remote -v
-
-# If using HTTPS, ensure credentials are configured
-git config --global credential.helper store
-```
-
-## Post-Release Tasks
-
-After a successful release:
-
-1. **Announce the release**:
-   - Update project README if needed
-   - Post to relevant communities
-
-2. **Create new Unreleased section** in CHANGELOG.md:
-   ```markdown
-   ## [Unreleased]
-
-   ### Added
-   - New features will be listed here
-   ```
-
-3. **Monitor for issues**:
-   - Watch GitHub issues for bug reports
-   - Prepare hotfix release if critical bugs are found
-
-## Emergency Hotfix Process
-
-For critical bugs requiring immediate release:
-
-1. Create hotfix branch from main:
-   ```bash
-   git checkout -b hotfix/v1.0.1 main
-   ```
-
-2. Fix the bug and test thoroughly:
-   ```bash
-   # Make changes
-   make all
-   ```
-
-3. Update CHANGELOG.md:
-   ```markdown
-   ## [v1.0.1] - 2025-10-08
-
-   ### Fixed
-   - Critical bug description
-   ```
-
-4. Commit and merge to main:
-   ```bash
-   git add .
-   git commit -m "fix: critical bug description"
-   git checkout main
-   git merge hotfix/v1.0.1
-   git push origin main
-   ```
-
-5. Run release script:
-   ```bash
-   ./scripts/release.sh v1.0.1
-   ```
-
----
-
-For questions or issues with the release process, open an issue or contact the maintainers.
+- [CHANGELOG.md](../CHANGELOG.md) - Version history
+- [GitHub Releases](https://github.com/yaleh/meta-cc/releases) - Published releases
+- [GitHub Actions](https://github.com/yaleh/meta-cc/actions) - Build status

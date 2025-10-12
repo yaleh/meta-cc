@@ -28,17 +28,39 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Update plugin.json version
+      - name: Verify plugin.json version matches tag
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          jq --arg ver "${VERSION#v}" '.version = $ver' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
-          mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
+          VERSION_NUM=${VERSION#v}
+          PLUGIN_VERSION=$(jq -r '.version' .claude-plugin/plugin.json)
 
-      - name: Update marketplace.json version
+          if [ "$PLUGIN_VERSION" != "$VERSION_NUM" ]; then
+            echo "❌ ERROR: Version mismatch!"
+            echo "  Git tag: $VERSION ($VERSION_NUM)"
+            echo "  plugin.json: $PLUGIN_VERSION"
+            echo ""
+            echo "This should not happen if you used scripts/release.sh"
+            echo "Please ensure the release script updated version files correctly."
+            exit 1
+          fi
+          echo "✓ Version verified: $VERSION_NUM"
+
+      - name: Verify marketplace.json version matches tag
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          jq --arg ver "${VERSION#v}" '.plugins[0].version = $ver' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
-          mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
+          VERSION_NUM=${VERSION#v}
+          MARKETPLACE_VERSION=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)
+
+          if [ "$MARKETPLACE_VERSION" != "$VERSION_NUM" ]; then
+            echo "❌ ERROR: Version mismatch!"
+            echo "  Git tag: $VERSION ($VERSION_NUM)"
+            echo "  marketplace.json: $MARKETPLACE_VERSION"
+            echo ""
+            echo "This should not happen if you used scripts/release.sh"
+            echo "Please ensure the release script updated version files correctly."
+            exit 1
+          fi
+          echo "✓ Marketplace version verified: $VERSION_NUM"
 
       - name: Sync plugin files
         run: bash scripts/sync-plugin-files.sh

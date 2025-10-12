@@ -5,6 +5,37 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.8] - 2025-10-12
+
+### Changed
+- **Documentation Simplification**
+  - README.md drastically simplified from 1909 lines → 275 lines (85% reduction)
+  - New users can now understand the project in < 2 minutes (vs ~15 min before)
+  - Better navigation with clear 3-tier documentation hierarchy
+
+### Added
+- **New Reference Documentation**
+  - `docs/cli-reference.md` (506 lines) - Complete CLI command reference
+  - `docs/jsonl-reference.md` (524 lines) - JSONL output format and jq patterns
+  - `docs/features.md` (699 lines) - Advanced features overview
+
+### Improved
+- **Documentation Structure**
+  - README: Quick start and overview (public-facing)
+  - Reference docs: Complete technical documentation
+  - CLAUDE.md: Development entry point (internal)
+- **User Experience**
+  - Advanced users find detailed docs easily via clear navigation
+  - Developers have clear separation from public documentation
+  - Comprehensive documentation index for all user types
+
+## [0.26.7] - 2025-10-12
+
+### Fixed
+- **Version Synchronization**
+  - Aligned plugin.json and marketplace.json versions with git tags
+  - Improved release process to prevent version drift
+
 ## [0.26.6] - 2025-10-12
 
 ### Fixed
