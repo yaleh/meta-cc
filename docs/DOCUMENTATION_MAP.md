@@ -200,6 +200,30 @@ graph TD
 
 ---
 
+## Plans Directory Structure
+
+Implementation plans for each development phase are organized in `plans/` with descriptive naming:
+
+```
+plans/
+├── 00-bootstrap/                  # Project initialization
+├── 01-session-locator/            # Session file location
+├── 02-jsonl-parser/               # JSONL parsing
+├── 08-mcp-integration/            # MCP server integration
+├── 13-output-simplification/      # Output format standardization
+├── 22-unified-meta-command/       # Unified /meta command
+└── ...                            # 21 phases total
+```
+
+Each phase directory contains:
+- **plan.md** - Detailed implementation plan with TDD stages
+- **README.md** - Quick reference and navigation (12 phases)
+- **Additional files** - Stage summaries, execution reports (as needed)
+
+See [Documentation Management Methodology](methodology/documentation-management.md) for plans directory workflow.
+
+---
+
 ## Universal Methodology
 
 For universal, project-independent software development methodologies, see:
@@ -211,21 +235,33 @@ For universal, project-independent software development methodologies, see:
 
 ---
 
-## Migration Notes
+## Restructuring Summary
 
-**Phase 1+2 Completed** (2025-10-12):
+**Phase 1+2: Directory Structure & File Renaming** (2025-10-12):
 - ✅ Created categorized subdirectories (core/, guides/, reference/, tutorials/)
-- ✅ Moved all documents to appropriate categories
+- ✅ Moved 19 documents to appropriate categories
 - ✅ Renamed files to remove redundant suffixes (-guide, -reference)
 - ✅ Simplified file names (e.g., examples-usage.md → examples.md)
-- ✅ Updated all links in DOCUMENTATION_MAP.md
+- ✅ Moved architecture directories (adr/, proposals/ → architecture/)
+- ✅ Updated all entry point links (CLAUDE.md, README.md, DOCUMENTATION_MAP.md)
 
-**Next Steps** (Future):
-- 📋 Update CLAUDE.md links to new paths
-- 📋 Update README.md links to new paths
-- 📋 Update internal links within moved documents
-- 📋 Create symlinks for backward compatibility (optional)
-- 📋 Plans directory restructuring (add descriptive names)
+**Phase 3: Plans Directory Restructuring** (2025-10-12):
+- ✅ Renamed all 21 phase directories with descriptive names
+- ✅ Format: NN-descriptive-name/ (e.g., 08-mcp-integration/)
+- ✅ Created README.md quick references for 12 phase directories
+- ✅ Improved discoverability and self-documentation
+
+**Phase 4: Internal Link Fixes** (2025-10-12):
+- ✅ Fixed 70+ broken internal links across 18 files
+- ✅ Updated cross-directory references
+- ✅ Fixed architecture path references
+- ✅ All documentation links now working correctly
+
+**Verification Results** (2025-10-12):
+- ✅ Main entry points: 100% links working (CLAUDE.md, README.md, DOCUMENTATION_MAP.md)
+- ✅ Internal cross-references: 100% links working (0 broken links detected)
+- ✅ Plans directory: All phases renamed with descriptive names
+- ✅ Naming conventions: Fully standardized (lowercase + hyphens)
 
 ---
 
