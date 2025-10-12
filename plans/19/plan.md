@@ -714,7 +714,7 @@ Update all relevant documentation to reflect the new query capabilities and tool
 ### Acceptance Criteria
 
 - [ ] CLAUDE.md updated with new MCP tools (14→16)
-- [ ] docs/mcp-output-modes.md updated with tool descriptions
+- [ ] docs/mcp-guide.md updated with tool descriptions
 - [ ] docs/examples-usage.md updated with usage examples
 - [ ] docs/principles.md Section 7 matches implementation
 - [ ] CHANGELOG.md updated with Phase 19 changes
@@ -743,7 +743,7 @@ Update all relevant documentation to reflect the new query capabilities and tool
 - ... (existing tools)
 ```
 
-**2. docs/mcp-output-modes.md** (+15 lines)
+**2. docs/mcp-guide.md** (+15 lines)
 
 Add to "Query Tools" section:
 
@@ -851,7 +851,7 @@ Verify Section 7 matches implementation (should already be accurate based on des
 
 **Modified Files**:
 - `CLAUDE.md` (+20 lines)
-- `docs/mcp-output-modes.md` (+15 lines)
+- `docs/mcp-guide.md` (+15 lines)
 - `docs/examples-usage.md` (+20 lines)
 - `docs/principles.md` (+10 lines verification)
 - `CHANGELOG.md` (+5 lines)
@@ -1002,7 +1002,7 @@ Before marking Phase 19 complete:
 6. `cmd/mcp-server/executor_test.go` (+30 lines) - Executor tests
 7. `cmd/mcp-server/integration_test.go` (+30 lines) - Integration tests
 8. `CLAUDE.md` (+20 lines) - Tool documentation
-9. `docs/mcp-output-modes.md` (+15 lines) - Tool descriptions
+9. `docs/mcp-guide.md` (+15 lines) - Tool descriptions
 10. `docs/examples-usage.md` (+20 lines) - Usage examples
 11. `docs/principles.md` (+10 lines) - Verification
 12. `CHANGELOG.md` (+5 lines) - Phase 19 entry

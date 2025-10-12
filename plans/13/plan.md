@@ -1443,7 +1443,7 @@ Parse the JSONL output and format as a concise summary for the user.
 
 **说明**: MCP Server 已经默认使用 JSON 输出（非 pretty），无需修改。
 
-**文件**: `docs/mcp-usage.md`（修改 ~5 行）
+**文件**: `docs/mcp-guide.md`（修改 ~5 行）
 
 **现状**:
 ```markdown
@@ -1851,7 +1851,7 @@ go test ./... -v
 - `.claude/commands/meta-stats.md`: 更新为 JSONL 输出（~10 lines）
 - `.claude/commands/meta-errors.md`: 更新为 JSONL 输出（~10 lines）
 - `.claude/commands/meta-query-tools.md`: 更新为 JSONL 输出（~5 lines）
-- `docs/mcp-usage.md`: 更新 MCP 输出格式说明（~5 lines）
+- `docs/mcp-guide.md`: 更新 MCP 输出格式说明（~5 lines）
 
 **净变化**: +380 lines
 
@@ -1925,7 +1925,7 @@ go test ./... -v
 - `pkg/output/json.go`
 - `README.md`
 - `.claude/commands/meta-*.md` (3 files)
-- `docs/mcp-usage.md`
+- `docs/mcp-guide.md`
 
 ---
 

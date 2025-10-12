@@ -15,7 +15,7 @@ Meta-Cognition tool for Claude Code - analyze session history for workflow optim
 - **100% behavioral semantics preserved** using lambda calculus formal specifications
 - **Zero regressions** - all tests pass with 70-100% coverage
 - Replaces verbose prose with mathematically precise function definitions
-- See [Formalization Summary](.claude/agents/FORMALIZATION_SUMMARY.md) for details
+- See project history for agent formalization details
 
 ## Features
 
@@ -1416,7 +1416,6 @@ See **[MCP Guide](./docs/mcp-guide.md)** for comprehensive documentation includi
 - Output control and hybrid mode
 - Query scope (project vs session)
 - Best practices and troubleshooting
-- [Phase 15 Migration Guide](./docs/mcp-migration-phase15.md) - Upgrading from Phase 14
 
 ### Reference Documentation
 

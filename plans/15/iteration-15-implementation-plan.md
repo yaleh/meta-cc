@@ -898,7 +898,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./meta-cc-mcp | jq '.res
 
 #### Deliverables
 
-1. **`docs/mcp-tools-reference.md`** (~200 lines)
+1. **`docs/mcp-guide.md`** (~200 lines)
    - Complete parameter reference for all tools
    - Usage scenarios for each tool
    - Examples with jq filtering
@@ -911,7 +911,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./meta-cc-mcp | jq '.res
 
 #### Documentation Structure
 
-**docs/mcp-tools-reference.md**:
+**docs/mcp-guide.md**:
 ```markdown
 # MCP Tools Reference
 
@@ -1332,18 +1332,18 @@ Result: Single number (count of messages matching pattern)
 
 ```bash
 # Verify documentation exists
-ls -la docs/mcp-tools-reference.md
+ls -la docs/mcp-guide.md
 
 # Check documentation length
-wc -l docs/mcp-tools-reference.md
+wc -l docs/mcp-guide.md
 # Expected: ~400-500 lines
 
 # Verify all tools documented
-grep "^### " docs/mcp-tools-reference.md | wc -l
+grep "^### " docs/mcp-guide.md | wc -l
 # Expected: ≥12 (one per tool)
 
 # Check for completeness
-grep -c "Usage Scenarios" docs/mcp-tools-reference.md
+grep -c "Usage Scenarios" docs/mcp-guide.md
 # Expected: ≥12
 ```
 
@@ -1516,7 +1516,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query_tool
 
 ### Documentation Requirements
 
-- ✅ Complete MCP tools reference created (`docs/mcp-tools-reference.md`)
+- ✅ Complete MCP tools reference created (`docs/mcp-guide.md`)
 - ✅ Migration guide from deprecated tools provided
 - ✅ Output control strategies documented
 - ✅ Best practices section included

@@ -119,7 +119,7 @@ card "Phase 16" as P16 #lightgreen {
   - 文件引用机制
   - 临时文件管理
   - 8KB 阈值切换
-  [详细文档](mcp-output-modes.md)
+  [详细文档](mcp-guide.md)
 }
 
 card "Phase 17" as P17 #lightgreen {
@@ -1245,7 +1245,7 @@ mcp__meta_cc__extract_tools → 返回工具使用列表
   - 测试所有 MCP 工具
 - Stage 8.9: 配置 MCP Server 到 Claude Code ✅
   - 创建 `.claude/mcp-servers/meta-cc.json` 配置
-  - 创建 `docs/mcp-usage.md` 文档
+  - 创建 `docs/mcp-guide.md` 文档
   - 测试 MCP 集成和自然语言查询
 
 **上下文查询扩展（✅ 已完成）**：
@@ -1442,7 +1442,7 @@ mcp__meta_cc__extract_tools → 返回工具使用列表
 - `get_stats`：项目级统计信息
 - `get_session_stats`：当前会话统计（已存在，保持兼容）
 - 更新后的 `.claude/mcp-servers/meta-cc.json`
-- `docs/mcp-project-scope.md`：使用指南
+- `docs/mcp-guide.md`：使用指南
 
 **工具映射表**：
 | 项目级（默认） | 会话级 | 说明 |
@@ -1999,18 +1999,18 @@ echo '{"jsonrpc":"2.0","method":"tools/list"}' | ./meta-cc-mcp | jq '.result.too
 
 **交付物**：
 - 更新所有 14 个 MCP 工具描述
-- `docs/mcp-tools-reference.md` 完整文档（包含使用场景）
+- `docs/mcp-guide.md` 完整文档（包含使用场景）
 
 ### Stage 15.4: MCP 工具文档优化
 
 **任务**：
-- 创建 `docs/mcp-tools-reference.md` 完整参考
+- 创建 `docs/mcp-guide.md` 完整参考
 - 为每个工具添加使用场景和示例
 - 说明 MCP vs Subagent 的选择标准
 
 **交付物**：
 ```markdown
-# docs/mcp-tools-reference.md
+# docs/mcp-guide.md
 
 ## query_errors
 **用途**：查询工具错误历史
@@ -2293,13 +2293,13 @@ echo '{...,"name":"cleanup_temp_files","arguments":{"session_hash":"abc123"}}' |
 ### Stage 16.4: 文档和使用示例（~50 行）
 
 **任务**：
-- 更新 `docs/mcp-tools-reference.md`
+- 更新 `docs/mcp-guide.md`
 - 更新 `.claude/agents/meta-coach.md`
 - 添加文件引用模式使用示例
 
 **文档更新**：
 ```markdown
-# docs/mcp-tools-reference.md
+# docs/mcp-guide.md
 
 ## MCP 输出模式
 
@@ -2383,7 +2383,7 @@ meta-cc-mcp 自动选择输出模式：
 ```
 
 **交付物**：
-- 更新的 `docs/mcp-tools-reference.md`（+150 行）
+- 更新的 `docs/mcp-guide.md`（+150 行）
 - 更新的 `.claude/agents/meta-coach.md`（+50 行）
 - 使用示例和最佳实践
 
@@ -2434,7 +2434,7 @@ meta-cc-mcp 自动选择输出模式：
 **文档更新**：
 - `docs/principles.md`：添加"默认查询范围与输出控制"章节
 - `CLAUDE.md`：添加"Query Limit Strategy"指导
-- `docs/mcp-tools-reference.md`：更新工具参数说明
+- `docs/mcp-guide.md`：更新工具参数说明
 
 **设计理念**：
 - meta-cc-mcp **不预判**用户需要多少数据
@@ -2458,7 +2458,7 @@ echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"query_tools","arg
 - `cmd/mcp-server/tools.go`（~4 行修改）
 - `docs/principles.md`（更新输出控制章节）
 - `CLAUDE.md`（更新参数列表）
-- `docs/mcp-tools-reference.md`（更新参数说明）
+- `docs/mcp-guide.md`（更新参数说明）
 
 ### Stage 16.6: 移除截断机制，完全依赖 Hybrid Mode（~100 行）
 
@@ -3267,7 +3267,7 @@ sudo mv meta-cc /usr/local/bin/
 
 ### Stage 19.5: 文档（~70 行，30min）✅
 - ✅ 更新使用文档和示例
-- **交付**：`CLAUDE.md` (+10), `mcp-output-modes.md` (+31), `examples-usage.md` (+56), `principles.md` (+69)
+- **交付**：`CLAUDE.md` (+10), `mcp-guide.md` (+31), `examples-usage.md` (+56), `principles.md` (+69)
 
 ### Stage 19.6: 集成（~100 行，1h）✅
 - ✅ 集成到 `/meta-timeline` 和 `/meta-coach` slash commands

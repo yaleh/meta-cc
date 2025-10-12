@@ -51,7 +51,7 @@ MCP Server is implemented but:
 
 ### 2. Create MCP Usage Documentation
 
-**File**: `docs/mcp-usage.md`
+**File**: `docs/mcp-guide.md`
 
 **Content Structure**:
 
@@ -429,7 +429,7 @@ EOF
 ### Step 3: Create Usage Documentation (20 minutes)
 
 ```bash
-# Create the full docs/mcp-usage.md file
+# Create the full docs/mcp-guide.md file
 # (Copy the content from above)
 ```
 
@@ -500,7 +500,7 @@ echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ./meta-cc mcp | jq '.res
 - ✅ `.claude/mcp-servers/meta-cc.json` created and valid
 - ✅ JSON syntax correct
 - ✅ All 5 tools listed
-- ✅ `docs/mcp-usage.md` created
+- ✅ `docs/mcp-guide.md` created
 - ✅ Documentation is comprehensive (>100 lines)
 - ✅ MCP Server responds to test queries
 - ✅ Claude Code can discover MCP tools
@@ -525,7 +525,7 @@ echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ./meta-cc mcp | jq '.res
    - Tool list
    - Command and args
 
-2. **`docs/mcp-usage.md`** (~100 lines)
+2. **`docs/mcp-guide.md`** (~100 lines)
    - Complete usage guide
    - All 5 tools documented
    - Examples and best practices

@@ -31,7 +31,7 @@ meta-cc mcp list-tools | grep "_session"
 
 # Stage 12.4: Validate configuration and docs
 cat ~/.claude/mcp-servers/meta-cc.json | jq '.tools | length'  # Should show all tools
-ls docs/mcp-project-scope.md
+ls docs/mcp-guide.md
 ```
 
 ### After Phase Completion
@@ -83,7 +83,7 @@ meta-cc mcp call get_session_stats  # Should still work unchanged
 
 ### Documentation
 
-- `docs/mcp-project-scope.md` - Usage guide with examples
+- `docs/mcp-guide.md` - Usage guide with examples
 
 ### Testing
 
@@ -135,7 +135,7 @@ meta-cc mcp call get_session_stats  # Should still work unchanged
 
 - [ ] Stage 12.4: Configuration and documentation
   - [ ] Update `.claude/mcp-servers/meta-cc.json`
-  - [ ] Create `docs/mcp-project-scope.md`
+  - [ ] Create `docs/mcp-guide.md`
   - [ ] Add usage examples
   - [ ] Update README.md with project-level query section
 
