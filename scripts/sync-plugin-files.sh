@@ -24,15 +24,9 @@ fi
 # Create dist directories
 mkdir -p "$DIST_DIR/commands" "$DIST_DIR/agents"
 
-# Copy entry point
-echo "  Copying entry point from .claude/commands/..."
+# Copy ONLY the unified meta command (capabilities are distributed separately)
+echo "  Copying unified meta command from .claude/commands/..."
 cp "$PROJECT_ROOT/.claude/commands/meta.md" "$DIST_DIR/commands/"
-
-# Copy capabilities
-echo "  Copying capabilities from $CAPABILITIES_DIR/commands/..."
-if ls "$CAPABILITIES_DIR/commands/"*.md 1> /dev/null 2>&1; then
-    cp "$CAPABILITIES_DIR/commands/"*.md "$DIST_DIR/commands/"
-fi
 
 # Copy agents
 echo "  Copying agents from .claude/agents/..."
@@ -50,4 +44,5 @@ CMD_COUNT=$(find "$DIST_DIR/commands" -name "*.md" | wc -l)
 AGENT_COUNT=$(find "$DIST_DIR/agents" -name "*.md" | wc -l)
 
 echo "✓ Plugin files synced to $DIST_DIR/"
-echo "✓ Total: $CMD_COUNT command files, $AGENT_COUNT agent files"
+echo "✓ Total: $CMD_COUNT command file (unified meta.md), $AGENT_COUNT agent files"
+echo "  Note: 13 capability files distributed separately in capabilities-latest.tar.gz"

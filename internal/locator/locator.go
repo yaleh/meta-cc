@@ -22,7 +22,7 @@ type LocateOptions struct {
 //  4. 默认：当前工作目录（Phase 13: 项目级默认）
 func (l *SessionLocator) Locate(opts LocateOptions) (string, error) {
 	// 策略1: 环境变量（仅在 --session-only 模式下）
-	if !opts.SessionOnly && os.Getenv("CC_SESSION_ID") != "" {
+	if opts.SessionOnly && os.Getenv("CC_SESSION_ID") != "" {
 		path, err := l.FromEnv()
 		if err == nil {
 			return path, nil

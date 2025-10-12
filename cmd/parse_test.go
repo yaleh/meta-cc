@@ -199,7 +199,7 @@ func TestParseStatsCommand_JSON(t *testing.T) {
 	// Capture output
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"parse", "stats", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"parse", "stats", "--session-only", "--output", "jsonl"})
 
 	// Execute command
 	err := rootCmd.Execute()
@@ -253,7 +253,7 @@ func TestParseStatsCommand_Markdown(t *testing.T) {
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"parse", "stats", "--output", "tsv"})
+	rootCmd.SetArgs([]string{"parse", "stats", "--session-only", "--output", "tsv"})
 
 	err := rootCmd.Execute()
 	if err != nil {

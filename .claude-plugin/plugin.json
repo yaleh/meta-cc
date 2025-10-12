@@ -1,6 +1,6 @@
 {
   "name": "meta-cc",
-  "version": "0.16.0",
+  "version": "0.26.5",
   "description": "Meta-Cognition tool for Claude Code - analyze session history for workflow optimization",
   "author": {
     "name": "Yale Huang",
@@ -10,5 +10,21 @@
   "license": "MIT",
   "homepage": "https://github.com/yaleh/meta-cc",
   "repository": "https://github.com/yaleh/meta-cc",
-  "keywords": ["workflow-analysis", "session-history", "productivity", "metacognition", "analytics", "optimization", "mcp", "subagents"]
+  "keywords": [
+    "workflow-analysis",
+    "session-history",
+    "productivity",
+    "metacognition",
+    "analytics",
+    "optimization",
+    "mcp",
+    "subagents"
+  ],
+  "commands": [
+    "./.claude/commands/meta.md"
+  ],
+  "agents": [
+    "./.claude/agents/project-planner.md",
+    "./.claude/agents/stage-executor.md"
+  ]
 }
