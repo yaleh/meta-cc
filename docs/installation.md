@@ -345,4 +345,4 @@ After successful installation:
 1. **Read the documentation**: [Getting Started](../README.md)
 2. **Try slash commands**: `/meta-stats`, `/meta-errors`, `/meta-timeline`
 3. **Explore subagents**: `@meta-coach` for workflow analysis
-4. **Learn MCP tools**: See [MCP Output Modes](mcp-output-modes.md)
+4. **Learn MCP tools**: See [MCP Guide](mcp-guide.md)

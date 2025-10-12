@@ -13,7 +13,7 @@
 - 8 个会话级 MCP 工具（仅查询当前会话，`_session` 后缀）
 - 执行逻辑支持 `--project .` 标志
 - 更新的 MCP 配置文件
-- `docs/mcp-project-scope.md`：使用指南
+- `docs/mcp-guide.md`：使用指南
 
 ---
 
@@ -73,7 +73,7 @@ Phase 12 遵循清晰的命名约定：
 - ✅ 无新增外部依赖
 
 **文档质量**:
-- ✅ `docs/mcp-project-scope.md` 完成
+- ✅ `docs/mcp-guide.md` 完成
 - ✅ 包含项目级和会话级对比示例
 - ✅ 包含实际使用场景
 - ✅ README.md 更新
@@ -1323,7 +1323,7 @@ func TestGetSessionStats_BackwardCompatibility(t *testing.T) {
 
 #### 2. 创建使用指南
 
-**文件**: `docs/mcp-project-scope.md` (新建, ~200 行)
+**文件**: `docs/mcp-guide.md` (新建, ~200 行)
 
 ```markdown
 # MCP Project-Level Query Guide
@@ -1551,13 +1551,13 @@ meta-cc provides an MCP (Model Context Protocol) server for seamless integration
 # Tools: query_tools_session, get_session_stats, analyze_errors_session, etc.
 ```
 
-See [MCP Project Scope Guide](docs/mcp-project-scope.md) for detailed usage examples.
+See [MCP Project Scope Guide](docs/mcp-guide.md) for detailed usage examples.
 ```
 
 ### 交付物
 
 **新建文件**:
-- `docs/mcp-project-scope.md` (~200 行)
+- `docs/mcp-guide.md` (~200 行)
 
 **修改文件**:
 - `.claude/mcp-servers/meta-cc.json` (~20 行)
@@ -1740,7 +1740,7 @@ echo "  - Backward compatibility maintained"
 
 - [ ] **Stage 12.4: 配置与文档**
   - [ ] MCP 配置更新
-  - [ ] `docs/mcp-project-scope.md` 完成
+  - [ ] `docs/mcp-guide.md` 完成
   - [ ] README.md 更新
 
 ### 集成验收
@@ -1788,7 +1788,7 @@ meta-cc/
 │       ├── mcp_project_flag_test.sh  # 新增：项目标志测试
 │       └── mcp_project_scope_test.sh # 新增：综合集成测试
 ├── docs/
-│   └── mcp-project-scope.md          # 新增：使用指南
+│   └── mcp-guide.md          # 新增：使用指南
 ├── .claude/
 │   └── mcp-servers/
 │       └── meta-cc.json              # 更新：包含所有工具

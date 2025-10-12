@@ -63,13 +63,13 @@
 - `cmd/mcp-server/tools_test.go` (new validation tests)
 
 ### Stage 15.4: MCP Tool Documentation (~200 lines)
-- Create comprehensive `docs/mcp-tools-reference.md`
+- Create comprehensive `docs/mcp-guide.md`
 - Document all parameters, usage scenarios, examples
 - Migration guide from deprecated tools
 - Best practices and troubleshooting
 
 **Files**:
-- `docs/mcp-tools-reference.md` (new, ~400-500 lines)
+- `docs/mcp-guide.md` (new, ~400-500 lines)
 - `docs/plan.md` (update Phase 15 notes)
 
 ## Success Criteria
@@ -90,7 +90,7 @@
 | `cmd/mcp-server/filters.go` | Message truncation logic | ~80 | 📝 To implement |
 | `cmd/mcp-server/executor.go` | Parameter handling | ~50 update | 📝 To update |
 | `cmd/mcp-server/tools.go` | Tool definitions | ~100 update | 📝 To update |
-| `docs/mcp-tools-reference.md` | Complete tool reference | ~400-500 | 📝 To create |
+| `docs/mcp-guide.md` | Complete tool reference | ~400-500 | 📝 To create |
 | `test-scripts/validate-phase-15.sh` | Integration tests | ~100 | 📝 To create |
 
 ## Testing Strategy

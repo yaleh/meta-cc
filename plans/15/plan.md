@@ -1056,7 +1056,7 @@ go test ./cmd/mcp-server -v
 
 #### 1. 创建 MCP 工具参考文档
 
-**文件**: `docs/mcp-tools-reference.md`（新建，~200 行）
+**文件**: `docs/mcp-guide.md`（新建，~200 行）
 
 ```markdown
 # MCP 工具完整参考
@@ -1726,14 +1726,14 @@ meta-cc 提供 12 个标准化 MCP 工具，所有工具支持：
 ### 详细文档
 
 完整的工具参考、使用场景和示例，请参阅：
-- [MCP 工具完整参考](docs/mcp-tools-reference.md)
+- [MCP 工具完整参考](docs/mcp-guide.md)
 - [Phase 15 迁移指南](docs/mcp-migration-phase15.md)
 ```
 
 ### 交付物
 
 **新增**:
-- `docs/mcp-tools-reference.md`: MCP 工具完整参考（~200 行）
+- `docs/mcp-guide.md`: MCP 工具完整参考（~200 行）
 
 **修改**:
 - `README.md`: 添加 MCP 工具章节（~50 行）
@@ -1774,7 +1774,7 @@ meta-cc 提供 12 个标准化 MCP 工具，所有工具支持：
 - `cmd/mcp-server/tools_test.go` (参数标准化测试)
 - `cmd/mcp-server/deprecated_test.go` (Deprecated 工具测试)
 - `docs/mcp-migration-phase15.md` (迁移指南)
-- `docs/mcp-tools-reference.md` (MCP 工具完整参考)
+- `docs/mcp-guide.md` (MCP 工具完整参考)
 
 **修改的文件 (3)**:
 - `cmd/mcp-server/tools.go` (参数标准化 + 移除工具 + 简化描述)
