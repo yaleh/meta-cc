@@ -327,8 +327,19 @@ Only bump plugin version when:
 - Need cross-platform binaries
 - Creating official versioned release
 
+## Git Hooks (Optional Automation)
+
+For automatic version bumping, see [Git Hooks](git-hooks.md).
+
+**Quick start**:
+```bash
+./scripts/install-hooks.sh
+# Now .claude/ changes auto-bump plugin version on commit
+```
+
 ## See Also
 
+- [Git Hooks](git-hooks.md) - Automatic version bumping on commit
 - [CHANGELOG.md](../CHANGELOG.md) - Version history
 - [GitHub Releases](https://github.com/yaleh/meta-cc/releases) - Published releases
 - [GitHub Actions](https://github.com/yaleh/meta-cc/actions) - Build status
