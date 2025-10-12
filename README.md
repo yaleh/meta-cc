@@ -248,7 +248,7 @@ export META_CC_CAPABILITY_SOURCES="~/my-capabilities:commands"
 /meta "my feature"
 ```
 
-See [Capabilities Guide](docs/capabilities-guide.md) for complete documentation.
+See [Capabilities Guide](docs/guides/capabilities.md) for complete documentation.
 
 ---
 
