@@ -949,6 +949,8 @@ func getCapabilityContent(name string, sources []CapabilitySource) (string, erro
 			content, err = readLocalCapability(name, source.Location)
 		case SourceTypeGitHub:
 			content, err = readGitHubCapability(name, source.Location)
+		case SourceTypePackage:
+			content, err = readPackageCapability(name, source.Location)
 		default:
 			return "", fmt.Errorf("unknown source type: %s", source.Type)
 		}
@@ -982,6 +984,37 @@ func readLocalCapability(name string, path string) (string, error) {
 	}
 
 	return string(content), nil
+}
+
+// readPackageCapability reads a capability file from a package source
+func readPackageCapability(name string, packageLocation string) (string, error) {
+	// Get cache directory
+	cacheDir, err := getPackageCacheDir(packageLocation)
+	if err != nil {
+		return "", err
+	}
+
+	// Ensure package is extracted
+	if !isCacheValidForPackage(packageLocation) {
+		// Download and extract package
+		if err := downloadAndExtractPackage(packageLocation, cacheDir); err != nil {
+			// If network error, try using stale cache
+			if !isCacheStaleForPackage(packageLocation) {
+				return "", err
+			}
+			// Continue with stale cache
+			fmt.Fprintf(os.Stderr, "Warning: Using stale cached package\n")
+		} else {
+			// Update cache metadata
+			if err := updateCacheMetadata(packageLocation, cacheDir); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to update cache metadata: %v\n", err)
+			}
+		}
+	}
+
+	// Read capability file from extracted package
+	commandsDir := filepath.Join(cacheDir, "commands")
+	return readLocalCapability(name, commandsDir)
 }
 
 // parseGitHubSource parses GitHub source with @ symbol
