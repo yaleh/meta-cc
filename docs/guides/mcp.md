@@ -959,8 +959,8 @@ meta-cc query tools --tool Bash --status error | jq '.tools | length'
 
 ## Related Documentation
 
-- [Integration Guide](integration-guide.md) - Choosing between MCP/Slash/Subagent
-- [Examples & Usage](examples-usage.md) - Step-by-step setup guides
+- [Integration Guide](integration.md) - Choosing between MCP/Slash/Subagent
+- [Examples & Usage](../tutorials/examples.md) - Step-by-step setup guides
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
-- [Capabilities Guide](capabilities-guide.md) - Capability development guide
-- [CLAUDE.md](../CLAUDE.md) - Project instructions for Claude Code
+- [Capabilities Guide](capabilities.md) - Capability development guide
+- [CLAUDE.md](../../CLAUDE.md) - Project instructions for Claude Code

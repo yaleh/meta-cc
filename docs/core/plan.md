@@ -2,11 +2,11 @@
 
 ## 项目概述
 
-基于 [技术方案](./proposals/meta-cognition-proposal.md) 的分阶段实施计划。
+基于 [技术方案](../architecture/proposals/meta-cognition-proposal.md) 的分阶段实施计划。
 
 **核心约束与设计原则**：详见 [设计原则文档](./principles.md)
 
-**架构决策**：详见 [ADR 索引](adr/README.md)
+**架构决策**：详见 [ADR 索引](../architecture/adr/README.md)
 
 **项目状态**：
 - ✅ **Phase 0-9 已完成**（核心查询 + 上下文管理）
@@ -119,7 +119,7 @@ card "Phase 16" as P16 #lightgreen {
   - 文件引用机制
   - 临时文件管理
   - 8KB 阈值切换
-  [详细文档](mcp-guide.md)
+  [详细文档](../guides/mcp.md)
 }
 
 card "Phase 17" as P17 #lightgreen {
@@ -447,11 +447,11 @@ end note
 
 ### 内部文档
 - [设计原则](./principles.md) - 核心约束和架构决策
-- [技术方案](./proposals/meta-cognition-proposal.md) - 整体架构设计
-- [MCP 输出模式文档](./mcp-output-modes.md) - 混合输出模式详解
-- [集成指南](./integration-guide.md) - 选择 MCP/Slash/Subagent
-- [能力开发指南](./capabilities-guide.md) - 能力系统开发
-- [ADR 索引](adr/README.md) - 架构决策记录
+- [技术方案](../architecture/proposals/meta-cognition-proposal.md) - 整体架构设计
+- [MCP 输出模式文档](../archive/mcp-output-modes.md) - 混合输出模式详解
+- [集成指南](../guides/integration.md) - 选择 MCP/Slash/Subagent
+- [能力开发指南](../guides/capabilities.md) - 能力系统开发
+- [ADR 索引](../architecture/adr/README.md) - 架构决策记录
 
 ### 外部资源
 - [Claude Code 官方文档](https://docs.claude.com/en/docs/claude-code/overview)

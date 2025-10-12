@@ -518,7 +518,7 @@ For sessions with 1000+ tools, use:
 
 ## See Also
 
-- [CLI Reference](cli-reference.md) - Complete command reference
-- [CLI Composability](cli-composability.md) - Advanced Unix pipeline patterns
-- [MCP Guide](mcp-guide.md) - MCP tool integration
+- [CLI Reference](cli.md) - Complete command reference
+- [CLI Composability](../tutorials/cli-composability.md) - Advanced Unix pipeline patterns
+- [MCP Guide](../guides/mcp.md) - MCP tool integration
 - [jq Manual](https://stedolan.github.io/jq/manual/) - Official jq documentation

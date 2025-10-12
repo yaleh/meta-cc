@@ -392,11 +392,11 @@ Do: "@meta-coach I just got an error in my auth module.
 
 ## Related Documentation
 
-- **[meta-cc README](../README.md)**: Installation and CLI reference
-- **[Examples & Usage](examples-usage.md)**: Step-by-step setup guides
+- **[meta-cc README](../../README.md)**: Installation and CLI reference
+- **[Examples & Usage](../tutorials/examples.md)**: Step-by-step setup guides
 - **[Troubleshooting Guide](troubleshooting.md)**: Common issues and solutions
-- **[MCP Output Modes](mcp-output-modes.md)**: Detailed MCP usage
-- **[Technical Proposal](proposals/meta-cognition-proposal.md)**: Architecture deep dive
+- **[MCP Output Modes](../archive/mcp-output-modes.md)**: Detailed MCP usage
+- **[Technical Proposal](../architecture/proposals/meta-cognition-proposal.md)**: Architecture deep dive
 
 ---
 

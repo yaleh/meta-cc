@@ -500,7 +500,7 @@ meta-cc stats aggregate --group-by tool --metrics avg_duration | \
 
 ## See Also
 
-- [MCP Guide](mcp-guide.md) - MCP tool reference for Claude Code integration
-- [CLI Composability](cli-composability.md) - Advanced pipeline patterns
-- [JSONL Reference](jsonl-reference.md) - Detailed output format documentation
-- [Examples & Usage](examples-usage.md) - Step-by-step tutorials
+- [MCP Guide](../guides/mcp.md) - MCP tool reference for Claude Code integration
+- [CLI Composability](../tutorials/cli-composability.md) - Advanced pipeline patterns
+- [JSONL Reference](jsonl.md) - Detailed output format documentation
+- [Examples & Usage](../tutorials/examples.md) - Step-by-step tutorials

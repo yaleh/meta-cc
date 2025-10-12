@@ -456,5 +456,5 @@ fi
 ## See Also
 
 - [CLI Composability Guide](./cli-composability.md) - Integration with jq, grep, awk
-- [meta-cc README](../README.md) - Full command reference
-- [Examples and Usage](./examples-usage.md) - Getting started guide
+- [meta-cc README](../../README.md) - Full command reference
+- [Examples and Usage](examples.md) - Getting started guide

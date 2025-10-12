@@ -380,7 +380,7 @@ When contributing capabilities to the community:
 
 ## Resources
 
-- [MCP Guide](mcp-guide.md) - Complete MCP server documentation
-- [Integration Guide](integration-guide.md) - Choosing MCP/Slash/Subagent
+- [MCP Guide](mcp.md) - Complete MCP server documentation
+- [Integration Guide](integration.md) - Choosing MCP/Slash/Subagent
 - [Official Slash Commands](.claude/commands/) - Examples of existing capabilities
-- [Phase 22 Plan](../plans/22/plan.md) - Technical details of multi-source system
+- [Phase 22 Plan](../../plans/22-unified-meta-command/plan.md) - Technical details of multi-source system

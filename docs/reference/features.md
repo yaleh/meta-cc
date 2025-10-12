@@ -29,7 +29,7 @@ export META_CC_CAPABILITY_SOURCES="~/my-caps:commands"
 export META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@v1.0.0/commands"
 ```
 
-See [Capabilities Guide](capabilities-guide.md) for details.
+See [Capabilities Guide](../guides/capabilities.md) for details.
 
 ### MCP Integration
 
@@ -56,7 +56,7 @@ See [Capabilities Guide](capabilities-guide.md) for details.
 - `scope: "project"` (default) - Cross-session analysis
 - `scope: "session"` - Current session only
 
-See [MCP Guide](mcp-guide.md) for complete reference.
+See [MCP Guide](../guides/mcp.md) for complete reference.
 
 ### Interactive Coaching
 
@@ -692,8 +692,8 @@ meta-cc query tool-sequences --min-occurrences 3 --include-builtin-tools
 
 ## See Also
 
-- [CLI Reference](cli-reference.md) - Complete command list
-- [MCP Guide](mcp-guide.md) - MCP tool integration
-- [CLI Composability](cli-composability.md) - Advanced Unix patterns
-- [Capabilities Guide](capabilities-guide.md) - Create custom capabilities
-- [Integration Guide](integration-guide.md) - Choose MCP vs Slash vs Subagent
+- [CLI Reference](cli.md) - Complete command list
+- [MCP Guide](../guides/mcp.md) - MCP tool integration
+- [CLI Composability](../tutorials/cli-composability.md) - Advanced Unix patterns
+- [Capabilities Guide](../guides/capabilities.md) - Create custom capabilities
+- [Integration Guide](../guides/integration.md) - Choose MCP vs Slash vs Subagent

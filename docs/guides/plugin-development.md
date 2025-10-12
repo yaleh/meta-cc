@@ -384,7 +384,7 @@ export META_CC_CAPABILITY_SOURCES="./capabilities.tar.gz:capabilities/commands"
 
 **Priority**: Left-to-right (left = highest priority).
 
-**See**: [Unified Meta Command](unified-meta-command.md) for details.
+**See**: [Unified Meta Command](../reference/unified-meta-command.md) for details.
 
 ## Common Tasks
 
@@ -484,7 +484,7 @@ make test
 make build
 ```
 
-Fix errors iteratively. See [Testing Failure Protocol](principles.md#testing-failure-protocol).
+Fix errors iteratively. See [Testing Failure Protocol](../core/principles.md#testing-failure-protocol).
 
 ## Best Practices
 
@@ -513,6 +513,6 @@ Fix errors iteratively. See [Testing Failure Protocol](principles.md#testing-fai
 
 - [Release Process](release-process.md) - Complete release workflow
 - [Git Hooks](git-hooks.md) - Automatic version bumping
-- [Repository Structure](repository-structure.md) - Directory organization
-- [Unified Meta Command](unified-meta-command.md) - /meta command details
-- [Capabilities Guide](capabilities-guide.md) - Creating custom capabilities
+- [Repository Structure](../reference/repository-structure.md) - Directory organization
+- [Unified Meta Command](../reference/unified-meta-command.md) - /meta command details
+- [Capabilities Guide](capabilities.md) - Creating custom capabilities

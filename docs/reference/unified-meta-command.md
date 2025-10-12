@@ -503,7 +503,7 @@ export META_CC_CAPABILITY_SOURCES="./capabilities-latest.tar.gz"
 
 ## See Also
 
-- [Capabilities Guide](capabilities-guide.md) - Creating custom capabilities
-- [Plugin Development](plugin-development.md) - Plugin workflow
-- [MCP Guide](mcp-guide.md) - MCP tool usage
+- [Capabilities Guide](../guides/capabilities.md) - Creating custom capabilities
+- [Plugin Development](../guides/plugin-development.md) - Plugin workflow
+- [MCP Guide](../guides/mcp.md) - MCP tool usage
 - [Repository Structure](repository-structure.md) - Directory organization

@@ -387,5 +387,5 @@ esac
 ## See Also
 
 - [Cookbook](./cookbook.md) - Common analysis patterns
-- [meta-cc README](../README.md) - Full command reference
+- [meta-cc README](../../README.md) - Full command reference
 - [jq Manual](https://stedolan.github.io/jq/manual/) - jq documentation

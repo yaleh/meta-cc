@@ -340,6 +340,6 @@ For automatic version bumping, see [Git Hooks](git-hooks.md).
 ## See Also
 
 - [Git Hooks](git-hooks.md) - Automatic version bumping on commit
-- [CHANGELOG.md](../CHANGELOG.md) - Version history
+- [CHANGELOG.md](../../CHANGELOG.md) - Version history
 - [GitHub Releases](https://github.com/yaleh/meta-cc/releases) - Published releases
 - [GitHub Actions](https://github.com/yaleh/meta-cc/actions) - Build status

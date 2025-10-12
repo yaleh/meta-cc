@@ -69,7 +69,7 @@ claude mcp add meta-cc --transport stdio meta-cc-mcp --scope user
 # Or manual configuration in ~/.claude/settings.json
 ```
 
-See [README.md](../README.md) for detailed MCP setup instructions.
+See [README.md](../../README.md) for detailed MCP setup instructions.
 
 ## Integration Hierarchy
 
@@ -485,7 +485,7 @@ The meta-cc MCP server uses **hybrid output mode** to efficiently handle both sm
 - Response contains metadata and file path
 - Claude uses Read/Grep tools to analyze
 
-For full technical details, see [MCP Guide](mcp-guide.md).
+For full technical details, see [MCP Guide](../guides/mcp.md).
 
 ### Example 1: Small Query (Inline Mode)
 
@@ -770,7 +770,7 @@ export PATH=$PATH:/home/yale/work/meta-cc
 2. **Run test commands** from the checklist above
 3. **Try natural MCP queries** for cross-session analysis
 4. **Use @meta-coach** for interactive workflow optimization
-5. **Refer to [Integration Guide](integration-guide.md)** for decision framework
+5. **Refer to [Integration Guide](../guides/integration.md)** for decision framework
 
 ---
 

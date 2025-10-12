@@ -249,7 +249,7 @@ cat ~/.claude/projects/<hash>/<session-id>.jsonl | jq . | head -n 50
 
 If the above solutions don't work, please:
 
-1. **View project documentation**: [README.md](../README.md)
+1. **View project documentation**: [README.md](../../README.md)
 2. **Submit an Issue**: [GitHub Issues](https://github.com/yaleh/meta-cc/issues)
 3. **Check Claude Code documentation**: [Official Documentation](https://docs.claude.com/en/docs/claude-code)
 

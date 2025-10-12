@@ -2,7 +2,7 @@
 
 本文档定义了 meta-cc 项目的核心设计原则、开发约束和架构决策。
 
-> **注意**：详细的架构决策已迁移至 [Architecture Decision Records (ADRs)](adr/README.md)。本文档保留核心原则和快速参考。
+> **注意**：详细的架构决策已迁移至 [Architecture Decision Records (ADRs)](../architecture/adr/README.md)。本文档保留核心原则和快速参考。
 
 ---
 
@@ -26,7 +26,7 @@
 
 ## 二、架构设计原则
 
-> **详细决策**：参见 [ADR-001: 两层架构设计](adr/ADR-001-two-layer-architecture.md)
+> **详细决策**：参见 [ADR-001: 两层架构设计](../architecture/adr/ADR-001-two-layer-architecture.md)
 
 ### 1. 职责最小化原则
 
@@ -216,9 +216,9 @@ if err := flagSet.Set("output", "json"); err != nil {
 ## 六、MCP Server 设计原则
 
 > **详细决策**：
-> - [ADR-003: MCP Server 集成策略](adr/ADR-003-mcp-server-integration.md)
-> - [ADR-004: 混合输出模式设计](adr/ADR-004-hybrid-output-mode.md)
-> - [ADR-005: 作用域参数标准化](adr/ADR-005-scope-parameter-standardization.md)
+> - [ADR-003: MCP Server 集成策略](../architecture/adr/ADR-003-mcp-server-integration.md)
+> - [ADR-004: 混合输出模式设计](../architecture/adr/ADR-004-hybrid-output-mode.md)
+> - [ADR-005: 作用域参数标准化](../architecture/adr/ADR-005-scope-parameter-standardization.md)
 
 ### 架构分离：CLI vs MCP
 
@@ -250,7 +250,7 @@ if err := flagSet.Set("output", "json"); err != nil {
 
 ## 七、职责分离与集成层次
 
-> **详细决策**：参见 [ADR-003: MCP Server 集成策略](adr/ADR-003-mcp-server-integration.md)
+> **详细决策**：参见 [ADR-003: MCP Server 集成策略](../architecture/adr/ADR-003-mcp-server-integration.md)
 
 ### 集成层次概览
 
@@ -333,7 +333,7 @@ test-all:
 
 ## 十、打包与发布原则（Phase 20）
 
-> **详细决策**：参见 [ADR-002: 插件目录结构重构](adr/ADR-002-plugin-directory-structure.md)
+> **详细决策**：参见 [ADR-002: 插件目录结构重构](../architecture/adr/ADR-002-plugin-directory-structure.md)
 
 ### 插件结构（快速参考）
 
@@ -396,14 +396,14 @@ make bundle-release VERSION=v1.0.0
 ## 参考文档
 
 ### 架构决策记录（ADRs）
-- [ADR 索引](adr/README.md) - 所有架构决策记录
-- [ADR-001: 两层架构设计](adr/ADR-001-two-layer-architecture.md)
-- [ADR-002: 插件目录结构重构](adr/ADR-002-plugin-directory-structure.md)
-- [ADR-003: MCP Server 集成策略](adr/ADR-003-mcp-server-integration.md)
-- [ADR-004: 混合输出模式设计](adr/ADR-004-hybrid-output-mode.md)
-- [ADR-005: 作用域参数标准化](adr/ADR-005-scope-parameter-standardization.md)
+- [ADR 索引](../architecture/adr/README.md) - 所有架构决策记录
+- [ADR-001: 两层架构设计](../architecture/adr/ADR-001-two-layer-architecture.md)
+- [ADR-002: 插件目录结构重构](../architecture/adr/ADR-002-plugin-directory-structure.md)
+- [ADR-003: MCP Server 集成策略](../architecture/adr/ADR-003-mcp-server-integration.md)
+- [ADR-004: 混合输出模式设计](../architecture/adr/ADR-004-hybrid-output-mode.md)
+- [ADR-005: 作用域参数标准化](../architecture/adr/ADR-005-scope-parameter-standardization.md)
 
 ### 项目文档
 - [meta-cc 项目总体实施计划](./plan.md)
-- [Claude Code 元认知分析系统 - 技术方案](./proposals/meta-cognition-proposal.md)
+- [Claude Code 元认知分析系统 - 技术方案](../architecture/proposals/meta-cognition-proposal.md)
 - [Claude Code 官方文档](https://docs.claude.com/en/docs/claude-code/overview)

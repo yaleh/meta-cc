@@ -342,7 +342,7 @@ If you encounter issues not covered in this guide:
 
 After successful installation:
 
-1. **Read the documentation**: [Getting Started](../README.md)
+1. **Read the documentation**: [Getting Started](../../README.md)
 2. **Try slash commands**: `/meta-stats`, `/meta-errors`, `/meta-timeline`
 3. **Explore subagents**: `@meta-coach` for workflow analysis
-4. **Learn MCP tools**: See [MCP Guide](mcp-guide.md)
+4. **Learn MCP tools**: See [MCP Guide](../guides/mcp.md)

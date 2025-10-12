@@ -160,7 +160,7 @@ Releases are automated via GitHub Actions:
    - GitHub Release with auto-generated notes
    - Checksums file
 
-See [docs/release-process.md](release-process.md) for detailed instructions.
+See [docs/release-process.md](../guides/release-process.md) for detailed instructions.
 
 ## Community Health Files
 

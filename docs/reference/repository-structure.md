@@ -192,7 +192,7 @@ make sync-plugin-files
 ### Documentation Directories
 
 #### `docs/` - Technical Documentation
-See [DOCUMENTATION_MAP.md](DOCUMENTATION_MAP.md) for complete structure.
+See [DOCUMENTATION_MAP.md](../DOCUMENTATION_MAP.md) for complete structure.
 
 **Key documents**:
 - **plan.md**: Phase-by-phase roadmap
@@ -310,7 +310,7 @@ make sync-plugin-files
 
 ## See Also
 
-- [Plugin Development Guide](plugin-development.md) - Detailed plugin workflow
-- [Release Process](release-process.md) - Release workflow
-- [Git Hooks](git-hooks.md) - Git hooks usage
-- [DOCUMENTATION_MAP.md](DOCUMENTATION_MAP.md) - Documentation navigation
+- [Plugin Development Guide](../guides/plugin-development.md) - Detailed plugin workflow
+- [Release Process](../guides/release-process.md) - Release workflow
+- [Git Hooks](../guides/git-hooks.md) - Git hooks usage
+- [DOCUMENTATION_MAP.md](../DOCUMENTATION_MAP.md) - Documentation navigation
