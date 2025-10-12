@@ -223,7 +223,7 @@ git commit -m "feat: improve error analysis"
 
 ## Unified Meta Command
 
-The `/meta` command provides a unified entry point for 13+ capabilities with natural language intent matching.
+The `/meta` command provides a unified entry point for 15+ capabilities with natural language intent matching.
 
 **Usage**:
 ```

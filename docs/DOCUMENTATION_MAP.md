@@ -66,19 +66,19 @@ graph TD
   docs_plugin_development_md["plugin-development.md<br/>(Plugin Workflow)"]:::guide
   docs_repository_structure_md["repository-structure.md<br/>(Directory Guide)"]:::guide
   docs_unified_meta_command_md["unified-meta-command.md<br/>(/meta Command)"]:::guide
-  docs_integration_guide_md["integration-guide.md"]:::guide
-  docs_mcp_guide_md["mcp-guide.md<br/>(MCP Complete)"]:::guide
-  docs_capabilities_guide_md["capabilities-guide.md"]:::guide
+  docs_integration_guide_md["integration.md"]:::guide
+  docs_mcp_guide_md["mcp.md<br/>(MCP Complete)"]:::guide
+  docs_capabilities_guide_md["capabilities.md"]:::guide
 
   %% Maintenance Guides
   docs_git_hooks_md["git-hooks.md<br/>(Git Hooks)"]:::maintenance
   docs_release_process_md["release-process.md<br/>(Release)"]:::maintenance
 
   %% Reference Docs
-  docs_cli_reference_md["cli-reference.md<br/>(CLI Commands)"]:::reference
-  docs_jsonl_reference_md["jsonl-reference.md<br/>(Output Format)"]:::reference
+  docs_cli_reference_md["cli.md<br/>(CLI Commands)"]:::reference
+  docs_jsonl_reference_md["jsonl.md<br/>(Output Format)"]:::reference
   docs_features_md["features.md<br/>(Advanced Features)"]:::reference
-  docs_examples_usage_md["examples-usage.md<br/>(Tutorials)"]:::reference
+  docs_examples_usage_md["examples.md<br/>(Tutorials)"]:::reference
   docs_cookbook_md["cookbook.md<br/>(Advanced Use Cases)"]:::reference
 
   %% Architecture
