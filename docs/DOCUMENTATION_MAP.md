@@ -14,13 +14,23 @@ graph TD
   %% Key Guides
   docs_plan_md["plan.md<br/>(Roadmap)"]:::guide
   docs_principles_md["principles.md<br/>(Design Rules)"]:::guide
+  docs_plugin_development_md["plugin-development.md<br/>(Plugin Workflow)"]:::guide
+  docs_repository_structure_md["repository-structure.md<br/>(Directory Guide)"]:::guide
+  docs_unified_meta_command_md["unified-meta-command.md<br/>(/meta Command)"]:::guide
   docs_integration_guide_md["integration-guide.md"]:::guide
   docs_mcp_guide_md["mcp-guide.md<br/>(MCP Complete)"]:::guide
+  docs_capabilities_guide_md["capabilities-guide.md"]:::guide
+
+  %% Maintenance Guides
+  docs_git_hooks_md["git-hooks.md<br/>(Git Hooks)"]:::maintenance
+  docs_release_process_md["release-process.md<br/>(Release)"]:::maintenance
 
   %% Reference Docs
   docs_cli_reference_md["cli-reference.md<br/>(CLI Commands)"]:::reference
   docs_jsonl_reference_md["jsonl-reference.md<br/>(Output Format)"]:::reference
   docs_features_md["features.md<br/>(Advanced Features)"]:::reference
+  docs_examples_usage_md["examples-usage.md<br/>(Tutorials)"]:::reference
+  docs_cookbook_md["cookbook.md<br/>(Advanced Use Cases)"]:::reference
 
   %% Architecture
   docs_adr_README_md["ADR Index"]:::adr
@@ -29,8 +39,11 @@ graph TD
   %% Dependencies - Core Entry Points
   CLAUDE_md --> docs_principles_md
   CLAUDE_md --> docs_plan_md
+  CLAUDE_md --> docs_plugin_development_md
+  CLAUDE_md --> docs_repository_structure_md
   CLAUDE_md --> docs_mcp_guide_md
   CLAUDE_md --> docs_integration_guide_md
+  CLAUDE_md --> docs_unified_meta_command_md
 
   README_md --> docs_mcp_guide_md
   README_md --> docs_integration_guide_md
@@ -42,18 +55,26 @@ graph TD
   docs_principles_md --> docs_adr_README_md
   docs_plan_md --> docs_adr_README_md
   docs_plan_md --> docs_proposals_md
+  docs_plugin_development_md --> docs_git_hooks_md
+  docs_plugin_development_md --> docs_release_process_md
+  docs_plugin_development_md --> docs_repository_structure_md
+  docs_plugin_development_md --> docs_unified_meta_command_md
+  docs_unified_meta_command_md --> docs_capabilities_guide_md
   docs_integration_guide_md --> docs_examples_usage_md
   docs_mcp_guide_md --> docs_integration_guide_md
+  docs_examples_usage_md --> docs_cookbook_md
 
   %% Dependencies - Reference
   docs_cli_reference_md --> docs_jsonl_reference_md
   docs_cli_reference_md --> docs_mcp_guide_md
   docs_features_md --> docs_cli_reference_md
   docs_features_md --> docs_mcp_guide_md
+  docs_cookbook_md --> docs_features_md
 
   %% Styles
   classDef entry fill:#e8f5e9,stroke:#4caf50,stroke-width:3px
   classDef guide fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+  classDef maintenance fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
   classDef reference fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
   classDef adr fill:#fff3e0,stroke:#ff9800,stroke-width:2px
 ```
@@ -79,7 +100,17 @@ graph TD
 1. **Entry Point**: [CLAUDE.md](../CLAUDE.md) - Development workflow
 2. **Design Rules**: [docs/principles.md](principles.md) - Core constraints
 3. **Roadmap**: [docs/plan.md](plan.md) - Phase-by-phase plan
-4. **Architecture**: [docs/adr/README.md](adr/README.md) - ADR index
+4. **Plugin Development**: [docs/plugin-development.md](plugin-development.md) - Complete workflow
+5. **Repository Structure**: [docs/repository-structure.md](repository-structure.md) - Directory guide
+6. **Architecture**: [docs/adr/README.md](adr/README.md) - ADR index
+
+### For Plugin & Integration Development
+
+1. **Plugin Workflow**: [docs/plugin-development.md](plugin-development.md) - Complete development guide
+2. **Unified /meta Command**: [docs/unified-meta-command.md](unified-meta-command.md) - /meta command guide
+3. **Git Hooks**: [docs/git-hooks.md](git-hooks.md) - Automatic version bumping
+4. **Release Process**: [docs/release-process.md](release-process.md) - Release workflow
+5. **Repository Structure**: [docs/repository-structure.md](repository-structure.md) - Directory organization
 
 ### For Integration Work
 
@@ -139,3 +170,29 @@ graph TD
    - New users understand the project in < 2 minutes
    - Advanced users find detailed docs easily
    - Developers have clear separation from public docs
+
+### CLAUDE.md Simplification & Documentation Reorganization (Latest)
+
+1. **54% size reduction**: CLAUDE.md simplified from 607 lines → 278 lines
+2. **New task-specific guides**:
+   - plugin-development.md: Complete plugin workflow (467 lines)
+   - repository-structure.md: Directory organization (305 lines)
+   - unified-meta-command.md: /meta command guide (529 lines)
+   - git-hooks.md: Git hooks usage (complete guide)
+   - release-process.md: Release workflow (comprehensive)
+3. **Removed redundant files**:
+   - plugin-structure.md → merged into plugin-development.md
+   - plugin-sync-mechanism.md → merged into plugin-development.md
+   - marketplace-listing.md → content in .claude-plugin/marketplace.json
+4. **Archived historical docs**:
+   - optimization-complete.md, optimization-summary.md → docs/archive/
+   - migration-phase14.md → docs/archive/
+5. **Clear separation of concerns**:
+   - CLAUDE.md: Quick reference and navigation hub
+   - Task-specific docs: Detailed workflows (plugin, release, hooks)
+   - Reference docs: Complete specifications (MCP, CLI, JSONL)
+6. **Benefits**:
+   - Faster context loading for Claude Code (54% token reduction)
+   - Easier navigation with task-specific documents
+   - All information preserved with improved discoverability
+   - Clear documentation dependency graph
