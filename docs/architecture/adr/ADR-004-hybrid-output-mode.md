@@ -385,5 +385,5 @@ When you receive a `file_ref` response:
 
 ### References
 
-- [MCP Guide](../mcp-guide.md)
-- [Integration Guide](../integration-guide.md)
+- [MCP Guide](../../guides/mcp.md)
+- [Integration Guide](../../guides/integration.md)

@@ -286,6 +286,6 @@ This differs from the **"Principle of least surprise"** which might suggest `get
 
 ### References
 
-- [Integration Guide](../integration-guide.md)
-- [MCP Guide](../mcp-guide.md)
-- [Tool Descriptions](../../cmd/server.go)
+- [Integration Guide](../../guides/integration.md)
+- [MCP Guide](../../guides/mcp.md)
+- [Tool Descriptions](../../cmd/mcp-server/main.go)

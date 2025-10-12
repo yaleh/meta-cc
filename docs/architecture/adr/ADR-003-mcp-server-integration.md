@@ -289,7 +289,7 @@ All three methods use the same MCP tool but present results differently.
 
 ### References
 
-- [Integration Guide](../integration-guide.md)
-- [MCP Guide](../mcp-guide.md)
+- [Integration Guide](../../guides/integration.md)
+- [MCP Guide](../../guides/mcp.md)
 - [Slash Commands](../../.claude/commands/)
 - [Subagents](../../.claude/agents/)

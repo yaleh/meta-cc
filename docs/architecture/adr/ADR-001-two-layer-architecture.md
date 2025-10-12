@@ -151,6 +151,6 @@ This principle guides all architectural decisions:
 
 ### References
 
-- [Implementation Plan](../plan.md)
-- [Design Principles](../principles.md)
+- [Implementation Plan](../../core/plan.md)
+- [Design Principles](../../core/principles.md)
 - [Technical Proposal](../proposals/meta-cognition-proposal.md)

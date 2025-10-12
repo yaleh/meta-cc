@@ -240,4 +240,4 @@ By treating `commands/` and `agents/` as **build artifacts**, we get:
 ### References
 
 - [Claude Code Plugin Spec](https://docs.claude.com/en/docs/claude-code/overview)
-- [Plugin Development Workflow](../examples-usage.md#plugin-development)
+- [Plugin Development Workflow](../../tutorials/examples.md#plugin-development)
