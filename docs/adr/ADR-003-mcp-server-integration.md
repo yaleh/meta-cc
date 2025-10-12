@@ -290,6 +290,6 @@ All three methods use the same MCP tool but present results differently.
 ### References
 
 - [Integration Guide](../integration-guide.md)
-- [MCP Output Modes](../mcp-output-modes.md)
+- [MCP Guide](../mcp-guide.md)
 - [Slash Commands](../../.claude/commands/)
 - [Subagents](../../.claude/agents/)

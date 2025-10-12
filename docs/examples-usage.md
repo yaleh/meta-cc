@@ -485,7 +485,7 @@ The meta-cc MCP server uses **hybrid output mode** to efficiently handle both sm
 - Response contains metadata and file path
 - Claude uses Read/Grep tools to analyze
 
-For full technical details, see [MCP Output Modes Documentation](mcp-output-modes.md).
+For full technical details, see [MCP Guide](mcp-guide.md).
 
 ### Example 1: Small Query (Inline Mode)
 

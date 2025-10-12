@@ -181,7 +181,7 @@ echo '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"analyze_er
 1. ✅ Stage 8.8 completed successfully
 2. 📋 Proceed to Stage 8.9: Configure MCP Server to Claude Code
    - Create `.claude/mcp-servers/meta-cc.json`
-   - Create `docs/mcp-usage.md`
+   - Create `docs/mcp-guide.md`
    - Test MCP integration
 
 ## Issues Encountered

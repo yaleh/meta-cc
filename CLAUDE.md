@@ -2,6 +2,60 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Quick Links
+
+### New to meta-cc?
+- **Start here**: [README.md](README.md) - Installation and quick start
+- **Understand the design**: [docs/principles.md](docs/principles.md) - Core constraints (≤500 lines/phase, TDD required)
+- **Integration guide**: [docs/integration-guide.md](docs/integration-guide.md) - Choose MCP/Slash/Subagent
+
+### Development Workflow
+- **Current plan**: [docs/plan.md](docs/plan.md) - Phase roadmap and status
+- **Phase details**: [plans/](plans/) - Detailed stage-by-stage plans
+- **Build and test**: Run `make all` after each stage
+
+### MCP Server Usage
+- **MCP guide**: [docs/mcp-guide.md](docs/mcp-guide.md) - Complete MCP server reference (16 tools)
+- **Quick test**: `@meta-cc get_session_stats`
+
+### Common Tasks
+- **Fix test failures**: `make test` → Review errors → Fix → `make all`
+- **Create slash command**: See [docs/integration-guide.md#creating-custom-integrations](docs/integration-guide.md#creating-custom-integrations)
+- **Query session data**: Use MCP tools (see [Using meta-cc](#using-meta-cc) below)
+
+---
+
+## FAQ
+
+**Q: Tests failed after my changes - what should I do?**
+A: Run `make all` to see lint + test + build errors. Fix issues iteratively. If tests fail after multiple attempts, HALT development and document blockers (see [Testing Failure Protocol](#phase-planning-and-organization)).
+
+**Q: How much code can I write in one phase?**
+A: Maximum 500 lines per phase, 200 lines per stage. See [docs/principles.md](docs/principles.md) for details.
+
+**Q: Should I use MCP, Slash Commands, or Subagent?**
+A: Quick rule: Natural questions → MCP | Repeated workflows → Slash | Exploration → Subagent. See [docs/integration-guide.md#decision-framework](docs/integration-guide.md#decision-framework).
+
+**Q: Where is the MCP server implementation?**
+A: `cmd/mcp.go` contains the JSON-RPC server. See [docs/mcp-guide.md](docs/mcp-guide.md) for usage.
+
+**Q: How do I query session data programmatically?**
+A: Use MCP tools like `query_tools`, `query_user_messages`. See [Using meta-cc](#using-meta-cc) section below.
+
+**Q: What's the difference between `query_user_messages` and `query_conversation`?**
+A: `query_user_messages` searches only user messages. `query_conversation` searches both user and assistant messages (can filter by role).
+
+**Q: Why are my MCP query results in a temp file?**
+A: Results >8KB automatically use file_ref mode to avoid token limits. Read the file with the Read tool. See [docs/mcp-guide.md#hybrid-output-mode](docs/mcp-guide.md#hybrid-output-mode).
+
+**Q: Do I need to set `limit` parameter for MCP queries?**
+A: No, by default queries return all results (hybrid mode handles large data). Only use `limit` when user explicitly requests a specific number. See [Query Limit Strategy](#query-limit-strategy).
+
+**Q: Should I include built-in tools in `query_tool_sequences`?**
+A: No, by default built-in tools (Bash, Read, Edit, etc.) are excluded for cleaner workflow patterns and 35x faster analysis. See [Query Tool Sequences](#query-tool-sequences---built-in-tool-filtering).
+
+---
+
 ## Project Overview
 
 This repository contains the **meta-cc** (Meta-Cognition for Claude Code) project - a system for analyzing Claude Code session history to provide metacognitive insights and workflow optimization.
@@ -377,7 +431,7 @@ See [docs/capabilities-guide.md](docs/capabilities-guide.md) for capability deve
 
 meta-cc provides programmatic access to session data. Claude can autonomously query this data when analyzing workflows, debugging issues, or providing recommendations.
 
-For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes.md).
+For complete details, see [MCP Guide](docs/mcp-guide.md).
 
 ### Query Tools (16 available)
 
@@ -539,7 +593,7 @@ For choosing between integration methods, see [docs/integration-guide.md](docs/i
 - [Implementation Plan](docs/plan.md) - Phase-by-phase development roadmap
 - [Design Principles](docs/principles.md) - Core constraints and architecture decisions
 - [Integration Guide](docs/integration-guide.md) - Choosing between MCP/Slash/Subagent
-- [MCP Output Modes](docs/mcp-output-modes.md) - Detailed MCP usage and hybrid output mode
+- [MCP Guide](docs/mcp-guide.md) - Complete MCP server documentation
 - [Technical Proposal](docs/proposals/meta-cognition-proposal.md) - Architecture and design
 - [Examples & Usage](docs/examples-usage.md) - Step-by-step setup guides
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions

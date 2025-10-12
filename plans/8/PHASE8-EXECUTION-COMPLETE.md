@@ -88,7 +88,7 @@ meta-cc analyze idle-periods --threshold "5 minutes"
 
 **交付物**:
 - `.claude/mcp-servers/meta-cc.json` - MCP 配置文件
-- `docs/mcp-usage.md` - 完整使用文档（15KB, 614 lines）
+- `docs/mcp-guide.md` - 完整使用文档（15KB, 614 lines）
 
 **文档内容**:
 - 8 个 MCP 工具完整参考
@@ -261,7 +261,7 @@ git commit -m "feat(phase-8): complete Stage 8.10-8.11 - context queries and wor
 
 - Stage 8.9: MCP Configuration (~620 lines)
   - .claude/mcp-servers/meta-cc.json
-  - docs/mcp-usage.md (comprehensive guide)
+  - docs/mcp-guide.md (comprehensive guide)
 
 Tests: All passing (40+ unit tests)
 Verified: Real projects (meta-cc, NarrativeForge)

@@ -311,7 +311,7 @@ Remove default limit values from MCP tool descriptions to align interface descri
 **Modified Files**:
 - `cmd/mcp-server/tools.go` (~30 lines)
 - `cmd/mcp-server/tools_test.go` (~50 lines new tests)
-- `docs/mcp-tools-reference.md` - Update parameter descriptions
+- `docs/mcp-guide.md` - Update parameter descriptions
 - `docs/principles.md` - Already updated with "默认查询范围与输出控制" section
 - `CLAUDE.md` - Already updated with "Query Limit Strategy" guidance
 
@@ -505,8 +505,8 @@ Validate end-to-end hybrid output mode functionality with real MCP queries and u
 - [x] Integration tests verify no truncation occurs with large datasets
 - [x] Integration tests verify configurable threshold behavior
 - [x] Performance benchmarks meet <200ms file write requirement (actual: <50ms)
-- [x] Documentation updated: `docs/mcp-output-modes.md`
-- [x] Documentation updated: `docs/mcp-tools-reference.md` with accurate parameter descriptions
+- [x] Documentation updated: `docs/mcp-guide.md`
+- [x] Documentation updated: `docs/mcp-guide.md` with accurate parameter descriptions
 - [x] Example usage added to `docs/examples-usage.md`
 - [x] CLAUDE.md updated with hybrid output mode guidance and Query Limit Strategy (done in Stage 5)
 - [x] Phase 16 marked complete in `docs/plan.md`
@@ -531,10 +531,10 @@ Validate end-to-end hybrid output mode functionality with real MCP queries and u
 
 **New Files**:
 - `cmd/mcp-server/integration_test.go`
-- `docs/mcp-output-modes.md` - Detailed hybrid mode documentation
+- `docs/mcp-guide.md` - Detailed hybrid mode documentation
 
 **Modified Files**:
-- `docs/mcp-tools-reference.md` - Update tool parameter descriptions (remove max_output_bytes, add inline_threshold_bytes)
+- `docs/mcp-guide.md` - Update tool parameter descriptions (remove max_output_bytes, add inline_threshold_bytes)
 - `docs/examples-usage.md` - Add hybrid output examples
 - `docs/plan.md` - Mark Phase 16 complete
 - `CLAUDE.md` - Update output control parameters section
@@ -631,7 +631,7 @@ make test-coverage
 
 ## Documentation Updates
 
-### New Documentation: `docs/mcp-output-modes.md`
+### New Documentation: `docs/mcp-guide.md`
 
 **Outline**:
 1. **Overview**: Why hybrid output mode?
@@ -647,7 +647,7 @@ make test-coverage
 
 ### Updates to Existing Docs
 
-**`docs/mcp-tools-reference.md`**:
+**`docs/mcp-guide.md`**:
 - Update parameter reference: remove `max_output_bytes`, add `inline_threshold_bytes`
 - Add threshold configuration examples
 - Add no-truncation policy statement
@@ -673,7 +673,7 @@ make test-coverage
 
 **`docs/plan.md`**:
 - Mark Phase 16 complete
-- Add link to `docs/mcp-output-modes.md`
+- Add link to `docs/mcp-guide.md`
 - Update Stage 16.6 with completion status
 
 ---
@@ -726,7 +726,7 @@ go test -bench=BenchmarkCleanupOldFiles ./cmd/mcp-server
    - **Mitigation**: Backward compatibility via `output_mode=legacy` parameter
 
 5. **Removing default limits causes confusion**: Users unsure when to use explicit limits
-   - **Mitigation**: Clear documentation in CLAUDE.md and mcp-tools-reference.md
+   - **Mitigation**: Clear documentation in CLAUDE.md and mcp-guide.md
    - **Mitigation**: Claude autonomously decides based on conversation context
 
 6. **Removing truncation may cause oversized responses**: Without truncation safeguard
@@ -809,8 +809,8 @@ meta-cc/
 │   ├── response_adapter_test.go     # (New) Adapter tests, no-truncation tests (Stage 6)
 │   └── integration_test.go          # (New) E2E tests, threshold tests (Stage 7)
 ├── docs/
-│   ├── mcp-output-modes.md          # (New) Hybrid output documentation, threshold config, no truncation
-│   ├── mcp-tools-reference.md       # (Modified) Tool parameter reference (Stage 5 + 6)
+│   ├── mcp-guide.md          # (New) Hybrid output documentation, threshold config, no truncation
+│   ├── mcp-guide.md       # (Modified) Tool parameter reference (Stage 5 + 6)
 │   ├── examples-usage.md            # (Modified) Add hybrid examples, threshold examples
 │   ├── principles.md                # (Modified) Already updated with Stage 6 notes
 │   └── plan.md                      # (Modified) Mark Phase 16 complete
@@ -1004,7 +1004,7 @@ case "query_tool_sequences":
 - `cmd/mcp-server/executor.go` (~15 lines: handle include_builtin_tools parameter)
 - `cmd/mcp-server/executor_test.go` (~40 lines: test MCP parameter)
 - `cmd/mcp-server/tools.go` (~10 lines: add parameter definition)
-- `docs/mcp-tools-reference.md` (~20 lines: document parameter and performance characteristics)
+- `docs/mcp-guide.md` (~20 lines: document parameter and performance characteristics)
 - `CLAUDE.md` (~15 lines: update query_tool_sequences usage)
 
 **Total Changes**: ~260 lines (implementation + tests + docs)
@@ -1069,7 +1069,7 @@ None (independent feature, can be implemented in parallel with other stages)
 
 ### Documentation Updates
 
-**`docs/mcp-tools-reference.md`**:
+**`docs/mcp-guide.md`**:
 ```markdown
 ## query_tool_sequences
 
@@ -1122,7 +1122,7 @@ query_tool_sequences(include_builtin_tools=true)  # Include all tools
 - ✅ All 13 MCP tools support hybrid output mode
 - ✅ Performance: 100KB file write <50ms (4x faster than requirement)
 - ✅ Comprehensive integration tests (10 test cases)
-- ✅ Complete documentation (mcp-output-modes.md, mcp-tools-reference.md, examples-usage.md)
+- ✅ Complete documentation (mcp-guide.md, mcp-guide.md, examples-usage.md)
 - ✅ Zero breaking changes to existing functionality
 
 **Test Results**:
@@ -1137,5 +1137,5 @@ query_tool_sequences(include_builtin_tools=true)  # Include all tools
 3. `cmd/mcp-server/file_reference.go` - File reference metadata generation
 4. `cmd/mcp-server/response_adapter.go` - Hybrid mode response adapter
 5. `cmd/mcp-server/integration_test.go` - End-to-end integration tests
-6. `docs/mcp-output-modes.md` - Complete hybrid mode documentation
-7. Updated: `docs/mcp-tools-reference.md`, `docs/examples-usage.md`, `CLAUDE.md`
+6. `docs/mcp-guide.md` - Complete hybrid mode documentation
+7. Updated: `docs/mcp-guide.md`, `docs/examples-usage.md`, `CLAUDE.md`

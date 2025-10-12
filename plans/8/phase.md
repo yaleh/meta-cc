@@ -133,7 +133,7 @@
 - **Time**: 30 minutes
 - **Deliverables**:
   - Create `.claude/mcp-servers/meta-cc.json` configuration
-  - Create `docs/mcp-usage.md` documentation
+  - Create `docs/mcp-guide.md` documentation
   - Test MCP integration with natural language queries
 
 ## Architecture
@@ -514,7 +514,7 @@ jq empty .claude/mcp-servers/meta-cc.json
 ### MCP Integration (8.8-8.9) 📋
 - 📋 `cmd/mcp.go` - Enhanced with Phase 8 tools
 - 📋 `.claude/mcp-servers/meta-cc.json` - MCP configuration created
-- 📋 `docs/mcp-usage.md` - MCP usage guide created
+- 📋 `docs/mcp-guide.md` - MCP usage guide created
 
 ## Documentation Updates
 
