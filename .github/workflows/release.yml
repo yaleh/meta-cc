@@ -28,39 +28,27 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Verify plugin.json version matches tag
+      - name: Inject version from git tag into plugin.json
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           VERSION_NUM=${VERSION#v}
-          PLUGIN_VERSION=$(jq -r '.version' .claude-plugin/plugin.json)
 
-          if [ "$PLUGIN_VERSION" != "$VERSION_NUM" ]; then
-            echo "❌ ERROR: Version mismatch!"
-            echo "  Git tag: $VERSION ($VERSION_NUM)"
-            echo "  plugin.json: $PLUGIN_VERSION"
-            echo ""
-            echo "This should not happen if you used scripts/release.sh"
-            echo "Please ensure the release script updated version files correctly."
-            exit 1
-          fi
-          echo "✓ Version verified: $VERSION_NUM"
+          echo "Injecting version $VERSION_NUM into plugin.json..."
+          jq --arg ver "$VERSION_NUM" '.version = $ver' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
+          mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
 
-      - name: Verify marketplace.json version matches tag
+          echo "✓ plugin.json version: $(jq -r '.version' .claude-plugin/plugin.json)"
+
+      - name: Inject version from git tag into marketplace.json
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           VERSION_NUM=${VERSION#v}
-          MARKETPLACE_VERSION=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)
 
-          if [ "$MARKETPLACE_VERSION" != "$VERSION_NUM" ]; then
-            echo "❌ ERROR: Version mismatch!"
-            echo "  Git tag: $VERSION ($VERSION_NUM)"
-            echo "  marketplace.json: $MARKETPLACE_VERSION"
-            echo ""
-            echo "This should not happen if you used scripts/release.sh"
-            echo "Please ensure the release script updated version files correctly."
-            exit 1
-          fi
-          echo "✓ Marketplace version verified: $VERSION_NUM"
+          echo "Injecting version $VERSION_NUM into marketplace.json..."
+          jq --arg ver "$VERSION_NUM" '.plugins[0].version = $ver' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
+          mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
+
+          echo "✓ marketplace.json version: $(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)"
 
       - name: Sync plugin files
         run: bash scripts/sync-plugin-files.sh

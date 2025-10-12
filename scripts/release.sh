@@ -2,6 +2,14 @@
 set -e
 
 # Usage: ./scripts/release.sh v1.0.0
+#
+# NOTE: This script is now OPTIONAL with dynamic version injection.
+# You can also release directly with: git tag v1.0.0 && git push origin v1.0.0
+#
+# This script provides:
+# - Test suite validation before tagging
+# - CHANGELOG.md validation
+# - Consistent release process
 
 VERSION=$1
 VERSION_NUM=${VERSION#v}  # Remove 'v' prefix
@@ -9,6 +17,10 @@ VERSION_NUM=${VERSION#v}  # Remove 'v' prefix
 if [ -z "$VERSION" ]; then
     echo "Error: Version required"
     echo "Usage: ./scripts/release.sh v1.0.0"
+    echo ""
+    echo "Alternative: Create and push tag directly"
+    echo "  git tag -a v1.0.0 -m 'Release v1.0.0'"
+    echo "  git push origin v1.0.0"
     exit 1
 fi
 
@@ -31,13 +43,6 @@ if [ -n "$(git status --porcelain)" ]; then
     exit 1
 fi
 
-# Check if jq is installed
-if ! command -v jq &> /dev/null; then
-    echo "Error: jq is required but not installed"
-    echo "Install with: sudo apt-get install jq (Ubuntu/Debian) or brew install jq (macOS)"
-    exit 1
-fi
-
 echo "=== Release $VERSION ==="
 echo ""
 
@@ -47,21 +52,8 @@ make all
 echo "✓ Tests passed"
 echo ""
 
-# Update plugin.json version
-echo "Updating plugin.json version to $VERSION_NUM..."
-jq --arg ver "$VERSION_NUM" '.version = $ver' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
-mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
-echo "✓ plugin.json updated"
-
-# Update marketplace.json version
-echo "Updating marketplace.json version to $VERSION_NUM..."
-jq --arg ver "$VERSION_NUM" '.plugins[0].version = $ver' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
-mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
-echo "✓ marketplace.json updated"
-echo ""
-
 # Prompt for CHANGELOG update
-echo "Please update CHANGELOG.md with release notes for $VERSION"
+echo "Please ensure CHANGELOG.md has been updated with release notes for $VERSION"
 echo "Press Enter when ready to continue, or Ctrl+C to abort..."
 read
 
@@ -76,37 +68,27 @@ if ! grep -q "## \[$VERSION_NUM\]" CHANGELOG.md; then
     fi
 fi
 
-# Commit version updates
-echo "Committing version updates..."
-git add .claude-plugin/plugin.json .claude-plugin/marketplace.json CHANGELOG.md
-git commit -m "chore: release $VERSION
-
-Update plugin.json, marketplace.json, and CHANGELOG.md to version $VERSION_NUM.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
-echo "✓ Version updates committed"
-echo ""
-
 # Create tag
 echo "Creating tag $VERSION..."
 git tag -a "$VERSION" -m "Release $VERSION"
 echo "✓ Tag created"
 echo ""
 
-# Push commits and tag
-echo "Pushing to remote..."
-git push origin "$BRANCH"
+# Push tag
+echo "Pushing tag to remote..."
 git push origin "$VERSION"
-echo "✓ Pushed to remote"
+echo "✓ Tag pushed"
 echo ""
 
 echo "=== Release $VERSION Complete ==="
 echo ""
 echo "GitHub Actions will now:"
-echo "  1. Build cross-platform binaries"
-echo "  2. Create GitHub Release"
-echo "  3. Upload binaries"
+echo "  1. Inject version $VERSION_NUM into plugin.json and marketplace.json"
+echo "  2. Build cross-platform binaries"
+echo "  3. Create GitHub Release"
+echo "  4. Upload binaries"
 echo ""
 echo "Monitor progress: https://github.com/yaleh/meta-cc/actions"
+echo ""
+echo "Note: Version files (plugin.json, marketplace.json) remain 'dev' in the repository."
+echo "      The actual version is injected during the build process from the git tag."
