@@ -46,7 +46,7 @@ Error: failed to locate session file: no session file found
 ```
 
 **Possible causes**:
-1. Environment variables `CC_SESSION_ID` and `CC_PROJECT_HASH` not set
+1. Environment variables `CC_SESSION_ID` and `CC_PROJECT_HASH` not set (when using `--session-only`)
 2. Current directory is not the Claude Code project root
 3. Session file does not exist
 
@@ -58,9 +58,88 @@ meta-cc parse stats --session <session-id>
 # Option 2: Manually specify project path
 meta-cc parse stats --project /path/to/project
 
-# Option 3: Check if session file exists
+# Option 3: Use --session-only with environment variables
+export CC_SESSION_ID=<session-id>
+export CC_PROJECT_HASH=<project-hash>
+meta-cc parse stats --session-only
+
+# Option 4: Check if session file exists
 ls ~/.claude/projects/
 ```
+
+### Environment variables not working
+
+**Symptoms**:
+```
+Error: session location failed: failed to locate session file: tried session ID, project path, and env vars
+```
+
+**Root Cause**: Environment variables `CC_SESSION_ID` and `CC_PROJECT_HASH` are only checked when using `--session-only` flag (by design).
+
+**Solution**:
+```bash
+# CORRECT: Use --session-only flag with environment variables
+export CC_SESSION_ID=<session-id>
+export CC_PROJECT_HASH=<project-hash>
+meta-cc parse stats --session-only
+
+# INCORRECT: Environment variables without --session-only (will use project-level default)
+export CC_SESSION_ID=<session-id>
+meta-cc parse stats  # This uses project-level analysis, ignores env vars
+```
+
+**Why this design?**
+- **Default behavior** (no flags): Project-level analysis using current directory
+- **`--session-only` flag**: Session-level analysis using environment variables
+- This prevents unintended session-only mode when environment variables are set globally
+
+## MCP Server Issues
+
+### "unknown source type: package" error
+
+**Symptoms**:
+```
+MCP error -32603: failed to get capability: unknown source type: package
+```
+
+**Root Cause**: Fixed in v0.26.6. Update to the latest version.
+
+**Solution**:
+```bash
+# Update meta-cc to v0.26.6 or later
+cd /path/to/meta-cc
+git pull
+make build
+sudo cp meta-cc /usr/local/bin/meta-cc
+sudo cp meta-cc-mcp /usr/local/bin/meta-cc-mcp
+
+# Or download from GitHub releases
+curl -L https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-amd64 -o meta-cc
+sudo mv meta-cc /usr/local/bin/meta-cc
+sudo chmod +x /usr/local/bin/meta-cc
+```
+
+### MCP `scope: "session"` not working
+
+**Symptoms**:
+```
+MCP error -32603: meta-cc error: command failed with exit code (stderr empty)
+Command: /path/to/meta-cc --session-only parse stats --output jsonl
+```
+
+**Root Cause**: Fixed in v0.26.6. The `--session-only` flag now correctly uses environment variables.
+
+**Verification**:
+```bash
+# Test session-only mode manually
+export CC_SESSION_ID=<session-id>
+export CC_PROJECT_HASH=<project-hash>
+meta-cc --session-only parse stats --output jsonl
+
+# Should output session statistics
+```
+
+**Update to v0.26.6+**: This fix ensures MCP tools with `scope: "session"` parameter work correctly.
 
 ## Slash Commands Issues
 

@@ -5,6 +5,29 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **MCP Server Capability Loading**
+  - Fixed "unknown source type: package" error when using package-based capability sources
+  - Implemented `readPackageCapability` function with proper cache validation and fallback
+  - Package sources now correctly download, extract, and cache `.tar.gz` capability packages
+- **Session-Only Mode**
+  - Fixed inverted condition in session locator that prevented environment variable detection
+  - `--session-only` flag now correctly checks `CC_SESSION_ID` and `CC_PROJECT_HASH` environment variables
+  - MCP tools with `scope: "session"` parameter now work correctly
+- **Test Suite**
+  - Updated `TestParseStatsCommand_JSON` and `TestParseStatsCommand_Markdown` to use `--session-only` flag
+  - Tests now correctly reflect environment variable detection requirements
+
+### Technical Details
+- **Root Cause**: Session locator had inverted logic (`!opts.SessionOnly` instead of `opts.SessionOnly`)
+- **Impact**: MCP commands with `scope: "session"` failed to locate session files
+- **Files Changed**:
+  - `cmd/mcp-server/capabilities.go` - Added package source handling
+  - `internal/locator/locator.go:25` - Fixed session-only condition
+  - `cmd/parse_test.go` - Updated tests for correct behavior
+
 ## [0.24.0] - 2025-10-11
 
 ### Fixed
