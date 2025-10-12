@@ -32,7 +32,7 @@ A language-agnostic, project-independent operational guide to managing documenta
 
 **✅ Must Create** (in any order):
 
-1. **`docs/plan.md`** (50-200 lines) - **REQUIRED Core Document #1**
+1. **`docs/core/plan.md`** (50-200 lines) - **REQUIRED Core Document #1**
    ```markdown
    # Development Plan
 
@@ -52,7 +52,7 @@ A language-agnostic, project-independent operational guide to managing documenta
    [Keep adding notes as you develop]
    ```
 
-2. **`docs/principles.md`** (30-100 lines) - **REQUIRED Core Document #2**
+2. **`docs/core/principles.md`** (30-100 lines) - **REQUIRED Core Document #2**
    ```markdown
    # Design Principles
 
@@ -77,8 +77,8 @@ A language-agnostic, project-independent operational guide to managing documenta
    Development guide for Claude Code.
 
    ## Quick Links
-   - [docs/plan.md](docs/plan.md) - Current roadmap
-   - [docs/principles.md](docs/principles.md) - Design constraints
+   - [docs/core/plan.md](docs/core/plan.md) - Current roadmap
+   - [docs/core/principles.md](docs/core/principles.md) - Design constraints
 
    ## Project Goal
    [One paragraph: what problem does this solve?]
@@ -116,7 +116,7 @@ A language-agnostic, project-independent operational guide to managing documenta
 
    ## Documentation
    - [Development Guide](CLAUDE.md) - For contributors
-   - [Development Plan](docs/plan.md) - Roadmap
+   - [Development Plan](docs/core/plan.md) - Roadmap
 
    ## License
    [License type]
@@ -129,10 +129,12 @@ A language-agnostic, project-independent operational guide to managing documenta
 6. **Directory structure**:
    ```
    docs/
-   ├── plan.md              # Core document #1
-   ├── principles.md        # Core document #2
+   ├── core/                # Core documents
+   │   ├── plan.md         # Core document #1
+   │   └── principles.md   # Core document #2
    ├── guides/              # Empty initially
    ├── reference/           # Empty initially
+   ├── tutorials/           # Empty initially
    └── architecture/
        └── adr/             # Empty initially
    ```
@@ -155,8 +157,8 @@ Create these as you develop, not upfront:
 ### Phase 0 Completion Criteria
 
 **Exit Criteria** (checklist):
-- [ ] `docs/plan.md` exists with Phase 0-2 outline
-- [ ] `docs/principles.md` exists with core constraints
+- [ ] `docs/core/plan.md` exists with Phase 0-2 outline
+- [ ] `docs/core/principles.md` exists with core constraints
 - [ ] `CLAUDE.md` exists with project goal and commands
 - [ ] `README.md` has project description
 - [ ] Code compiles and basic tests pass
@@ -165,10 +167,10 @@ Create these as you develop, not upfront:
 **Verification** (pseudocode):
 ```bash
 verify_phase_0() {
-  assert file_exists("docs/plan.md")
-  assert file_exists("docs/principles.md")
+  assert file_exists("docs/core/plan.md")
+  assert file_exists("docs/core/principles.md")
   assert file_exists("CLAUDE.md")
-  assert grep_count("Phase", "docs/plan.md") >= 2
+  assert grep_count("Phase", "docs/core/plan.md") >= 2
   assert build_succeeds()
 }
 ```
@@ -233,7 +235,7 @@ verify_doc_health() {
 ### Purpose and Structure
 
 **Two-tier planning system**:
-- **docs/plan.md**: High-level roadmap (50-100 lines per phase)
+- **docs/core/plan.md**: High-level roadmap (50-100 lines per phase)
 - **plans/N/**: Detailed implementation (2000-3000 lines per phase)
 
 **When to create plans/N/**:
@@ -257,7 +259,7 @@ plans/
 
 ### Plan Generation Workflow
 
-**Step 1: Create phase overview in docs/plan.md**
+**Step 1: Create phase overview in docs/core/plan.md**
 ```markdown
 ### Phase N: [Name]
 **Goal**: [What to achieve]
@@ -269,7 +271,7 @@ plans/
 
 **Step 2: Generate detailed plan**
 ```
-User: "@docs/plan.md @docs/principles.md
+User: "@docs/core/plan.md @docs/core/principles.md
        使用 @agent-project-planner 为 Phase N 生成详细计划"
 
 Result: plans/N/plan.md created (~2000-3000 lines)
@@ -338,14 +340,14 @@ For each Stage X.Y:
 ### Plans vs Documentation Updates
 
 **Update triggers**:
-- **During phase**: Update docs/plan.md (progress, status)
-- **Stage complete**: Note in docs/plan.md (Stage N.X ✅)
-- **Phase complete**: Mark docs/plan.md (Phase N ✅ + metrics)
+- **During phase**: Update docs/core/plan.md (progress, status)
+- **Stage complete**: Note in docs/core/plan.md (Stage N.X ✅)
+- **Phase complete**: Mark docs/core/plan.md (Phase N ✅ + metrics)
 - **plans/N/plan.md**: Read-only during execution (no updates)
 
 **Anti-pattern**: Updating plans/N/plan.md during execution
 - Plan is reference, not journal
-- Use docs/plan.md for status tracking
+- Use docs/core/plan.md for status tracking
 
 ### Plans Directory Lifecycle
 
@@ -367,8 +369,8 @@ For each Stage X.Y:
 **Required immediately**:
 - `README.md` - Project entry point
 - `CLAUDE.md` - Development guide
-- `docs/plan.md` - Roadmap (Core #1)
-- `docs/principles.md` - Constraints (Core #2)
+- `docs/core/plan.md` - Roadmap (Core #1)
+- `docs/core/principles.md` - Constraints (Core #2)
 - `.gitignore` - Version control
 - `LICENSE` - Legal
 
@@ -413,7 +415,7 @@ What becomes easier or harder?
 - [ADR-XXX](ADR-XXX-title.md)
 ```
 
-#### Phase Plan Template (for `docs/plan.md`)
+#### Phase Plan Template (for `docs/core/plan.md`)
 
 ```markdown
 # Development Plan
@@ -489,8 +491,8 @@ replaced_by: docs/[path]/new-doc.md
 
 ### For Developers
 1. [CLAUDE.md](../CLAUDE.md) - Development guide
-2. [docs/plan.md](plan.md) - Roadmap
-3. [docs/principles.md](principles.md) - Design constraints
+2. [docs/core/plan.md](plan.md) - Roadmap
+3. [docs/core/principles.md](principles.md) - Design constraints
 4. [docs/architecture/adr/README.md](architecture/adr/README.md) - Decisions
 
 ## Document Roles
@@ -499,8 +501,8 @@ replaced_by: docs/[path]/new-doc.md
 |----------|---------|------------------|
 | README.md | Quick start | Major releases |
 | CLAUDE.md | Development guide | Per phase |
-| docs/plan.md | Roadmap | Continuous |
-| docs/principles.md | Design constraints | Rarely |
+| docs/core/plan.md | Roadmap | Continuous |
+| docs/core/principles.md | Design constraints | Rarely |
 ```
 
 ---
@@ -540,7 +542,7 @@ replaced_by: docs/[path]/new-doc.md
   - New commands → Update "Development Commands" section
   - New FAQ → Add to FAQ section
 
-- [ ] **docs/plan.md updated**?
+- [ ] **docs/core/plan.md updated**?
   - Mark completed tasks as done
   - Update "Current Status"
   - Add lessons learned
@@ -726,9 +728,9 @@ The meta-cc project demonstrates this methodology in practice.
 
 From meta-cc's own analysis:
 
-1. **docs/plan.md**: 421 accesses - Most accessed (validates this methodology!)
+1. **docs/core/plan.md**: 421 accesses - Most accessed (validates this methodology!)
 2. **README.md**: 170 accesses
-3. **docs/principles.md**: 89 accesses - Second most important
+3. **docs/core/principles.md**: 89 accesses - Second most important
 4. **CLAUDE.md**: 69 accesses
 
 **Lesson**: plan.md and principles.md are indeed the core documents. Create them first!
@@ -798,7 +800,7 @@ From meta-cc's own analysis:
 **Phase start**:
 ```
 1. Read principles.md (understand constraints)
-2. Update docs/plan.md (add phase overview ~100 lines)
+2. Update docs/core/plan.md (add phase overview ~100 lines)
 3. Generate plans/N/plan.md (@agent-project-planner)
    - Detailed TDD implementation plan
    - Stage-by-stage breakdown
@@ -812,21 +814,21 @@ From meta-cc's own analysis:
    - Read plans/N/plan.md Stage X.Y section
    - Follow TDD cycle: tests → implement → verify
    - Report results after each stage
-2. Update docs/plan.md (status, completed stages)
+2. Update docs/core/plan.md (status, completed stages)
 3. Add to CLAUDE.md FAQ (as questions arise)
 4. Reference principles.md (ensure compliance)
 ```
 
 **Phase complete**:
 ```
-1. Mark phase complete in docs/plan.md (✅ + metrics)
+1. Mark phase complete in docs/core/plan.md (✅ + metrics)
 2. Update principles.md if new patterns emerged
 3. Update CLAUDE.md if workflow changed
 4. Archive plans/N/ (preserve as reference)
 ```
 
 **Two-level planning**:
-- **docs/plan.md**: High-level phase overview (goal, stages, deliverables)
+- **docs/core/plan.md**: High-level phase overview (goal, stages, deliverables)
 - **plans/N/plan.md**: Detailed implementation (TDD cycles, file changes, tests)
 
 **Agent-assisted workflow**:
@@ -836,7 +838,7 @@ From meta-cc's own analysis:
 **Commit patterns**:
 - `docs:` prefix for documentation-only changes
 - `feat(phase-N): implement X` for features
-- Update docs/plan.md + plans/N/ together
+- Update docs/core/plan.md + plans/N/ together
 
 ---
 
@@ -846,10 +848,10 @@ From meta-cc's own analysis:
 |----------|--------|---------|-----------|
 | README.md | 200-300 | 500 lines | GitHub preview, quick overview |
 | CLAUDE.md | 250-350 | 400 lines | Fast Claude Code context loading |
-| plan.md | No limit | No limit | Living roadmap, grows with project |
-| principles.md | 50-200 | 500 lines | Core constraints, should be stable |
-| Task guides | 300-500 | 1000 lines | Single workflow, self-contained |
-| Reference docs | No limit | No limit | Completeness over brevity |
+| docs/core/plan.md | No limit | No limit | Living roadmap, grows with project |
+| docs/core/principles.md | 50-200 | 500 lines | Core constraints, should be stable |
+| Task guides (guides/) | 300-500 | 1000 lines | Single workflow, self-contained |
+| Reference docs (reference/) | No limit | No limit | Completeness over brevity |
 
 ---
 
@@ -865,8 +867,9 @@ project-root/
 ├── .gitignore
 │
 └── docs/
-    ├── plan.md                  # Core document #1
-    └── principles.md            # Core document #2
+    └── core/
+        ├── plan.md              # Core document #1
+        └── principles.md        # Core document #2
 ```
 
 ### Mature Structure (After months of development)
@@ -879,25 +882,37 @@ project-root/
 ├── CHANGELOG.md
 │
 └── docs/
-    ├── plan.md                  # Roadmap
-    ├── principles.md            # Design constraints
     ├── DOCUMENTATION_MAP.md     # Navigation
     │
+    ├── core/                    # Core documents
+    │   ├── plan.md             # Roadmap
+    │   └── principles.md       # Design constraints
+    │
     ├── guides/                  # Task-oriented
-    │   ├── development.md
-    │   ├── deployment.md
-    │   └── integration.md
+    │   ├── integration.md
+    │   ├── plugin-development.md
+    │   └── troubleshooting.md
     │
     ├── reference/               # Complete specs
-    │   ├── cli-reference.md
-    │   └── api-reference.md
+    │   ├── cli.md
+    │   ├── features.md
+    │   └── repository-structure.md
+    │
+    ├── tutorials/               # Step-by-step
+    │   ├── examples.md
+    │   ├── cookbook.md
+    │   └── installation.md
     │
     ├── architecture/            # Design docs
-    │   ├── overview.md
-    │   └── adr/
-    │       ├── README.md
-    │       ├── template.md
-    │       └── ADR-001-*.md
+    │   ├── adr/
+    │   │   ├── README.md
+    │   │   ├── template.md
+    │   │   └── ADR-001-*.md
+    │   └── proposals/
+    │       └── *.md
+    │
+    ├── methodology/             # Universal guides
+    │   └── documentation-management.md
     │
     └── archive/                 # Historical
         └── [outdated-docs]
@@ -972,8 +987,8 @@ Effective documentation for Claude Code projects requires:
 
 - [DOCUMENTATION_MAP.md](../DOCUMENTATION_MAP.md) - Navigation example
 - [CLAUDE.md](../../CLAUDE.md) - Development entry point
-- [docs/principles.md](../principles.md) - Design constraints
-- [docs/plan.md](../plan.md) - Roadmap example
+- [docs/core/principles.md](../core/principles.md) - Design constraints
+- [docs/core/plan.md](../core/plan.md) - Roadmap example
 
 ### External Resources
 

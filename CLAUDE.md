@@ -6,22 +6,22 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ### New to meta-cc?
 - **Start here**: [README.md](README.md) - Installation and quick start
-- **Understand the design**: [docs/principles.md](docs/principles.md) - Core constraints
-- **Integration guide**: [docs/integration-guide.md](docs/integration-guide.md) - Choose MCP/Slash/Subagent
+- **Understand the design**: [docs/core/principles.md](docs/core/principles.md) - Core constraints
+- **Integration guide**: [docs/guides/integration.md](docs/guides/integration.md) - Choose MCP/Slash/Subagent
 
 ### Development Workflow
-- **Current plan**: [docs/plan.md](docs/plan.md) - Phase roadmap and status
+- **Current plan**: [docs/core/plan.md](docs/core/plan.md) - Phase roadmap and status
 - **Build and test**: Run `make all` after each stage
-- **Plugin development**: [docs/plugin-development.md](docs/plugin-development.md) - Complete workflow
+- **Plugin development**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md) - Complete workflow
 
 ### MCP Server Usage
-- **MCP guide**: [docs/mcp-guide.md](docs/mcp-guide.md) - Complete MCP reference (16 tools)
+- **MCP guide**: [docs/guides/mcp.md](docs/guides/mcp.md) - Complete MCP reference (16 tools)
 - **Quick test**: Use MCP tool `get_session_stats`
 
 ### Common Tasks
 - **Fix test failures**: `make test` → Review errors → Fix → `make all`
-- **Query session data**: Use MCP tools (see [MCP Guide](docs/mcp-guide.md))
-- **Update plugin**: [docs/plugin-development.md](docs/plugin-development.md)
+- **Query session data**: Use MCP tools (see [MCP Guide](docs/guides/mcp.md))
+- **Update plugin**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md)
 
 ---
 
@@ -31,22 +31,22 @@ This file provides guidance to Claude Code when working with code in this reposi
 A: Run `make all` to see lint + test + build errors. Fix issues iteratively. If tests fail after multiple attempts, HALT development and document blockers.
 
 **Q: How much code can I write in one phase?**
-A: Maximum 500 lines per phase, 200 lines per stage. See [docs/principles.md](docs/principles.md).
+A: Maximum 500 lines per phase, 200 lines per stage. See [docs/core/principles.md](docs/core/principles.md).
 
 **Q: Should I use MCP, Slash Commands, or Subagent?**
-A: Quick rule: Natural questions → MCP | Repeated workflows → Slash | Exploration → Subagent. See [docs/integration-guide.md](docs/integration-guide.md).
+A: Quick rule: Natural questions → MCP | Repeated workflows → Slash | Exploration → Subagent. See [docs/guides/integration.md](docs/guides/integration.md).
 
 **Q: How do I query session data?**
-A: Use MCP tools like `query_tools`, `query_user_messages`. See [docs/mcp-guide.md](docs/mcp-guide.md).
+A: Use MCP tools like `query_tools`, `query_user_messages`. See [docs/guides/mcp.md](docs/guides/mcp.md).
 
 **Q: Why are my MCP query results in a temp file?**
-A: Results >8KB automatically use file_ref mode to avoid token limits. Read the file with the Read tool. See [docs/mcp-guide.md#hybrid-output-mode](docs/mcp-guide.md#hybrid-output-mode).
+A: Results >8KB automatically use file_ref mode to avoid token limits. Read the file with the Read tool. See [docs/guides/mcp.md#hybrid-output-mode](docs/guides/mcp.md#hybrid-output-mode).
 
 **Q: Do I need to set `limit` parameter for MCP queries?**
 A: No, by default queries return all results (hybrid mode handles large data). Only use `limit` when user explicitly requests a specific number.
 
 **Q: How do I update plugin version?**
-A: Install git hooks (`./scripts/install-hooks.sh`) for automatic bumping, or use `./scripts/bump-plugin-version.sh [patch|minor|major]`. See [docs/git-hooks.md](docs/git-hooks.md).
+A: Install git hooks (`./scripts/install-hooks.sh`) for automatic bumping, or use `./scripts/bump-plugin-version.sh [patch|minor|major]`. See [docs/guides/git-hooks.md](docs/guides/git-hooks.md).
 
 ---
 
@@ -64,7 +64,7 @@ A: Install git hooks (`./scripts/install-hooks.sh`) for automatic bumping, or us
 
 ### Repository Structure
 
-See [docs/repository-structure.md](docs/repository-structure.md) for complete directory guide.
+See [docs/reference/repository-structure.md](docs/reference/repository-structure.md) for complete directory guide.
 
 **Key directories**:
 - `.claude/` - Plugin entry point (slash commands, subagents)
@@ -75,7 +75,7 @@ See [docs/repository-structure.md](docs/repository-structure.md) for complete di
 
 ## Core Constraints
 
-See [docs/principles.md](docs/principles.md) for complete details.
+See [docs/core/principles.md](docs/core/principles.md) for complete details.
 
 **Code Limits**:
 - Phase: ≤500 lines of changes
@@ -124,7 +124,7 @@ export META_CC_CAPABILITY_SOURCES="capabilities/commands"
 make all
 ```
 
-**See**: [docs/plugin-development.md](docs/plugin-development.md) for complete workflow.
+**See**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md) for complete workflow.
 
 ### Version Management
 
@@ -146,7 +146,7 @@ make all
    ./scripts/release.sh v1.0.0
    ```
 
-**See**: [docs/git-hooks.md](docs/git-hooks.md) and [docs/release-process.md](docs/release-process.md).
+**See**: [docs/guides/git-hooks.md](docs/guides/git-hooks.md) and [docs/guides/release-process.md](docs/guides/release-process.md).
 
 ### Commit Conventions
 
@@ -198,7 +198,7 @@ query_tool_sequences(min_occurrences=3)  # Workflow patterns
 query_time_series(metric="tool-calls")   # Metrics over time
 ```
 
-**See**: [docs/mcp-guide.md](docs/mcp-guide.md) for complete MCP reference.
+**See**: [docs/guides/mcp.md](docs/guides/mcp.md) for complete MCP reference.
 
 ### Update Plugin
 
@@ -219,11 +219,11 @@ git commit -m "feat: improve error analysis"
 # No version bump (capability content change)
 ```
 
-**See**: [docs/plugin-development.md](docs/plugin-development.md) for complete workflow.
+**See**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md) for complete workflow.
 
 ## Unified Meta Command
 
-The `/meta` command provides a unified entry point for 13+ capabilities with natural language intent matching.
+The `/meta` command provides a unified entry point for 15+ capabilities with natural language intent matching.
 
 **Usage**:
 ```
@@ -241,34 +241,34 @@ export META_CC_CAPABILITY_SOURCES="capabilities/commands"
 # META_CC_CAPABILITY_SOURCES="yaleh/meta-cc@main/commands"
 ```
 
-**See**: [docs/unified-meta-command.md](docs/unified-meta-command.md) for complete guide.
+**See**: [docs/reference/unified-meta-command.md](docs/reference/unified-meta-command.md) for complete guide.
 
 ## Reference Documentation
 
 **Core Documentation**:
-- [Implementation Plan](docs/plan.md) - Phase-by-phase roadmap
-- [Design Principles](docs/principles.md) - Core constraints and rules
-- [Plugin Development](docs/plugin-development.md) - Complete plugin workflow
-- [Repository Structure](docs/repository-structure.md) - Directory organization
-- [Release Process](docs/release-process.md) - Release workflow
-- [Git Hooks](docs/git-hooks.md) - Automatic version bumping
+- [Implementation Plan](docs/core/plan.md) - Phase-by-phase roadmap
+- [Design Principles](docs/core/principles.md) - Core constraints and rules
+- [Plugin Development](docs/guides/plugin-development.md) - Complete plugin workflow
+- [Repository Structure](docs/reference/repository-structure.md) - Directory organization
+- [Release Process](docs/guides/release-process.md) - Release workflow
+- [Git Hooks](docs/guides/git-hooks.md) - Automatic version bumping
 
 **Integration and Usage**:
-- [Integration Guide](docs/integration-guide.md) - Choose MCP/Slash/Subagent
-- [MCP Guide](docs/mcp-guide.md) - Complete MCP server reference
-- [Unified Meta Command](docs/unified-meta-command.md) - /meta command guide
-- [Capabilities Guide](docs/capabilities-guide.md) - Create custom capabilities
+- [Integration Guide](docs/guides/integration.md) - Choose MCP/Slash/Subagent
+- [MCP Guide](docs/guides/mcp.md) - Complete MCP server reference
+- [Unified Meta Command](docs/reference/unified-meta-command.md) - /meta command guide
+- [Capabilities Guide](docs/guides/capabilities.md) - Create custom capabilities
 
 **Reference**:
-- [CLI Reference](docs/cli-reference.md) - Complete command reference
-- [JSONL Reference](docs/jsonl-reference.md) - Output format and jq patterns
-- [Features](docs/features.md) - Advanced features overview
-- [Examples & Usage](docs/examples-usage.md) - Step-by-step tutorials
-- [Troubleshooting](docs/troubleshooting.md) - Common issues
+- [CLI Reference](docs/reference/cli.md) - Complete command reference
+- [JSONL Reference](docs/reference/jsonl.md) - Output format and jq patterns
+- [Features](docs/reference/features.md) - Advanced features overview
+- [Examples & Usage](docs/tutorials/examples.md) - Step-by-step tutorials
+- [Troubleshooting](docs/guides/troubleshooting.md) - Common issues
 
 **Architecture**:
-- [Technical Proposal](docs/proposals/meta-cognition-proposal.md) - Architecture design
-- [ADR Index](docs/adr/README.md) - Architecture decision records
+- [Technical Proposal](docs/architecture/proposals/meta-cognition-proposal.md) - Architecture design
+- [ADR Index](docs/architecture/adr/README.md) - Architecture decision records
 
 **Universal Methodology** (project-independent):
 - [Methodology Index](docs/methodology/) - Software development methodologies
