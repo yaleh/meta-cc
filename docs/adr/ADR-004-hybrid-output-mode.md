@@ -385,5 +385,5 @@ When you receive a `file_ref` response:
 
 ### References
 
-- [MCP Output Modes Documentation](../mcp-output-modes.md)
+- [MCP Guide](../mcp-guide.md)
 - [Integration Guide](../integration-guide.md)

@@ -377,7 +377,7 @@ See [docs/capabilities-guide.md](docs/capabilities-guide.md) for capability deve
 
 meta-cc provides programmatic access to session data. Claude can autonomously query this data when analyzing workflows, debugging issues, or providing recommendations.
 
-For complete details, see [MCP Output Modes Documentation](docs/mcp-output-modes.md).
+For complete details, see [MCP Guide](docs/mcp-guide.md).
 
 ### Query Tools (16 available)
 
@@ -539,7 +539,7 @@ For choosing between integration methods, see [docs/integration-guide.md](docs/i
 - [Implementation Plan](docs/plan.md) - Phase-by-phase development roadmap
 - [Design Principles](docs/principles.md) - Core constraints and architecture decisions
 - [Integration Guide](docs/integration-guide.md) - Choosing between MCP/Slash/Subagent
-- [MCP Output Modes](docs/mcp-output-modes.md) - Detailed MCP usage and hybrid output mode
+- [MCP Guide](docs/mcp-guide.md) - Complete MCP server documentation
 - [Technical Proposal](docs/proposals/meta-cognition-proposal.md) - Architecture and design
 - [Examples & Usage](docs/examples-usage.md) - Step-by-step setup guides
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions

@@ -287,5 +287,5 @@ This differs from the **"Principle of least surprise"** which might suggest `get
 ### References
 
 - [Integration Guide](../integration-guide.md)
-- [MCP Output Modes](../mcp-output-modes.md)
+- [MCP Guide](../mcp-guide.md)
 - [Tool Descriptions](../../cmd/server.go)

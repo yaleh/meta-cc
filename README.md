@@ -282,7 +282,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 - **`query_time_series`** - Time-based analysis
 - **`cleanup_temp_files`** - File management
 
-*See [MCP Tools Reference](docs/mcp-tools-reference.md) for complete documentation.*
+*See [MCP Guide](docs/mcp-guide.md) for complete documentation.*
 
 ## Unified Meta Command
 
@@ -1312,7 +1312,7 @@ meta-cc.query_tools({ scope: "session", tool: "Bash", status: "error" })
 - Legacy `_session` suffix tools (e.g., `query_tools_session`) automatically map to `scope: "session"`
 - `get_session_stats` remains session-only for compatibility
 
-**👉 See the [MCP Project Scope Guide](./docs/mcp-project-scope.md)** for detailed usage examples and migration guide.
+**👉 See the [MCP Guide](./docs/mcp-guide.md)** for detailed usage examples and scope parameter documentation.
 
 ### MCP Tools
 
@@ -1411,11 +1411,11 @@ For comprehensive documentation including:
 - Best practices and common pitfalls
 - FAQ and troubleshooting
 
-See **[MCP Tools Complete Reference](./docs/mcp-tools-reference.md)**
-
-Also see:
-- [MCP Usage Guide](./docs/mcp-usage.md) - Getting started
-- [MCP Project Scope Guide](./docs/mcp-project-scope.md) - Scope parameter usage
+See **[MCP Guide](./docs/mcp-guide.md)** for comprehensive documentation including:
+- All 16 tools with detailed examples
+- Output control and hybrid mode
+- Query scope (project vs session)
+- Best practices and troubleshooting
 - [Phase 15 Migration Guide](./docs/mcp-migration-phase15.md) - Upgrading from Phase 14
 
 ### Reference Documentation
