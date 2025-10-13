@@ -1,73 +1,9 @@
 package main
 
 import (
-	"path/filepath"
+	"sync"
 	"testing"
 )
-
-// TestBuildCachePath tests cache path construction for GitHub sources
-func TestBuildCachePath(t *testing.T) {
-	tests := []struct {
-		name     string
-		source   GitHubSource
-		filename string
-		expected string
-	}{
-		{
-			name: "basic source with branch",
-			source: GitHubSource{
-				Owner:  "yaleh",
-				Repo:   "meta-cc",
-				Branch: "main",
-				Subdir: "commands",
-			},
-			filename: "meta-errors.md",
-			expected: filepath.Join(".capabilities-cache", "github", "yaleh", "meta-cc", "main", "commands", "meta-errors.md"),
-		},
-		{
-			name: "source without subdir",
-			source: GitHubSource{
-				Owner:  "yaleh",
-				Repo:   "meta-cc",
-				Branch: "develop",
-				Subdir: "",
-			},
-			filename: "README.md",
-			expected: filepath.Join(".capabilities-cache", "github", "yaleh", "meta-cc", "develop", "README.md"),
-		},
-		{
-			name: "source with tag version",
-			source: GitHubSource{
-				Owner:  "yaleh",
-				Repo:   "meta-cc",
-				Branch: "v1.0.0",
-				Subdir: "capabilities/commands",
-			},
-			filename: "meta-quality-scan.md",
-			expected: filepath.Join(".capabilities-cache", "github", "yaleh", "meta-cc", "v1.0.0", "capabilities/commands", "meta-quality-scan.md"),
-		},
-		{
-			name: "different owner and repo",
-			source: GitHubSource{
-				Owner:  "community",
-				Repo:   "extra-capabilities",
-				Branch: "main",
-				Subdir: "caps",
-			},
-			filename: "custom-capability.md",
-			expected: filepath.Join(".capabilities-cache", "github", "community", "extra-capabilities", "main", "caps", "custom-capability.md"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := buildCachePath(tt.source, tt.filename)
-			if result != tt.expected {
-				t.Errorf("buildCachePath() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
 
 // TestLocalCapabilitySource tests the local capability source constant
 func TestLocalCapabilitySource(t *testing.T) {
@@ -76,9 +12,42 @@ func TestLocalCapabilitySource(t *testing.T) {
 	}
 }
 
-// TestCapabilityCacheDir tests the cache directory constant
-func TestCapabilityCacheDir(t *testing.T) {
-	if CapabilityCacheDir != ".capabilities-cache" {
-		t.Errorf("CapabilityCacheDir = %v, want %v", CapabilityCacheDir, ".capabilities-cache")
+// TestSessionCacheDir tests that session cache directory is created properly
+func TestSessionCacheDir(t *testing.T) {
+	// Reset session cache for test
+	sessionCacheDir = ""
+	sessionCacheInitErr = nil
+	sessionCacheOnce = sync.Once{}
+
+	dir, err := getSessionCacheDir()
+	if err != nil {
+		t.Fatalf("getSessionCacheDir() error = %v", err)
 	}
+
+	if dir == "" {
+		t.Error("getSessionCacheDir() returned empty directory")
+	}
+
+	// Should contain "claude-session" in path
+	if !contains(dir, "claude-session") {
+		t.Errorf("getSessionCacheDir() = %v, want to contain 'claude-session'", dir)
+	}
+
+	// Should contain ".meta-cc-capabilities" in path
+	if !contains(dir, ".meta-cc-capabilities") {
+		t.Errorf("getSessionCacheDir() = %v, want to contain '.meta-cc-capabilities'", dir)
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || findSubstring(s, substr)))
+}
+
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

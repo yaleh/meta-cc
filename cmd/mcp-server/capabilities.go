@@ -36,9 +36,6 @@ const (
 
 	// LocalCapabilitySource defines the local capability source for development
 	LocalCapabilitySource = "capabilities/commands"
-
-	// CapabilityCacheDir defines the directory for caching downloaded capabilities
-	CapabilityCacheDir = ".capabilities-cache"
 )
 
 // CapabilitySource represents a source of capabilities
@@ -64,6 +61,13 @@ type CapabilityMetadata struct {
 // CapabilityIndex maps capability names to their metadata
 type CapabilityIndex map[string]CapabilityMetadata
 
+// Session cache variables
+var (
+	sessionCacheDir     string
+	sessionCacheInitErr error
+	sessionCacheOnce    sync.Once
+)
+
 // GitHubSource represents a parsed GitHub source with branch/tag
 type GitHubSource struct {
 	Owner  string // Repository owner
@@ -72,15 +76,55 @@ type GitHubSource struct {
 	Subdir string // Optional subdirectory
 }
 
-// VersionType represents the type of version reference
-type VersionType string
+// getSessionCacheDir returns the session-scoped cache directory
+// Creates temp directory on first call, reuses for subsequent calls in same session
+func getSessionCacheDir() (string, error) {
+	sessionCacheOnce.Do(func() {
+		// Try to get session ID from environment
+		sessionID := os.Getenv("CLAUDE_CODE_SESSION_ID")
+		if sessionID == "" {
+			// Fallback: use process ID
+			sessionID = fmt.Sprintf("mcp-%d", os.Getpid())
+		}
 
-const (
-	// VersionTypeBranch represents a branch reference (mutable)
-	VersionTypeBranch VersionType = "branch"
-	// VersionTypeTag represents a tag reference (immutable)
-	VersionTypeTag VersionType = "tag"
-)
+		// Create session temp directory
+		tempBase := os.TempDir()
+		sessionDir := filepath.Join(tempBase, fmt.Sprintf("claude-session-%s", sessionID))
+
+		// Create cache directory within session dir
+		cacheDir := filepath.Join(sessionDir, ".meta-cc-capabilities")
+
+		// Create directory if it doesn't exist
+		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+			sessionCacheInitErr = fmt.Errorf("failed to create session cache dir: %w", err)
+			return
+		}
+
+		sessionCacheDir = cacheDir
+	})
+
+	if sessionCacheInitErr != nil {
+		return "", sessionCacheInitErr
+	}
+
+	return sessionCacheDir, nil
+}
+
+// CleanupSessionCache removes the session cache directory
+// Should be called on MCP server shutdown
+func CleanupSessionCache() error {
+	if sessionCacheDir == "" {
+		return nil
+	}
+
+	// Remove the entire session directory (parent of cache dir)
+	sessionDir := filepath.Dir(sessionCacheDir)
+	if err := os.RemoveAll(sessionDir); err != nil {
+		return fmt.Errorf("failed to cleanup session cache: %w", err)
+	}
+
+	return nil
+}
 
 // parseCapabilitySources parses the environment variable into a list of capability sources
 func parseCapabilitySources(envVar string) []CapabilitySource {
@@ -290,19 +334,20 @@ func loadGitHubCapabilities(repo string) ([]CapabilityMetadata, error) {
 	return nil, fmt.Errorf("GitHub capability loading not yet implemented")
 }
 
-// getPackageCacheDir returns the cache directory for a package source
+// getPackageCacheDir returns the session cache directory for a package source
 func getPackageCacheDir(packageLocation string) (string, error) {
-	// Compute hash of package location for cache directory name
+	// Get session cache base directory
+	sessionCache, err := getSessionCacheDir()
+	if err != nil {
+		return "", err
+	}
+
+	// Compute hash of package location for subdirectory name
 	hash := sha256.Sum256([]byte(packageLocation))
 	hashStr := hex.EncodeToString(hash[:])[:16] // Use first 16 chars
 
-	// Cache directory: ~/.capabilities-cache/packages/<hash>/
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
-	}
-
-	cacheDir := filepath.Join(homeDir, CapabilityCacheDir, "packages", hashStr)
+	// Cache directory: /tmp/claude-session-<id>/.meta-cc-capabilities/packages/<hash>/
+	cacheDir := filepath.Join(sessionCache, "packages", hashStr)
 	return cacheDir, nil
 }
 
@@ -449,6 +494,7 @@ func downloadAndExtractPackage(packageLocation string, cacheDir string) error {
 }
 
 // loadPackageCapabilities loads capabilities from a package source
+// Downloads once per session, uses session cache for subsequent calls
 func loadPackageCapabilities(packageLocation string) ([]CapabilityMetadata, error) {
 	// Get cache directory
 	cacheDir, err := getPackageCacheDir(packageLocation)
@@ -456,28 +502,16 @@ func loadPackageCapabilities(packageLocation string) ([]CapabilityMetadata, erro
 		return nil, err
 	}
 
-	// Check if cache is valid
-	if !isCacheValidForPackage(packageLocation) {
-		// Cache expired or doesn't exist, download and extract
+	// Check if already downloaded in this session
+	commandsDir := filepath.Join(cacheDir, "commands")
+	if _, err := os.Stat(commandsDir); os.IsNotExist(err) {
+		// Not yet downloaded, download and extract
 		if err := downloadAndExtractPackage(packageLocation, cacheDir); err != nil {
-			// If network error, try using stale cache
-			if isCacheStaleForPackage(packageLocation) {
-				fmt.Fprintf(os.Stderr, "Warning: Using stale cached package (network error)\n")
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			} else {
-				return nil, err
-			}
-		} else {
-			// Update cache metadata
-			if err := updateCacheMetadata(packageLocation, cacheDir); err != nil {
-				// Non-fatal, log warning
-				fmt.Fprintf(os.Stderr, "Warning: Failed to update cache metadata: %v\n", err)
-			}
+			return nil, fmt.Errorf("failed to download package: %w", err)
 		}
 	}
 
 	// Load capabilities from extracted package
-	commandsDir := filepath.Join(cacheDir, "commands")
 	caps, err := loadLocalCapabilities(commandsDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load package capabilities: %w", err)
@@ -523,283 +557,57 @@ func mergeSources(sources []CapabilitySource) (CapabilityIndex, error) {
 	return index, nil
 }
 
-// CapabilityCache represents cached capability index with TTL
-type CapabilityCache struct {
-	Index     CapabilityIndex
-	Timestamp time.Time
-	TTL       time.Duration
-	Sources   []CapabilitySource // Track sources for validation
+// SessionCapabilityCache represents the session-scoped capability index cache
+// Simple in-memory cache, valid for the entire session (no TTL)
+type SessionCapabilityCache struct {
+	Index   CapabilityIndex
+	Sources []CapabilitySource // Track sources for validation
 }
 
-var globalCapabilityCache *CapabilityCache
-var cacheMutex sync.RWMutex
+var sessionCapabilityCache *SessionCapabilityCache
+var sessionCacheMutex sync.RWMutex
 
-// PackageCacheMetadata tracks cached package information
-type PackageCacheMetadata struct {
-	PackageURL    string    `json:"package_url"`
-	DownloadTime  time.Time `json:"download_time"`
-	ExtractedPath string    `json:"extracted_path"`
-	TTL           int64     `json:"ttl_seconds"` // TTL in seconds
-	IsRelease     bool      `json:"is_release"`  // Release vs branch
-}
-
-// CacheMetadataFile represents the cache metadata file structure
-type CacheMetadataFile struct {
-	Version  string                          `json:"version"`
-	Packages map[string]PackageCacheMetadata `json:"packages"` // Key: cache hash
-}
-
-// getCapabilityIndex returns capability index with caching support
+// getCapabilityIndex returns capability index with session-scoped caching
+// Local sources bypass cache, package sources use session temp directory
 func getCapabilityIndex(sources []CapabilitySource, disableCache bool) (CapabilityIndex, error) {
-	// Check cache if enabled
-	if !disableCache && !hasLocalSources(sources) && isCacheValid(sources) {
-		cacheMutex.RLock()
-		defer cacheMutex.RUnlock()
-		return globalCapabilityCache.Index, nil
+	// Local sources always bypass cache (for development workflow)
+	hasLocal := hasLocalSources(sources)
+
+	// Check session cache if enabled and no local sources
+	if !disableCache && !hasLocal && sessionCapabilityCache != nil {
+		sessionCacheMutex.RLock()
+		defer sessionCacheMutex.RUnlock()
+		return sessionCapabilityCache.Index, nil
 	}
 
 	// Load fresh data
 	index, err := mergeSources(sources)
 	if err != nil {
-		// If network error and stale cache available, use stale cache
-		if isNetworkUnreachableError(err) && isCacheStale(sources) {
-			cacheMutex.RLock()
-			defer cacheMutex.RUnlock()
-
-			fmt.Fprintf(os.Stderr, "Warning: Using cached capabilities (may be outdated)\n")
-			fmt.Fprintf(os.Stderr, "Network error: %v\n", err)
-
-			return globalCapabilityCache.Index, nil
-		}
-
 		return nil, err
 	}
 
-	// Update cache (only if no local sources)
-	if !hasLocalSources(sources) {
-		// Determine TTL based on version type
-		ttl := 1 * time.Hour // Default for branches
-
-		// Check if any source is a tag
-		for _, source := range sources {
-			if source.Type == SourceTypeGitHub {
-				ghSource, _ := parseGitHubSource(source.Location)
-				if detectVersionType(ghSource.Branch) == VersionTypeTag {
-					ttl = 7 * 24 * time.Hour
-					break
-				}
-			}
+	// Update session cache (skip if local sources present)
+	if !disableCache && !hasLocal {
+		sessionCacheMutex.Lock()
+		sessionCapabilityCache = &SessionCapabilityCache{
+			Index:   index,
+			Sources: sources,
 		}
-
-		cacheMutex.Lock()
-		globalCapabilityCache = &CapabilityCache{
-			Index:     index,
-			Timestamp: time.Now(),
-			TTL:       ttl,
-			Sources:   sources,
-		}
-		cacheMutex.Unlock()
+		sessionCacheMutex.Unlock()
 	}
 
 	return index, nil
 }
 
-// hasLocalSources checks if any source is a local filesystem source
+// hasLocalSources checks if any of the sources is a local filesystem source
 func hasLocalSources(sources []CapabilitySource) bool {
-	for _, source := range sources {
-		if source.Type == SourceTypeLocal {
+	for _, src := range sources {
+		if src.Type == SourceTypeLocal {
 			return true
 		}
 	}
 	return false
 }
-
-// isCacheValid checks if the cache is still valid based on TTL
-func isCacheValid(sources []CapabilitySource) bool {
-	cacheMutex.RLock()
-	defer cacheMutex.RUnlock()
-
-	if globalCapabilityCache == nil {
-		return false
-	}
-
-	age := time.Since(globalCapabilityCache.Timestamp)
-	return age < globalCapabilityCache.TTL
-}
-
-// isCacheStale checks if cache is stale but still usable (expired but within 7 days)
-func isCacheStale(sources []CapabilitySource) bool {
-	cacheMutex.RLock()
-	defer cacheMutex.RUnlock()
-
-	if globalCapabilityCache == nil {
-		return false
-	}
-
-	age := time.Since(globalCapabilityCache.Timestamp)
-	maxStaleAge := 7 * 24 * time.Hour // 7 days
-
-	// Cache is stale if: expired (age >= TTL) but within maxStaleAge
-	return age >= globalCapabilityCache.TTL && age < maxStaleAge
-}
-
-// getPackageHash computes the hash for a package URL (for cache directory naming)
-func getPackageHash(packageURL string) string {
-	hash := sha256.Sum256([]byte(packageURL))
-	return hex.EncodeToString(hash[:])[:16] // Use first 16 chars
-}
-
-// loadCacheMetadata loads cache metadata from disk
-func loadCacheMetadata() (*CacheMetadataFile, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
-	}
-
-	metadataPath := filepath.Join(homeDir, CapabilityCacheDir, ".meta-cc-cache.json")
-
-	// Check if file exists
-	if _, err := os.Stat(metadataPath); os.IsNotExist(err) {
-		// Return empty metadata
-		return &CacheMetadataFile{
-			Version:  "1.0",
-			Packages: make(map[string]PackageCacheMetadata),
-		}, nil
-	}
-
-	// Read metadata file
-	data, err := os.ReadFile(metadataPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var metadata CacheMetadataFile
-	if err := json.Unmarshal(data, &metadata); err != nil {
-		return nil, err
-	}
-
-	return &metadata, nil
-}
-
-// saveCacheMetadata saves cache metadata to disk
-func saveCacheMetadata(metadata *CacheMetadataFile) error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-
-	cacheDir := filepath.Join(homeDir, CapabilityCacheDir)
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return err
-	}
-
-	metadataPath := filepath.Join(cacheDir, ".meta-cc-cache.json")
-
-	data, err := json.MarshalIndent(metadata, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(metadataPath, data, 0644)
-}
-
-// getPackageTTL returns TTL for a package based on URL type
-func getPackageTTL(packageURL string) time.Duration {
-	// Release packages: 7 days (immutable)
-	if isReleasePackage(packageURL) {
-		return 7 * 24 * time.Hour
-	}
-
-	// Branch packages: 1 hour (mutable)
-	return 1 * time.Hour
-}
-
-// isReleasePackage checks if package URL points to a release
-func isReleasePackage(packageURL string) bool {
-	return strings.Contains(packageURL, "/releases/")
-}
-
-// isCacheValidForPackage checks if cached package is still valid
-func isCacheValidForPackage(packageURL string) bool {
-	metadata, err := loadCacheMetadata()
-	if err != nil {
-		return false
-	}
-
-	// Get cache hash
-	hash := getPackageHash(packageURL)
-
-	pkg, exists := metadata.Packages[hash]
-	if !exists {
-		return false
-	}
-
-	// Check if cache directory actually exists
-	cacheDir, err := getPackageCacheDir(packageURL)
-	if err != nil {
-		return false
-	}
-	commandsDir := filepath.Join(cacheDir, "commands")
-	if _, err := os.Stat(commandsDir); os.IsNotExist(err) {
-		// Cache metadata exists but directory is missing - invalidate cache
-		return false
-	}
-
-	// Check TTL
-	age := time.Since(pkg.DownloadTime)
-	ttl := time.Duration(pkg.TTL) * time.Second
-
-	return age < ttl
-}
-
-// isCacheStaleForPackage checks if cache is expired but still usable (< 7 days old)
-func isCacheStaleForPackage(packageURL string) bool {
-	metadata, err := loadCacheMetadata()
-	if err != nil {
-		return false
-	}
-
-	hash := getPackageHash(packageURL)
-
-	pkg, exists := metadata.Packages[hash]
-	if !exists {
-		return false
-	}
-
-	age := time.Since(pkg.DownloadTime)
-	ttl := time.Duration(pkg.TTL) * time.Second
-	maxStaleAge := 7 * 24 * time.Hour
-
-	return age >= ttl && age < maxStaleAge
-}
-
-// updateCacheMetadata updates cache metadata after downloading a package
-func updateCacheMetadata(packageURL string, cacheDir string) error {
-	metadata, err := loadCacheMetadata()
-	if err != nil {
-		return err
-	}
-
-	hash := getPackageHash(packageURL)
-	ttl := getPackageTTL(packageURL)
-
-	metadata.Packages[hash] = PackageCacheMetadata{
-		PackageURL:    packageURL,
-		DownloadTime:  time.Now(),
-		ExtractedPath: cacheDir,
-		TTL:           int64(ttl.Seconds()),
-		IsRelease:     isReleasePackage(packageURL),
-	}
-
-	return saveCacheMetadata(metadata)
-}
-
-// TODO: Integrate package cache cleanup into cleanup_temp_files MCP tool
-// The cleanup logic should:
-// - Remove package cache entries older than 7 days
-// - Remove associated cache directories
-// - Update cache metadata file
-// See temp_file_manager.go:executeCleanupTool for integration point
 
 // isServerError checks if error is a 5xx server error
 func isServerError(err error) bool {
@@ -987,6 +795,7 @@ func readLocalCapability(name string, path string) (string, error) {
 }
 
 // readPackageCapability reads a capability file from a package source
+// Uses session cache, downloads once per session
 func readPackageCapability(name string, packageLocation string) (string, error) {
 	// Get cache directory
 	cacheDir, err := getPackageCacheDir(packageLocation)
@@ -994,26 +803,16 @@ func readPackageCapability(name string, packageLocation string) (string, error) 
 		return "", err
 	}
 
-	// Ensure package is extracted
-	if !isCacheValidForPackage(packageLocation) {
-		// Download and extract package
+	// Check if already downloaded in this session
+	commandsDir := filepath.Join(cacheDir, "commands")
+	if _, err := os.Stat(commandsDir); os.IsNotExist(err) {
+		// Not yet downloaded, download and extract
 		if err := downloadAndExtractPackage(packageLocation, cacheDir); err != nil {
-			// If network error, try using stale cache
-			if !isCacheStaleForPackage(packageLocation) {
-				return "", err
-			}
-			// Continue with stale cache
-			fmt.Fprintf(os.Stderr, "Warning: Using stale cached package\n")
-		} else {
-			// Update cache metadata
-			if err := updateCacheMetadata(packageLocation, cacheDir); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: Failed to update cache metadata: %v\n", err)
-			}
+			return "", fmt.Errorf("failed to download package: %w", err)
 		}
 	}
 
 	// Read capability file from extracted package
-	commandsDir := filepath.Join(cacheDir, "commands")
 	return readLocalCapability(name, commandsDir)
 }
 
@@ -1077,51 +876,6 @@ func buildJsDelivrURL(source GitHubSource, filename string) string {
 	url += "/" + filename
 
 	return url
-}
-
-// detectVersionType determines if a version is a branch or tag
-// Tags typically match: v1.0.0, 1.0.0 (semantic versioning)
-// Branches: main, develop, feature/xyz, etc.
-func detectVersionType(version string) VersionType {
-	// Semantic version pattern: v?1.0.0
-	semverRegex := regexp.MustCompile(`^v?\d+\.\d+\.\d+`)
-
-	if semverRegex.MatchString(version) {
-		return VersionTypeTag
-	}
-
-	return VersionTypeBranch
-}
-
-// getCacheTTL returns cache TTL based on version type
-func getCacheTTL(versionType VersionType) time.Duration {
-	switch versionType {
-	case VersionTypeTag:
-		return 7 * 24 * time.Hour // 7 days for tags (immutable)
-	case VersionTypeBranch:
-		return 1 * time.Hour // 1 hour for branches (mutable)
-	default:
-		return 1 * time.Hour
-	}
-}
-
-// buildCachePath constructs the cache file path for a GitHub source
-// Cache directory structure: .capabilities-cache/github/{owner}/{repo}/{branch}/{subdir}/{filename}
-func buildCachePath(source GitHubSource, filename string) string {
-	parts := []string{
-		CapabilityCacheDir,
-		"github",
-		source.Owner,
-		source.Repo,
-		source.Branch,
-	}
-
-	if source.Subdir != "" {
-		parts = append(parts, source.Subdir)
-	}
-
-	parts = append(parts, filename)
-	return filepath.Join(parts...)
 }
 
 // readGitHubCapability reads a capability file from GitHub repository via jsDelivr
