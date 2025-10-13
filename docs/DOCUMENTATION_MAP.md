@@ -167,6 +167,27 @@ graph TD
 2. **MCP Complete Guide**: [docs/guides/mcp.md](guides/mcp.md) - All MCP topics in one place
 3. **Capabilities Guide**: [docs/guides/capabilities.md](guides/capabilities.md) - Create custom capabilities
 
+### For Documentation Maintenance
+
+**Documentation Health Capabilities** (based on [Role-Based Documentation Architecture](methodology/role-based-documentation.md)):
+
+| Your Question | Use | Frequency | What It Reveals |
+|---------------|-----|-----------|-----------------|
+| Is my doc system healthy? | `/meta doc-health` | Monthly, pre-commit | Role violations, size issues, R/E anomalies |
+| Will this doc become stale? | `/meta doc-evolution` | Monthly | Phase transitions, archival probability |
+| What docs am I missing? | `/meta doc-gaps` | Quarterly, pre-release | Undocumented features, knowledge silos |
+| Are my docs effective? | `/meta doc-usage` | Quarterly | Resolution rates, task alignment |
+
+**Typical Maintenance Workflow**:
+```
+Bootstrap:       /meta doc-health (establish baseline)
+Monthly:         /meta doc-health + /meta doc-evolution (15 min)
+Quarterly:       All 4 capabilities + comprehensive review (90 min)
+Pre-Release:     /meta doc-gaps (ensure completeness)
+```
+
+See [Role-Based Documentation Architecture](methodology/role-based-documentation.md) for complete methodology.
+
 ## Document Roles
 
 | Document | Role | Target Audience | Update Frequency |
@@ -231,6 +252,7 @@ For universal, project-independent software development methodologies, see:
 **[docs/methodology/](methodology/)** - Software Development Methodology
 
 - **[Documentation Management](methodology/documentation-management.md)**: Comprehensive guide to documentation management in Claude Code projects
+- **[Role-Based Documentation Architecture](methodology/role-based-documentation.md)**: Data-driven methodology for organizing and maintaining documentation based on actual usage patterns, with automated health checks and continuous optimization (Methodology v1.0, 2025-10-13)
 - **Future guides**: TDD, error handling, cross-platform development, version management, and more
 
 ---
@@ -270,6 +292,15 @@ For universal, project-independent software development methodologies, see:
 - ✅ Naming conventions: Fully standardized (lowercase + hyphens)
 - ✅ Documentation management toolchain: Complete with link checking, sync validation, and project bootstrap
 
+**Phase 6: Role-Based Documentation Methodology** (2025-10-13):
+- ✅ **Role-Based Documentation Architecture**: Created comprehensive methodology document (v1.0)
+- ✅ **6 Document Roles Defined**: Context Base, Living, Specification, Reference, Episodic, Archive
+- ✅ **Key Metrics Framework**: R/E ratio, access density, lifecycle stages
+- ✅ **4 Maintenance Capabilities Refined**: doc-health, doc-evolution, doc-gaps, doc-usage (concise style, 219-302 lines each)
+- ✅ **Empirical Case Study**: Complete analysis of meta-cc project documentation with actual data
+- ✅ **Implementation Guide**: Step-by-step setup, automation hooks, troubleshooting
+- ✅ **Updated DOCUMENTATION_MAP.md**: Added methodology reference in Universal Methodology section
+
 ---
 
-**Last Updated**: 2025-10-12
+**Last Updated**: 2025-10-13
