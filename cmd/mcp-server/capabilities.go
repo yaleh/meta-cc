@@ -234,7 +234,12 @@ func detectSourceType(location string) SourceType {
 
 	// GitHub format: "owner/repo" or "owner/repo/subdir"
 	// Simple heuristic: contains "/" but doesn't start with "/" or "." or "~"
+	// But check if it's actually a local directory first
 	if strings.Contains(location, "/") {
+		// Check if it's a local directory that exists
+		if _, err := os.Stat(location); err == nil {
+			return SourceTypeLocal
+		}
 		return SourceTypeGitHub
 	}
 
