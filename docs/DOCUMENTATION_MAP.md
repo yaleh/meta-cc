@@ -253,7 +253,8 @@ For universal, project-independent software development methodologies, see:
 
 - **[Documentation Management](methodology/documentation-management.md)**: Comprehensive guide to documentation management in Claude Code projects
 - **[Role-Based Documentation Architecture](methodology/role-based-documentation.md)**: Data-driven methodology for organizing and maintaining documentation based on actual usage patterns, with automated health checks and continuous optimization (Methodology v1.0, 2025-10-13)
-- **Future guides**: TDD, error handling, cross-platform development, version management, and more
+- **[Empirical Methodology Development](methodology/empirical-methodology-development.md)**: Meta-methodology for developing software engineering practices through observation, analysis, and automation. Includes OCA Framework (Observe-Codify-Automate) and implementation roadmap (Framework v1.0, 2025-10-13)
+- **Future guides**: TDD, error handling, cross-platform development, version management, and more (using OCA Framework)
 
 ---
 
