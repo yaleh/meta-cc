@@ -49,6 +49,38 @@ Meta-methodology for developing software engineering practices through observati
 
 **Status**: Framework v1.0 (2025-10-13)
 
+### [Bootstrapped Software Engineering](bootstrapped-software-engineering.md)
+Meta-methodology framework for self-evolving software development processes, derived from empirical analysis of the meta-cc project.
+
+**Key topics**:
+- Self-referential feedback loops and bootstrapping theory
+- Multi-dimensional iteration architecture
+- Meta-Agent bootstrapping and three-tuple output (O, Aₙ, Mₙ)
+- Indirect vs. direct artifacts
+- Multi-team concurrency model
+- Software Engineering Darwinism and convergence theory
+
+**Target audience**: Any software project with observable development process
+
+**Status**: Theoretical Framework v1.0 (2025-10-13)
+
+### [Value Space Optimization](value-space-optimization.md)
+Mathematical framework for training Agents and Meta-Agents from software development history, treating development as optimization in high-dimensional value space.
+
+**Key topics**:
+- Value space mathematical model (V: S → ℝ)
+- Agent as gradient (∇V), Meta-Agent as Hessian (∇²V)
+- Historical data collection and value trajectory reconstruction
+- Agent training pipeline (clustering, supervised learning)
+- Error value extraction (positive value from failures)
+- Meta-Agent training with reinforcement learning (Q-learning)
+- Transfer learning and continual learning
+- Case study: meta-cc development (277 commits analyzed)
+
+**Target audience**: Projects with comprehensive development history (git + sessions + metrics)
+
+**Status**: Theoretical Framework v1.0 (2025-10-14)
+
 ---
 
 ## Future Guides
@@ -82,4 +114,4 @@ These methodology documents are designed to be:
 
 ---
 
-**Last Updated**: 2025-10-12
+**Last Updated**: 2025-10-14
