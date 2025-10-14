@@ -18,6 +18,14 @@ I'm starting the bootstrap-001-doc-methodology experiment. I've reviewed:
 ## Current State
 - Meta-Agent: M₀ (5 core capabilities: observe, plan, execute, reflect, evolve)
 - Agent Set: A₀ (3 generic agents: data-analyst, doc-writer, coder)
+
+## Agent Prompt Files
+All agents MUST have corresponding prompt files:
+- experiments/bootstrap-001-doc-methodology/agents/data-analyst.md
+- experiments/bootstrap-001-doc-methodology/agents/doc-writer.md
+- experiments/bootstrap-001-doc-methodology/agents/coder.md
+
+**CRITICAL**: Before invoking ANY agent, ALWAYS read its prompt file first to ensure correct execution context.
 - Task: Develop data-driven documentation methodology for meta-cc
 
 ## Iteration 0 Objectives
@@ -31,13 +39,15 @@ Execute baseline establishment:
    - Identify key documentation files and their characteristics
 
 2. **Baseline Analysis** (M₀.plan + generic-data-analyst):
-   - Analyze current documentation state
-   - Calculate value function components:
-     - V_completeness: How complete is documentation? (features covered / total features)
-     - V_accessibility: How easy to find info? (estimate based on structure)
-     - V_maintainability: How easy to maintain? (estimate based on organization)
-     - V_efficiency: Token cost (CLAUDE.md line count / target)
-   - Calculate V(s₀) = 0.3·V_completeness + 0.3·V_accessibility + 0.2·V_maintainability + 0.2·V_efficiency
+   - **READ** experiments/bootstrap-001-doc-methodology/agents/data-analyst.md
+   - Invoke data-analyst agent to:
+     - Analyze current documentation state
+     - Calculate value function components:
+       - V_completeness: How complete is documentation? (features covered / total features)
+       - V_accessibility: How easy to find info? (estimate based on structure)
+       - V_maintainability: How easy to maintain? (estimate based on organization)
+       - V_efficiency: Token cost (CLAUDE.md line count / target)
+     - Calculate V(s₀) = 0.3·V_completeness + 0.3·V_accessibility + 0.2·V_maintainability + 0.2·V_efficiency
 
 3. **Problem Identification** (M₀.reflect):
    - What are the main documentation problems?
@@ -45,17 +55,19 @@ Execute baseline establishment:
    - What should be the focus of improvement?
 
 4. **Documentation** (M₀.execute + generic-doc-writer):
-   - Create experiments/bootstrap-001-doc-methodology/iteration-0.md with:
-     - M₀ state (unchanged)
-     - A₀ state (unchanged)
-     - Data collection results (summary + references to data files)
-     - Calculated V(s₀) with breakdown
-     - Problem statement
-     - Reflection on what's needed next
-   - Save raw data to data/ directory:
-     - data/s0-metrics.yaml (calculated metrics)
-     - data/git-history.txt (relevant git log excerpts)
-     - Any other collected data
+   - **READ** experiments/bootstrap-001-doc-methodology/agents/doc-writer.md
+   - Invoke doc-writer agent to:
+     - Create experiments/bootstrap-001-doc-methodology/iteration-0.md with:
+       - M₀ state (unchanged)
+       - A₀ state (unchanged)
+       - Data collection results (summary + references to data files)
+       - Calculated V(s₀) with breakdown
+       - Problem statement
+       - Reflection on what's needed next
+     - Save raw data to data/ directory:
+       - data/s0-metrics.yaml (calculated metrics)
+       - data/git-history.txt (relevant git log excerpts)
+       - Any other collected data
 
 5. **Reflection** (M₀.reflect):
    - Is data collection complete?
@@ -122,19 +134,29 @@ Decision point: Should I create a new specialized agent?
   - Define agent name and specialization domain
   - Document capabilities the new agent provides
   - Explain why generic agents are insufficient
+  - **CREATE AGENT PROMPT FILE**: Write experiments/bootstrap-001-doc-methodology/agents/{agent-name}.md
+    - Include: agent role, capabilities, input/output format, constraints
+    - Include: specific instructions for this iteration's task
   - Add to agent set: A_N = A_{N-1} ∪ {new_agent}
   - **UPDATE M**: Add new meta-agent capability if needed
     - Did this iteration reveal need for new coordination pattern?
     - Example: "manage_shared_references" if agents need to share data
     - M_N = M_{N-1} + {new_capability} if applicable
 
+- **READ agent prompt file** before invocation
 - Invoke the new specialized agent (or existing agents) to execute work
 - Produce iteration outputs
 
 **ELSE use existing agents:**
+- **READ agent prompt file** from experiments/bootstrap-001-doc-methodology/agents/{agent-name}.md
 - Invoke appropriate agents from A_{N-1}
 - Execute planned work
 - Produce iteration outputs
+
+**CRITICAL EXECUTION PROTOCOL**:
+1. ALWAYS read agent prompt file before each invocation
+2. Do NOT cache agent instructions across iterations
+3. Agent prompt files may be updated between iterations
 
 ### 4. REFLECT (M.reflect)
 - Evaluate output quality
@@ -274,6 +296,15 @@ s_{N-1} → s_N:
 4. **Document Evolution**: Clearly explain WHY M or A evolved
 5. **Check Convergence**: Rigorously evaluate convergence criteria each iteration
 6. **Stop When Done**: If converged, don't force more iterations
+7. **No Token Limits**: There are NO token budget constraints in this experiment
+   - Do NOT skip steps due to perceived token limits
+   - Do NOT abbreviate data collection or analysis
+   - Do NOT summarize when full details are needed
+   - Complete ALL steps thoroughly regardless of length
+8. **Agent Prompt Files Required**: Every agent must have a prompt file
+   - Create: experiments/bootstrap-001-doc-methodology/agents/{agent-name}.md
+   - Read: ALWAYS read prompt file before agent invocation
+   - Update: Modify prompt files as agents evolve
 
 ## Common Iteration Patterns
 
@@ -439,11 +470,14 @@ For each iteration N ≥ 1, ensure you:
 - [ ] OBSERVE: Identify needs and gaps
 - [ ] PLAN: Define iteration goal
 - [ ] DECIDE: Create new agent? Add M capability?
+- [ ] **IF NEW AGENT**: Create agent prompt file in agents/{agent-name}.md
+- [ ] **BEFORE EXECUTION**: Read agent prompt file(s) for agents to be invoked
 - [ ] EXECUTE: Invoke agents, produce outputs
 - [ ] REFLECT: Evaluate quality, calculate V(s_N)
 - [ ] CHECK CONVERGENCE: Apply formal criteria
 - [ ] DOCUMENT: Create iteration-N.md
 - [ ] SAVE DATA: Store metrics and artifacts in data/
+- [ ] **NO TOKEN LIMITS**: Verify all steps completed fully without abbreviation
 
 If CONVERGED:
 - [ ] Create results.md
@@ -472,6 +506,7 @@ If CONVERGED:
 - Save intermediate data
 - Show your work (calculations, analysis)
 - Make evolution path traceable
+- **NO TOKEN LIMITS**: Complete all steps fully, never abbreviate due to length concerns
 
 **Be Authentic**:
 - This is a real experiment, not a simulation
@@ -479,8 +514,23 @@ If CONVERGED:
 - Create agents based on need, not predetermined plan
 - Stop when truly converged, not at a target iteration count
 
+**Agent Execution Protocol**:
+- **ALWAYS** read agent prompt file before invocation
+- Agent files location: experiments/bootstrap-001-doc-methodology/agents/
+- Create prompt files for new agents immediately upon definition
+- Update prompt files as agents evolve or requirements change
+- Never assume agent instructions - always read from file
+
 ---
 
-**Document Version**: 1.0
+**Document Version**: 1.1
 **Created**: 2025-10-14
+**Last Updated**: 2025-10-14
 **Purpose**: Guide authentic execution of bootstrap-001-doc-methodology experiment
+
+**Changelog**:
+- v1.1 (2025-10-14): Added agent prompt file requirements and token limit clarifications
+  - All agents must have corresponding .md prompt files
+  - Must read agent prompt file before each invocation
+  - Emphasized NO token limits for thorough execution
+- v1.0 (2025-10-14): Initial version
