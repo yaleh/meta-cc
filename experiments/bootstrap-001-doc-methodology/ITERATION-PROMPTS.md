@@ -19,26 +19,49 @@ I'm starting the bootstrap-001-doc-methodology experiment. I've reviewed:
 - Meta-Agent: M₀ (5 core capabilities: observe, plan, execute, reflect, evolve)
 - Agent Set: A₀ (3 generic agents: data-analyst, doc-writer, coder)
 
-## Agent Prompt Files
-All agents MUST have corresponding prompt files:
+## Meta-Agent and Agent Prompt Files
+
+All Meta-Agents and Agents MUST have corresponding prompt files:
+
+**Meta-Agent prompt file:**
+- experiments/bootstrap-001-doc-methodology/meta-agents/meta-agent-m0.md
+
+**Agent prompt files:**
 - experiments/bootstrap-001-doc-methodology/agents/data-analyst.md
 - experiments/bootstrap-001-doc-methodology/agents/doc-writer.md
 - experiments/bootstrap-001-doc-methodology/agents/coder.md
 
-**CRITICAL**: Before invoking ANY agent, ALWAYS read its prompt file first to ensure correct execution context.
-- Task: Develop data-driven documentation methodology for meta-cc
+**CRITICAL EXECUTION PROTOCOL**:
+- Before embodying the Meta-Agent role, ALWAYS read the Meta-Agent prompt file first
+- Before invoking ANY agent, ALWAYS read its prompt file first
+- This ensures correct execution context and captures all details from the files
+- Never assume capabilities - always read from the source files
 
 ## Iteration 0 Objectives
 
 Execute baseline establishment:
 
+0. **Setup** (Before starting iteration):
+   - **CREATE META-AGENT PROMPT FILE**: Write experiments/bootstrap-001-doc-methodology/meta-agents/meta-agent-m0.md
+     - Document M₀'s 5 core capabilities (observe, plan, execute, reflect, evolve)
+     - Define how M₀ coordinates agents
+     - Specify decision-making process for agent selection
+     - Include value function optimization strategy
+     - Define convergence criteria evaluation process
+   - **CREATE INITIAL AGENT PROMPT FILES**: Write agents/{data-analyst,doc-writer,coder}.md
+     - Define each agent's role, capabilities, constraints
+     - Specify input/output formats
+     - Include task-specific instructions for baseline iteration
+
 1. **Data Collection** (M₀.observe):
+   - **READ** experiments/bootstrap-001-doc-methodology/meta-agents/meta-agent-m0.md (embody M₀ role)
    - Use git log to collect commits from 2025-10-10 to 2025-10-14
    - Use meta-cc CLI to query file access patterns (query-files --scope project)
    - Read current documentation structure (docs/ directory)
    - Identify key documentation files and their characteristics
 
 2. **Baseline Analysis** (M₀.plan + generic-data-analyst):
+   - **READ** experiments/bootstrap-001-doc-methodology/meta-agents/meta-agent-m0.md (for planning strategy)
    - **READ** experiments/bootstrap-001-doc-methodology/agents/data-analyst.md
    - Invoke data-analyst agent to:
      - Analyze current documentation state
@@ -50,11 +73,13 @@ Execute baseline establishment:
      - Calculate V(s₀) = 0.3·V_completeness + 0.3·V_accessibility + 0.2·V_maintainability + 0.2·V_efficiency
 
 3. **Problem Identification** (M₀.reflect):
+   - **READ** experiments/bootstrap-001-doc-methodology/meta-agents/meta-agent-m0.md (for reflection process)
    - What are the main documentation problems?
    - What patterns exist in the data?
    - What should be the focus of improvement?
 
 4. **Documentation** (M₀.execute + generic-doc-writer):
+   - **READ** experiments/bootstrap-001-doc-methodology/meta-agents/meta-agent-m0.md (for execution coordination)
    - **READ** experiments/bootstrap-001-doc-methodology/agents/doc-writer.md
    - Invoke doc-writer agent to:
      - Create experiments/bootstrap-001-doc-methodology/iteration-0.md with:
@@ -70,6 +95,7 @@ Execute baseline establishment:
        - Any other collected data
 
 5. **Reflection** (M₀.reflect):
+   - **READ** experiments/bootstrap-001-doc-methodology/meta-agents/meta-agent-m0.md (for reflection and evolution assessment)
    - Is data collection complete?
    - Are M₀ capabilities sufficient for baseline establishment?
    - What should be the focus of Iteration 1?
@@ -112,22 +138,30 @@ Extract:
 
 ## Meta-Agent Decision Process
 
+**BEFORE STARTING**: Read the Meta-Agent prompt file to embody M_{N-1} role:
+- **READ** experiments/bootstrap-001-doc-methodology/meta-agents/meta-agent-m{N-1}.md
+- Understand current capabilities, decision processes, and strategies
+- Load coordination patterns and agent selection policy
+
 As M_{N-1}, follow the five-capability process:
 
 ### 1. OBSERVE (M.observe)
+- **READ** meta-agent file for observation strategies
 - Review previous iteration outputs
 - Examine data collected so far
 - Identify gaps or new data needs
 - Query additional data if needed (git log, meta-cc CLI, file reads)
 
 ### 2. PLAN (M.plan)
+- **READ** meta-agent file for planning and decision-making process
 - Based on observations, what is the primary goal for this iteration?
 - What capabilities are needed to achieve this goal?
 - Are current agents (A_{N-1}) sufficient?
 - If not, what kind of specialized agent is needed?
 
 ### 3. EXECUTE (M.execute)
-Decision point: Should I create a new specialized agent?
+- **READ** meta-agent file for execution coordination strategies
+- Decision point: Should I create a new specialized agent?
 
 **IF current agents are insufficient:**
 - **EVOLVE** (M.evolve): Create new specialized agent
@@ -141,7 +175,11 @@ Decision point: Should I create a new specialized agent?
   - **UPDATE M**: Add new meta-agent capability if needed
     - Did this iteration reveal need for new coordination pattern?
     - Example: "manage_shared_references" if agents need to share data
-    - M_N = M_{N-1} + {new_capability} if applicable
+    - If M_N ≠ M_{N-1}:
+      - **CREATE NEW META-AGENT PROMPT FILE**: Write meta-agents/meta-agent-m{N}.md
+      - Document new capabilities and their rationale
+      - Preserve all existing capabilities
+      - Update decision-making and coordination strategies
 
 - **READ agent prompt file** before invocation
 - Invoke the new specialized agent (or existing agents) to execute work
@@ -154,11 +192,14 @@ Decision point: Should I create a new specialized agent?
 - Produce iteration outputs
 
 **CRITICAL EXECUTION PROTOCOL**:
-1. ALWAYS read agent prompt file before each invocation
-2. Do NOT cache agent instructions across iterations
-3. Agent prompt files may be updated between iterations
+1. ALWAYS read Meta-Agent prompt file before embodying the Meta-Agent role
+2. ALWAYS read agent prompt file before each agent invocation
+3. Do NOT cache instructions across iterations - always read from files
+4. Prompt files may be updated between iterations - get latest details from files
+5. Never assume capabilities - always verify from source files
 
 ### 4. REFLECT (M.reflect)
+- **READ** meta-agent file for reflection and evaluation processes
 - Evaluate output quality
 - Calculate new value: V(s_N)
 - Calculate value change: ΔV = V(s_N) - V(s_{N-1})
@@ -301,10 +342,13 @@ s_{N-1} → s_N:
    - Do NOT abbreviate data collection or analysis
    - Do NOT summarize when full details are needed
    - Complete ALL steps thoroughly regardless of length
-8. **Agent Prompt Files Required**: Every agent must have a prompt file
-   - Create: experiments/bootstrap-001-doc-methodology/agents/{agent-name}.md
-   - Read: ALWAYS read prompt file before agent invocation
-   - Update: Modify prompt files as agents evolve
+8. **Meta-Agent and Agent Prompt Files Required**: Every Meta-Agent and agent must have a prompt file
+   - Meta-Agent files: experiments/bootstrap-001-doc-methodology/meta-agents/meta-agent-m{N}.md
+   - Agent files: experiments/bootstrap-001-doc-methodology/agents/{agent-name}.md
+   - Read: ALWAYS read Meta-Agent file before embodying M role
+   - Read: ALWAYS read agent prompt file before agent invocation
+   - Update: Create new Meta-Agent file when M evolves (M_N ≠ M_{N-1})
+   - Update: Modify agent prompt files as agents evolve or requirements change
 
 ## Common Iteration Patterns
 
@@ -467,13 +511,15 @@ For each iteration N ≥ 1, ensure you:
 
 - [ ] Review previous iteration (iteration-[N-1].md)
 - [ ] Extract current state (M_{N-1}, A_{N-1}, V(s_{N-1}))
-- [ ] OBSERVE: Identify needs and gaps
-- [ ] PLAN: Define iteration goal
+- [ ] **READ META-AGENT FILE**: Read meta-agents/meta-agent-m{N-1}.md before embodying M role
+- [ ] OBSERVE: Identify needs and gaps (using M's observe capability)
+- [ ] PLAN: Define iteration goal (using M's plan capability)
 - [ ] DECIDE: Create new agent? Add M capability?
 - [ ] **IF NEW AGENT**: Create agent prompt file in agents/{agent-name}.md
-- [ ] **BEFORE EXECUTION**: Read agent prompt file(s) for agents to be invoked
-- [ ] EXECUTE: Invoke agents, produce outputs
-- [ ] REFLECT: Evaluate quality, calculate V(s_N)
+- [ ] **IF M EVOLVES**: Create new meta-agents/meta-agent-m{N}.md with updated capabilities
+- [ ] **BEFORE AGENT EXECUTION**: Read agent prompt file(s) for agents to be invoked
+- [ ] EXECUTE: Invoke agents, produce outputs (using M's execute capability)
+- [ ] REFLECT: Evaluate quality, calculate V(s_N) (using M's reflect capability)
 - [ ] CHECK CONVERGENCE: Apply formal criteria
 - [ ] DOCUMENT: Create iteration-N.md
 - [ ] SAVE DATA: Store metrics and artifacts in data/
@@ -514,21 +560,39 @@ If CONVERGED:
 - Create agents based on need, not predetermined plan
 - Stop when truly converged, not at a target iteration count
 
-**Agent Execution Protocol**:
-- **ALWAYS** read agent prompt file before invocation
-- Agent files location: experiments/bootstrap-001-doc-methodology/agents/
-- Create prompt files for new agents immediately upon definition
-- Update prompt files as agents evolve or requirements change
-- Never assume agent instructions - always read from file
+**Meta-Agent and Agent Execution Protocol**:
+- **Meta-Agent files**: experiments/bootstrap-001-doc-methodology/meta-agents/
+  - **ALWAYS** read Meta-Agent prompt file before embodying M role
+  - Create new Meta-Agent file when M evolves (M_N ≠ M_{N-1})
+  - File captures complete capabilities, strategies, and decision processes
+  - Never assume Meta-Agent behavior - always read from file for full details
+- **Agent files**: experiments/bootstrap-001-doc-methodology/agents/
+  - **ALWAYS** read agent prompt file before invocation
+  - Create prompt files for new agents immediately upon definition
+  - Update prompt files as agents evolve or requirements change
+  - Never assume agent instructions - always read from file for full details
+- **Reading ensures**:
+  - Complete context and all details are captured
+  - No assumptions about capabilities or processes
+  - Latest updates and refinements are incorporated
+  - Explicit rather than implicit execution
 
 ---
 
-**Document Version**: 1.1
+**Document Version**: 1.2
 **Created**: 2025-10-14
 **Last Updated**: 2025-10-14
 **Purpose**: Guide authentic execution of bootstrap-001-doc-methodology experiment
 
 **Changelog**:
+- v1.2 (2025-10-14): Added Meta-Agent prompt file requirements
+  - All Meta-Agents must have corresponding .md prompt files
+  - Meta-Agent files: meta-agents/meta-agent-m{N}.md
+  - Must read Meta-Agent file before embodying M role
+  - Must create new Meta-Agent file when M evolves
+  - Updated all execution protocols to include Meta-Agent file reading
+  - Added explicit READ instructions throughout iteration steps
+  - Ensures complete context and all details are captured from files
 - v1.1 (2025-10-14): Added agent prompt file requirements and token limit clarifications
   - All agents must have corresponding .md prompt files
   - Must read agent prompt file before each invocation
