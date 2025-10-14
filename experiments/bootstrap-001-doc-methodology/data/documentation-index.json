@@ -1,0 +1,882 @@
+[
+  {
+    "title": "meta-cc \u8bbe\u8ba1\u539f\u5219\u4e0e\u6838\u5fc3\u7ea6\u675f",
+    "path": "core/principles.md",
+    "category": "core",
+    "depth": 2,
+    "summary": "\u672c\u6587\u6863\u5b9a\u4e49\u4e86 meta-cc \u9879\u76ee\u7684\u6838\u5fc3\u8bbe\u8ba1\u539f\u5219\u3001\u5f00\u53d1\u7ea6\u675f\u548c\u67b6\u6784\u51b3\u7b56\u3002",
+    "keywords": [
+      "claude",
+      "architecture",
+      "meta",
+      "test",
+      "code",
+      "windows",
+      "server",
+      "file",
+      "stage",
+      "integration"
+    ],
+    "size": 8361
+  },
+  {
+    "title": "meta-cc \u9879\u76ee\u603b\u4f53\u5b9e\u65bd\u8ba1\u5212",
+    "path": "core/plan.md",
+    "category": "core",
+    "depth": 2,
+    "summary": "\u57fa\u4e8e [\u6280\u672f\u65b9\u6848](../architecture/proposals/meta-cognition-proposal.md) \u7684\u5206\u9636\u6bb5\u5b9e\u65bd\u8ba1\u5212\u3002",
+    "keywords": [
+      "phase",
+      "plans",
+      "meta",
+      "subagent",
+      "card",
+      "down",
+      "claude",
+      "lightgreen",
+      "coach",
+      "note"
+    ],
+    "size": 9904
+  },
+  {
+    "title": "Capability Development Guide",
+    "path": "guides/capabilities.md",
+    "category": "guide",
+    "depth": 2,
+    "summary": "This guide explains how to create and extend meta-cc capabilities using the multi-source discovery system.",
+    "keywords": [
+      "capabilities",
+      "capability",
+      "meta",
+      "test",
+      "cache",
+      "name",
+      "bash",
+      "export",
+      "feature",
+      "with"
+    ],
+    "size": 11231
+  },
+  {
+    "title": "Git Hooks",
+    "path": "guides/git-hooks.md",
+    "category": "guide",
+    "depth": 2,
+    "summary": "This document describes the git hooks available for meta-cc development.",
+    "keywords": [
+      "version",
+      "hooks",
+      "commit",
+      "claude",
+      "bump",
+      "hook",
+      "meta",
+      "plugin",
+      "bash",
+      "commands"
+    ],
+    "size": 5935
+  },
+  {
+    "title": "MCP Server Guide",
+    "path": "guides/mcp.md",
+    "category": "guide",
+    "depth": 2,
+    "summary": "meta-cc provides a Model Context Protocol (MCP) Server that enables Claude Code to autonomously query session data without manual CLI commands. The MC",
+    "keywords": [
+      "error",
+      "tool",
+      "json",
+      "session",
+      "default",
+      "project",
+      "scope",
+      "bash",
+      "pattern",
+      "limit"
+    ],
+    "size": 22084
+  },
+  {
+    "title": "Meta-CC Claude Code Integration Guide",
+    "path": "guides/integration.md",
+    "category": "guide",
+    "depth": 2,
+    "summary": "A practical guide to choosing and using the right integration method for your meta-cognition workflow.",
+    "keywords": [
+      "meta",
+      "slash",
+      "subagent",
+      "claude",
+      "command",
+      "context",
+      "commands",
+      "coach",
+      "main",
+      "conversation"
+    ],
+    "size": 11870
+  },
+  {
+    "title": "Plugin Development Guide",
+    "path": "guides/plugin-development.md",
+    "category": "guide",
+    "depth": 2,
+    "summary": "Complete guide for developing and testing Claude Code plugins in meta-cc.",
+    "keywords": [
+      "claude",
+      "meta",
+      "commands",
+      "version",
+      "capabilities",
+      "plugin",
+      "bash",
+      "capability",
+      "release",
+      "code"
+    ],
+    "size": 11690
+  },
+  {
+    "title": "Release Process",
+    "path": "guides/release-process.md",
+    "category": "guide",
+    "depth": 2,
+    "summary": "This document describes the release process for meta-cc.",
+    "keywords": [
+      "version",
+      "plugin",
+      "release",
+      "meta",
+      "bump",
+      "changes",
+      "updates",
+      "claude",
+      "commands",
+      "when"
+    ],
+    "size": 9087
+  },
+  {
+    "title": "meta-cc Troubleshooting Guide",
+    "path": "guides/troubleshooting.md",
+    "category": "guide",
+    "depth": 2,
+    "summary": "This document provides solutions to common issues.",
+    "keywords": [
+      "meta",
+      "session",
+      "file",
+      "bash",
+      "claude",
+      "only",
+      "project",
+      "parse",
+      "stats",
+      "check"
+    ],
+    "size": 5978
+  },
+  {
+    "title": "CLI Reference",
+    "path": "reference/cli.md",
+    "category": "reference",
+    "depth": 2,
+    "summary": "Complete command-line reference for meta-cc.",
+    "keywords": [
+      "meta",
+      "query",
+      "bash",
+      "tools",
+      "tool",
+      "options",
+      "error",
+      "stats",
+      "output",
+      "analyze"
+    ],
+    "size": 11041
+  },
+  {
+    "title": "Feature Overview",
+    "path": "reference/features.md",
+    "category": "reference",
+    "depth": 2,
+    "summary": "This document provides a comprehensive overview of meta-cc's advanced features.",
+    "keywords": [
+      "meta",
+      "tools",
+      "query",
+      "bash",
+      "tool",
+      "error",
+      "output",
+      "with",
+      "files",
+      "json"
+    ],
+    "size": 15555
+  },
+  {
+    "title": "JSONL Output Format Reference",
+    "path": "reference/jsonl.md",
+    "category": "reference",
+    "depth": 2,
+    "summary": "Understanding meta-cc's JSONL (JSON Lines) output structure is crucial for processing data with tools like `jq`.",
+    "keywords": [
+      "meta",
+      "tools",
+      "query",
+      "bash",
+      "toolname",
+      "parse",
+      "tool",
+      "error",
+      "type",
+      "errors"
+    ],
+    "size": 12052
+  },
+  {
+    "title": "MCP Tools Complete Reference",
+    "path": "archive/mcp-tools-reference.md",
+    "category": "reference",
+    "depth": 2,
+    "summary": "meta-cc-mcp provides **12 standardized tools** for analyzing Claude Code session history. All tools support the same core parameters for consistency a",
+    "keywords": [
+      "json",
+      "name",
+      "arguments",
+      "error",
+      "tool",
+      "status",
+      "default",
+      "example",
+      "mode",
+      "session"
+    ],
+    "size": 30169
+  },
+  {
+    "title": "Repository Structure",
+    "path": "reference/repository-structure.md",
+    "category": "reference",
+    "depth": 2,
+    "summary": "Complete guide to meta-cc directory organization and file purposes.",
+    "keywords": [
+      "plugin",
+      "capabilities",
+      "claude",
+      "hooks",
+      "commands",
+      "cache",
+      "release",
+      "meta",
+      "files",
+      "build"
+    ],
+    "size": 10203
+  },
+  {
+    "title": "Unified Meta Command",
+    "path": "reference/unified-meta-command.md",
+    "category": "reference",
+    "depth": 2,
+    "summary": "Complete guide to the `/meta` command - a unified entry point for all meta-cognition capabilities with natural language intent matching.",
+    "keywords": [
+      "meta",
+      "capabilities",
+      "errors",
+      "capability",
+      "cache",
+      "commands",
+      "github",
+      "bash",
+      "export",
+      "yaleh"
+    ],
+    "size": 11531
+  },
+  {
+    "title": "CLI Composability: Integrating meta-cc with Unix Tools",
+    "path": "tutorials/cli-composability.md",
+    "category": "tutorial",
+    "depth": 2,
+    "summary": "This guide demonstrates how to integrate meta-cc with standard Unix tools for powerful data analysis workflows.",
+    "keywords": [
+      "meta",
+      "tools",
+      "query",
+      "error",
+      "bash",
+      "toolname",
+      "duration",
+      "tool",
+      "status",
+      "count"
+    ],
+    "size": 9338
+  },
+  {
+    "title": "GitHub Repository Setup",
+    "path": "tutorials/github-setup.md",
+    "category": "tutorial",
+    "depth": 2,
+    "summary": "This document records the recommended GitHub repository configuration for meta-cc to maintain open-source best practices.",
+    "keywords": [
+      "github",
+      "security",
+      "repository",
+      "actions",
+      "settings",
+      "branch",
+      "code",
+      "license",
+      "allow",
+      "dependabot"
+    ],
+    "size": 7443
+  },
+  {
+    "title": "Installation Guide",
+    "path": "tutorials/installation.md",
+    "category": "tutorial",
+    "depth": 2,
+    "summary": "```bash",
+    "keywords": [
+      "meta",
+      "bash",
+      "claude",
+      "local",
+      "github",
+      "download",
+      "windows",
+      "https",
+      "yaleh",
+      "plugin"
+    ],
+    "size": 8497
+  },
+  {
+    "title": "Meta-CC Integration Examples - Usage Guide",
+    "path": "tutorials/examples.md",
+    "category": "tutorial",
+    "depth": 2,
+    "summary": "This guide shows how to use the meta-cc integration examples (MCP Server, Subagent, and Slash Commands).",
+    "keywords": [
+      "meta",
+      "claude",
+      "tool",
+      "errors",
+      "file",
+      "bash",
+      "mode",
+      "error",
+      "with",
+      "commands"
+    ],
+    "size": 20845
+  },
+  {
+    "title": "meta-cc Cookbook: Common Analysis Patterns",
+    "path": "tutorials/cookbook.md",
+    "category": "tutorial",
+    "depth": 2,
+    "summary": "This cookbook provides practical examples for common analysis tasks using meta-cc.",
+    "keywords": [
+      "meta",
+      "error",
+      "tool",
+      "bash",
+      "tools",
+      "query",
+      "metrics",
+      "stats",
+      "count",
+      "duration"
+    ],
+    "size": 11548
+  },
+  {
+    "title": "Bootstrapped Software Engineering",
+    "path": "methodology/bootstrapped-software-engineering.md",
+    "category": "methodology",
+    "depth": 2,
+    "summary": "A meta-methodology framework for self-evolving software development processes, derived from empirical analysis of the meta-cc project.",
+    "keywords": [
+      "meta",
+      "methodology",
+      "agent",
+      "data",
+      "documentation",
+      "phase",
+      "convergence",
+      "validation",
+      "task",
+      "level"
+    ],
+    "size": 34997
+  },
+  {
+    "title": "Documentation Management Methodology for Claude Code Projects",
+    "path": "methodology/documentation-management.md",
+    "category": "methodology",
+    "depth": 2,
+    "summary": "A language-agnostic, project-independent operational guide to managing documentation in software projects using Claude Code.",
+    "keywords": [
+      "docs",
+      "plan",
+      "core",
+      "phase",
+      "claude",
+      "principles",
+      "update",
+      "readme",
+      "lines",
+      "development"
+    ],
+    "size": 27660
+  },
+  {
+    "title": "Empirical Methodology Development",
+    "path": "methodology/empirical-methodology-development.md",
+    "category": "methodology",
+    "depth": 2,
+    "summary": "A meta-methodology for developing software engineering practices through observation, analysis, and automation, derived from the meta-cc project exper",
+    "keywords": [
+      "methodology",
+      "meta",
+      "test",
+      "data",
+      "error",
+      "patterns",
+      "pattern",
+      "coverage",
+      "phase",
+      "project"
+    ],
+    "size": 43869
+  },
+  {
+    "title": "Role-Based Documentation Architecture",
+    "path": "methodology/role-based-documentation.md",
+    "category": "methodology",
+    "depth": 2,
+    "summary": "A data-driven methodology for organizing and maintaining documentation in Claude Code projects, based on actual usage patterns and empirical evidence ",
+    "keywords": [
+      "docs",
+      "lines",
+      "meta",
+      "role",
+      "reference",
+      "claude",
+      "documentation",
+      "health",
+      "living",
+      "accesses"
+    ],
+    "size": 56686
+  },
+  {
+    "title": "Software Development Methodology",
+    "path": "methodology/README.md",
+    "category": "methodology",
+    "depth": 2,
+    "summary": "This directory contains universal, project-independent methodology guides for software development with Claude Code.",
+    "keywords": [
+      "development",
+      "meta",
+      "software",
+      "methodology",
+      "with",
+      "project",
+      "framework",
+      "value",
+      "documentation",
+      "principles"
+    ],
+    "size": 4839
+  },
+  {
+    "title": "Value Space Optimization: Agent Training from Project History",
+    "path": "methodology/value-space-optimization.md",
+    "category": "methodology",
+    "depth": 2,
+    "summary": "A mathematical framework for training Agents and Meta-Agents from software development history, treating development as optimization in high-dimension",
+    "keywords": [
+      "agent",
+      "self",
+      "state",
+      "meta",
+      "value",
+      "trajectory",
+      "agents",
+      "data",
+      "commits",
+      "commit"
+    ],
+    "size": 56573
+  },
+  {
+    "title": "ADR-001: Two-Layer Architecture Design",
+    "path": "architecture/adr/ADR-001-two-layer-architecture.md",
+    "category": "architecture",
+    "depth": 3,
+    "summary": "Accepted",
+    "keywords": [
+      "data",
+      "layer",
+      "tool",
+      "integration",
+      "claude",
+      "analysis",
+      "meta",
+      "session",
+      "server",
+      "layers"
+    ],
+    "size": 5685
+  },
+  {
+    "title": "ADR-002: Plugin Directory Structure Refactoring",
+    "path": "architecture/adr/ADR-002-plugin-directory-structure.md",
+    "category": "architecture",
+    "depth": 3,
+    "summary": "Accepted",
+    "keywords": [
+      "claude",
+      "commands",
+      "plugin",
+      "agents",
+      "files",
+      "release",
+      "sync",
+      "source",
+      "build",
+      "bundle"
+    ],
+    "size": 7775
+  },
+  {
+    "title": "ADR-003: MCP Server Integration Strategy",
+    "path": "architecture/adr/ADR-003-mcp-server-integration.md",
+    "category": "architecture",
+    "depth": 3,
+    "summary": "Accepted",
+    "keywords": [
+      "integration",
+      "server",
+      "meta",
+      "commands",
+      "slash",
+      "analysis",
+      "subagents",
+      "data",
+      "tools",
+      "claude"
+    ],
+    "size": 8615
+  },
+  {
+    "title": "ADR-004: Hybrid Output Mode Design",
+    "path": "architecture/adr/ADR-004-hybrid-output-mode.md",
+    "category": "architecture",
+    "depth": 3,
+    "summary": "Accepted",
+    "keywords": [
+      "file",
+      "mode",
+      "results",
+      "data",
+      "inline",
+      "json",
+      "threshold",
+      "claude",
+      "jsonl",
+      "large"
+    ],
+    "size": 10203
+  },
+  {
+    "title": "ADR-005: Scope Parameter Standardization",
+    "path": "architecture/adr/ADR-005-scope-parameter-standardization.md",
+    "category": "architecture",
+    "depth": 3,
+    "summary": "Accepted",
+    "keywords": [
+      "scope",
+      "project",
+      "session",
+      "default",
+      "behavior",
+      "tools",
+      "defaults",
+      "explicit",
+      "unchanged",
+      "documentation"
+    ],
+    "size": 8917
+  },
+  {
+    "title": "ADR-XXX: [Title]",
+    "path": "architecture/adr/template.md",
+    "category": "architecture",
+    "depth": 3,
+    "summary": "[Proposed | Accepted | Deprecated | Superseded by ADR-YYY]",
+    "keywords": [
+      "decision",
+      "what",
+      "this",
+      "describe",
+      "that",
+      "optional",
+      "task",
+      "related",
+      "status",
+      "context"
+    ],
+    "size": 852
+  },
+  {
+    "title": "Architecture Decision Records (ADRs)",
+    "path": "architecture/adr/README.md",
+    "category": "architecture",
+    "depth": 3,
+    "summary": "This directory contains Architecture Decision Records for the meta-cc project.",
+    "keywords": [
+      "decision",
+      "architecture",
+      "adrs",
+      "accepted",
+      "this",
+      "directory",
+      "decisions",
+      "context",
+      "format",
+      "status"
+    ],
+    "size": 2043
+  },
+  {
+    "title": "Claude Code \u5143\u8ba4\u77e5\u5206\u6790\u7cfb\u7edf - \u6280\u672f\u65b9\u6848",
+    "path": "architecture/proposals/meta-cognition-proposal.md",
+    "category": "architecture",
+    "depth": 3,
+    "summary": "\u57fa\u4e8e `~/.claude/projects/` \u4f1a\u8bdd\u5386\u53f2\u7684\u547d\u4ee4\u884c\u5206\u6790\u5de5\u5177\uff0c\u901a\u8fc7\u591a\u7ef4\u5ea6\u7d22\u5f15\u3001\u667a\u80fd\u67e5\u8be2\u548c\u6a21\u5f0f\u8bc6\u522b\uff0c\u4e3a [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) \u63d0\u4f9b\u5143\u8ba4\u77e5\u80fd\u529b\u3002",
+    "keywords": [
+      "meta",
+      "claude",
+      "code",
+      "jsonl",
+      "docs",
+      "json",
+      "errors",
+      "tools",
+      "slash",
+      "bash"
+    ],
+    "size": 25954
+  },
+  {
+    "title": "Documentation Optimization Complete",
+    "path": "archive/optimization-complete.md",
+    "category": "archive",
+    "depth": 2,
+    "summary": "**Date**: 2025-10-12",
+    "keywords": [
+      "docs",
+      "lines",
+      "documentation",
+      "links",
+      "guide",
+      "content",
+      "navigation",
+      "claude",
+      "files",
+      "reduction"
+    ],
+    "size": 7571
+  },
+  {
+    "title": "Documentation Optimization Summary (Phase 23)",
+    "path": "archive/optimization-summary.md",
+    "category": "archive",
+    "depth": 2,
+    "summary": "- Created `docs/DOCUMENTATION_MAP.md` with visual dependency graph",
+    "keywords": [
+      "lines",
+      "docs",
+      "pending",
+      "documentation",
+      "with",
+      "guide",
+      "links",
+      "summary",
+      "completed",
+      "files"
+    ],
+    "size": 2319
+  },
+  {
+    "title": "MCP Hybrid Output Mode",
+    "path": "archive/mcp-output-modes.md",
+    "category": "archive",
+    "depth": 2,
+    "summary": "The meta-cc MCP server provides **14 query tools** with a **hybrid output mode** to efficiently handle both small and large query results. Instead of ",
+    "keywords": [
+      "mode",
+      "file",
+      "tool",
+      "data",
+      "inline",
+      "json",
+      "threshold",
+      "output",
+      "query",
+      "large"
+    ],
+    "size": 19247
+  },
+  {
+    "title": "MCP Project-Level Query Guide",
+    "path": "archive/mcp-project-scope.md",
+    "category": "archive",
+    "depth": 2,
+    "summary": "Phase 12 extends the meta-cc MCP Server to support both **project-level** (all sessions) and **session-level** (current session) queries, enabling com",
+    "keywords": [
+      "project",
+      "session",
+      "level",
+      "tool",
+      "claude",
+      "sessions",
+      "current",
+      "tools",
+      "error",
+      "user"
+    ],
+    "size": 9393
+  },
+  {
+    "title": "MCP Server Usage Guide",
+    "path": "archive/mcp-usage.md",
+    "category": "archive",
+    "depth": 2,
+    "summary": "meta-cc provides a Model Context Protocol (MCP) Server that allows Claude Code to autonomously query session data without manual CLI commands. With Ph",
+    "keywords": [
+      "error",
+      "tool",
+      "bash",
+      "claude",
+      "optional",
+      "phase",
+      "jsonl",
+      "errors",
+      "example",
+      "with"
+    ],
+    "size": 23916
+  },
+  {
+    "title": "Phase 14 Migration Guide",
+    "path": "archive/migration-phase14.md",
+    "category": "archive",
+    "depth": 2,
+    "summary": "Phase 14 standardizes the meta-cc tool interface by simplifying commands and delegating aggregation/filtering logic to external tools like `jq`. This ",
+    "keywords": [
+      "errors",
+      "meta",
+      "query",
+      "phase",
+      "error",
+      "bash",
+      "analyze",
+      "signature",
+      "tool",
+      "count"
+    ],
+    "size": 4802
+  },
+  {
+    "title": "**Claude Code \u5143\u8ba4\u77e5\u5206\u6790\u7cfb\u7edf - \u7b80\u5316\u539f\u578b\u67b6\u6784\u8bbe\u8ba1**",
+    "path": "archive/proposals/proposal_2.md",
+    "category": "archive",
+    "depth": 3,
+    "summary": "---",
+    "keywords": [
+      "string",
+      "meta",
+      "note",
+      "json",
+      "class",
+      "query",
+      "session",
+      "lasts",
+      "days",
+      "slash"
+    ],
+    "size": 35181
+  },
+  {
+    "title": "Untitled",
+    "path": "archive/proposals/proposal_1.md",
+    "category": "archive",
+    "depth": 3,
+    "summary": "\u8fd9\u662f\u6574\u4e2a\u7cfb\u7edf\u7684\u57fa\u7840\uff0c\u4e00\u4e2a\u7528\u4e8e\u7d22\u5f15\u3001\u67e5\u8be2\u548c\u5206\u6790 `~/.claude/projects/` \u76ee\u5f55\u4e0b\u4f1a\u8bdd\u5386\u53f2\u7684\u72ec\u7acb\u547d\u4ee4\u884c\u5de5\u5177\u3002",
+    "keywords": [
+      "query",
+      "session",
+      "slash",
+      "meta",
+      "claude",
+      "history",
+      "analyze",
+      "description",
+      "type",
+      "test"
+    ],
+    "size": 6358
+  },
+  {
+    "title": "meta-cc Documentation Map",
+    "path": "DOCUMENTATION_MAP.md",
+    "category": "general",
+    "depth": 1,
+    "summary": "This document provides a visual overview of documentation dependencies and navigation guide.",
+    "keywords": [
+      "docs",
+      "reference",
+      "meta",
+      "documentation",
+      "guides",
+      "guide",
+      "methodology",
+      "development",
+      "architecture",
+      "phase"
+    ],
+    "size": 15849
+  },
+  {
+    "title": "meta-cc Screenshots and Demos",
+    "path": "screenshots/README.md",
+    "category": "general",
+    "depth": 2,
+    "summary": "This directory contains visual assets for documentation and marketplace listing.",
+    "keywords": [
+      "meta",
+      "installation",
+      "demo",
+      "coach",
+      "analysis",
+      "file",
+      "screenshots",
+      "assets",
+      "plugin",
+      "size"
+    ],
+    "size": 4784
+  }
+]
