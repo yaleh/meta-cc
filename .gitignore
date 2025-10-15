@@ -13,3 +13,4 @@ coverage.html
 
 # Runtime capability cache
 /.capabilities-cache/
+/experiments/bootstrap-002-test-strategy/data/

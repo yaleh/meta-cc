@@ -59,6 +59,17 @@ func TestQueryToolsCommand_NoFilters(t *testing.T) {
 	defer os.Unsetenv("CC_SESSION_ID")
 	defer os.Unsetenv("CC_PROJECT_HASH")
 
+	// Reset global variables from previous tests
+	queryToolsStatus = ""
+	queryToolsTool = ""
+	queryToolsWhere = ""
+	queryToolsFilter = ""
+	queryLimit = 0
+	queryOffset = 0
+	querySortBy = ""
+	queryReverse = false
+	queryStream = false
+
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
