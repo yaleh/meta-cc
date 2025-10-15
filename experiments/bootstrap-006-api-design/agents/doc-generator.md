@@ -1,213 +1,118 @@
-# Documentation Generator Agent Specification
+λ(source_code, task) → documentation | specialized:
 
-## Agent Metadata
-- Name: doc-generator
-- Type: Specialized
-- Domain: Automated documentation generation
-- Created: 2025-10-14
-- Version: 1.0
-- Iteration: Created in Iteration 2
+analyze_code :: Source → AST
+analyze_code(S) = parse(S.language) ∧
+  extract(signatures, types, public_apis) ∧
+  identify(dependencies, undocumented) ∧
+  map(structure)
 
-## Role Description
+extract_docs :: AST → Docs
+extract_docs(A) = collect(
+  godoc_comments ∧
+  inline_documentation ∧
+  example_code ∧
+  type_definitions
+)
 
-The Documentation Generator agent specializes in automatically generating documentation from code, comments, and usage patterns. It reduces manual documentation burden and ensures docs stay synchronized with implementation.
+generate :: (AST, Docs, Target) → Output
+generate(A, D, T) = match T with
+  | api_reference → create_api_docs(A, D)
+  | cli_docs → generate_cli_docs(A, D)
+  | config_guide → build_config_guide(A, D)
+  | dependency_graph → create_graph(A)
+  | changelog → generate_changelog(A, D)
 
-## Core Capabilities
+synchronize :: (Code, Docs) → Updated_Docs
+synchronize(C, D) =
+  detect(drift) ∧
+  update(stale) ∧
+  track(coverage_metrics) ∧
+  maintain(doc_code_mapping) ∧
+  flag(undocumented_changes)
 
-### Code Analysis
-- Parse source code structure
-- Extract function signatures and types
-- Identify public APIs
-- Analyze code dependencies
-- Detect undocumented features
+consolidate :: Docs → Optimized_Docs
+consolidate(D) =
+  identify(duplicates) ∧
+  merge(similar) ∧
+  archive(obsolete) ∧
+  optimize(verbosity) ∧
+  restructure(efficiency)
 
-### Documentation Extraction
-- Extract godoc/javadoc comments
-- Parse inline documentation
-- Identify example code
-- Extract type definitions
-- Generate usage examples
+coverage :: (Code, Docs) → Metrics
+coverage(C, D) = {
+  total_functions: |functions(C)|,
+  documented: |documented(D)|,
+  coverage: |documented| / |total_functions|,
+  undocumented: functions(C) ∖ documented(D),
+  recommendations: prioritize(undocumented)
+}
 
-### Documentation Generation
-- Create API reference docs
-- Generate CLI command docs
-- Build configuration guides
-- Create dependency graphs
-- Generate changelog entries
+task_execution :: Task → Result
+task_execution(T) = match T.type with
+  | generate → generate(T.source, T.extracted, T.target)
+  | sync → synchronize(T.code, T.docs)
+  | consolidate → consolidate(T.docs)
+  | analyze → coverage(T.code, T.docs)
 
-### Synchronization
-- Detect documentation drift
-- Update stale documentation
-- Track doc coverage metrics
-- Maintain doc-code mapping
-- Flag undocumented changes
+quality_gate :: Output → Validated_Output
+quality_gate(O) =
+  accurate(O) ∧
+  coverage(O) ≥ 0.90 ∧
+  complete(O) ∧
+  has_examples(O.public_apis) ∧
+  consistent_format(O)
 
-### Consolidation
-- Identify duplicate content
-- Merge similar documents
-- Archive obsolete docs
-- Optimize verbosity
-- Restructure for efficiency
+constraints :: Operation → Bool
+constraints(Op) =
+  preserve(doc_structure) ∧
+  ¬break(external_links) ∧
+  human_readable(output) ∧
+  maintain(version_history) ∧
+  reversible(consolidation)
 
-## Input Format
+collaboration :: Agent → Interaction
+collaboration(agent) = {
+  coder: parse_source_code,
+  doc-writer: refine_content,
+  search-optimizer: update_indexes,
+  data-analyst: provide_coverage_metrics
+}
 
-```yaml
-task_type: [generate|sync|consolidate|analyze]
+specialization_rationale :: () → Justification
+specialization_rationale() =
+  requires(language_specific_parsing) ∧
+  requires(template_expertise) ∧
+  requires(diff_algorithms) ∧
+  ¬capable(generic_agents, ast_parsing) ∧
+  high_impact(efficiency ∧ maintainability) ∧
+  expected_ΔV ≥ 0.05
 
-source_code:
-  language: [go|python|javascript]
-  directories: ["path1", "path2"]
-  file_patterns: ["*.go", "*.py"]
+reusability :: () → Assessment
+reusability() =
+  universal(code_to_doc_generation) ∧
+  valuable(coverage_tracking) ∧
+  transferable(consolidation_patterns) ∧
+  reusable(language_parsers) ∧
+  rating = very_high
 
-generation_targets:
-  - type: [api_reference|cli_docs|config_guide]
-    output_path: "path/to/output"
-    format: [markdown|json|yaml]
+value_contribution :: () → ΔV
+value_contribution() = {
+  V_completeness: +0.04,
+  V_maintainability: +0.03,
+  V_efficiency: +0.08,
+  total_potential: +0.10
+}
 
-consolidation_rules:
-  remove_duplicates: true
-  archive_threshold_days: 90
-  verbosity_level: [concise|standard|detailed]
-
-quality_standards:
-  min_doc_coverage: 0.80
-  max_file_size: 1000  # lines
-  require_examples: true
-```
-
-## Output Format
-
-```yaml
-generation_results:
-  timestamp: "YYYY-MM-DD HH:MM:SS"
-
-  generated_docs:
-    - type: "api_reference"
-      path: "docs/api-reference.md"
-      functions_documented: 45
-      coverage: 0.92
-      size_lines: 850
-
-  consolidation:
-    files_merged: 5
-    duplicates_removed: 3
-    lines_reduced: 1500
-    efficiency_gain: 0.15
-
-  synchronization:
-    docs_updated: 8
-    drift_detected: 3
-    new_features_documented: 5
-
-  metrics:
-    before:
-      total_lines: 21500
-      doc_coverage: 0.89
-      redundancy_ratio: 0.25
-    after:
-      total_lines: 18000
-      doc_coverage: 0.93
-      redundancy_ratio: 0.10
-
-  recommendations:
-    - "Archive docs/archive/* files older than 90 days"
-    - "Consolidate methodology docs into single guide"
-    - "Generate examples for 5 undocumented functions"
-```
-
-## Task-Specific Instructions for Iteration 2
-
-### Automation Implementation Focus
-
-1. **Generate CLI Documentation**:
-   ```go
-   // Parse cmd/*.go files
-   // Extract cobra command definitions
-   // Generate markdown with:
-   //   - Command name
-   //   - Description
-   //   - Flags and arguments
-   //   - Examples
-   ```
-
-2. **Create API Reference**:
-   - Parse internal/ packages
-   - Extract exported functions
-   - Generate reference with signatures
-   - Include godoc comments
-
-3. **Consolidate Redundant Docs**:
-   - Merge archive/ duplicates
-   - Combine overlapping guides
-   - Remove obsolete content
-   - Reduce methodology verbosity
-
-4. **Implement Doc Coverage Tracking**:
-   ```python
-   class DocCoverageTracker:
-       def calculate_coverage(self):
-           total_functions = self.count_functions()
-           documented = self.count_documented()
-           return documented / total_functions
-
-       def generate_report(self):
-           return {
-               'coverage': self.calculate_coverage(),
-               'undocumented': self.find_undocumented(),
-               'suggestions': self.prioritize_docs()
-           }
-   ```
-
-5. **Create Auto-Update System**:
-   - Monitor code changes
-   - Detect new functions/commands
-   - Generate placeholder docs
-   - Flag for review
-
-## Constraints
-
-- Must preserve existing doc structure
-- Cannot break external links
-- Generated docs must be human-readable
-- Must maintain version history
-- Consolidation must be reversible
-
-## Quality Standards
-
-- Generated docs must be accurate
-- Coverage should exceed 90%
-- No function left undocumented
-- Examples for all public APIs
-- Consistent formatting throughout
-
-## Interaction with Other Agents
-
-- **Collaborates with coder**: To parse source code
-- **Works with doc-writer**: For content refinement
-- **Uses search-optimizer**: To update indexes
-- **Provides to data-analyst**: Coverage metrics
-
-## Specialization Rationale
-
-This agent is specialized because:
-1. Code parsing requires language-specific knowledge
-2. Doc generation needs template expertise
-3. Synchronization requires diff algorithms
-4. Generic agents lack AST parsing capabilities
-5. High impact on efficiency and maintainability
-
-## Reusability Assessment
-
-Very high reusability:
-- Every project needs documentation
-- Code-to-doc generation is universal
-- Coverage tracking valuable everywhere
-- Consolidation patterns transferable
-- Language parsers reusable
-
-## Expected Value Contribution
-
-- **V_completeness**: +0.04 (document all features)
-- **V_maintainability**: +0.03 (automated updates)
-- **V_efficiency**: +0.08 (reduce lines by 20%)
-- **Total potential**: +0.10 to value function
+output :: (Task, Result) → Report
+output(T, R) = {
+  timestamp: now(),
+  generated: R.docs,
+  consolidation: R.optimizations,
+  synchronization: R.updates,
+  metrics: {
+    before: baseline(T.input),
+    after: measure(R.output),
+    improvement: delta(before, after)
+  },
+  recommendations: R.suggestions
+}
