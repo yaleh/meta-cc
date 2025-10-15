@@ -1,0 +1,211 @@
+# A₀ Agents Inventory
+# Generated: 2025-10-15
+# Experiment: bootstrap-006-api-design
+
+agent_set_version: A₀
+total_agents: 8
+generic_agents: 4
+specialized_agents: 4
+
+discovery_method:
+  approach: union_search
+  search_scope: experiments/bootstrap-*
+  search_command: 'find experiments/bootstrap-* -type f -path "*/agents/*.md"'
+  preference_order: [bootstrap-003-error-recovery, bootstrap-002-test-strategy, bootstrap-001-doc-methodology]
+  rationale: Prefer most recent validated agent versions
+
+agents:
+  generic:
+    - name: coder
+      file: agents/coder.md
+      source: bootstrap-003-error-recovery (preferred)
+      specialization: Low
+      domain: General coding and implementation
+      capabilities:
+        - Write code for tools and automation
+        - Create test cases
+        - Implement validation logic
+      reusability_for_api_design: High
+      expected_usage: Create API validators, consistency checkers, migration tools
+      status: Active
+
+    - name: data-analyst
+      file: agents/data-analyst.md
+      source: bootstrap-003-error-recovery (preferred)
+      specialization: Low
+      domain: General data analysis
+      capabilities:
+        - Statistical analysis
+        - Pattern identification
+        - Metric calculation
+      reusability_for_api_design: High
+      expected_usage: Analyze usage patterns, calculate API metrics, identify trends
+      status: Active
+      note: Originally for error analysis, but patterns apply to API analysis
+
+    - name: doc-writer
+      file: agents/doc-writer.md
+      source: bootstrap-003-error-recovery (preferred)
+      specialization: Low
+      domain: Documentation and reporting
+      capabilities:
+        - Create documentation
+        - Write methodology documents
+        - Generate reports
+      reusability_for_api_design: High
+      expected_usage: API design guidelines, versioning policies, migration guides
+      status: Active
+
+    - name: doc-generator
+      file: agents/doc-generator.md
+      source: bootstrap-001-doc-methodology
+      specialization: Medium
+      domain: Automated documentation generation
+      capabilities:
+        - Generate documentation from code
+        - Create structured documentation
+      reusability_for_api_design: Medium
+      expected_usage: Potentially useful for API reference generation
+      status: Available
+      note: May be useful if automated API docs needed
+
+  specialized_from_bootstrap_001:
+    - name: search-optimizer
+      file: agents/search-optimizer.md
+      source: bootstrap-001-doc-methodology
+      specialization: High
+      domain: Documentation searchability optimization
+      capabilities:
+        - Optimize search experience
+        - Improve documentation discoverability
+      reusability_for_api_design: Low
+      rationale: Highly specific to documentation methodology
+      status: Available
+      note: Unlikely to be used for API design
+
+  specialized_from_bootstrap_003:
+    - name: error-classifier
+      file: agents/error-classifier.md
+      source: bootstrap-003-error-recovery
+      specialization: High
+      domain: Error taxonomy and classification
+      capabilities:
+        - Develop error taxonomies
+        - Define classification criteria
+        - Classify errors consistently
+      reusability_for_api_design: Low
+      rationale: Error-specific, but pattern may inspire API-specific classifiers
+      status: Available
+      note: Could inspire api-consistency-checker if pattern analysis needed
+
+    - name: recovery-advisor
+      file: agents/recovery-advisor.md
+      source: bootstrap-003-error-recovery
+      specialization: High
+      domain: Error recovery strategies
+      capabilities:
+        - Design recovery strategies
+        - Document recovery procedures
+        - Evaluate recovery effectiveness
+      reusability_for_api_design: Low
+      rationale: Error recovery is not applicable to API design
+      status: Available
+      note: Unlikely to be useful
+
+    - name: root-cause-analyzer
+      file: agents/root-cause-analyzer.md
+      source: bootstrap-003-error-recovery
+      specialization: High
+      domain: Error diagnosis and root cause analysis
+      capabilities:
+        - Trace root causes
+        - Develop diagnostic methodologies
+        - Create diagnostic tools
+      reusability_for_api_design: Low
+      rationale: Error diagnosis not directly applicable
+      status: Available
+      note: Diagnostic approach may be adaptable for API issue analysis
+
+categorization:
+  directly_reusable:
+    count: 3
+    agents: [coder, data-analyst, doc-writer]
+    usage_likelihood: High
+
+  potentially_useful:
+    count: 1
+    agents: [doc-generator]
+    usage_likelihood: Medium
+    condition: If automated API documentation needed
+
+  domain_specific_unlikely:
+    count: 4
+    agents: [search-optimizer, error-classifier, recovery-advisor, root-cause-analyzer]
+    usage_likelihood: Low
+    note: Specialized for other domains, pattern inspiration only
+
+expected_agent_evolution:
+  likely_new_agents:
+    - name: api-consistency-checker
+      trigger: When consistency analysis becomes priority
+      domain: API naming and pattern consistency
+      capabilities:
+        - Analyze API naming patterns
+        - Detect consistency violations
+        - Recommend standards
+      expected_iteration: 1 or 2
+      rationale: V_consistency = 0.72 has room for improvement
+
+    - name: parameter-designer
+      trigger: When parameter patterns need standardization
+      domain: API parameter design and conventions
+      capabilities:
+        - Analyze parameter patterns
+        - Define parameter standards
+        - Document parameter conventions
+      expected_iteration: 2 or 3
+      rationale: Parameter clarity issues identified
+
+  possibly_new_agents:
+    - name: api-evolution-planner
+      trigger: When evolvability becomes priority
+      domain: API versioning and migration
+      capabilities:
+        - Plan versioning strategies
+        - Design migration paths
+        - Ensure backward compatibility
+      expected_iteration: 1
+      rationale: V_evolvability = 0.22 is critically low (highest priority)
+
+    - name: usability-analyzer
+      trigger: If user experience analysis needed
+      domain: API usability and user experience
+      capabilities:
+        - Analyze API usability
+        - Identify friction points
+        - Suggest UX improvements
+      expected_iteration: 2 or later
+      rationale: V_usability = 0.74 is reasonably good
+
+evolution_expectations:
+  specialization_ratio_current: 0.50 (4 specialized / 8 total)
+  specialization_ratio_expected: 0.55-0.65 (after 1-2 new API-specific agents)
+  generic_core_stable: Yes (coder, data-analyst, doc-writer remain useful)
+  domain_specific_pruning: Unlikely (keep for reference even if unused)
+
+iteration_0_usage:
+  agents_invoked: None (baseline establishment only)
+  primary_work: Meta-agent capability adaptation
+  analysis: Manual API analysis by Meta-Agent
+
+iteration_1_expected_usage:
+  likely_agents:
+    - doc-writer: Create versioning policy documents
+    - data-analyst: Analyze version impact on users
+    - possibly api-evolution-planner: If specialization triggered
+
+notes:
+  - Agent prompt files always read before invocation
+  - Specialized agents from other domains kept for pattern reference
+  - Evolution is needs-driven, not predetermined
+  - Generic agents form stable core, specialization augments
