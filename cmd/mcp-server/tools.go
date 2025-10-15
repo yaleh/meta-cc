@@ -75,10 +75,7 @@ func getToolDefinitions() []Tool {
 			InputSchema: ToolSchema{
 				Type: "object",
 				Properties: MergeParameters(map[string]Property{
-					"limit": {
-						Type:        "number",
-						Description: "Max results (no limit by default, rely on hybrid output mode)",
-					},
+					// Tier 2: Filtering
 					"tool": {
 						Type:        "string",
 						Description: "Filter by tool name",
@@ -86,6 +83,11 @@ func getToolDefinitions() []Tool {
 					"status": {
 						Type:        "string",
 						Description: "Filter by status (error/success)",
+					},
+					// Tier 4: Output Control
+					"limit": {
+						Type:        "number",
+						Description: "Max results (no limit by default, rely on hybrid output mode)",
 					},
 				}),
 			},
@@ -96,17 +98,20 @@ func getToolDefinitions() []Tool {
 			InputSchema: ToolSchema{
 				Type: "object",
 				Properties: MergeParameters(map[string]Property{
+					// Tier 1: Required
 					"pattern": {
 						Type:        "string",
 						Description: "Regex pattern to match (required)",
 					},
-					"limit": {
-						Type:        "number",
-						Description: "Max results (no limit by default, rely on hybrid output mode)",
-					},
+					// Tier 3: Range
 					"max_message_length": {
 						Type:        "number",
 						Description: "Max chars per message content (default: 0 = no truncation, rely on hybrid mode for large results)",
+					},
+					// Tier 4: Output Control
+					"limit": {
+						Type:        "number",
+						Description: "Max results (no limit by default, rely on hybrid output mode)",
 					},
 					"content_summary": {
 						Type:        "boolean",
@@ -140,17 +145,19 @@ func getToolDefinitions() []Tool {
 			InputSchema: ToolSchema{
 				Type: "object",
 				Properties: MergeParameters(map[string]Property{
+					// Tier 2: Filtering
 					"pattern": {
 						Type:        "string",
 						Description: "Sequence pattern to match",
 					},
-					"min_occurrences": {
-						Type:        "number",
-						Description: "Min occurrences (default: 3)",
-					},
 					"include_builtin_tools": {
 						Type:        "boolean",
 						Description: "Include built-in tools (Bash, Read, Edit, etc.). Default: false (cleaner workflow patterns, 35x faster)",
+					},
+					// Tier 3: Range
+					"min_occurrences": {
+						Type:        "number",
+						Description: "Min occurrences (default: 3)",
 					},
 				}),
 			},
@@ -183,13 +190,15 @@ func getToolDefinitions() []Tool {
 			InputSchema: ToolSchema{
 				Type: "object",
 				Properties: MergeParameters(map[string]Property{
-					"limit": {
-						Type:        "number",
-						Description: "Max results (no limit by default, rely on hybrid output mode)",
-					},
+					// Tier 3: Range
 					"min_quality_score": {
 						Type:        "number",
 						Description: "Min quality score (default: 0.8)",
+					},
+					// Tier 4: Output Control
+					"limit": {
+						Type:        "number",
+						Description: "Max results (no limit by default, rely on hybrid output mode)",
 					},
 				}),
 			},
@@ -276,14 +285,7 @@ func getToolDefinitions() []Tool {
 			InputSchema: ToolSchema{
 				Type: "object",
 				Properties: MergeParameters(map[string]Property{
-					"start_turn": {
-						Type:        "number",
-						Description: "Starting turn sequence",
-					},
-					"end_turn": {
-						Type:        "number",
-						Description: "Ending turn sequence",
-					},
+					// Tier 2: Filtering
 					"pattern": {
 						Type:        "string",
 						Description: "Regex pattern (user or assistant content)",
@@ -291,6 +293,15 @@ func getToolDefinitions() []Tool {
 					"pattern_target": {
 						Type:        "string",
 						Description: "Pattern target: user, assistant, any (default: any)",
+					},
+					// Tier 3: Range (turn ranges, then duration ranges)
+					"start_turn": {
+						Type:        "number",
+						Description: "Starting turn sequence",
+					},
+					"end_turn": {
+						Type:        "number",
+						Description: "Ending turn sequence",
 					},
 					"min_duration": {
 						Type:        "number",
@@ -300,6 +311,7 @@ func getToolDefinitions() []Tool {
 						Type:        "number",
 						Description: "Maximum response duration (ms)",
 					},
+					// Tier 4: Output Control
 					"limit": {
 						Type:        "number",
 						Description: "Max results (no limit by default, rely on hybrid output mode)",

@@ -384,6 +384,94 @@ meta-cc stats files --filter "error_count>0"
 meta-cc stats files
 ```
 
+### validate-api
+
+Validate MCP API consistency according to established conventions.
+
+```bash
+meta-cc validate-api [options]
+```
+
+**Purpose**: Enforce API design conventions automatically to maintain consistency across all MCP tools.
+
+**Options**:
+- `--file <path>` - Path to tools.go (default: cmd/mcp-server/tools.go)
+- `--fast` - Run fast checks only (MVP mode, default)
+- `--quiet` - Suppress output except errors
+- `--json` - Output results as JSON
+
+**Exit Codes**:
+- `0` - All checks passed
+- `1` - Violations found
+- `2` - Invalid usage or error
+
+**Checks Performed** (MVP):
+1. **Naming pattern validation**: Verifies tool names use standard prefixes (query_*, get_*, list_*, cleanup_*)
+2. **Parameter ordering validation**: Checks tier-based parameter ordering
+3. **Description format validation**: Validates description template compliance
+
+**Examples**:
+```bash
+# Validate current API
+meta-cc validate-api
+
+# Validate specific file
+meta-cc validate-api --file path/to/tools.go
+
+# JSON output for CI integration
+meta-cc validate-api --json
+
+# Quiet mode (errors only)
+meta-cc validate-api --quiet
+```
+
+**Example Output**:
+```
+API Consistency Validation
+==========================
+
+Analyzing cmd/mcp-server/tools.go...
+Found 16 tools
+
+Running checks (MVP mode):
+  ✓ Naming pattern validation
+  ✓ Parameter ordering validation
+  ✓ Description format validation
+
+Results:
+--------
+
+✗ get_session_stats: Naming pattern violation
+  Tool name should use query_* prefix
+  Suggestion: Rename to query_session_stats
+  Severity: ERROR
+
+✗ query_tools: Parameter ordering violation
+  Expected: tool, status, limit
+  Actual:   limit, tool, status
+  Severity: ERROR
+
+Summary:
+--------
+Total tools:     16
+Checks run:      48
+Passed:          45
+Failed:          3
+
+Overall Status: FAILED (3 violations found)
+
+Exit code: 1
+```
+
+**Integration**:
+- **CI Pipeline**: Use `--json` output for automated checking
+- **Pre-Commit Hook**: Run `--fast` mode before commits
+- **Development**: Run manually before PRs
+
+**References**:
+- API conventions: `experiments/bootstrap-006-api-design/data/api-parameter-convention.md`
+- Pre-commit hook: See [API Consistency Git Hooks](../guides/api-consistency-hooks.md)
+
 ## Output Formats
 
 ### JSONL (JSON Lines) - Default

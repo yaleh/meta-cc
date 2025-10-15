@@ -20,6 +20,51 @@ meta-cc provides a Model Context Protocol (MCP) Server that enables Claude Code 
 }
 ```
 
+## Parameter Ordering Convention
+
+meta-cc MCP tools follow a **tier-based parameter ordering** convention for consistency and readability.
+
+### Tier System
+
+Parameters are organized into 5 tiers, from highest to lowest priority:
+
+**Tier 1: Required Parameters**
+- Absolutely necessary for the tool to function
+- Examples: `pattern` (query_user_messages), `error_signature` (query_context), `file` (query_file_access), `where` (query_tools_advanced)
+
+**Tier 2: Filtering Parameters**
+- Narrow down or filter the data set
+- Examples: `tool`, `status`, `pattern_target`, `where`
+
+**Tier 3: Range Parameters**
+- Define boundaries or limits on the data
+- Examples: `min_*`, `max_*`, `start_*`, `end_*`, `threshold`, `window`
+
+**Tier 4: Output Control Parameters**
+- Control how much data is returned
+- Examples: `limit`, `offset`, `page`, `cursor`, `top`
+
+**Tier 5: Standard Parameters** (applied automatically)
+- Common across all query tools
+- Examples: `scope`, `jq_filter`, `stats_only`, `stats_first`, `output_format`, `inline_threshold_bytes`
+- These parameters are added automatically by the MCP server (see Standard Parameters section)
+
+### Why This Ordering?
+
+1. **Consistency**: Same parameter order across all tools reduces cognitive load
+2. **Readability**: Most important parameters appear first
+3. **Predictability**: Users can anticipate where parameters will be
+
+### Important Note
+
+JSON parameter order **does not affect function calls** (parameters are key-value pairs). This convention is purely for documentation clarity and readability.
+
+### Reference
+
+See `/home/yale/work/meta-cc/experiments/bootstrap-006-api-design/data/api-parameter-convention.md` for complete specification and design rationale.
+
+---
+
 ## Tool Catalog
 
 meta-cc-mcp provides **16 standardized tools** for analyzing Claude Code session history.
@@ -162,12 +207,44 @@ meta-cc-mcp provides **16 standardized tools** for analyzing Claude Code session
 
 **Examples**:
 ```json
-// Error context
-{"error_signature": "Bash:command not found", "window": 3}
+// Basic error context (default window=3)
+{"error_signature": "Bash:command not found"}
 
-// Wide context window
+// Wide context window (5 turns before/after)
 {"error_signature": "permission denied", "window": 5}
+
+// Analyze test failures
+{"error_signature": "npm test failed", "window": 3}
 ```
+
+**Practical Use Cases**:
+
+1. **Debug Bash Command Errors**:
+   ```json
+   // Problem: "command not found" errors keep occurring
+   {"error_signature": "Bash:command not found", "window": 3}
+   // Returns: User messages leading up to error, assistant responses, and subsequent attempts
+   ```
+
+2. **Investigate Permission Issues**:
+   ```json
+   // Problem: File operations failing with permission denied
+   {"error_signature": "permission denied", "window": 5}
+   // Returns: Which files were accessed, what operations were attempted, pattern of failures
+   ```
+
+3. **Understand Test Failures**:
+   ```json
+   // Problem: Tests pass sometimes, fail other times
+   {"error_signature": "test failed", "window": 3}
+   // Returns: Code changes before test failure, environment differences, retry attempts
+   ```
+
+**What You Get**:
+- Turns immediately before the error (user requests, code changes)
+- The exact error occurrence (command, output, timestamp)
+- Turns immediately after (recovery attempts, workarounds)
+- Pattern visibility (repeated failures, progressive changes)
 
 ---
 
@@ -278,15 +355,81 @@ meta-cc-mcp provides **16 standardized tools** for analyzing Claude Code session
 
 **Examples**:
 ```json
-// Complex filter
+// Complex filter (Bash errors taking > 5 seconds)
 {"where": "tool='Bash' AND status='error' AND duration>5000"}
 
-// Multiple tools
+// Multiple tools (file operations)
 {"where": "tool IN ('Read', 'Edit', 'Write')"}
 
-// Time range
+// Time range (October 2025 activity)
 {"where": "timestamp BETWEEN '2025-10-01' AND '2025-10-05'"}
 ```
+
+**Practical Use Cases**:
+
+1. **Slow Command Analysis**:
+   ```json
+   // Problem: Some commands are taking too long
+   {"where": "tool='Bash' AND duration>10000"}
+   // Returns: All Bash commands that took > 10 seconds
+   // Analysis: Identify slow scripts, optimize workflows
+   ```
+
+2. **Error Pattern Detection**:
+   ```json
+   // Problem: Want to find all Read errors on specific file pattern
+   {"where": "tool='Read' AND status='error' AND filepath LIKE '%/test/%'"}
+   // Returns: Read errors in test directories
+   // Analysis: Permission issues, missing files in test paths
+   ```
+
+3. **Tool Usage Comparison**:
+   ```json
+   // Problem: Compare usage of different edit tools
+   {"where": "tool IN ('Edit', 'Write', 'NotebookEdit') AND timestamp>'2025-10-01'"}
+   // Returns: All edit operations since Oct 1
+   // Analysis: Which edit tool is used most, success rates
+   ```
+
+4. **Recent Activity Filtering**:
+   ```json
+   // Problem: Focus on last week's tool calls
+   {"where": "timestamp BETWEEN '2025-10-08' AND '2025-10-15' AND status='error'"}
+   // Returns: All errors from specific week
+   // Analysis: Weekly error trends, problematic periods
+   ```
+
+5. **Multi-Condition Filtering**:
+   ```json
+   // Problem: Complex scenario - failed Bash commands with specific pattern
+   {"where": "tool='Bash' AND status='error' AND (duration>5000 OR output REGEXP 'timeout|killed')"}
+   // Returns: Slow or terminated Bash commands
+   // Analysis: System resource issues, hanging processes
+   ```
+
+**SQL Expression Reference**:
+
+| Operator | Example | Description |
+|----------|---------|-------------|
+| `=` | `tool='Bash'` | Exact match |
+| `!=` | `status!='success'` | Not equal |
+| `>`, `<` | `duration>5000` | Numeric comparison |
+| `>=`, `<=` | `duration>=10000` | Numeric comparison (inclusive) |
+| `IN` | `tool IN ('Read', 'Edit')` | Multiple values (OR) |
+| `NOT IN` | `tool NOT IN ('Bash')` | Exclusion |
+| `BETWEEN` | `duration BETWEEN 1000 AND 5000` | Range (inclusive) |
+| `LIKE` | `filepath LIKE '%test%'` | Pattern matching (% = wildcard) |
+| `REGEXP` | `output REGEXP 'error\|failed'` | Regex matching |
+| `AND` | `tool='Bash' AND status='error'` | Logical AND |
+| `OR` | `duration>5000 OR status='error'` | Logical OR |
+| `NOT` | `NOT (tool='Bash')` | Logical NOT |
+
+**When to Use**:
+- **Complex filters**: Multiple conditions not achievable with basic query_tools
+- **Pattern matching**: LIKE/REGEXP for flexible string matching
+- **Range queries**: BETWEEN for time/duration ranges
+- **Performance analysis**: Duration-based filtering
+- **Advanced debugging**: Combining multiple criteria
 
 ---
 
@@ -350,11 +493,54 @@ meta-cc-mcp provides **16 standardized tools** for analyzing Claude Code session
 **Key Parameters**:
 - `max_age_days` (number): Max file age in days (default: 7)
 
-**Example**:
+**Examples**:
 ```json
+// Default cleanup (7+ days old)
 {"max_age_days": 7}
 → {"removed_count": 12, "freed_bytes": 5242880}
+
+// Aggressive cleanup (1+ days old)
+{"max_age_days": 1}
+→ {"removed_count": 45, "freed_bytes": 15728640}
+
+// Keep only today's files
+{"max_age_days": 0}
+→ {"removed_count": 67, "freed_bytes": 23068672}
 ```
+
+**Practical Use Cases**:
+
+1. **Regular Maintenance**:
+   ```json
+   // Run weekly to clean old temp files
+   {"max_age_days": 7}
+   // Returns: Number of files removed, bytes freed
+   ```
+
+2. **Disk Space Emergency**:
+   ```json
+   // Problem: /tmp is full, need space immediately
+   {"max_age_days": 1}
+   // Effect: Removes all but today's temp files (aggressive cleanup)
+   ```
+
+3. **Pre-Large Query**:
+   ```json
+   // Problem: About to run large query, want clean /tmp
+   {"max_age_days": 3}
+   // Effect: Clear old files first, then run query with fresh temp space
+   ```
+
+**When to Use**:
+- **Disk space low**: Run with `max_age_days: 1` to free space quickly
+- **Regular maintenance**: Weekly cleanup with `max_age_days: 7` (default)
+- **Before large queries**: Clean old files to avoid /tmp exhaustion
+- **Session cleanup**: After intensive analysis session
+
+**What You Get**:
+- `removed_count`: Number of temp files deleted
+- `freed_bytes`: Disk space recovered (in bytes)
+- No data loss: Only removes temp files older than threshold
 
 ---
 
