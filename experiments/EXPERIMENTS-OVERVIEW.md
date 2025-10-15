@@ -105,7 +105,12 @@ This document catalogs all planned Meta-Agent bootstrapping experiments for the 
 **Priority**: MEDIUM (Code health)
 **Location**: `experiments/bootstrap-004-refactoring-guide/`
 
-**Objective**: Develop systematic code refactoring identification and execution methodology
+**Meta-Objective** (Meta-Agent Layer): Develop systematic code refactoring methodology through observation of agent refactoring patterns
+
+**Instance Objective** (Agent Layer): Refactor `internal/query/` package to improve code quality
+- **Target**: ~500 lines across query engine modules
+- **Scope**: Reduce cyclomatic complexity by 30%, improve test coverage to 85%
+- **Deliverables**: Refactored code, improved module structure, enhanced tests
 
 **Value Function**:
 ```
@@ -145,7 +150,12 @@ V(s) = 0.3·V_code_quality +     # Quality metrics
 **Priority**: MEDIUM (System efficiency)
 **Location**: `experiments/bootstrap-005-performance-optimization/` (to create)
 
-**Objective**: Develop performance bottleneck identification and optimization methodology
+**Meta-Objective** (Meta-Agent Layer): Develop performance optimization methodology through observation of agent optimization patterns
+
+**Instance Objective** (Agent Layer): Optimize MCP server query execution performance
+- **Target**: `cmd/mcp/` executor and `internal/query/` modules
+- **Scope**: Improve query response time by 40%, reduce memory allocation by 30%
+- **Deliverables**: Optimized code, benchmarks, profiling analysis
 
 **Value Function**:
 ```
@@ -176,11 +186,16 @@ V(s) = 0.4·V_speed_improvement +     # Performance gains
 
 ### Bootstrap-006: API Design Methodology
 
-**Status**: 🔄 IN PROGRESS (Iteration 3 completed)
+**Status**: 🔄 IN PROGRESS (Iteration 3 completed) - ⚠️ NEEDS TWO-LAYER FIX
 **Priority**: MEDIUM (Interface quality)
 **Location**: `experiments/bootstrap-006-api-design/`
 
-**Objective**: Develop API design and evolution methodology for MCP tools
+**Meta-Objective** (Meta-Agent Layer): Develop API design methodology through observation of agent API improvement patterns
+
+**Instance Objective** (Agent Layer): Improve meta-cc MCP server API (16 tools) for usability and consistency
+- **Target**: All 16 MCP tools in `cmd/mcp/tools.go`
+- **Scope**: Fix parameter ordering, improve error messages, enhance documentation
+- **Deliverables**: Improved API tools, validation tooling, consistent documentation
 
 **Value Function**:
 ```
@@ -215,7 +230,12 @@ V(s) = 0.3·V_usability +        # API ease of use
 **Priority**: LOW (Process automation)
 **Location**: `experiments/bootstrap-007-cicd-pipeline/` (to create)
 
-**Objective**: Develop automated build, test, and release pipeline methodology
+**Meta-Objective** (Meta-Agent Layer): Develop CI/CD pipeline methodology through observation of agent pipeline construction patterns
+
+**Instance Objective** (Agent Layer): Build complete CI/CD pipeline for meta-cc project
+- **Target**: GitHub Actions workflows, Makefile automation, release scripts
+- **Scope**: Automated testing, linting, building, releasing for meta-cc
+- **Deliverables**: Working CI/CD pipeline, automated release process, quality gates
 
 **Value Function**:
 ```
@@ -250,7 +270,12 @@ V(s) = 0.3·V_automation +       # Automation degree
 **Priority**: LOW (Quality gates)
 **Location**: `experiments/bootstrap-008-code-review/` (to create)
 
-**Objective**: Develop automated code review and quality assurance methodology
+**Meta-Objective** (Meta-Agent Layer): Develop code review methodology through observation of agent review patterns
+
+**Instance Objective** (Agent Layer): Perform comprehensive code review of meta-cc core modules
+- **Target**: `internal/` package (~3,000 lines across parser, analyzer, query)
+- **Scope**: Identify code issues, suggest improvements, create review checklist
+- **Deliverables**: Review reports, automated checklist, linting rules, style guide
 
 **Value Function**:
 ```
@@ -285,7 +310,12 @@ V(s) = 0.3·V_issue_detection +  # Issue finding rate
 **Priority**: HIGH (Production readiness)
 **Location**: `experiments/bootstrap-009-observability-methodology/` (to create)
 
-**Objective**: Develop comprehensive observability methodology covering structured logging, metrics instrumentation, distributed tracing, and operational dashboards
+**Meta-Objective** (Meta-Agent Layer): Develop observability methodology through observation of agent instrumentation patterns
+
+**Instance Objective** (Agent Layer): Add comprehensive observability to meta-cc MCP server
+- **Target**: `cmd/mcp/` server and `internal/` modules (~2,000 lines)
+- **Scope**: Add structured logging, metrics, trace points to 90% of critical paths
+- **Deliverables**: Instrumented code, logging standards, metrics dashboard, alerting rules
 
 **Value Function**:
 ```
@@ -328,7 +358,12 @@ V(s) = 0.3·V_coverage +         # Observability coverage across codebase
 **Priority**: HIGH (Security and maintenance)
 **Location**: `experiments/bootstrap-010-dependency-health/` (to create)
 
-**Objective**: Develop systematic dependency health methodology covering vulnerability scanning, dependency freshness, license compliance, and safe update strategies
+**Meta-Objective** (Meta-Agent Layer): Develop dependency health methodology through observation of agent dependency management patterns
+
+**Instance Objective** (Agent Layer): Audit and update meta-cc project dependencies
+- **Target**: `go.mod` and all dependencies (~20 direct dependencies)
+- **Scope**: Scan vulnerabilities, update stale deps, verify licenses, test compatibility
+- **Deliverables**: Updated dependencies, vulnerability report, update strategy, automation scripts
 
 **Value Function**:
 ```
@@ -373,7 +408,12 @@ V(s) = 0.4·V_security +         # Vulnerability-free dependencies
 **Priority**: MEDIUM (Team scaling)
 **Location**: `experiments/bootstrap-011-knowledge-transfer/` (to create)
 
-**Objective**: Develop systematic knowledge transfer methodology covering onboarding paths, documentation discovery, code navigation, and expert identification
+**Meta-Objective** (Meta-Agent Layer): Develop knowledge transfer methodology through observation of agent onboarding and learning patterns
+
+**Instance Objective** (Agent Layer): Create comprehensive onboarding materials for meta-cc project
+- **Target**: Full project documentation, code navigation guides, learning paths
+- **Scope**: Day-1, Week-1, Month-1 onboarding paths with 90% coverage of core concepts
+- **Deliverables**: Onboarding guide, code navigation tools, expert map, learning checklist
 
 **Value Function**:
 ```
@@ -416,7 +456,12 @@ V(s) = 0.3·V_discoverability +  # How easily can info be found?
 **Priority**: MEDIUM (Code health)
 **Location**: `experiments/bootstrap-012-technical-debt/` (to create)
 
-**Objective**: Develop systematic technical debt quantification methodology using code metrics, bug density, change frequency, and maintenance cost to create prioritization framework
+**Meta-Objective** (Meta-Agent Layer): Develop technical debt quantification methodology through observation of agent debt measurement patterns
+
+**Instance Objective** (Agent Layer): Quantify and prioritize technical debt in meta-cc codebase
+- **Target**: All `internal/` and `cmd/` modules (~5,000 lines)
+- **Scope**: Measure debt (complexity, test coverage, duplication), create paydown plan
+- **Deliverables**: Debt report, prioritization matrix, paydown roadmap, prevention checklist
 
 **Value Function**:
 ```
@@ -459,7 +504,12 @@ V(s) = 0.3·V_measurement +      # Accurate debt quantification
 **Priority**: MEDIUM (Consistency at scale)
 **Location**: `experiments/bootstrap-013-cross-cutting-concerns/` (to create)
 
-**Objective**: Develop methodology for managing cross-cutting concerns (logging, error handling, configuration, security) through pattern extraction, convention definition, and automated enforcement
+**Meta-Objective** (Meta-Agent Layer): Develop cross-cutting concerns methodology through observation of agent pattern standardization
+
+**Instance Objective** (Agent Layer): Standardize cross-cutting concerns across meta-cc codebase
+- **Target**: All modules with logging, error handling, config (~5,000 lines)
+- **Scope**: Extract patterns, define standards, implement enforcement for 80% consistency
+- **Deliverables**: Pattern library, linting rules, migration plan, standardized code
 
 **Value Function**:
 ```
@@ -817,12 +867,20 @@ Across all experiments, we gain insights into:
 
 ---
 
-**Document Version**: 2.1
+**Document Version**: 2.2
 **Created**: 2025-10-14
 **Last Updated**: 2025-10-15
 **Status**: Living document (update as experiments progress)
 
-**Latest Changes** (v2.1):
+**Latest Changes** (v2.2):
+- ✅ **CRITICAL FIX**: Added two-layer architecture (Meta-Objective + Instance Objective) to ALL experiments
+- ✅ Clarified distinction between meta-agent work (methodology development) and agent work (concrete tasks)
+- ✅ Marked Bootstrap-006 with ⚠️ NEEDS TWO-LAYER FIX flag (in progress, requires restructuring)
+- ✅ Created experiment template at `docs/templates/EXPERIMENT-TEMPLATE.md` with two-layer structure
+- Added specific instance objectives with targets, scope, and deliverables for all experiments
+- Fixed architectural confusion: Agents execute concrete tasks, meta-agent observes and codifies methodology
+
+**Previous Changes** (v2.1):
 - ✅ Updated status: Bootstrap-003 (error-recovery) marked as COMPLETED
 - ✅ Updated status: Bootstrap-006 (api-design) marked as IN PROGRESS (Iteration 3 completed)
 - ✅ Updated status: Bootstrap-004 (refactoring-guide) marked as READY TO START

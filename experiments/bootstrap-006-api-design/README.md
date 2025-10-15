@@ -1,14 +1,67 @@
 # Bootstrap-006: API Design Methodology
 
-**Status**: In Progress (Iteration 0 Complete)
+**Status**: In Progress (Iteration 3 Complete) - ⚠️ **RESTRUCTURING REQUIRED**
 **Start Date**: 2025-10-15
-**Objective**: Develop an API design methodology through bootstrapped software engineering
+**Restructuring Date**: 2025-10-15
+
+---
+
+## ⚠️ CRITICAL ARCHITECTURAL ISSUE IDENTIFIED
+
+**Problem**: Iterations 0-3 conflated meta-tasks (methodology development) with instance tasks (concrete API improvements). Agents created **specifications and design documents** instead of executing **concrete API improvements** for meta-agent to observe.
+
+**Impact**: The experiment has been developing methodology documents directly rather than extracting methodology from observed agent work patterns (violates OCA framework's "Observe" step).
+
+**Resolution**: Implement two-layer architecture going forward.
+
+---
+
+## Experiment Objectives (Two-Layer Architecture)
+
+### Meta-Objective (Meta-Agent Layer)
+
+**Goal**: Develop API design methodology through iterative observation, codification, and automation of agent API improvement patterns.
+
+**Deliverables**:
+- API design methodology extracted from observed patterns
+- Best practices for API usability, consistency, completeness, evolvability
+- Specialized agents (if needed) for API design tasks
+- Reusable API design three-tuple (M, A, methodology artifacts)
+
+**Success Criteria**:
+- Convergence achieved: V(s) ≥ 0.80
+- Methodology artifacts complete and transferable
+- Meta-agent and agent set stable
+
+### Instance Objective (Agent Layer)
+
+**Goal**: Improve meta-cc MCP server API (16 tools) for usability and consistency.
+
+**Concrete Scope**:
+- **Target**: All 16 MCP tools in `cmd/mcp/tools.go` (~2,500 lines)
+- **Specific Tasks**:
+  1. Fix parameter ordering in `query_tools`, `query_user_messages`, `query_conversation` (3 tools)
+  2. Improve error messages in tools with high error rates
+  3. Enhance documentation for tools with low usage (query_context, cleanup_temp_files, etc.)
+  4. Implement validation tooling (`meta-cc validate-api` command)
+  5. Create pre-commit hooks for API consistency
+
+**Success Criteria**:
+- Parameter ordering follows tier-based convention (100% compliance)
+- Error messages are actionable and clear (V_usability ≥ 0.80)
+- All 16 tools have complete documentation (V_completeness ≥ 0.80)
+- API consistency enforced via automated tooling (V_consistency ≥ 0.85)
+
+**Expected Agent Work**:
+Agents execute concrete API improvements (parameter reordering, error message enhancement, documentation, tooling implementation). Meta-agent observes patterns and codifies them into API design methodology.
 
 ---
 
 ## Experiment Overview
 
-This experiment applies the bootstrapped software engineering methodology to develop systematic API design practices for the meta-cc MCP server API (16 tools). The goal is to improve API quality across four dimensions: usability, consistency, completeness, and evolvability.
+This experiment applies the bootstrapped software engineering methodology to develop systematic API design practices. The goal is to improve meta-cc MCP server API quality across four dimensions: usability, consistency, completeness, and evolvability.
+
+**Architectural Principle**: Agents work on concrete API improvements; meta-agent observes patterns and extracts methodology.
 
 ### Three-Methodology Framework
 
@@ -154,12 +207,14 @@ experiments/bootstrap-006-api-design/
 
 ## Key Principles
 
-1. **Discovery-Driven Evolution**: Initial state discovered through union search, not predetermined
-2. **Honest Value Assessment**: V(s) calculated from actual observations, not target values
-3. **Modular Meta-Agent**: Separate capability files, not versioned monoliths
-4. **Agent Prompt Files**: Every agent has explicit prompt file, read before invocation
-5. **No Token Limits**: Complete all analysis steps thoroughly without abbreviation
-6. **Needs-Driven Specialization**: Create specialized agents only when generic agents insufficient
+1. **Two-Layer Architecture**: Meta-agent develops methodology by observing agents execute concrete tasks ⚡ **NEW**
+2. **Discovery-Driven Evolution**: Initial state discovered through union search, not predetermined
+3. **Honest Value Assessment**: V(s) calculated from actual observations, not target values
+4. **Modular Meta-Agent**: Separate capability files, not versioned monoliths
+5. **Agent Prompt Files**: Every agent has explicit prompt file, read before invocation
+6. **No Token Limits**: Complete all analysis steps thoroughly without abbreviation
+7. **Needs-Driven Specialization**: Create specialized agents only when generic agents insufficient
+8. **Concrete Instance Work**: Agents work on real API code, not methodology documents ⚡ **NEW**
 
 ---
 
@@ -173,16 +228,96 @@ Experiment concludes when ALL criteria met:
 4. **Objectives Complete**: All API design methodology tasks finished
 5. **Diminishing Returns**: ΔV < 0.05 (minimal improvement per iteration)
 
-**Current Status**: NOT CONVERGED (expected at Iteration 0)
+**Current Status**: NOT CONVERGED - Iterations 0-3 completed but need architectural correction
+
+---
+
+## Path Forward (Post-Restructuring)
+
+### Analysis of Iterations 0-3
+
+**What Was Done** (Design-focused approach):
+- Iteration 0: Baseline establishment, API data collection
+- Iteration 1: Evolvability design (versioning strategy, deprecation policy)
+- Iteration 2: Consistency design (naming conventions, parameter ordering guidelines)
+- Iteration 3: Implementation design (parameter reordering specs, validation tool specs, documentation specs)
+
+**What Was Missing** (Concrete API improvements):
+- Agents created **specifications** rather than **implementing** API improvements
+- No concrete code changes to `cmd/mcp/tools.go`
+- No actual parameter reordering, error message improvements, or documentation enhancements
+- Meta-agent had no **concrete agent work** to observe and extract patterns from
+
+**Value of Iterations 0-3**:
+- ✅ Valuable design artifacts created (guidelines, conventions, specifications)
+- ✅ V(s₃) = 0.80 achieved through **design quality**
+- ❌ Missing: Concrete implementation for meta-agent to observe
+- ❌ Missing: Actual API improvements to meta-cc MCP server
+
+### Recommended Path Forward
+
+**Option 1: Continue with Iteration 4 (Recommended)**
+
+Execute Iteration 4 with **two-layer architecture**:
+
+**Iteration 4 Objectives**:
+
+**Meta-Agent Work**:
+- Observe how agents execute concrete API improvements
+- Extract patterns from agent work (e.g., how agents identify parameter tier, how agents improve error messages)
+- Codify observations into methodology artifacts (API-DESIGN-METHODOLOGY.md)
+- Evaluate if specialized agents are needed
+
+**Agent Work** (Concrete Tasks):
+1. **Task 1**: Implement parameter reordering for 3 tools (query_tools, query_user_messages, query_conversation)
+   - Edit `cmd/mcp/tools.go` directly
+   - Apply tier-based ordering from Iteration 2 guidelines
+   - Run tests to verify non-breaking change
+   - Deliverable: Working code with improved parameter ordering
+
+2. **Task 2**: Implement validation tool MVP
+   - Create `cmd/validate-api/main.go`
+   - Implement 3 core checks (naming, parameter ordering, description)
+   - Add tests for validation logic
+   - Deliverable: Working `meta-cc validate-api` command
+
+3. **Task 3**: Implement pre-commit hook
+   - Create `.git/hooks/pre-commit` script
+   - Create installation script
+   - Test hook functionality
+   - Deliverable: Working pre-commit hook that blocks API violations
+
+4. **Task 4**: Enhance documentation for 3 low-usage tools
+   - Update docs/guides/mcp.md with better examples for query_context, cleanup_temp_files, query_tools_advanced
+   - Add usage patterns and common use cases
+   - Deliverable: Improved documentation with examples
+
+**Expected Outcome**:
+- Agents produce concrete API improvements (code, tooling, docs)
+- Meta-agent observes execution patterns
+- Methodology emerges from observation, not predetermined design
+- V(s₄) calculated based on **operational improvements**, not just design quality
+
+**Option 2: Restart with Two-Layer Architecture (Alternative)**
+
+If Iterations 0-3 design artifacts are insufficient:
+- Archive current experiment as "bootstrap-006-api-design-v1 (design-focused)"
+- Start fresh with "bootstrap-006-api-design-v2 (two-layer)"
+- Iteration 0: Baseline + identify 5 concrete API improvement tasks
+- Iteration 1+: Agents execute tasks, meta-agent observes and codifies
+
+**Recommendation**: **Option 1** (continue with Iteration 4) is preferred because Iterations 1-3 created valuable design artifacts that can guide concrete implementation.
 
 ---
 
 ## Next Steps
 
-1. Execute Iteration 1 focusing on evolvability
-2. Design versioning strategy (likely create api-evolution-planner agent)
-3. Calculate V(s₁) after improvements
-4. Check convergence criteria
+1. **Decide**: Option 1 (continue) vs Option 2 (restart)
+2. **If Option 1**: Execute Iteration 4 with two-layer architecture
+   - Agents implement parameter reordering, validation tool, pre-commit hook, documentation
+   - Meta-agent observes patterns and creates API-DESIGN-METHODOLOGY.md
+3. **If Option 2**: Archive current experiment and restart with two-layer design
+4. Calculate V(s₄) based on operational improvements
 5. Continue iterations until convergence
 
 ---
