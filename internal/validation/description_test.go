@@ -65,7 +65,7 @@ func TestValidateDescription(t *testing.T) {
 		{
 			name: "description over 100 characters",
 			tool: Tool{
-				Name: "long_tool",
+				Name:        "long_tool",
 				Description: "Query tool call history across project with filters including tool name status and timestamps. Default scope: project.",
 			},
 			expectStatus:  "WARN",

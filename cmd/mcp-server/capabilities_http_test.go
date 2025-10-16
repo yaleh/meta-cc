@@ -254,10 +254,10 @@ This is a test capability for unit testing.
 
 func TestEnhanceNotFoundError(t *testing.T) {
 	tests := []struct {
-		name         string
-		capName      string
-		source       GitHubSource
-		expectedIn   []string
+		name       string
+		capName    string
+		source     GitHubSource
+		expectedIn []string
 	}{
 		{
 			name:    "error with full source info",

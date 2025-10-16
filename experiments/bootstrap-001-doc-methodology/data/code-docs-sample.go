@@ -8,16 +8,19 @@ package cmd
 // It reads session history, identifies patterns, and outputs analysis results.
 //
 // Usage:
-//   meta-cc parse [options] <session-file>
+//
+//	meta-cc parse [options] <session-file>
 //
 // Options:
-//   --format: Output format (json|jsonl|yaml)
-//   --verbose: Enable detailed output
+//
+//	--format: Output format (json|jsonl|yaml)
+//	--verbose: Enable detailed output
 //
 // Example:
-//   meta-cc parse --format=json session_20240104.jsonl
+//
+//	meta-cc parse --format=json session_20240104.jsonl
 func ParseCommand() {
-    // Implementation
+	// Implementation
 }
 
 // QueryToolsCommand analyzes tool usage patterns in session history.
@@ -28,7 +31,7 @@ func ParseCommand() {
 //   - Error frequency analysis
 //   - Common tool combinations
 func QueryToolsCommand() {
-    // Implementation
+	// Implementation
 }
 
 // StatsCommand generates comprehensive session statistics.
@@ -38,7 +41,7 @@ func QueryToolsCommand() {
 //   - Error rates
 //   - Session duration
 func StatsCommand() {
-    // Implementation
+	// Implementation
 }
 
 // This pattern should be applied to all 163 functions to achieve 80% coverage

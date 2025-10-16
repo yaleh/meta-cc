@@ -1,0 +1,13 @@
+# CI Metrics Storage
+#
+# This directory stores historical performance metrics for CI/CD pipelines.
+# Format: CSV files with timestamp, value, unit, git_sha, branch, event_type
+#
+# Files:
+#   - test_duration.csv: Test suite execution time
+#   - build_duration.csv: Build execution time
+#   - coverage.csv: Test coverage percentage
+#
+# Used by:
+#   - scripts/track-metrics.sh (record metrics)
+#   - scripts/check-performance-regression.sh (detect regressions)

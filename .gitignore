@@ -19,3 +19,4 @@ coverage_total.out
 /mcp-server
 validation_coverage.out
 /experiments/bootstrap-003-error-recovery/data/
+/experiments/bootstrap-007-cicd-pipeline/data/

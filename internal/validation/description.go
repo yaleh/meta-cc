@@ -32,8 +32,8 @@ func ValidateDescription(tool Tool) Result {
 			"description_format",
 			"Description must match template format",
 			map[string]interface{}{
-				"template": "<Action> <object>. Default scope: <project|session|none>.",
-				"actual":   desc,
+				"template":  "<Action> <object>. Default scope: <project|session|none>.",
+				"actual":    desc,
 				"reference": "api-consistency-methodology.md (Section 4)",
 			},
 		)
