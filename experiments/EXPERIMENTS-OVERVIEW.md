@@ -112,13 +112,25 @@ This document catalogs all planned Meta-Agent bootstrapping experiments for the 
 - **Scope**: Reduce cyclomatic complexity by 30%, improve test coverage to 85%
 - **Deliverables**: Refactored code, improved module structure, enhanced tests
 
-**Value Function**:
+**Instance Value Function** (Refactoring Quality):
 ```
-V(s) = 0.3·V_code_quality +     # Quality metrics
-       0.3·V_maintainability +  # Maintenance ease
-       0.2·V_safety +           # Refactoring safety
-       0.2·V_effort             # Efficiency
+V_instance(s) = 0.3·V_code_quality +     # Quality metrics
+                0.3·V_maintainability +  # Maintenance ease
+                0.2·V_safety +           # Refactoring safety
+                0.2·V_effort             # Efficiency
 ```
+
+**Meta Value Function** (Methodology Quality):
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Methodology documentation
+            0.3·V_methodology_effectiveness +  # Efficiency improvement
+            0.3·V_methodology_reusability      # Transferability
+```
+
+**Convergence Criteria**:
+- V_instance(s_N) ≥ 0.80 (Refactoring quality达标)
+- V_meta(s_N) ≥ 0.80 (Methodology成熟)
+- M_N == M_{N-1} ∧ A_N == A_{N-1} (System稳定)
 
 **Data Sources**:
 - High-edit files (plan.md: 183 edits, tools.go: 115 accesses)
@@ -157,13 +169,25 @@ V(s) = 0.3·V_code_quality +     # Quality metrics
 - **Scope**: Improve query response time by 40%, reduce memory allocation by 30%
 - **Deliverables**: Optimized code, benchmarks, profiling analysis
 
-**Value Function**:
+**Instance Value Function** (Performance Optimization Quality):
 ```
-V(s) = 0.4·V_speed_improvement +     # Performance gains
-       0.3·V_profiling_coverage +    # Analysis coverage
-       0.2·V_automation +            # Automation degree
-       0.1·V_regression_detection    # Regression catching
+V_instance(s) = 0.4·V_speed_improvement +     # Performance gains
+                0.3·V_profiling_coverage +    # Analysis coverage
+                0.2·V_automation +            # Automation degree
+                0.1·V_regression_detection    # Regression catching
 ```
+
+**Meta Value Function** (Methodology Quality):
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Methodology documentation
+            0.3·V_methodology_effectiveness +  # Efficiency improvement
+            0.3·V_methodology_reusability      # Transferability
+```
+
+**Convergence Criteria**:
+- V_instance(s_N) ≥ 0.80 (Performance optimization达标)
+- V_meta(s_N) ≥ 0.80 (Methodology成熟)
+- M_N == M_{N-1} ∧ A_N == A_{N-1} (System稳定)
 
 **Data Sources**:
 - 18,768 tool calls (analyze patterns)
@@ -197,13 +221,25 @@ V(s) = 0.4·V_speed_improvement +     # Performance gains
 - **Scope**: Fix parameter ordering, improve error messages, enhance documentation
 - **Deliverables**: Improved API tools, validation tooling, consistent documentation
 
-**Value Function**:
+**Instance Value Function** (API Quality):
 ```
-V(s) = 0.3·V_usability +        # API ease of use
-       0.3·V_consistency +      # Naming, patterns
-       0.2·V_completeness +     # Feature coverage
-       0.2·V_evolvability       # Backward compatibility
+V_instance(s) = 0.3·V_usability +        # API ease of use
+                0.3·V_consistency +      # Naming, patterns
+                0.2·V_completeness +     # Feature coverage
+                0.2·V_evolvability       # Backward compatibility
 ```
+
+**Meta Value Function** (Methodology Quality):
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Methodology documentation
+            0.3·V_methodology_effectiveness +  # Efficiency improvement
+            0.3·V_methodology_reusability      # Transferability
+```
+
+**Convergence Criteria**:
+- V_instance(s_N) ≥ 0.80 (API quality达标)
+- V_meta(s_N) ≥ 0.80 (Methodology成熟)
+- M_N == M_{N-1} ∧ A_N == A_{N-1} (System稳定)
 
 **Data Sources**:
 - 16 MCP tools (from MCP guide)
@@ -237,13 +273,25 @@ V(s) = 0.3·V_usability +        # API ease of use
 - **Scope**: Automated testing, linting, building, releasing for meta-cc
 - **Deliverables**: Working CI/CD pipeline, automated release process, quality gates
 
-**Value Function**:
+**Instance Value Function** (CI/CD Pipeline Quality):
 ```
-V(s) = 0.3·V_automation +       # Automation degree
-       0.3·V_reliability +      # Pipeline reliability
-       0.2·V_speed +            # Pipeline speed
-       0.2·V_observability      # Monitoring quality
+V_instance(s) = 0.3·V_automation +       # Automation degree
+                0.3·V_reliability +      # Pipeline reliability
+                0.2·V_speed +            # Pipeline speed
+                0.2·V_observability      # Monitoring quality
 ```
+
+**Meta Value Function** (Methodology Quality):
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Methodology documentation
+            0.3·V_methodology_effectiveness +  # Efficiency improvement
+            0.3·V_methodology_reusability      # Transferability
+```
+
+**Convergence Criteria**:
+- V_instance(s_N) ≥ 0.80 (CI/CD pipeline达标)
+- V_meta(s_N) ≥ 0.80 (Methodology成熟)
+- M_N == M_{N-1} ∧ A_N == A_{N-1} (System稳定)
 
 **Data Sources**:
 - Makefile (64 accesses)
@@ -277,13 +325,25 @@ V(s) = 0.3·V_automation +       # Automation degree
 - **Scope**: Identify code issues, suggest improvements, create review checklist
 - **Deliverables**: Review reports, automated checklist, linting rules, style guide
 
-**Value Function**:
+**Instance Value Function** (Code Review Quality):
 ```
-V(s) = 0.3·V_issue_detection +  # Issue finding rate
-       0.3·V_false_positive +   # Low false positives
-       0.2·V_actionability +    # Actionable feedback
-       0.2·V_learning           # Team learning
+V_instance(s) = 0.3·V_issue_detection +  # Issue finding rate
+                0.3·V_false_positive +   # Low false positives
+                0.2·V_actionability +    # Actionable feedback
+                0.2·V_learning           # Team learning
 ```
+
+**Meta Value Function** (Methodology Quality):
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Methodology documentation
+            0.3·V_methodology_effectiveness +  # Efficiency improvement
+            0.3·V_methodology_reusability      # Transferability
+```
+
+**Convergence Criteria**:
+- V_instance(s_N) ≥ 0.80 (Code review quality达标)
+- V_meta(s_N) ≥ 0.80 (Methodology成熟)
+- M_N == M_{N-1} ∧ A_N == A_{N-1} (System稳定)
 
 **Data Sources**:
 - 2,476 Edit operations (code modifications)
@@ -317,13 +377,25 @@ V(s) = 0.3·V_issue_detection +  # Issue finding rate
 - **Scope**: Add structured logging, metrics, trace points to 90% of critical paths
 - **Deliverables**: Instrumented code, logging standards, metrics dashboard, alerting rules
 
-**Value Function**:
+**Instance Value Function** (Observability Implementation Quality):
 ```
-V(s) = 0.3·V_coverage +         # Observability coverage across codebase
-       0.3·V_actionability +    # Diagnostic speed and effectiveness
-       0.2·V_performance +      # Low observability overhead
-       0.2·V_consistency        # Consistent logging/metrics patterns
+V_instance(s) = 0.3·V_coverage +         # Observability coverage across codebase
+                0.3·V_actionability +    # Diagnostic speed and effectiveness
+                0.2·V_performance +      # Low observability overhead
+                0.2·V_consistency        # Consistent logging/metrics patterns
 ```
+
+**Meta Value Function** (Methodology Quality):
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Methodology documentation
+            0.3·V_methodology_effectiveness +  # Efficiency improvement
+            0.3·V_methodology_reusability      # Transferability
+```
+
+**Convergence Criteria**:
+- V_instance(s_N) ≥ 0.80 (Observability implementation达标)
+- V_meta(s_N) ≥ 0.80 (Methodology成熟)
+- M_N == M_{N-1} ∧ A_N == A_{N-1} (System稳定)
 
 **Data Sources**:
 - meta-cc query-user-messages --pattern "log|error|debug|trace"
@@ -365,13 +437,25 @@ V(s) = 0.3·V_coverage +         # Observability coverage across codebase
 - **Scope**: Scan vulnerabilities, update stale deps, verify licenses, test compatibility
 - **Deliverables**: Updated dependencies, vulnerability report, update strategy, automation scripts
 
-**Value Function**:
+**Instance Value Function** (Dependency Health Quality):
 ```
-V(s) = 0.4·V_security +         # Vulnerability-free dependencies
-       0.3·V_freshness +        # Up-to-date dependencies
-       0.2·V_stability +        # Tested, compatible versions
-       0.1·V_license            # License compliance
+V_instance(s) = 0.4·V_security +         # Vulnerability-free dependencies
+                0.3·V_freshness +        # Up-to-date dependencies
+                0.2·V_stability +        # Tested, compatible versions
+                0.1·V_license            # License compliance
 ```
+
+**Meta Value Function** (Methodology Quality):
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Methodology documentation
+            0.3·V_methodology_effectiveness +  # Efficiency improvement
+            0.3·V_methodology_reusability      # Transferability
+```
+
+**Convergence Criteria**:
+- V_instance(s_N) ≥ 0.80 (Dependency health达标)
+- V_meta(s_N) ≥ 0.80 (Methodology成熟)
+- M_N == M_{N-1} ∧ A_N == A_{N-1} (System稳定)
 
 **Data Sources**:
 - go.mod, go.sum analysis
@@ -415,13 +499,25 @@ V(s) = 0.4·V_security +         # Vulnerability-free dependencies
 - **Scope**: Day-1, Week-1, Month-1 onboarding paths with 90% coverage of core concepts
 - **Deliverables**: Onboarding guide, code navigation tools, expert map, learning checklist
 
-**Value Function**:
+**Instance Value Function** (Knowledge Transfer System Quality):
 ```
-V(s) = 0.3·V_discoverability +  # How easily can info be found?
-       0.3·V_completeness +     # All necessary knowledge documented?
-       0.2·V_relevance +        # Right info at right time?
-       0.2·V_freshness          # Documentation up-to-date?
+V_instance(s) = 0.3·V_discoverability +  # How easily can info be found?
+                0.3·V_completeness +     # All necessary knowledge documented?
+                0.2·V_relevance +        # Right info at right time?
+                0.2·V_freshness          # Documentation up-to-date?
 ```
+
+**Meta Value Function** (Methodology Quality):
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Methodology documentation
+            0.3·V_methodology_effectiveness +  # Efficiency improvement
+            0.3·V_methodology_reusability      # Transferability
+```
+
+**Convergence Criteria**:
+- V_instance(s_N) ≥ 0.80 (Knowledge transfer system达标)
+- V_meta(s_N) ≥ 0.80 (Methodology成熟)
+- M_N == M_{N-1} ∧ A_N == A_{N-1} (System稳定)
 
 **Data Sources**:
 - meta-cc query-user-messages --pattern "how|what|where|why|explain"
@@ -463,13 +559,25 @@ V(s) = 0.3·V_discoverability +  # How easily can info be found?
 - **Scope**: Measure debt (complexity, test coverage, duplication), create paydown plan
 - **Deliverables**: Debt report, prioritization matrix, paydown roadmap, prevention checklist
 
-**Value Function**:
+**Instance Value Function** (Technical Debt Management Quality):
 ```
-V(s) = 0.3·V_measurement +      # Accurate debt quantification
-       0.3·V_prioritization +   # Right debt addressed first
-       0.2·V_tracking +         # Debt trends visible over time
-       0.2·V_actionability      # Clear paydown strategies
+V_instance(s) = 0.3·V_measurement +      # Accurate debt quantification
+                0.3·V_prioritization +   # Right debt addressed first
+                0.2·V_tracking +         # Debt trends visible over time
+                0.2·V_actionability      # Clear paydown strategies
 ```
+
+**Meta Value Function** (Methodology Quality):
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Methodology documentation
+            0.3·V_methodology_effectiveness +  # Efficiency improvement
+            0.3·V_methodology_reusability      # Transferability
+```
+
+**Convergence Criteria**:
+- V_instance(s_N) ≥ 0.80 (Technical debt management达标)
+- V_meta(s_N) ≥ 0.80 (Methodology成熟)
+- M_N == M_{N-1} ∧ A_N == A_{N-1} (System稳定)
 
 **Data Sources**:
 - gocyclo, dupl, staticcheck (code metrics)
@@ -511,13 +619,25 @@ V(s) = 0.3·V_measurement +      # Accurate debt quantification
 - **Scope**: Extract patterns, define standards, implement enforcement for 80% consistency
 - **Deliverables**: Pattern library, linting rules, migration plan, standardized code
 
-**Value Function**:
+**Instance Value Function** (Cross-Cutting Concerns Management Quality):
 ```
-V(s) = 0.4·V_consistency +      # Uniform patterns across codebase
-       0.3·V_maintainability +  # Easy to update patterns
-       0.2·V_enforcement +      # Automated pattern checking
-       0.1·V_documentation      # Patterns well-documented
+V_instance(s) = 0.4·V_consistency +      # Uniform patterns across codebase
+                0.3·V_maintainability +  # Easy to update patterns
+                0.2·V_enforcement +      # Automated pattern checking
+                0.1·V_documentation      # Patterns well-documented
 ```
+
+**Meta Value Function** (Methodology Quality):
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Methodology documentation
+            0.3·V_methodology_effectiveness +  # Efficiency improvement
+            0.3·V_methodology_reusability      # Transferability
+```
+
+**Convergence Criteria**:
+- V_instance(s_N) ≥ 0.80 (Cross-cutting concerns management达标)
+- V_meta(s_N) ≥ 0.80 (Methodology成熟)
+- M_N == M_{N-1} ∧ A_N == A_{N-1} (System稳定)
 
 **Data Sources**:
 - grep -r "log\\." "if err != nil" "os.Getenv" (pattern analysis)
@@ -660,6 +780,132 @@ V(s) = 0.4·V_consistency +      # Uniform patterns across codebase
 
 **Long-term (12-18 months)**:
 - 005-performance (MEDIUM) → 007-cicd (LOW) → 008-code-review (LOW)
+
+---
+
+## Meta Value Function: Universal Evaluation Criteria
+
+All experiments share a common **Meta Value Function** to assess methodology quality, enabling cross-experiment comparison and ensuring methodological rigor.
+
+### Three Universal Dimensions
+
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Documentation completeness
+            0.3·V_methodology_effectiveness +  # Practical effectiveness
+            0.3·V_methodology_reusability      # Cross-domain transferability
+```
+
+### Evaluation Rubrics
+
+#### V_methodology_completeness (Documentation Quality)
+
+**Definition**: How completely is the methodology documented and formalized?
+
+| Score | Level | Criteria |
+|-------|-------|----------|
+| 0.0-0.3 | **Basic** | Observational notes only, no structured process |
+| 0.3-0.6 | **Structured** | Step-by-step procedures, but missing decision criteria |
+| 0.6-0.8 | **Comprehensive** | Complete workflow + decision criteria, but lacking examples/edge cases |
+| 0.8-1.0 | **Fully Codified** | Complete documentation: process + criteria + examples + edge cases + rationale |
+
+**Measurement Approach**:
+- Checklist coverage: process steps, decision points, examples, edge cases, failure modes
+- Documentation artifacts: methodology.md, guidelines, templates, checklists
+- Completeness = (documented_elements / required_elements)
+
+#### V_methodology_effectiveness (Practical Impact)
+
+**Definition**: How much does applying the methodology improve outcomes vs. ad-hoc approach?
+
+| Score | Level | Efficiency Gain | Quality Improvement |
+|-------|-------|----------------|---------------------|
+| 0.0-0.3 | **Marginal** | <2x speedup | No measurable quality gain |
+| 0.3-0.6 | **Moderate** | 2-5x speedup | Small quality improvements (10-20%) |
+| 0.6-0.8 | **Significant** | 5-10x speedup | Substantial quality gains (20-50%) |
+| 0.8-1.0 | **Transformative** | >10x speedup | Major quality improvements (>50%) |
+
+**Measurement Approach**:
+- Time comparison: methodology-driven vs. ad-hoc execution (estimated or actual)
+- Quality metrics: error rate reduction, coverage improvement, consistency gains
+- Example: Bootstrap-002 achieved 15x speedup → V_effectiveness = 0.95
+
+#### V_methodology_reusability (Transferability)
+
+**Definition**: How easily can the methodology transfer to other domains/projects?
+
+| Score | Level | Transfer Effort | Modification Needed |
+|-------|-------|----------------|---------------------|
+| 0.0-0.3 | **Domain-Specific** | High effort | >70% modification, highly specialized |
+| 0.3-0.6 | **Partially Portable** | Moderate effort | 40-70% modification, some adaptation |
+| 0.6-0.8 | **Largely Portable** | Low effort | 15-40% modification, minor tweaks |
+| 0.8-1.0 | **Highly Portable** | Minimal effort | <15% modification, nearly universal |
+
+**Measurement Approach**:
+- Transfer test simulation: estimate effort to apply to similar/different domains
+- Domain independence: percentage of methodology that is domain-agnostic
+- Reusability % = (reusable_components / total_components)
+- Example: Bootstrap-001 = 85% reusable → V_reusability = 0.85
+
+### Why Dual Value Functions?
+
+**Two Independent Objectives** → **Two Independent Metrics**:
+
+1. **Instance Value Function** (V_instance):
+   - Measures **task completion quality** (domain-specific)
+   - Example: API usability, test coverage, error recovery effectiveness
+   - Question: "Did we do the concrete task well?"
+
+2. **Meta Value Function** (V_meta):
+   - Measures **methodology development quality** (universal)
+   - Example: methodology completeness, effectiveness, reusability
+   - Question: "Did we learn a reusable methodology?"
+
+**Convergence Requires Both**:
+- V_instance ≥ 0.80 → Task completed successfully
+- V_meta ≥ 0.80 → Methodology mature and transferable
+- If only one is satisfied → NOT CONVERGED (continue iterating)
+
+### Assessment Protocol
+
+**At Each Iteration**:
+
+1. **Calculate V_instance(s_n)**:
+   - Use domain-specific rubrics (defined per experiment)
+   - Measure actual task outputs against objectives
+
+2. **Calculate V_meta(s_n)**:
+   - Use universal rubrics above
+   - Assess methodology artifacts:
+     - Completeness: documentation coverage checklist
+     - Effectiveness: efficiency gain estimation (vs. ad-hoc baseline)
+     - Reusability: transfer test simulation
+
+3. **Check Convergence**:
+   ```
+   CONVERGED iff:
+     V_instance(s_n) ≥ 0.80 ∧
+     V_meta(s_n) ≥ 0.80 ∧
+     M_n == M_{n-1} ∧
+     A_n == A_{n-1} ∧
+     ΔV_instance < 0.02 (for 2+ iterations) ∧
+     ΔV_meta < 0.02 (for 2+ iterations)
+   ```
+
+### Cross-Experiment Comparability
+
+Using universal Meta Value dimensions enables:
+
+- **Benchmarking**: Compare methodology quality across experiments
+- **Meta-analysis**: Identify patterns in high-quality methodologies
+- **Transfer validation**: Predict reusability before attempting transfer
+- **Quality gates**: Ensure minimum methodology standards
+
+**Example Comparison**:
+| Experiment | V_instance | V_meta | Completeness | Effectiveness | Reusability |
+|-----------|-----------|--------|--------------|---------------|-------------|
+| Bootstrap-001 | 0.808 | (TBD) | (TBD) | (TBD) | 0.85 |
+| Bootstrap-002 | 0.848 | (TBD) | (TBD) | 0.95 (15x) | 0.89 |
+| Bootstrap-003 | ≥0.80 | (TBD) | (TBD) | (TBD) | 0.85 |
 
 ---
 

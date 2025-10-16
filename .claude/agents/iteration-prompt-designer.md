@@ -43,17 +43,36 @@ meta_agent_design(D) = ∀c ∈ {observe, plan, execute, reflect, evolve}:
       "How to identify new {domain} capability needs" ∧
       "Evolution triggers in {domain} context"
 
-value_function_design :: Domain → ValueSpec
-value_function_design(D) = define(
-  components = identify_dimensions(D, count=3..5),
-  weights = prioritize(components),
-  scales = ∀c: [0, 1] ∧ interpretation(c),
-  formula = ∑(w_i · V_component_i),
-  honest_assessment_guide
-) where
-  dimensions_match_domain ∧
-  weights_sum_to_one ∧
-  components_measurable
+value_function_design :: Domain → (ValueSpec_Instance, ValueSpec_Meta)
+value_function_design(D) = (
+  -- Instance Value Function (domain-specific)
+  define_instance(
+    components = identify_dimensions(D, count=3..5),
+    weights = prioritize(components),
+    scales = ∀c: [0, 1] ∧ interpretation(c),
+    formula = ∑(w_i · V_instance_component_i),
+    honest_assessment_guide
+  ) where
+    dimensions_match_domain ∧
+    weights_sum_to_one ∧
+    components_measurable,
+
+  -- Meta Value Function (universal)
+  define_meta(
+    components = [
+      V_methodology_completeness,
+      V_methodology_effectiveness,
+      V_methodology_reusability
+    ],
+    weights = [0.4, 0.3, 0.3],
+    scales = ∀c: [0, 1] ∧ rubric_based_assessment(c),
+    formula = 0.4·completeness + 0.3·effectiveness + 0.3·reusability,
+    rubrics = meta_value_rubrics()
+  ) where
+    universal_across_domains ∧
+    weights_sum_to_one ∧
+    rubric_guided_measurement
+)
 
 baseline_iteration_spec :: (Domain, ValueFunc) → Iteration0
 baseline_iteration_spec(D, V) = structure(
@@ -76,9 +95,13 @@ baseline_iteration_spec(D, V) = structure(
   objectives: numbered_steps(
     0: setup_instructions(create_capability_files, create_agent_files),
     1: data_collection(M₀.observe, specific_commands(D)),
-    2: baseline_analysis(M₀.plan, value_calculation(V)),
+    2: baseline_analysis(M₀.plan,
+         value_calculation_instance(V_instance),
+         value_calculation_meta(V_meta)),
     3: problem_identification(M₀.reflect, domain_questions(D)),
-    4: documentation(M₀.execute, deliverables_list(D)),
+    4: documentation(M₀.execute,
+         deliverables_list(D),
+         dual_value_reporting(V_instance, V_meta)),
     5: reflection(M₀.reflect, next_steps_consideration)
   ),
 
@@ -102,8 +125,10 @@ subsequent_iteration_spec(D, V) = structure(
     3: execute(read_execute_md →
          if insufficient(A) then evolve(read_evolve_md → create_files)
          else use_existing(read_agent_files → invoke)),
-    4: reflect(read_reflect_md → calculate_V → assess_quality),
-    5: convergence_check(5_criteria)
+    4: reflect(read_reflect_md →
+         calculate_V_instance → assess_task_quality →
+         calculate_V_meta(rubrics: completeness, effectiveness, reusability) → assess_methodology_maturity),
+    5: convergence_check(dual_threshold: V_instance ≥ 0.80 ∧ V_meta ≥ 0.80)
   ),
 
   evolution_guidance: granular(
@@ -116,10 +141,11 @@ subsequent_iteration_spec(D, V) = structure(
   ),
 
   key_principles: (
-    honest_calculation,
+    honest_calculation(V_instance, V_meta),
+    dual_layer_focus(independent_evaluation),
     system_evolution,
     justified_specialization,
-    rigorous_convergence,
+    rigorous_convergence(dual_threshold),
     no_token_limits
   ),
 
@@ -136,8 +162,10 @@ results_analysis_spec(D, V) = structure(
 
   ten_analysis_dimensions: (
     1: three_tuple_output(O, A_N, M_N),
-    2: convergence_validation,
-    3: value_space_trajectory,
+    2: convergence_validation(dual_threshold_met),
+    3: value_space_trajectory(
+         instance_trajectory: V_instance(s₀) → V_instance(s_N),
+         meta_trajectory: V_meta(s₀) → V_meta(s_N)),
     4: domain_specific_analysis(D),  # e.g., Error Analysis, Documentation Quality
     5: reusability_validation(domain_transfer_tests(D)),
     6: comparison_actual_history,
@@ -196,15 +224,22 @@ checklist_generator(D, M) = enumerate(
 execution_style_guide :: Domain → StyleGuide
 execution_style_guide(D) = prescribe(
   be_meta_agent: "Embody M's perspective for {domain}",
-  be_rigorous: "Calculate V(s) honestly for {domain} state",
-  be_thorough: "No token limits, complete all {domain} analysis",
+  be_rigorous: "Calculate both V_instance(s) and V_meta(s) honestly for {domain} state",
+  be_thorough: "No token limits, complete all {domain} analysis and methodology assessment",
   be_authentic: "Discover {domain} patterns, don't assume",
+  be_dual_focused: "Track task quality AND methodology quality independently",
 
   reading_protocol: modular(
     capability_files: "Read all, then read specific before use",
     agent_files: "Read before each invocation",
     no_caching: "Always fresh from source",
     ensures: "Complete context, no assumptions"
+  ),
+
+  dual_evaluation_protocol: (
+    instance_layer: "Measure actual task outputs against domain objectives",
+    meta_layer: "Assess methodology using universal rubrics (completeness, effectiveness, reusability)",
+    convergence: "Both layers must meet 0.80 threshold"
   )
 )
 
@@ -274,7 +309,12 @@ best_practices() = (
   explicit_baseline: "Detailed Iteration 0 with all setup steps",
   granular_evolution: "Per-capability and per-agent evolution tracking",
   reading_protocol: "Read all capabilities, then read specific before use",
-  value_function: "3-5 components matching domain dimensions",
+  dual_value_function: (
+    instance: "3-5 components matching domain dimensions",
+    meta: "3 universal components (completeness, effectiveness, reusability)",
+    evaluation: "Independent assessment of both layers"
+  ),
+  dual_convergence: "Both V_instance ≥ 0.80 AND V_meta ≥ 0.80 required",
   concrete_results: "Domain-specific transfer tests, quantitative metrics",
   iteration_patterns: "OCA mapping with domain examples, let needs drive",
   no_token_limits: "Emphasize thoroughness, no abbreviation",

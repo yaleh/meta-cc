@@ -48,19 +48,26 @@ evolve(M, A) = read(meta-agents/evolve.md) →
 
 reflect :: (M, Output) → Evaluation
 reflect(M, output) = read(meta-agents/reflect.md) →
-  calculate(V(s_n)) =
-    ∑(w_i · V_component_i) ∧
-  compute(ΔV = V(s_n) - V(s_{n-1})) ∧
-  assess(quality) ∧
+  calculate_instance(V_instance(s_n)) =
+    ∑(w_i · V_instance_component_i) ∧
+  calculate_meta(V_meta(s_n)) =
+    0.4·V_methodology_completeness +
+    0.3·V_methodology_effectiveness +
+    0.3·V_methodology_reusability ∧
+  compute(ΔV_instance = V_instance(s_n) - V_instance(s_{n-1})) ∧
+  compute(ΔV_meta = V_meta(s_n) - V_meta(s_{n-1})) ∧
+  assess(quality_both_layers) ∧
   identify(next_gaps)
 
-convergence :: (M_n, M_{n-1}, A_n, A_{n-1}, V(s_n)) → Bool
-convergence(M_n, M_{n-1}, A_n, A_{n-1}, V) =
+convergence :: (M_n, M_{n-1}, A_n, A_{n-1}, V_instance, V_meta) → Bool
+convergence(M_n, M_{n-1}, A_n, A_{n-1}, V_i, V_m) =
   (M_n == M_{n-1}) ∧
   (A_n == A_{n-1}) ∧
-  (V ≥ threshold) ∧
+  (V_i ≥ 0.80) ∧              -- Instance threshold
+  (V_m ≥ 0.80) ∧              -- Meta threshold
   (objectives_complete) ∧
-  (ΔV < ε_diminishing)
+  (ΔV_i < 0.02) ∧             -- Instance diminishing
+  (ΔV_m < 0.02)               -- Meta diminishing
 
 state_transition :: (s_{n-1}, Work) → s_n
 state_transition(s, work) =
@@ -74,18 +81,40 @@ documentation(i) = invoke(doc-writer: read(agents/doc-writer.md)) →
     metadata: {iteration, date, duration, status},
     evolution: {M_{n-1} → M_n, A_{n-1} → A_n},
     work_executed: outputs,
-    state_transition: {s_{n-1} → s_n, V(s_{n-1}) → V(s_n)},
+    state_transition: {
+      s_{n-1} → s_n,
+      instance_layer: {
+        V_instance(s_{n-1}) → V_instance(s_n),
+        ΔV_instance,
+        components: [usability, consistency, completeness, evolvability]
+      },
+      meta_layer: {
+        V_meta(s_{n-1}) → V_meta(s_n),
+        ΔV_meta,
+        components: [completeness, effectiveness, reusability]
+      }
+    },
     reflection: {learned, challenges, next_focus},
-    convergence_check: {stable, threshold, objectives, diminishing},
+    convergence_check: {
+      instance_objective: {V_instance ≥ 0.80, ΔV_instance < 0.02},
+      meta_objective: {V_meta ≥ 0.80, ΔV_meta < 0.02},
+      system_stability: {M_stable, A_stable},
+      objectives_complete
+    },
     data_artifacts: [data/*]
   } ∧
   save(iteration-{n}.md)
 
-value_function :: State → ℝ
-value_function(s) = ∑(w_i · V_component_i(s)) where
-  ∑w_i = 1 ∧
-  V_component ∈ [0, 1] ∧
-  honest_assessment(actual_state, ¬desired_state)
+value_function :: State → (ℝ, ℝ)
+value_function(s) = (V_instance(s), V_meta(s)) where
+  V_instance(s) = ∑(w_i · V_instance_component_i(s))  -- Domain-specific task quality
+    where ∑w_i = 1 ∧ V_instance_component ∈ [0, 1]
+  V_meta(s) = 0.4·V_methodology_completeness(s) +     -- Universal methodology quality
+              0.3·V_methodology_effectiveness(s) +
+              0.3·V_methodology_reusability(s)
+    where V_methodology_* ∈ [0, 1]
+  honest_assessment(actual_state, ¬desired_state) ∧
+  independent_evaluation(instance, meta)
 
 agent_protocol :: Agent → Execution
 agent_protocol(agent) =
@@ -131,7 +160,10 @@ output(exec) =
   data_artifacts(data/*) ∧
   agent_definitions(agents/*.md | if_evolved) ∧
   meta_capabilities(meta-agents/*.md | if_evolved) ∧
-  state_metrics(V(s_n), ΔV, components)
+  state_metrics(
+    instance: {V_instance(s_n), ΔV_instance, components_instance},
+    meta: {V_meta(s_n), ΔV_meta, components_meta}
+  )
 
 termination :: Convergence → Bool
 termination(conv) =

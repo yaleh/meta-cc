@@ -216,13 +216,17 @@ Execute baseline establishment:
      - Look for data-analyst.md or equivalent analytical agent
      - If multiple analytical agents exist, choose most appropriate
    - Invoke chosen agent(s) to:
-     - Analyze current API state across 16 MCP tools
-     - Calculate value function components:
+     - **Instance Layer**: Analyze current API state across 16 MCP tools
        - V_usability: Parameter clarity, default values, error messages
        - V_consistency: Naming conventions, parameter patterns, response formats
        - V_completeness: Feature coverage, parameter options, edge cases
        - V_evolvability: Versioning strategy, deprecation policy, backward compatibility
-     - Calculate V(s₀) = 0.3·V_usability + 0.3·V_consistency + 0.2·V_completeness + 0.2·V_evolvability
+       - Calculate V_instance(s₀) = 0.3·V_usability + 0.3·V_consistency + 0.2·V_completeness + 0.2·V_evolvability
+     - **Meta Layer**: Assess initial methodology state
+       - V_methodology_completeness: Existing API design documentation/guidelines [0-1]
+       - V_methodology_effectiveness: Current API development efficiency baseline (ad-hoc approach)
+       - V_methodology_reusability: Transferability of current practices (likely very low at s₀)
+       - Calculate V_meta(s₀) = 0.4·V_methodology_completeness + 0.3·V_methodology_effectiveness + 0.3·V_methodology_reusability
 
 3. **API Problem Identification** (Use M₀'s reflection capability):
    - **READ** the reflection capability file (for reflection process)
@@ -241,7 +245,9 @@ Execute baseline establishment:
        - M₀ state (list ALL discovered capabilities, not predetermined count)
        - A₀ state (list ALL discovered agents, not predetermined count)
        - API data collection results (summary + references to data files)
-       - Calculated V(s₀) with breakdown
+       - **Dual Value Calculation**:
+         - V_instance(s₀) with component breakdown (usability, consistency, completeness, evolvability)
+         - V_meta(s₀) with component breakdown (methodology completeness, effectiveness, reusability)
        - API problem statement
        - Reflection on what's needed next
      - Save raw API data to data/ directory:
@@ -280,7 +286,18 @@ Create iteration-0.md following this structure:
   - List each agent file and its origin experiment
   - Example: "data-analyst.md (from bootstrap-003-error-recovery)"
 - API data collection summary
-- Value calculation (V(s₀))
+- **Dual Value Calculation**:
+  - **Instance Value V_instance(s₀)**:
+    - V_usability: [score] - [justification]
+    - V_consistency: [score] - [justification]
+    - V_completeness: [score] - [justification]
+    - V_evolvability: [score] - [justification]
+    - V_instance(s₀) = [calculated total]
+  - **Meta Value V_meta(s₀)**:
+    - V_methodology_completeness: [score] - [justification]
+    - V_methodology_effectiveness: [score] - [justification]
+    - V_methodology_reusability: [score] - [justification]
+    - V_meta(s₀) = [calculated total]
 - API problem identification
 - Reflection and next steps consideration
 ```
@@ -393,9 +410,33 @@ As M_{N-1}, follow M_{N-1}'s capability process (typically observe-plan-execute-
 ### 4. REFLECT (Use reflection capability)
 - **LIST** and identify reflection capability file (typically reflect.md or similar)
 - **READ** the reflection capability file for reflection and evaluation processes
+
+**Instance Layer Evaluation**:
 - Evaluate API output quality
-- Calculate new value: V(s_N)
-- Calculate value change: ΔV = V(s_N) - V(s_{N-1})
+- Calculate V_instance(s_N):
+  - V_usability: [0-1] - How usable are the API improvements?
+  - V_consistency: [0-1] - How consistent are naming/patterns?
+  - V_completeness: [0-1] - How complete is feature coverage?
+  - V_evolvability: [0-1] - How backward compatible?
+  - V_instance(s_N) = 0.3·usability + 0.3·consistency + 0.2·completeness + 0.2·evolvability
+- Calculate ΔV_instance = V_instance(s_N) - V_instance(s_{N-1})
+
+**Meta Layer Evaluation**:
+- Assess methodology development progress
+- Calculate V_meta(s_N):
+  - V_methodology_completeness: [0-1]
+    * Is methodology documented? (process, decision criteria, examples, edge cases)
+    * Score using rubric: 0-0.3 (basic), 0.3-0.6 (structured), 0.6-0.8 (comprehensive), 0.8-1.0 (fully codified)
+  - V_methodology_effectiveness: [0-1]
+    * How much does methodology improve efficiency vs. ad-hoc?
+    * Score using rubric: 0-0.3 (<2x), 0.3-0.6 (2-5x), 0.6-0.8 (5-10x), 0.8-1.0 (>10x)
+  - V_methodology_reusability: [0-1]
+    * How transferable is methodology to other API design tasks?
+    * Score using rubric: 0-0.3 (domain-specific), 0.3-0.6 (partially portable), 0.6-0.8 (largely portable), 0.8-1.0 (highly portable)
+  - V_meta(s_N) = 0.4·completeness + 0.3·effectiveness + 0.3·reusability
+- Calculate ΔV_meta = V_meta(s_N) - V_meta(s_{N-1})
+
+**Overall Assessment**:
 - Are API task objectives met?
 - Are there still gaps or API problems?
 - What should be the focus of next iteration?
@@ -405,29 +446,48 @@ Evaluate convergence criteria:
 
 ```yaml
 convergence_check:
-  meta_agent_stable:
-    question: "Did M gain new capabilities this iteration?"
-    M_N == M_{N-1}: [Yes/No]
+  instance_objective:
+    question: "Is API task quality ≥ 0.80?"
+    V_instance(s_N): [calculated value]
+    threshold: 0.80
+    met: [Yes/No]
+    trend: ΔV_instance = [change]
+    diminishing: "ΔV_instance < 0.02 for 2+ iterations?" [Yes/No]
 
-  agent_set_stable:
-    question: "Were new agents created this iteration?"
-    A_N == A_{N-1}: [Yes/No]
+  meta_objective:
+    question: "Is methodology quality ≥ 0.80?"
+    V_meta(s_N): [calculated value]
+    components:
+      completeness: [score]
+      effectiveness: [score]
+      reusability: [score]
+    threshold: 0.80
+    met: [Yes/No]
+    trend: ΔV_meta = [change]
+    diminishing: "ΔV_meta < 0.02 for 2+ iterations?" [Yes/No]
 
-  value_threshold:
-    question: "Is V(s_N) ≥ 0.80 (target)?"
-    V(s_N): [calculated value]
-    threshold_met: [Yes/No]
+  system_stability:
+    meta_agent_stable:
+      question: "Did M gain new capabilities this iteration?"
+      M_N == M_{N-1}: [Yes/No]
+    agent_set_stable:
+      question: "Were new agents created this iteration?"
+      A_N == A_{N-1}: [Yes/No]
 
   task_objectives:
     api_methodology_documented: [Yes/No]
     api_validation_implemented: [Yes/No]
     all_objectives_met: [Yes/No]
 
-  diminishing_returns:
-    ΔV_current: [current value change]
-    interpretation: "Is API improvement marginal?"
-
 convergence_status: [CONVERGED / NOT_CONVERGED]
+# CONVERGED iff ALL of the following are true:
+#   - V_instance(s_N) ≥ 0.80
+#   - V_meta(s_N) ≥ 0.80
+#   - M_N == M_{N-1}
+#   - A_N == A_{N-1}
+#   - ΔV_instance < 0.02 for 2+ iterations
+#   - ΔV_meta < 0.02 for 2+ iterations
+#   - all_objectives_met == Yes
 ```
 
 **IF CONVERGED:**
@@ -493,17 +553,24 @@ s_{N-1} → s_N:
   changes:
     - description of API state changes
 
-  metrics:
+  instance_metrics:
     V_usability: [value]
     V_consistency: [value]
     V_completeness: [value]
     V_evolvability: [value]
+    V_instance(s_N): [calculated]
+    V_instance(s_{N-1}): [previous]
+    ΔV_instance: [change]
+    percentage_change: +X.X%
 
-  value_function:
-    V(s_N): [calculated]
-    V(s_{N-1}): [previous]
-    ΔV: [change]
-    percentage: +X.X%
+  meta_metrics:
+    V_methodology_completeness: [value]
+    V_methodology_effectiveness: [value]
+    V_methodology_reusability: [value]
+    V_meta(s_N): [calculated]
+    V_meta(s_{N-1}): [previous]
+    ΔV_meta: [change]
+    percentage_change: +X.X%
 ```
 
 ### 6. Reflection
@@ -525,12 +592,18 @@ s_{N-1} → s_N:
 
 ## Key Principles
 
-1. **Be Honest**: Calculate V(s_N) based on actual API state, not desired values
-2. **Let System Evolve**: Don't force predetermined agent names or evolution paths
-3. **Justify Specialization**: Only create new agents when generic agents are truly insufficient
-4. **Document Evolution**: Clearly explain WHY M or A evolved
-5. **Check Convergence**: Rigorously evaluate convergence criteria each iteration
-6. **Stop When Done**: If converged, don't force more iterations
+1. **Be Honest**: Calculate both V_instance(s_N) and V_meta(s_N) based on actual state, not desired values
+   - Instance: Measure actual API quality improvements
+   - Meta: Honestly assess methodology maturity (completeness, effectiveness, reusability)
+2. **Dual Layer Focus**: Track both objectives independently
+   - Don't let good task progress mask poor methodology development
+   - Don't let good methodology mask incomplete task execution
+3. **Let System Evolve**: Don't force predetermined agent names or evolution paths
+4. **Justify Specialization**: Only create new agents when generic agents are truly insufficient
+5. **Document Evolution**: Clearly explain WHY M or A evolved
+6. **Check Convergence**: Rigorously evaluate convergence criteria each iteration
+   - Both V_instance ≥ 0.80 AND V_meta ≥ 0.80 required
+7. **Stop When Done**: If converged, don't force more iterations
 7. **No Token Limits**: There are NO token budget constraints in this experiment
    - Do NOT skip steps due to perceived token limits
    - Do NOT abbreviate API data collection or analysis
@@ -758,8 +831,9 @@ For each iteration N ≥ 1, ensure you:
 - [ ] **BEFORE AGENT EXECUTION**: Read agent prompt file(s) for agents to be invoked
 - [ ] EXECUTE: Invoke agents, produce API outputs (using M's execution capability)
 - [ ] **READ REFLECTION CAPABILITY**: Identify and read reflection capability file (e.g., reflect.md) before reflection phase
-- [ ] REFLECT: Evaluate quality, calculate V(s_N) (using M's reflection capability)
-- [ ] CHECK CONVERGENCE: Apply formal criteria
+- [ ] REFLECT INSTANCE LAYER: Evaluate API quality, calculate V_instance(s_N) with component breakdown
+- [ ] REFLECT META LAYER: Assess methodology quality, calculate V_meta(s_N) using rubrics
+- [ ] CHECK CONVERGENCE: Apply formal criteria (dual threshold: V_instance ≥ 0.80 AND V_meta ≥ 0.80)
 - [ ] DOCUMENT: Create iteration-N.md
 - [ ] SAVE DATA: Store API metrics and artifacts in data/
 - [ ] **NO TOKEN LIMITS**: Verify all steps completed fully without abbreviation
@@ -781,10 +855,12 @@ If CONVERGED:
 - Track your own capability evolution
 
 **Be Rigorous**:
-- Calculate V(s) honestly based on actual API state
-- Don't force convergence prematurely
+- Calculate both V_instance(s) and V_meta(s) honestly based on actual state
+  - Instance: Measure actual API quality (usability, consistency, completeness, evolvability)
+  - Meta: Assess methodology maturity using rubrics (completeness, effectiveness, reusability)
+- Don't force convergence prematurely - both layers must meet thresholds
 - Don't skip iterations to reach a predetermined end
-- Let the API data and needs drive the process
+- Let the API data and methodology needs drive the process
 
 **Be Thorough**:
 - Document API decisions and reasoning
