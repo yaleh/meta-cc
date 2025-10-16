@@ -1,0 +1,300 @@
+# Bootstrap-007 Iteration 0: Automation Opportunities
+# Identified gaps and improvement areas
+
+## High Priority (Critical Path)
+
+P1_changelog_automation:
+  priority: CRITICAL
+  impact: HIGH
+  effort: MEDIUM
+  description: "Automate CHANGELOG generation to eliminate manual editing bottleneck"
+  current_state: "Manual editing with pause in release.sh (line 64-66)"
+  target_state: "Automated generation from git commits and PR titles"
+  value_impact:
+    V_automation: +0.10
+    V_speed: +0.20
+    V_reliability: +0.10
+  blockers:
+    - "Release process requires human intervention"
+    - "Human error risk in CHANGELOG formatting"
+  solutions:
+    - "Use git-cliff or conventional commits"
+    - "Parse PR titles and commit messages"
+    - "Generate CHANGELOG.md section automatically"
+  agent_applicability:
+    - "coder: Implement CHANGELOG automation"
+    - "doc-writer: Document conventions"
+
+P2_quality_gate_enforcement:
+  priority: CRITICAL
+  impact: HIGH
+  effort: LOW
+  description: "Enforce quality thresholds in CI (block on violations)"
+  current_state: "Coverage tracked but not enforced, lint runs but doesn't block"
+  target_state: "CI fails if coverage < 80% or lint violations exist"
+  value_impact:
+    V_reliability: +0.15
+    V_automation: +0.05
+  blockers:
+    - "Coverage threshold not enforced"
+    - "Lint violations don't fail CI"
+  solutions:
+    - "Add coverage threshold check in ci.yml"
+    - "Configure golangci-lint to exit 1 on violations"
+    - "Add CHANGELOG validation step"
+  agent_applicability:
+    - "agent-quality-gate-installer: Install enforcement in CI"
+    - "coder: Implement threshold checks"
+
+P3_smoke_tests:
+  priority: HIGH
+  impact: MEDIUM
+  effort: MEDIUM
+  description: "Add smoke tests for release artifacts"
+  current_state: "Artifacts built and uploaded, no verification"
+  target_state: "Basic smoke tests run on each platform's binary"
+  value_impact:
+    V_reliability: +0.10
+    V_observability: +0.10
+  blockers:
+    - "No post-build verification"
+    - "Binary correctness not validated"
+  solutions:
+    - "Add smoke test step in release.yml"
+    - "Test: meta-cc --version, meta-cc-mcp --version"
+    - "Test: Basic CLI command execution"
+  agent_applicability:
+    - "agent-validation-builder: Create validation tests"
+    - "coder: Implement test execution"
+
+## Medium Priority (Quality & Observability)
+
+P4_security_scanning:
+  priority: MEDIUM
+  impact: MEDIUM
+  effort: MEDIUM
+  description: "Add security scanning to CI"
+  current_state: "No security scanning"
+  target_state: "gosec + trivy scans on every PR"
+  value_impact:
+    V_reliability: +0.05
+    V_observability: +0.10
+  solutions:
+    - "Add gosec to ci.yml"
+    - "Add trivy for dependency scanning"
+    - "Add OWASP dependency check"
+  agent_applicability:
+    - "coder: Add scanning steps"
+    - "agent-quality-gate-installer: Configure thresholds"
+
+P5_observability_improvements:
+  priority: MEDIUM
+  impact: MEDIUM
+  effort: HIGH
+  description: "Improve CI/CD metrics and monitoring"
+  current_state: "Basic logs, coverage to Codecov"
+  target_state: "Build time tracking, test duration metrics, release success rate"
+  value_impact:
+    V_observability: +0.30
+  solutions:
+    - "Add GitHub Actions metrics collection"
+    - "Track build/test duration trends"
+    - "Create release success rate dashboard"
+    - "Monitor cross-platform build times"
+  agent_applicability:
+    - "data-analyst: Define metrics"
+    - "coder: Implement collection"
+    - "doc-writer: Document dashboards"
+
+P6_dependency_management:
+  priority: MEDIUM
+  impact: LOW
+  effort: LOW
+  description: "Automate dependency updates and vulnerability scanning"
+  current_state: "Manual go mod tidy"
+  target_state: "Dependabot + automated vulnerability alerts"
+  value_impact:
+    V_reliability: +0.05
+  solutions:
+    - "Enable Dependabot for Go modules"
+    - "Add dependency review action"
+    - "Configure automated dependency PRs"
+  agent_applicability:
+    - "coder: Configure Dependabot"
+
+## Low Priority (Nice-to-Have)
+
+P7_scheduled_builds:
+  priority: LOW
+  impact: LOW
+  effort: LOW
+  description: "Add nightly/weekly builds"
+  current_state: "Builds only on push/PR"
+  target_state: "Nightly builds on main branch"
+  value_impact:
+    V_observability: +0.05
+  solutions:
+    - "Add schedule trigger to ci.yml"
+    - "Run nightly on main branch"
+  agent_applicability:
+    - "coder: Add schedule configuration"
+
+P8_performance_benchmarking:
+  priority: LOW
+  impact: LOW
+  effort: HIGH
+  description: "Track performance benchmarks over time"
+  current_state: "No performance tracking"
+  target_state: "Benchmark tests run on CI, results tracked"
+  value_impact:
+    V_observability: +0.05
+  solutions:
+    - "Add go test -bench to CI"
+    - "Use benchstat or continuous benchmarking"
+  agent_applicability:
+    - "coder: Implement benchmarks"
+    - "data-analyst: Define metrics"
+
+P9_rollback_mechanism:
+  priority: LOW
+  impact: MEDIUM
+  effort: HIGH
+  description: "Add automated rollback for failed releases"
+  current_state: "No rollback mechanism"
+  target_state: "Automated rollback on release failure"
+  value_impact:
+    V_reliability: +0.05
+  solutions:
+    - "Detect release failures"
+    - "Automate tag deletion and re-release"
+    - "Document rollback procedures"
+  agent_applicability:
+    - "coder: Implement rollback logic"
+    - "doc-writer: Document procedures"
+
+## Inherited Agent Applicability Assessment
+
+directly_applicable:
+  agent_quality_gate_installer:
+    tasks:
+      - "Install coverage threshold enforcement"
+      - "Configure lint blocking"
+      - "Set up CHANGELOG validation"
+    domain_fit: EXCELLENT
+    expected_value: HIGH
+
+  agent_validation_builder:
+    tasks:
+      - "Create smoke test suite"
+      - "Build binary verification tests"
+      - "Implement post-release checks"
+    domain_fit: EXCELLENT
+    expected_value: HIGH
+
+  agent_audit_executor:
+    tasks:
+      - "Verify CI/CD consistency"
+      - "Check quality gate coverage"
+      - "Audit automation completeness"
+    domain_fit: GOOD
+    expected_value: MEDIUM
+
+  coder:
+    tasks:
+      - "Implement CHANGELOG automation"
+      - "Add security scanning steps"
+      - "Create metrics collection"
+    domain_fit: GOOD
+    expected_value: HIGH
+
+  doc_writer:
+    tasks:
+      - "Document CI/CD methodology"
+      - "Write quality gate standards"
+      - "Create deployment procedures"
+    domain_fit: EXCELLENT
+    expected_value: HIGH
+
+potentially_applicable:
+  error_classifier:
+    tasks:
+      - "Classify CI/CD failure types"
+      - "Categorize build errors"
+    domain_fit: MEDIUM
+    expected_value: LOW
+    note: "May be useful for failure analysis"
+
+  recovery_advisor:
+    tasks:
+      - "Suggest fixes for CI failures"
+      - "Provide rollback procedures"
+    domain_fit: MEDIUM
+    expected_value: LOW
+    note: "Useful if we implement failure recovery"
+
+  data_analyst:
+    tasks:
+      - "Analyze build time trends"
+      - "Calculate automation metrics"
+      - "Track release success rates"
+    domain_fit: GOOD
+    expected_value: MEDIUM
+
+not_applicable:
+  api_design_agents:
+    - agent-parameter-categorizer
+    - agent-schema-refactorer
+    - agent-documentation-enhancer
+    - api-evolution-planner
+  reason: "Domain mismatch: API design vs CI/CD infrastructure"
+  expected_value: NONE
+
+  doc_search_agents:
+    - doc-generator
+    - search-optimizer
+  reason: "Not relevant to CI/CD automation"
+  expected_value: NONE
+
+gaps_requiring_new_agents:
+  potential_specialized_agents:
+    ci_cd_workflow_builder:
+      domain: "GitHub Actions workflow creation"
+      rationale: "Specialized knowledge of GitHub Actions syntax, best practices"
+      expected_value: HIGH
+      justification: "Generic coder may struggle with GitHub Actions specifics"
+      reusability: HIGH
+
+    release_automation_engineer:
+      domain: "Release process automation"
+      rationale: "CHANGELOG automation, version management, artifact verification"
+      expected_value: HIGH
+      justification: "Complex domain requiring release engineering expertise"
+      reusability: HIGH
+
+    security_scanner_configurator:
+      domain: "Security scanning setup and configuration"
+      rationale: "gosec, trivy, OWASP dependency check integration"
+      expected_value: MEDIUM
+      justification: "Security tools have specific configuration needs"
+      reusability: MEDIUM
+
+  assessment: "Wait for Iteration 1 to determine if generic agents suffice"
+  strategy: "Try inherited agents first, create specialized only if needed"
+
+## Summary
+
+total_opportunities: 9
+high_priority: 3
+medium_priority: 3
+low_priority: 3
+
+estimated_value_impact:
+  V_automation: +0.15
+  V_reliability: +0.50
+  V_speed: +0.20
+  V_observability: +0.60
+  V_total_potential: +1.45 (bringing V(s) from 0.583 to ~1.00+)
+
+reusability_potential: HIGH
+methodology_extraction: EXPECTED
+agent_evolution_needed: TBD (try inherited first)
