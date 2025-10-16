@@ -49,12 +49,32 @@ subsequent_iteration_spec(D) = structure(
   key_principles: honest_calculation ∧ dual_layer_focus ∧ justified_evolution ∧ rigorous_convergence
 )
 
+knowledge_organization_spec :: Domain → KnowledgeSpec
+knowledge_organization_spec(D) = structure(
+  directories: categorized_storage(
+    patterns: domain_specific_patterns_extracted,
+    principles: universal_principles_discovered,
+    templates: reusable_templates_created,
+    best_practices: context_specific_practices_documented,
+    methodology: project_wide_reusable_knowledge
+  ),
+  index: knowledge_map(
+    cross_references: link_related_knowledge,
+    iteration_links: track_extraction_source,
+    domain_tags: categorize_by_domain,
+    validation_status: track_pattern_validation
+  ),
+  dual_output: local_knowledge(experiment_specific) ∧ project_methodology(reusable_across_projects),
+  organization_principle: separate_ephemeral_data_from_permanent_knowledge
+)
+
 results_analysis_spec :: Domain → ResultsTemplate
 results_analysis_spec(D) = structure(
   context: convergence_achieved,
   analysis_dimensions: comprehensive_coverage(
     system_output, convergence_validation, trajectory_analysis,
-    domain_results, reusability_tests, methodology_validation, learnings
+    domain_results, reusability_tests, methodology_validation, learnings,
+    knowledge_catalog
   ),
   visualizations: trajectory_and_evolution_tracking
 )
@@ -81,10 +101,11 @@ execution_guidance(D) = prescribe(
   )
 )
 
-template_composition :: (BaselineSpec, SubsequentSpec, ResultsSpec, ExecutionGuide) → Document
-template_composition(B, S, R, G) = compose(
+template_composition :: (BaselineSpec, SubsequentSpec, KnowledgeSpec, ResultsSpec, ExecutionGuide) → Document
+template_composition(B, S, K, R, G) = compose(
   baseline_section,
   iteration_template,
+  knowledge_organization_section,
   results_template,
   execution_guidance
 ) ∧ specialize_for_domain ∧ validate_completeness
@@ -96,6 +117,7 @@ output(E, D) =
   design_value_functions(D) →
   specify_baseline(D) →
   specify_iterations(D) →
+  specify_knowledge_organization(D) →
   specify_results(D) →
   create_execution_guide(D) →
   compose_and_validate →

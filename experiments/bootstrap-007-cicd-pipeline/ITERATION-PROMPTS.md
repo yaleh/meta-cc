@@ -146,6 +146,12 @@ Execute baseline establishment:
      - data/s0-infrastructure.yaml (Makefile analysis, script analysis)
      - data/s0-metrics.json (calculated values)
      - data/automation-opportunities.yaml (identified gaps)
+   - Initialize knowledge structure:
+     - knowledge/INDEX.md (empty knowledge catalog, will be populated in subsequent iterations)
+     - knowledge/patterns/ (directory for domain-specific patterns)
+     - knowledge/principles/ (directory for universal principles)
+     - knowledge/templates/ (directory for reusable templates)
+     - knowledge/best-practices/ (directory for context-specific practices)
 
 5. **Reflection** (M₀.reflect + M₀.evolve):
    - **READ** meta-agents/reflect.md (reflection process)
@@ -486,6 +492,42 @@ agents_invoked_this_iteration:
   - Frameworks refined
   - Decision criteria codified
 
+**Knowledge Artifacts Created**:
+
+Organize extracted knowledge into appropriate categories:
+
+- **Patterns** (domain-specific): knowledge/patterns/{pattern-name}.md
+  - Specific solutions to recurring problems in CI/CD
+  - Example: "Enforcement Before Improvement Pattern"
+  - Format: Problem, Context, Solution, Consequences, Examples
+
+- **Principles** (universal): knowledge/principles/{principle-name}.md
+  - Fundamental truths or rules discovered
+  - Example: "Adaptive Engineering Principle"
+  - Format: Statement, Rationale, Evidence, Applications
+
+- **Templates** (reusable): knowledge/templates/{template-name}.{yml|md|sh}
+  - Concrete implementations ready for reuse
+  - Example: "GitHub Actions CI Workflow Template"
+  - Format: Template file + usage documentation
+
+- **Best Practices** (context-specific): knowledge/best-practices/{topic}.md
+  - Recommended approaches for specific contexts
+  - Example: "Native-Only Platform Testing Best Practice"
+  - Format: Context, Recommendation, Justification, Trade-offs
+
+- **Methodology** (project-wide): docs/methodology/{methodology-name}.md
+  - Comprehensive guides for reuse across projects
+  - Example: "CI/CD Quality Gates Methodology"
+  - Format: Complete methodology with decision frameworks
+
+**Knowledge Index Update**:
+- Update knowledge/INDEX.md with:
+  - New knowledge entries
+  - Links to iteration where extracted
+  - Domain tags (ci-cd, quality, deployment, etc.)
+  - Validation status (proposed, validated, refined)
+
 ### 6. State Transition
 
 **Instance Layer** (Pipeline State):
@@ -541,13 +583,31 @@ methodology_{N-1} → methodology_N:
 [Use the convergence criteria structure above]
 
 ### 9. Data Artifacts
-Save artifacts to data/ directory:
+
+**Ephemeral Data** (iteration-specific, saved to data/):
 - data/iteration-N-metrics.json (V_instance, V_meta calculations)
 - data/iteration-N-pipeline-state.yaml (CI/CD state)
 - data/iteration-N-methodology.yaml (extracted patterns)
 - data/iteration-N-artifacts/ (workflow files, configs)
 
-Reference data files in iteration document.
+**Permanent Knowledge** (cumulative, saved to knowledge/):
+- knowledge/patterns/{pattern-name}.md (domain-specific patterns)
+- knowledge/principles/{principle-name}.md (universal principles)
+- knowledge/templates/{template-name}.{yml|md|sh} (reusable templates)
+- knowledge/best-practices/{topic}.md (context-specific practices)
+- knowledge/INDEX.md (knowledge catalog with iteration links)
+
+**Project-Wide Methodology** (saved to docs/methodology/):
+- docs/methodology/{methodology-name}.md (comprehensive reusable guides)
+
+**Knowledge Organization Principles**:
+1. **Separation**: Distinguish ephemeral data from permanent knowledge
+2. **Categorization**: Use appropriate knowledge category (pattern/principle/template/best-practice/methodology)
+3. **Indexing**: Always update knowledge/INDEX.md when adding knowledge
+4. **Linking**: Link knowledge to source iteration for traceability
+5. **Validation**: Track validation status (proposed → validated → refined)
+
+Reference data files and knowledge artifacts in iteration document.
 
 ## Key Principles
 
@@ -682,6 +742,7 @@ For each iteration N ≥ 1, ensure you:
   - [ ] A evolution (new agents or unchanged)
   - [ ] Instance work (pipeline components built)
   - [ ] Meta work (patterns extracted)
+  - [ ] Knowledge artifacts created (list all new knowledge)
   - [ ] State transition (V_instance, V_meta calculated)
   - [ ] Reflection (learnings, next steps)
   - [ ] Convergence check (criteria evaluated)
@@ -690,6 +751,12 @@ For each iteration N ≥ 1, ensure you:
   - [ ] iteration-N-pipeline-state.yaml
   - [ ] iteration-N-methodology.yaml
   - [ ] iteration-N-artifacts/ (workflow files, configs)
+- [ ] Save knowledge artifacts:
+  - [ ] Create/update knowledge files in appropriate categories
+  - [ ] Update knowledge/INDEX.md with new entries
+  - [ ] Link knowledge to iteration source
+  - [ ] Tag knowledge by domain
+  - [ ] Mark validation status
 
 **Quality Assurance**:
 - [ ] **NO TOKEN LIMITS**: Verify all steps completed fully without abbreviation
