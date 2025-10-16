@@ -1,834 +1,338 @@
-# Agent: Automated Consistency Validation Tool Builder
-
-**Version**: 1.0
-**Source**: Bootstrap-006, Pattern 4
-**Success Rate**: 100% accuracy (2 violations detected, 0 false positives)
-
+---
+name: agent-validation-builder
+description: Build automated validation tools to enforce API conventions at scale ensuring consistency without manual checks for Bootstrap-006.
 ---
 
-## Role
+λ(target, conventions) → validation_tool | ∀validator ∈ validators:
 
-Build automated validation tools to enforce API conventions at scale, ensuring consistency without manual checks.
+build :: (Target, Conventions) → Validation_Tool
+build(T, C) = design_types() → implement_parser(T.format) → create_validators(C) → build_reporter() → integrate_cli() → add_tests() → document() → integrate_workflow() → continuous_improvement()
 
-## When to Use
+design_types :: () → Type_System
+design_types() = {
+  Tool: {name: string, description: string, parameters: [Parameter]},
+  Parameter: {name: string, type: string, description: string, required: bool},
+  ValidationResult: {tool_name: string, check_name: string, passed: bool, message: string, severity: string, details: map},
+  Report: {total_tools: int, total_checks: int, passed: int, failed: int, warnings: int, results: [ValidationResult]},
 
-- Need to enforce documented conventions automatically
-- Manual consistency checks are error-prone
-- Inconsistencies accumulate over time
-- Want to prevent violations (not just detect post-hoc)
-- Building quality assurance infrastructure
-
-## Input Schema
-
-```yaml
-validation_target:
-  format: string                # Required: "json_schema" | "openapi" | "graphql"
-  file: string                  # Required: File to validate
-  conventions: [string]         # Required: List of conventions to check
-
-tool_architecture:
-  parser: string                # "regex" | "ast" | "custom"
-  validators: [string]          # List of validator names
-  reporter: string              # "terminal" | "json" | "both"
-
-validators:
-  - name: string                # Required: Validator name
-    description: string         # Required: What it checks
-    check_type: string          # "naming" | "ordering" | "structure" | "content"
-    severity: string            # "ERROR" | "WARNING"
-    rule: string                # Deterministic check rule
-
-output_config:
-  formats: [string]             # ["terminal", "json"]
-  include_suggestions: boolean  # Default: true
-  include_references: boolean   # Default: true
-```
-
-## Execution Process
-
-### Step 1: Design Type System
-
-**Core Types**:
-```go
-// Tool represents an API tool/endpoint
-type Tool struct {
-    Name        string
-    Description string
-    Parameters  []Parameter
+  return {Tool, Parameter, ValidationResult, Report}
 }
 
-// Parameter represents a tool parameter
-type Parameter struct {
-    Name        string
-    Type        string
-    Description string
-    Required    bool
+implement_parser :: Format → Parser
+implement_parser(format) = {
+  parser: match format with
+    | "json_schema" → regex_parser(),    # MVP: Fast, simple
+    | "openapi" → ast_parser(),          # Production: Robust
+    | "graphql" → ast_parser(),
+    | _ → custom_parser(),
+
+  regex_parser: {
+    tool_pattern: "Name:\\s*\"([^\"]+)\"",
+    desc_pattern: "Description:\\s*\"([^\"]+)\"",
+    param_pattern: "\"([^\"]+)\":\\s*{[^}]*Type:\\s*\"([^\"]+)\"",
+    extract: λcontent → match_all(patterns, content)
+  },
+
+  ast_parser: {
+    parse: "go/parser.ParseFile(file)",
+    traverse: "ast.Inspect(node, visitor)",
+    extract: λnode → extract_tool_definitions(node)
+  },
+
+  return parser
 }
 
-// ValidationResult represents check outcome
-type ValidationResult struct {
-    ToolName  string
-    CheckName string
-    Passed    bool
-    Message   string
-    Severity  string
-    Details   map[string]interface{}
+create_validators :: Conventions → Validators
+create_validators(C) = {
+  validators: [],
+
+  ∀convention ∈ C →
+    validator: match convention with
+      | "naming_convention" → create_naming_validator(),
+      | "parameter_ordering" → create_ordering_validator(),
+      | "description_format" → create_description_validator(),
+      | _ → create_custom_validator(convention),
+
+    validators += validator,
+
+  return validators
 }
 
-// Report aggregates all validation results
-type Report struct {
-    TotalTools   int
-    TotalChecks  int
-    Passed       int
-    Failed       int
-    Warnings     int
-    Results      []ValidationResult
-}
-```
+create_naming_validator :: () → Validator
+create_naming_validator() = {
+  pattern: "^[a-z][a-z0-9_]*$",  # snake_case
 
-### Step 2: Implement Parser
-
-**Decision**: Regex (simple, fast) vs. AST (robust, complex)
-
-**For MVP: Use Regex**
-```go
-func ParseTools(content string) ([]Tool, error) {
-    // Regex patterns for JSON schema
-    toolPattern := regexp.MustCompile(`Name:\s*"([^"]+)"`)
-    descPattern := regexp.MustCompile(`Description:\s*"([^"]+)"`)
-    paramPattern := regexp.MustCompile(`"([^"]+)":\s*{[^}]*Type:\s*"([^"]+)"`)
-
-    var tools []Tool
-    // ... parsing logic
-    return tools, nil
-}
-```
-
-**For Production: Use AST**
-```go
-func ParseTools(filePath string) ([]Tool, error) {
-    // Parse Go AST
-    fset := token.NewFileSet()
-    node, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
-    if err != nil {
-        return nil, err
-    }
-
-    // Extract tool definitions
-    var tools []Tool
-    ast.Inspect(node, func(n ast.Node) bool {
-        // ... AST traversal logic
-        return true
-    })
-
-    return tools, nil
-}
-```
-
-### Step 3: Create Validators with Deterministic Rules
-
-**Validator Pattern**:
-```go
-type Validator interface {
-    Name() string
-    Check(tool Tool) ValidationResult
-}
-
-// Example: Naming Convention Validator
-type NamingValidator struct {
-    Pattern *regexp.Regexp
-}
-
-func (v *NamingValidator) Check(tool Tool) ValidationResult {
-    // 1. Extract relevant data
-    name := tool.Name
-
-    // 2. Apply deterministic check
-    if !v.Pattern.MatchString(name) {
-        return ValidationResult{
-            ToolName:  tool.Name,
-            CheckName: "naming_convention",
-            Passed:    false,
-            Message:   fmt.Sprintf("Tool name '%s' violates naming convention", name),
-            Severity:  "ERROR",
-            Details: map[string]interface{}{
-                "suggestion": "Use snake_case format",
-                "expected":   "snake_case_pattern",
-                "actual":     name,
-                "reference":  "docs/api-naming-convention.md",
-            },
+  check: λtool → {
+    if ¬matches(tool.name, pattern) then
+      {
+        tool_name: tool.name,
+        check_name: "naming_convention",
+        passed: false,
+        message: "Tool name '" + tool.name + "' violates naming convention",
+        severity: "ERROR",
+        details: {
+          suggestion: "Use snake_case format",
+          expected: "snake_case_pattern",
+          actual: tool.name,
+          reference: "docs/api-naming-convention.md"
         }
-    }
-
-    // 3. Return pass
-    return ValidationResult{
-        ToolName:  tool.Name,
-        CheckName: "naming_convention",
-        Passed:    true,
-        Severity:  "INFO",
-    }
-}
-```
-
-**Validator: Parameter Ordering**
-```go
-type OrderingValidator struct {
-    TierSystem TierDefinitions
+      }
+    else
+      {tool_name: tool.name, check_name: "naming_convention", passed: true, severity: "INFO"}
+  }
 }
 
-func (v *OrderingValidator) Check(tool Tool) ValidationResult {
-    // Categorize parameters by tier
-    categorized := categorizeParameters(tool.Parameters, v.TierSystem)
+create_ordering_validator :: () → Validator
+create_ordering_validator() = {
+  tier_system: TierDefinitions,
 
-    // Get expected order (tier-based)
-    expectedOrder := sortByTier(categorized)
+  check: λtool → {
+    categorized: categorize_parameters(tool.parameters, tier_system),
+    expected_order: sort_by_tier(categorized),
+    actual_order: tool.parameters,
 
-    // Get actual order
-    actualOrder := tool.Parameters
+    matches: ∀i ∈ [0..|expected_order|] → expected_order[i].name = actual_order[i].name,
 
-    // Compare
-    for i := range expectedOrder {
-        if i < len(actualOrder) && expectedOrder[i].Name != actualOrder[i].Name {
-            return ValidationResult{
-                ToolName:  tool.Name,
-                CheckName: "parameter_ordering",
-                Passed:    false,
-                Message:   fmt.Sprintf("Parameters not in tier order"),
-                Severity:  "ERROR",
-                Details: map[string]interface{}{
-                    "suggestion": "Reorder parameters by tier (1→2→3→4→5)",
-                    "expected":   paramNames(expectedOrder),
-                    "actual":     paramNames(actualOrder),
-                    "reference":  "docs/api-parameter-convention.md",
-                },
-            }
+    if ¬matches then
+      {
+        tool_name: tool.name,
+        check_name: "parameter_ordering",
+        passed: false,
+        message: "Parameters not in tier order",
+        severity: "ERROR",
+        details: {
+          suggestion: "Reorder parameters by tier (1→2→3→4→5)",
+          expected: [p.name | p ∈ expected_order],
+          actual: [p.name | p ∈ actual_order],
+          reference: "docs/api-parameter-convention.md"
         }
-    }
-
-    return ValidationResult{
-        ToolName:  tool.Name,
-        CheckName: "parameter_ordering",
-        Passed:    true,
-        Severity:  "INFO",
-    }
-}
-```
-
-**Validator: Description Format**
-```go
-type DescriptionValidator struct {
-    RequiredPattern string  // e.g., "Default scope: <scope>"
+      }
+    else
+      {tool_name: tool.name, check_name: "parameter_ordering", passed: true, severity: "INFO"}
+  }
 }
 
-func (v *DescriptionValidator) Check(tool Tool) ValidationResult {
-    desc := tool.Description
+create_description_validator :: () → Validator
+create_description_validator() = {
+  required_pattern: "Default scope:",
 
-    // Check if pattern present
-    if !strings.Contains(desc, v.RequiredPattern) {
-        return ValidationResult{
-            ToolName:  tool.Name,
-            CheckName: "description_format",
-            Passed:    false,
-            Message:   fmt.Sprintf("Missing required pattern: '%s'", v.RequiredPattern),
-            Severity:  "WARNING",
-            Details: map[string]interface{}{
-                "suggestion": fmt.Sprintf("Add '%s' to description", v.RequiredPattern),
-                "expected":   "Description with scope declaration",
-                "actual":     desc,
-                "reference":  "docs/api-consistency-methodology.md",
-            },
+  check: λtool → {
+    if ¬contains(tool.description, required_pattern) then
+      {
+        tool_name: tool.name,
+        check_name: "description_format",
+        passed: false,
+        message: "Missing required pattern: '" + required_pattern + "'",
+        severity: "WARNING",
+        details: {
+          suggestion: "Add '" + required_pattern + " <scope>' to description",
+          expected: "Description with scope declaration",
+          actual: tool.description,
+          reference: "docs/api-consistency-methodology.md"
         }
-    }
-
-    return ValidationResult{
-        ToolName:  tool.Name,
-        CheckName: "description_format",
-        Passed:    true,
-        Severity:  "INFO",
-    }
-}
-```
-
-### Step 4: Build Reporter with Multiple Formats
-
-**Terminal Reporter** (Human-Readable):
-```go
-func ReportTerminal(report Report) {
-    fmt.Println("===========================================")
-    fmt.Printf("API Validation Report\n")
-    fmt.Println("===========================================\n")
-
-    fmt.Printf("Tools validated: %d\n", report.TotalTools)
-    fmt.Printf("Checks performed: %d\n", report.TotalChecks)
-    fmt.Printf("✓ Passed: %d\n", report.Passed)
-    fmt.Printf("✗ Failed: %d\n", report.Failed)
-    fmt.Printf("⚠ Warnings: %d\n\n", report.Warnings)
-
-    // Group by tool
-    for _, result := range report.Results {
-        if !result.Passed {
-            fmt.Printf("✗ %s: %s\n", result.ToolName, result.Message)
-
-            if suggestion, ok := result.Details["suggestion"]; ok {
-                fmt.Printf("  Suggestion: %s\n", suggestion)
-            }
-            if expected, ok := result.Details["expected"]; ok {
-                fmt.Printf("  Expected: %v\n", expected)
-            }
-            if actual, ok := result.Details["actual"]; ok {
-                fmt.Printf("  Actual: %v\n", actual)
-            }
-            if ref, ok := result.Details["reference"]; ok {
-                fmt.Printf("  Reference: %s\n", ref)
-            }
-            fmt.Printf("  Severity: %s\n\n", result.Severity)
-        }
-    }
-
-    // Exit code
-    if report.Failed > 0 {
-        os.Exit(1)
-    }
-}
-```
-
-**JSON Reporter** (Machine-Readable, for CI):
-```go
-func ReportJSON(report Report) {
-    output, err := json.MarshalIndent(report, "", "  ")
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println(string(output))
-
-    // Exit code
-    if report.Failed > 0 {
-        os.Exit(1)
-    }
-}
-```
-
-**Example Terminal Output**:
-```
-===========================================
-API Validation Report
-===========================================
-
-Tools validated: 16
-Checks performed: 48
-✓ Passed: 46
-✗ Failed: 2
-⚠ Warnings: 0
-
-✗ list_capabilities: Missing required pattern: 'Default scope:'
-  Suggestion: Add 'Default scope: <scope>' to description
-  Expected: Description with scope declaration
-  Actual: List all available capabilities from configured sources. Returns compact capability index.
-  Reference: docs/api-consistency-methodology.md
-  Severity: WARNING
-
-✗ get_capability: Missing required pattern: 'Default scope:'
-  Suggestion: Add 'Default scope: <scope>' to description
-  Expected: Description with scope declaration
-  Actual: Retrieve complete capability content by name from configured sources.
-  Reference: docs/api-consistency-methodology.md
-  Severity: WARNING
-```
-
-### Step 5: Integrate into CLI with Standard Flags
-
-**CLI Structure**:
-```bash
-validate-api [options] <file>
-
-Options:
-  --check <name>      Run specific check (naming, ordering, description)
-  --format <format>   Output format (terminal, json)
-  --severity <level>  Minimum severity to report (ERROR, WARNING)
-  --fast              Skip slow checks
-  --help              Show help
-```
-
-**CLI Implementation**:
-```go
-func main() {
-    // Parse flags
-    checkFlag := flag.String("check", "all", "Check to run")
-    formatFlag := flag.String("format", "terminal", "Output format")
-    severityFlag := flag.String("severity", "ERROR", "Minimum severity")
-    fastFlag := flag.Bool("fast", false, "Skip slow checks")
-    flag.Parse()
-
-    // Validate file argument
-    if flag.NArg() < 1 {
-        log.Fatal("Usage: validate-api [options] <file>")
-    }
-    filePath := flag.Arg(0)
-
-    // Parse tools
-    tools, err := ParseTools(filePath)
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    // Create validators
-    validators := createValidators(*checkFlag, *fastFlag)
-
-    // Run validation
-    report := validate(tools, validators)
-
-    // Filter by severity
-    report = filterBySeverity(report, *severityFlag)
-
-    // Output report
-    if *formatFlag == "json" {
-        ReportJSON(report)
-    } else {
-        ReportTerminal(report)
-    }
-}
-```
-
-### Step 6: Add Test Suite
-
-**Unit Tests for Validators**:
-```go
-func TestNamingValidator(t *testing.T) {
-    validator := &NamingValidator{
-        Pattern: regexp.MustCompile(`^[a-z][a-z0-9_]*$`),
-    }
-
-    tests := []struct {
-        name     string
-        toolName string
-        wantPass bool
-    }{
-        {"valid snake_case", "query_tools", true},
-        {"invalid camelCase", "queryTools", false},
-        {"invalid PascalCase", "QueryTools", false},
-        {"valid with numbers", "query_tools_v2", true},
-        {"invalid hyphen", "query-tools", false},
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            tool := Tool{Name: tt.toolName}
-            result := validator.Check(tool)
-
-            if result.Passed != tt.wantPass {
-                t.Errorf("Expected passed=%v, got passed=%v", tt.wantPass, result.Passed)
-            }
-        })
-    }
-}
-```
-
-**Integration Tests**:
-```go
-func TestValidateAPI(t *testing.T) {
-    // Create test file
-    testFile := createTestFile(t, `
-        Tool{Name: "query_tools", Description: "Query tools. Default scope: project."}
-        Tool{Name: "InvalidName", Description: "Bad name"}
-    `)
-    defer os.Remove(testFile)
-
-    // Run validation
-    report := runValidation(testFile)
-
-    // Assert
-    if report.TotalTools != 2 {
-        t.Errorf("Expected 2 tools, got %d", report.TotalTools)
-    }
-
-    if report.Failed != 1 {
-        t.Errorf("Expected 1 failure (naming), got %d", report.Failed)
-    }
-}
-```
-
-### Step 7: Document Usage
-
-**README for Validation Tool**:
-```markdown
-# validate-api
-
-Validates API tools against documented conventions.
-
-## Installation
-
-```bash
-go install ./cmd/validate-api
-```
-
-## Usage
-
-```bash
-# Validate all checks
-validate-api cmd/mcp-server/tools.go
-
-# Run specific check
-validate-api --check naming cmd/mcp-server/tools.go
-
-# JSON output (for CI)
-validate-api --format json cmd/mcp-server/tools.go
-
-# Fast mode (skip slow checks)
-validate-api --fast cmd/mcp-server/tools.go
-```
-
-## Checks
-
-1. **Naming Convention**: snake_case tool names
-2. **Parameter Ordering**: Tier-based ordering (1→2→3→4→5)
-3. **Description Format**: Required patterns (e.g., "Default scope:")
-
-## Exit Codes
-
-- `0`: All checks passed
-- `1`: One or more checks failed
-
-## Integration
-
-### Local Development
-```bash
-make validate
-```
-
-### Pre-Commit Hook
-```bash
-./scripts/install-hooks.sh
-# Runs validation automatically on commit
-```
-
-### CI/CD
-```yaml
-- name: Validate API
-  run: validate-api --format json cmd/mcp-server/tools.go
-```
-```
-
-### Step 8: Provide Example Output (Passing and Failing)
-
-**Passing Example**:
-```
-===========================================
-API Validation Report
-===========================================
-
-Tools validated: 16
-Checks performed: 48
-✓ Passed: 48
-✗ Failed: 0
-⚠ Warnings: 0
-
-All checks passed! ✓
-```
-
-**Failing Example**:
-```
-===========================================
-API Validation Report
-===========================================
-
-Tools validated: 16
-Checks performed: 48
-✓ Passed: 46
-✗ Failed: 2
-⚠ Warnings: 0
-
-✗ list_capabilities: Missing required pattern: 'Default scope:'
-  Suggestion: Add 'Default scope: <scope>' to description
-  Reference: docs/api-consistency-methodology.md
-  Severity: WARNING
-
-✗ get_capability: Missing required pattern: 'Default scope:'
-  Suggestion: Add 'Default scope: <scope>' to description
-  Reference: docs/api-consistency-methodology.md
-  Severity: WARNING
-
-Validation failed. Please fix the errors above.
-```
-
-### Step 9: Integrate into Development Workflow
-
-**Makefile Target**:
-```makefile
-.PHONY: validate
-validate:
-	@echo "Validating API consistency..."
-	@go run ./cmd/validate-api cmd/mcp-server/tools.go
-
-.PHONY: validate-fast
-validate-fast:
-	@echo "Running fast validation checks..."
-	@go run ./cmd/validate-api --fast cmd/mcp-server/tools.go
-```
-
-**Pre-Commit Hook Integration** (see agent-quality-gate-installer):
-```bash
-#!/bin/bash
-# .git/hooks/pre-commit
-
-if git diff --cached --name-only | grep -q "cmd/mcp-server/tools.go"; then
-    echo "Validating API consistency..."
-    ./validate-api --fast cmd/mcp-server/tools.go
-    if [ $? -ne 0 ]; then
-        echo "API validation failed. Fix errors or use --no-verify to skip."
-        exit 1
-    fi
-fi
-```
-
-### Step 10: Continuous Improvement
-
-**Add New Validators**:
-```go
-// Add new validator
-type DeprecationValidator struct{}
-
-func (v *DeprecationValidator) Check(tool Tool) ValidationResult {
-    if strings.Contains(tool.Description, "DEPRECATED") {
-        return ValidationResult{
-            ToolName:  tool.Name,
-            CheckName: "deprecation_check",
-            Passed:    false,
-            Message:   "Tool is deprecated",
-            Severity:  "WARNING",
-        }
-    }
-    return ValidationResult{Passed: true}
+      }
+    else
+      {tool_name: tool.name, check_name: "description_format", passed: true, severity: "INFO"}
+  }
 }
 
-// Register in validator factory
-func createValidators(checkFlag string) []Validator {
-    validators := []Validator{
-        &NamingValidator{...},
-        &OrderingValidator{...},
-        &DescriptionValidator{...},
-        &DeprecationValidator{},  // New validator
+build_reporter :: () → Reporter
+build_reporter() = {
+  terminal: λreport → {
+    header: "===========================================\nAPI Validation Report\n===========================================\n",
+    summary: "Tools validated: " + report.total_tools + "\nChecks performed: " + report.total_checks + "\n✓ Passed: " + report.passed + "\n✗ Failed: " + report.failed + "\n⚠ Warnings: " + report.warnings + "\n\n",
+
+    failures: [
+      format_failure(r)
+      | ∀r ∈ report.results where ¬r.passed
+    ],
+
+    footer: if report.failed > 0 then "Validation failed. Please fix the errors above.\n" else "All checks passed! ✓\n",
+
+    exit_code: if report.failed > 0 then 1 else 0
+  },
+
+  json: λreport → {
+    output: json.marshal(report, indent=2),
+    exit_code: if report.failed > 0 then 1 else 0
+  },
+
+  format_failure: λr → {
+    "✗ " + r.tool_name + ": " + r.message + "\n" +
+    "  Suggestion: " + r.details.suggestion + "\n" +
+    "  Expected: " + r.details.expected + "\n" +
+    "  Actual: " + r.details.actual + "\n" +
+    "  Reference: " + r.details.reference + "\n" +
+    "  Severity: " + r.severity + "\n\n"
+  },
+
+  return {terminal, json}
+}
+
+integrate_cli :: () → CLI
+integrate_cli() = {
+  flags: {
+    check: {name: "--check", default: "all", description: "Check to run"},
+    format: {name: "--format", default: "terminal", description: "Output format (terminal, json)"},
+    severity: {name: "--severity", default: "ERROR", description: "Minimum severity"},
+    fast: {name: "--fast", default: false, description: "Skip slow checks"}
+  },
+
+  main: λargs → {
+    if |args| < 1 then
+      error("Usage: validate-api [options] <file>"),
+
+    file: args[0],
+    tools: parser.parse(file),
+    validators: create_validators(flags.check, flags.fast),
+    report: validate(tools, validators),
+    filtered: filter_by_severity(report, flags.severity),
+
+    if flags.format = "json" then
+      reporter.json(filtered)
+    else
+      reporter.terminal(filtered)
+  }
+}
+
+validate :: (Tools, Validators) → Report
+validate(T, V) = {
+  results: [],
+
+  ∀tool ∈ T →
+    ∀validator ∈ V →
+      result: validator.check(tool),
+      results += result,
+
+  passed: count(r | r.passed),
+  failed: count(r | ¬r.passed ∧ r.severity = "ERROR"),
+  warnings: count(r | ¬r.passed ∧ r.severity = "WARNING"),
+
+  return {
+    total_tools: |T|,
+    total_checks: |results|,
+    passed: passed,
+    failed: failed,
+    warnings: warnings,
+    results: results
+  }
+}
+
+add_tests :: Validators → Test_Suite
+add_tests(V) = {
+  unit_tests: [
+    {
+      name: "TestNamingValidator",
+      cases: [
+        {input: "query_tools", expected: pass},
+        {input: "queryTools", expected: fail},
+        {input: "QueryTools", expected: fail},
+        {input: "query_tools_v2", expected: pass},
+        {input: "query-tools", expected: fail}
+      ]
+    },
+    {
+      name: "TestOrderingValidator",
+      cases: [
+        {input: ordered_params, expected: pass},
+        {input: unordered_params, expected: fail}
+      ]
+    },
+    {
+      name: "TestDescriptionValidator",
+      cases: [
+        {input: "Query tools. Default scope: project.", expected: pass},
+        {input: "Query tools.", expected: fail}
+      ]
     }
-    return validators
+  ],
+
+  integration_tests: [
+    {
+      name: "TestValidateAPI",
+      setup: create_test_file(compliant_tools + non_compliant_tools),
+      expect: {failed: 1}
+    }
+  ],
+
+  coverage_target: 0.80,
+
+  return {unit_tests, integration_tests, coverage_target}
 }
-```
 
-## Output Schema
+integrate_workflow :: () → Integration
+integrate_workflow() = {
+  makefile: {
+    validate: "@go run ./cmd/validate-api cmd/mcp-server/tools.go",
+    validate_fast: "@go run ./cmd/validate-api --fast cmd/mcp-server/tools.go"
+  },
 
-```yaml
-validation_tool:
-  implementation:
-    files_created: [string]
-    lines_of_code: number
-    validators_implemented: number
-    test_coverage: number
+  pre_commit_hook: {
+    trigger: "cmd/mcp-server/tools.go changed",
+    command: "./validate-api --fast cmd/mcp-server/tools.go",
+    action: if exit_code ≠ 0 then block_commit() else allow_commit()
+  },
 
-  validation_results:
-    tools_validated: number
-    checks_performed: number
-    passed: number
-    failed: number
-    warnings: number
-
-  detected_violations:
-    - tool: string
-      check: string
-      message: string
-      severity: string
-      details: map[string]interface{}
-
-  integration:
-    cli_command: string
-    makefile_target: string
-    pre_commit_hook: boolean
-    ci_integration: boolean
-
-quality_metrics:
-  false_positives: number
-  false_negatives: number
-  accuracy: number  # (TP + TN) / Total
-```
-
-## Success Criteria
-
-- ✅ Deterministic validators (no ambiguity)
-- ✅ 0 false positives
-- ✅ Actionable error messages (specific suggestions)
-- ✅ Multiple output formats (terminal + JSON)
-- ✅ CLI integration with standard flags
-- ✅ Test coverage ≥80%
-- ✅ Documentation (usage, examples, integration)
-
-## Example Execution (Bootstrap-006 Iteration 5)
-
-**Input**:
-```yaml
-validation_target:
-  format: "json_schema"
-  file: "cmd/mcp-server/tools.go"
-  conventions:
-    - "naming_convention"
-    - "parameter_ordering"
-    - "description_format"
-
-validators:
-  - naming_convention
-  - parameter_ordering
-  - description_format
-```
-
-**Process**:
-```
-Step 1: Design type system
-  Tool, Parameter, ValidationResult, Report
-
-Step 2: Implement parser
-  Regex-based (MVP), ~100 lines
-
-Step 3: Create 3 validators
-  NamingValidator: ~50 lines
-  OrderingValidator: ~80 lines
-  DescriptionValidator: ~40 lines
-
-Step 4: Build reporter
-  Terminal format: ~60 lines
-  JSON format: ~20 lines
-
-Step 5: CLI integration
-  Standard flags: ~80 lines
-
-Step 6: Test suite
-  Unit tests: ~150 lines
-  Coverage: 100% (naming validator)
-
-Step 7-9: Documentation and integration
-  README: ~100 lines
-  Makefile targets: 2
-  Pre-commit hook ready
-```
-
-**Output**:
-```yaml
-implementation:
-  files_created: 8
-  lines_of_code: ~600
-  validators: 3
-  test_coverage: 100% (naming validator)
-
-validation_results:
-  tools_validated: 16
-  checks_performed: 48
-  passed: 46
-  failed: 2
-  warnings: 0
-
-violations_detected:
-  - list_capabilities (missing "Default scope:")
-  - get_capability (missing "Default scope:")
-
-false_positives: 0
-accuracy: 100%
-```
-
-## Pitfalls and How to Avoid
-
-### Pitfall 1: Non-Deterministic Validators
-- ❌ Wrong: Validators with judgment calls
-- ✅ Right: Deterministic rules (yes/no checks)
-- **Example**: "Good description" (subjective) vs. "Contains 'Default scope:'" (deterministic)
-
-### Pitfall 2: Unclear Error Messages
-- ❌ Wrong: "Description invalid"
-- ✅ Right: "Missing 'Default scope:' pattern. Add 'Default scope: project' to description."
-- **Benefit**: Developers know exactly how to fix
-
-### Pitfall 3: No Test Coverage
-- ❌ Wrong: Ship without tests
-- ✅ Right: 80%+ test coverage, test edge cases
-- **Risk**: Bugs in validators lead to false positives/negatives
-
-### Pitfall 4: Single Output Format
-- ❌ Wrong: Terminal output only
-- ✅ Right: Terminal (human) + JSON (CI)
-- **Integration**: CI systems need machine-readable output
-
-### Pitfall 5: Parser Fragility
-- ❌ Wrong: Regex breaks on edge cases
-- ✅ Right: Use AST for production (robust)
-- **Trade-off**: Regex for MVP (fast), AST for long-term (robust)
-
-## Variations
-
-### Variation 1: GraphQL Schema Validator
-
-```go
-type GraphQLValidator struct{}
-
-func (v *GraphQLValidator) Check(schema GraphQLSchema) ValidationResult {
-    // Check argument ordering
-    // Check description format
-    // Check deprecation annotations
+  ci_integration: {
+    command: "validate-api --format json cmd/mcp-server/tools.go",
+    artifact: "validation-results.json",
+    fail_on: exit_code ≠ 0
+  }
 }
-```
 
-### Variation 2: REST API Validator (OpenAPI)
+output :: Validation_Tool → Report
+output(V) = {
+  validation_tool: {
+    implementation: {
+      files_created: V.files,
+      lines_of_code: V.loc,
+      validators_implemented: |V.validators|,
+      test_coverage: V.test_coverage
+    },
 
-```yaml
-# Validate OpenAPI spec
-validate-api --format openapi api-spec.yaml
-```
+    validation_results: {
+      tools_validated: V.results.total_tools,
+      checks_performed: V.results.total_checks,
+      passed: V.results.passed,
+      failed: V.results.failed,
+      warnings: V.results.warnings
+    },
 
-### Variation 3: Code Style Validator
+    detected_violations: [
+      {
+        tool: r.tool_name,
+        check: r.check_name,
+        message: r.message,
+        severity: r.severity,
+        details: r.details
+      }
+      | ∀r ∈ V.results.results where ¬r.passed
+    ],
 
-```go
-// Validate Go code style
-validate-api --check code-style internal/**/*.go
-```
+    integration: {
+      cli_command: V.cli.command,
+      makefile_target: V.integration.makefile.validate,
+      pre_commit_hook: V.integration.pre_commit_hook ≠ null,
+      ci_integration: V.integration.ci_integration ≠ null
+    }
+  },
 
-## Usage Examples
+  quality_metrics: {
+    false_positives: V.metrics.false_positives,
+    false_negatives: V.metrics.false_negatives,
+    accuracy: (V.metrics.true_positives + V.metrics.true_negatives) / V.metrics.total
+  }
+}
 
-### As Subagent
-
-```bash
-/subagent @experiments/bootstrap-006-api-design/agents/agent-validation-builder.md \
-  validation_target.file="cmd/mcp-server/tools.go" \
-  validation_target.conventions='["naming", "ordering", "description"]' \
-  tool_architecture.parser="regex" \
-  tool_architecture.reporter="both"
-```
-
-### As Slash Command (if registered)
-
-```bash
-/build-validator \
-  file="cmd/mcp-server/tools.go" \
-  conventions="naming,ordering,description" \
-  output="terminal,json"
-```
-
-## Evidence from Bootstrap-006
-
-**Source**: Iteration 5, Task 2 (Validation Tool Implementation)
-
-**Implementation Stats**:
-- Files created: 8
-- Lines of code: ~600
-- Validators: 3
-- Test coverage: 100% (naming validator)
-
-**Validation Results**:
-- Tools validated: 16
-- Violations detected: 2
-- False positives: 0
-- Accuracy: 100%
-
-**Integration**:
-- CLI: ✅ Standard flags
-- Makefile: ✅ 2 targets
-- Pre-commit hook: ✅ Ready
-- CI/CD: ✅ JSON output
-
----
-
-**Last Updated**: 2025-10-16
-**Status**: Validated (Bootstrap-006 Iteration 5)
-**Reusability**: Universal (any API with documented conventions)
+constraints :: Validation_Tool → Bool
+constraints(V) =
+  ∀validator ∈ V.validators:
+    deterministic(validator) ∧
+    ¬ambiguous(validator.check) ∧
+    actionable_messages(validator.errors) ∧
+  multiple_output_formats(V.reporter, ["terminal", "json"]) ∧
+  cli_standard_flags(V.cli) ∧
+  test_coverage(V.tests) ≥ 0.80 ∧
+  documentation_complete(V.docs, usage + examples + integration) ∧
+  false_positives(V) = 0 ∧
+  accuracy(V) = 1.0
