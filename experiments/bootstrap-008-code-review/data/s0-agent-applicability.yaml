@@ -1,0 +1,328 @@
+# Agent Applicability Assessment for Code Review Domain
+# Iteration 0 - Bootstrap-008 Code Review Methodology
+# Date: 2025-10-16
+
+inherited_agents:
+  total: 15
+  source: "Bootstrap-007 (CI/CD Pipeline Optimization)"
+  original_domain: "CI/CD quality, pipeline automation"
+  target_domain: "Code quality, code review automation"
+
+applicability_categories:
+  high:
+    description: "Directly applicable with minimal adaptation"
+    count: 5
+
+    agent_quality_gate_installer:
+      applicability: "VERY HIGH (⭐⭐⭐)"
+      original_purpose: "Install API validation pre-commit hooks"
+      code_review_purpose: "Install linting/security pre-commit hooks"
+      adaptation_needed:
+        - "Change validation_cmd from API validator to golangci-lint/gosec"
+        - "Update trigger_files from tools.yaml to *.go files"
+        - "Adapt feedback messages for code quality context"
+      expected_usefulness: "Critical for code review automation"
+      tasks:
+        - "Install golangci-lint pre-commit hooks"
+        - "Configure gosec security scanning hooks"
+        - "Setup gocyclo complexity gates"
+        - "Integrate with CI pipeline"
+      notes: "Core agent for automation, will be heavily used"
+
+    agent_audit_executor:
+      applicability: "HIGH (⭐⭐)"
+      original_purpose: "Execute API consistency audits"
+      code_review_purpose: "Execute code consistency audits"
+      adaptation_needed:
+        - "Change targets from API tools to Go source files"
+        - "Define criteria as code quality standards (naming, structure)"
+        - "Adapt categorization for code issues vs API violations"
+      expected_usefulness: "Very useful for systematic code audits"
+      tasks:
+        - "Audit naming consistency across modules"
+        - "Check function/method structure consistency"
+        - "Verify error handling patterns"
+        - "Assess godoc completeness"
+      notes: "Pattern of audit-before-refactor directly applicable"
+
+    agent_documentation_enhancer:
+      applicability: "HIGH (⭐⭐)"
+      original_purpose: "Enhance API documentation quality"
+      code_review_purpose: "Enhance code documentation quality"
+      adaptation_needed:
+        - "Focus on godoc instead of API descriptions"
+        - "Check code comments instead of parameter descriptions"
+        - "Verify internal documentation completeness"
+      expected_usefulness: "Useful for documentation review aspect"
+      tasks:
+        - "Review godoc completeness"
+        - "Assess comment quality"
+        - "Check exported API documentation"
+        - "Improve README clarity"
+      notes: "Documentation patterns transfer directly"
+
+    error_classifier:
+      applicability: "HIGH (⭐)"
+      original_purpose: "Classify and categorize errors from CI/CD"
+      code_review_purpose: "Classify code issues and anti-patterns"
+      adaptation_needed:
+        - "Adapt taxonomy from CI errors to code issues"
+        - "Categories: bugs, smells, security, performance, readability, Go idioms"
+        - "Define classification rules for code context"
+      expected_usefulness: "Essential for issue taxonomy"
+      tasks:
+        - "Build code issue taxonomy"
+        - "Classify identified issues"
+        - "Categorize by type and severity"
+        - "Organize findings"
+      notes: "Taxonomy expertise transfers to code domain"
+
+    recovery_advisor:
+      applicability: "HIGH (⭐)"
+      original_purpose: "Recommend error recovery strategies"
+      code_review_purpose: "Recommend code fixes and refactorings"
+      adaptation_needed:
+        - "Adapt from CI recovery to code fixes"
+        - "Provide refactoring recommendations"
+        - "Suggest best practice adoptions"
+      expected_usefulness: "Very useful for actionable recommendations"
+      tasks:
+        - "Recommend fixes for identified issues"
+        - "Suggest refactoring strategies"
+        - "Propose Go best practices"
+        - "Provide implementation guidance"
+      notes: "Recovery pattern maps to fix recommendations"
+
+  medium:
+    description: "Applicable with moderate adaptation"
+    count: 5
+
+    agent_validation_builder:
+      applicability: "MEDIUM (⭐)"
+      original_purpose: "Build API validation logic"
+      code_review_purpose: "Review validation logic in code"
+      adaptation_needed:
+        - "Focus on code validation patterns vs API schemas"
+        - "Assess input validation in functions"
+        - "Check error handling validation"
+      expected_usefulness: "Useful for validation module review"
+      tasks:
+        - "Review validation/ module (32.5% coverage)"
+        - "Assess input validation patterns"
+        - "Check error propagation"
+        - "Build validation tests"
+      notes: "Particularly relevant for validation/ module"
+
+    root_cause_analyzer:
+      applicability: "MEDIUM (⭐)"
+      original_purpose: "Analyze error root causes"
+      code_review_purpose: "Analyze code issue root causes"
+      adaptation_needed:
+        - "Apply to code issues instead of CI errors"
+        - "Identify design/implementation root causes"
+      expected_usefulness: "Useful for understanding why issues exist"
+      tasks:
+        - "Analyze why validation/ has low coverage"
+        - "Identify root causes of code smells"
+        - "Understand pattern violations"
+      notes: "Root cause analysis applies broadly"
+
+    data_analyst:
+      applicability: "MEDIUM"
+      original_purpose: "Analyze metrics and patterns"
+      code_review_purpose: "Analyze code metrics"
+      adaptation_needed:
+        - "Focus on code metrics vs API usage metrics"
+        - "Calculate complexity, coverage, churn"
+      expected_usefulness: "Useful for metrics analysis"
+      tasks:
+        - "Calculate V_instance components"
+        - "Analyze test coverage statistics"
+        - "Compute complexity metrics"
+        - "Track review progress"
+      notes: "Statistical analysis transfers directly"
+
+    coder:
+      applicability: "MEDIUM"
+      original_purpose: "Write automation scripts"
+      code_review_purpose: "Write linters, automation scripts"
+      adaptation_needed:
+        - "Focus on code quality tools vs API tools"
+        - "Write custom linting rules"
+        - "Build review automation"
+      expected_usefulness: "Useful for custom tooling"
+      tasks:
+        - "Write custom golangci-lint rules if needed"
+        - "Create review automation scripts"
+        - "Build issue reporting tools"
+      notes: "Programming capability always useful"
+
+    doc_writer:
+      applicability: "MEDIUM"
+      original_purpose: "Document findings and methodology"
+      code_review_purpose: "Document review findings and methodology"
+      adaptation_needed:
+        - "Focus on code review reports vs API documentation"
+        - "Write review methodology documentation"
+      expected_usefulness: "Essential for iteration reports"
+      tasks:
+        - "Write review reports"
+        - "Document methodology"
+        - "Create iteration summaries"
+        - "Build knowledge base"
+      notes: "Always needed for documentation"
+
+  low:
+    description: "Limited applicability, may not be used"
+    count: 5
+
+    doc_generator:
+      applicability: "LOW"
+      original_purpose: "Generate structured documentation"
+      code_review_purpose: "Generate review reports"
+      adaptation_needed: "Significant - templating for code review"
+      expected_usefulness: "Low - doc-writer likely sufficient"
+      notes: "May not need specialized generator"
+
+    search_optimizer:
+      applicability: "LOW"
+      original_purpose: "Optimize documentation search"
+      code_review_purpose: "Find code issues efficiently"
+      adaptation_needed: "Significant - search in codebase"
+      expected_usefulness: "Low - Glob/Grep tools available"
+      notes: "Standard tools likely sufficient"
+
+    agent_parameter_categorizer:
+      applicability: "LOW"
+      original_purpose: "Categorize API parameters"
+      code_review_purpose: "Review function parameters?"
+      adaptation_needed: "Significant - different domain"
+      expected_usefulness: "Low - not core to code review"
+      notes: "Unlikely to be needed"
+
+    agent_schema_refactorer:
+      applicability: "LOW"
+      original_purpose: "Refactor API schemas"
+      code_review_purpose: "Refactor data structures?"
+      adaptation_needed: "Moderate - applicable to structs"
+      expected_usefulness: "Low - not priority"
+      notes: "May be useful for struct consistency, but low priority"
+
+    api_evolution_planner:
+      applicability: "LOW"
+      original_purpose: "Plan API evolution"
+      code_review_purpose: "Plan codebase refactoring?"
+      adaptation_needed: "Moderate - strategic planning"
+      expected_usefulness: "Low - not immediate need"
+      notes: "May be useful later for refactoring roadmap"
+
+expected_new_agents:
+  description: "New specialized agents likely needed for code review domain"
+  count: "0-4 (create incrementally based on actual needs)"
+
+  likely_needed:
+    - name: "code-reviewer"
+      rationale: "Need systematic code review execution agent"
+      capabilities:
+        - "Read Go source files"
+        - "Identify issues across all aspects (correctness, maintainability, readability, security, performance, Go idioms)"
+        - "Categorize issues by type"
+        - "Assess severity"
+        - "Generate actionable recommendations"
+      creation_trigger: "Iteration 1 - when starting actual code review"
+      priority: "HIGH"
+      notes: "No inherited agent provides comprehensive code review capability"
+
+  possibly_needed:
+    - name: "security-scanner"
+      rationale: "Specialized security knowledge"
+      capabilities:
+        - "Run gosec"
+        - "Analyze security scan results"
+        - "Identify vulnerability patterns"
+        - "Recommend security fixes"
+      creation_trigger: "If security issues significant in manual review"
+      priority: "MEDIUM"
+      notes: "Could adapt error-classifier + coder, or create specialized"
+
+    - name: "style-checker"
+      rationale: "Style enforcement beyond gofmt"
+      capabilities:
+        - "Check naming conventions"
+        - "Verify code structure patterns"
+        - "Enforce style guide"
+        - "Report style violations"
+      creation_trigger: "If style inconsistencies significant"
+      priority: "MEDIUM"
+      notes: "Could use agent-audit-executor + golangci-lint, or create specialized"
+
+    - name: "best-practice-advisor"
+      rationale: "Go-specific idiom and pattern expertise"
+      capabilities:
+        - "Identify non-idiomatic code"
+        - "Recommend Go best practices"
+        - "Suggest pattern improvements"
+        - "Provide Go expertise"
+      creation_trigger: "If Go idiom violations significant"
+      priority: "LOW"
+      notes: "Could adapt recovery-advisor, or create if needed"
+
+agent_reuse_strategy:
+  iteration_0:
+    agents_to_verify: 15
+    agents_assessed: 15
+    high_applicability: 5
+    medium_applicability: 5
+    low_applicability: 5
+
+  iteration_1_expectations:
+    inherited_agents_to_use:
+      - data-analyst: "Calculate baseline metrics"
+      - doc-writer: "Create iteration report"
+    new_agents_to_create:
+      - code-reviewer: "Execute systematic code review"
+    rationale: "Start with manual code review of parser/ and analyzer/ modules"
+
+  general_strategy:
+    - "Try inherited agents first before creating new ones"
+    - "Adapt agent prompts contextually for code review"
+    - "Create new agent only when inherited insufficient"
+    - "Document clear rationale for each new agent"
+    - "Prefer agent-quality-gate-installer for automation tasks"
+    - "Use error-classifier for taxonomy building"
+    - "Leverage recovery-advisor for recommendations"
+
+cross_domain_transfer_validation:
+  quality_domains_alignment:
+    ci_cd_quality:
+      - "Pipeline correctness"
+      - "Build consistency"
+      - "Test automation"
+      - "Deployment reliability"
+    code_quality:
+      - "Code correctness"
+      - "Code consistency"
+      - "Test coverage"
+      - "Code reliability"
+    pattern_mapping:
+      - "Quality gates → Linting rules"
+      - "Pipeline audits → Code audits"
+      - "CI errors → Code issues"
+      - "Deployment automation → Review automation"
+    conclusion: "Strong alignment between CI/CD and code quality domains"
+
+  agent_transferability:
+    high_transfer:
+      - agent-quality-gate-installer: "Automation pattern identical"
+      - agent-audit-executor: "Audit pattern identical"
+      - agent-documentation-enhancer: "Documentation pattern identical"
+      - error-classifier: "Taxonomy building identical"
+      - recovery-advisor: "Fix recommendation pattern identical"
+    verdict: "5/15 agents (33%) directly transferable - strong reuse"
+
+expected_final_agent_count:
+  inherited: 15
+  new_specialized: "1-4"
+  total: "16-19"
+  comparison: "If starting from scratch: 8-12 agents expected"
+  efficiency_gain: "Inherit 15, create only 1-4 vs create 8-12 from scratch"

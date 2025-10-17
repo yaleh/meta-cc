@@ -1,0 +1,108 @@
+# Pre-commit hooks configuration
+# Generated during Bootstrap-008 Code Review Methodology (Iteration 3)
+# Purpose: Catch issues before commit to reduce review iterations
+#
+# Installation:
+#   1. Install pre-commit: pip install pre-commit (or brew install pre-commit)
+#   2. Install hooks: pre-commit install
+#   3. Test: pre-commit run --all-files
+#
+# Usage:
+#   - Hooks run automatically on git commit
+#   - Bypass with: git commit --no-verify (not recommended)
+#   - Update hooks: pre-commit autoupdate
+
+repos:
+  # Go formatting and imports
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+        name: gofmt
+        description: Format Go code
+        args: [-w]
+
+      - id: go-imports
+        name: goimports
+        description: Organize Go imports
+        args: [-w]
+
+      - id: go-vet
+        name: go vet
+        description: Run go vet
+        pass_filenames: false
+
+      - id: go-mod-tidy
+        name: go mod tidy
+        description: Clean go.mod and go.sum
+        pass_filenames: false
+
+  # golangci-lint (fast mode for pre-commit)
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.55.2
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        description: Run golangci-lint (fast mode)
+        args: [--fast, --timeout=5m]
+        pass_filenames: false
+
+  # Security scanning (critical only for pre-commit)
+  - repo: local
+    hooks:
+      - id: gosec-critical
+        name: gosec (critical only)
+        description: Run gosec security scanner (critical severity only)
+        entry: bash -c 'command -v gosec >/dev/null 2>&1 && gosec -severity=high -quiet ./... || echo "gosec not installed, skipping"'
+        language: system
+        pass_filenames: false
+        always_run: false
+        files: \.go$
+
+  # Run tests (short mode for pre-commit)
+  - repo: local
+    hooks:
+      - id: go-test
+        name: go test (short)
+        description: Run Go tests (short mode)
+        entry: go test -short ./...
+        language: system
+        pass_filenames: false
+        always_run: false
+        files: \.go$
+
+  # Check for merge conflicts
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-merge-conflict
+        name: check for merge conflicts
+        description: Check for files with merge conflict markers
+
+      - id: trailing-whitespace
+        name: trim trailing whitespace
+        description: Trim trailing whitespace
+        args: [--markdown-linebreak-ext=md]
+
+      - id: end-of-file-fixer
+        name: fix end of files
+        description: Ensure files end with newline
+
+      - id: check-yaml
+        name: check yaml
+        description: Check YAML file syntax
+        files: \.(yaml|yml)$
+
+      - id: check-json
+        name: check json
+        description: Check JSON file syntax
+        files: \.json$
+
+      - id: check-added-large-files
+        name: check for large files
+        description: Prevent committing large files
+        args: [--maxkb=1000]
+
+# Global settings
+fail_fast: false  # Run all hooks even if one fails
+default_stages: [commit]

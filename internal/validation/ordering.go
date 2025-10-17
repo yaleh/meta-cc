@@ -128,33 +128,47 @@ func isOutputParam(name string) bool {
 }
 
 func getParameterOrder(properties map[string]Property) []string {
-	// Note: Go maps don't preserve insertion order, so this is a simplification
-	// In practice, we'd need to parse the actual source code order or use ordered map
+	// Note: Go maps don't preserve insertion order
+	// We need to sort parameters to get a consistent order for comparison
+	// This is a limitation - true order validation would require parsing source code
 	var order []string
 	for name := range properties {
 		order = append(order, name)
 	}
+	// Sort alphabetically for consistent ordering
+	// This allows us to at least detect if parameters are present
+	// but doesn't validate actual source code order
+	sortStrings(order)
 	return order
 }
 
+// sortStrings sorts a slice of strings in-place
+func sortStrings(s []string) {
+	// Simple bubble sort for small slices
+	n := len(s)
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < n-i-1; j++ {
+			if s[j] > s[j+1] {
+				s[j], s[j+1] = s[j+1], s[j]
+			}
+		}
+	}
+}
+
 func isCorrectOrder(expected, actual []string) bool {
-	// Simple check: verify all expected params are in actual
-	// For MVP, we'll just check if tier-based categorization is correct
-	// A full implementation would verify exact order from source
-
-	// For now, return true if all expected params exist in actual
-	expectedMap := make(map[string]bool)
-	for _, param := range expected {
-		expectedMap[param] = true
+	// First, check if both slices have the same length
+	if len(expected) != len(actual) {
+		return false
 	}
 
-	actualMap := make(map[string]bool)
-	for _, param := range actual {
-		actualMap[param] = true
-	}
+	// Sort both slices for consistent comparison
+	// This is necessary because Go maps don't preserve order
+	sortStrings(expected)
+	sortStrings(actual)
 
-	for param := range expectedMap {
-		if !actualMap[param] {
+	// Now verify they match element by element
+	for i := 0; i < len(expected); i++ {
+		if expected[i] != actual[i] {
 			return false
 		}
 	}

@@ -167,6 +167,42 @@ vet:
 	@echo "Running go vet..."
 	@$(GOCMD) vet ./...
 
+# Quality gates (added in Bootstrap-008 Iteration 3)
+install-pre-commit:
+	@echo "Installing pre-commit hooks..."
+	@bash scripts/install-pre-commit.sh
+
+test-coverage-check:
+	@echo "Checking test coverage meets 80% threshold..."
+	@$(GOTEST) -coverprofile=coverage.out ./... > /dev/null 2>&1
+	@COVERAGE=$$(go tool cover -func=coverage.out | tail -1 | awk '{print $$3}' | sed 's/%//'); \
+	if [ "$$(echo "$$COVERAGE < 80" | bc)" -eq 1 ]; then \
+		echo "FAIL: Coverage $$COVERAGE% is below 80% target"; \
+		exit 1; \
+	else \
+		echo "PASS: Coverage $$COVERAGE% meets 80% target"; \
+	fi
+
+lint-fix:
+	@echo "Running golangci-lint with auto-fix..."
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run --fix ./...; \
+	else \
+		echo "golangci-lint not found. Install with:"; \
+		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
+		exit 1; \
+	fi
+
+security:
+	@echo "Running security scan with gosec..."
+	@if command -v gosec >/dev/null 2>&1; then \
+		gosec ./...; \
+	else \
+		echo "gosec not found. Install with:"; \
+		echo "  go install github.com/securego/gosec/v2/cmd/gosec@latest"; \
+		echo "Skipping security scan..."; \
+	fi
+
 help:
 	@echo "Available targets:"
 	@echo "  make build                   - Build both meta-cc and meta-cc-mcp"
@@ -176,10 +212,14 @@ help:
 	@echo "  make test                    - Run tests (short mode, skips slow E2E tests)"
 	@echo "  make test-all                - Run all tests (including slow E2E tests ~30s)"
 	@echo "  make test-coverage           - Run tests with coverage report (includes E2E tests)"
+	@echo "  make test-coverage-check     - Check test coverage meets 80% threshold"
 	@echo "  make test-capability-package - Test capability package creation and extraction"
 	@echo "  make lint                    - Run static analysis (fmt + vet + golangci-lint)"
+	@echo "  make lint-fix                - Run golangci-lint with auto-fix"
 	@echo "  make fmt                     - Format code with gofmt"
 	@echo "  make vet                     - Run go vet"
+	@echo "  make security                - Run security scan with gosec"
+	@echo "  make install-pre-commit      - Install pre-commit framework hooks"
 	@echo "  make clean                   - Remove build artifacts ($(BUILD_DIR)/, $(DIST_DIR)/)"
 	@echo "  make clean-capabilities      - Remove capability packages only"
 	@echo "  make install                 - Install to GOPATH/bin"

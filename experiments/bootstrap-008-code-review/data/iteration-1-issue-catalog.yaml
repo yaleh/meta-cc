@@ -1,0 +1,153 @@
+issue_catalog:
+  metadata:
+    iteration: 1
+    modules_reviewed: [parser, analyzer]
+    total_issues: 42
+    creation_date: 2025-10-17
+
+  issues_by_severity:
+    critical: 0
+    high: 7
+    medium: 25
+    low: 10
+
+  issues_by_category:
+    correctness: 16
+    maintainability: 11
+    readability: 8
+    go_idioms: 8
+    security: 1
+    performance: 3
+    testing: 0
+
+  critical_issues: []
+
+  high_severity_issues:
+    - id: PARSER-003
+      module: parser
+      summary: Deferred file.Close() not checking error
+      impact: Resource leaks, incomplete file operations
+
+    - id: PARSER-010
+      module: parser
+      summary: Three-pass algorithm inefficiency in ExtractToolCalls
+      impact: Performance degradation for large sessions (O(3n) → O(n))
+
+    - id: PARSER-013
+      module: parser
+      summary: Silent handling of empty ContentRaw without validation
+      impact: May hide data corruption or API changes
+
+    - id: ANALYZER-007
+      module: analyzer
+      summary: Double iteration over entries building maps
+      impact: Unnecessary O(2n) complexity
+
+    - id: ANALYZER-015
+      module: analyzer
+      summary: Single file (workflow.go) handles 3 distinct concerns (479 lines)
+      impact: Maintainability, testing difficulty, code navigation
+
+    - id: ANALYZER-016
+      module: analyzer
+      summary: O(n*m) iteration in DetectFileChurn
+      impact: Severe performance degradation for large sessions
+
+    - id: ANALYZER-018
+      module: analyzer
+      summary: Nested loops with string operations in hot path
+      impact: Memory pressure from temporary string allocations
+
+  common_patterns_found:
+    internationalization_gap:
+      description: Chinese comments throughout codebase
+      occurrences: 7 files (all reviewed files)
+      severity: medium
+      recommendation: Establish English-only policy, create translation issue
+
+    magic_numbers:
+      description: Hardcoded constants without names (100, 16, 3, 5, etc.)
+      occurrences: 8 locations
+      severity: medium
+      recommendation: Extract to named package constants with documentation
+
+    error_return_ambiguity:
+      description: Functions return 0 on error, indistinguishable from valid 0
+      occurrences: 3 functions (calculateTimeSpan, parseTimestamp, etc.)
+      severity: medium
+      recommendation: Use (value, error) or (value, ok) pattern
+
+    iteration_inefficiency:
+      description: Multiple passes over same data that could be combined
+      occurrences: 5 locations
+      severity: high
+      recommendation: Build lookup maps once, reuse across function
+
+    code_duplication:
+      description: Similar parsing/iteration logic repeated
+      occurrences: 3 locations (ParseEntries vs ParseEntriesFromContent, etc.)
+      severity: medium
+      recommendation: Extract common logic to shared helpers
+
+    missing_documentation:
+      description: Helper functions and private types lack comments
+      occurrences: 10+ locations
+      severity: low
+      recommendation: Add brief purpose comments even for private code
+
+    error_wrapping_consistency:
+      description: Good pattern - consistent fmt.Errorf with %w for error wrapping
+      occurrences: 8+ locations
+      severity: positive
+      recommendation: Continue this practice throughout codebase
+
+  actionable_recommendations:
+    immediate_fixes:
+      - Fix deferred file.Close() error handling (PARSER-003)
+      - Split workflow.go into separate files (ANALYZER-015)
+      - Optimize O(n*m) iterations with map lookups (ANALYZER-016)
+      - Fix calculateSequenceTimeSpan incorrect logic (ANALYZER-020)
+
+    short_term_improvements:
+      - Translate all Chinese comments to English
+      - Extract all magic numbers to named constants
+      - Optimize multi-pass algorithms to single-pass
+      - Add missing documentation for helpers
+
+    long_term_enhancements:
+      - Establish internationalization guidelines
+      - Create code review checklist from findings
+      - Add performance benchmarks for hot paths
+      - Increase test coverage for edge cases
+
+  issues_deferred:
+    - id: PARSER-002
+      reason: Constructor pattern acceptable as-is; defer until complexity increases
+
+    - id: ANALYZER-014
+      reason: Full sort acceptable for typical dataset sizes; optimize only if profiling shows bottleneck
+
+  false_positives_avoided:
+    count: 0
+    notes: All flagged issues represent genuine quality concerns with clear rationale
+
+  methodology_observations:
+    decision_criteria:
+      - Flag issues only when clear improvement path exists
+      - Distinguish between "must fix" (high) vs "nice to have" (low)
+      - Consider performance impact based on typical dataset sizes
+      - Defer optimization until proven bottleneck
+
+    severity_assignment:
+      - Critical: Security vulnerabilities, data corruption, crashes
+      - High: Correctness bugs, significant performance issues, maintainability blockers
+      - Medium: Code smells, readability issues, non-idiomatic patterns
+      - Low: Naming improvements, minor optimizations, style inconsistencies
+
+    review_heuristics:
+      - Check error handling on all file operations
+      - Look for O(n*m) nested iterations over same data
+      - Identify magic numbers in conditionals and calculations
+      - Scan for code duplication (especially in parsing/iteration logic)
+      - Validate that comments match code (and are in English)
+      - Check for resource leaks (files, connections, goroutines)

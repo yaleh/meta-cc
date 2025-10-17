@@ -1,0 +1,136 @@
+# golangci-lint configuration
+# Generated during Bootstrap-008 Code Review Methodology (Iteration 3)
+# Purpose: Automate detection of common Go code issues
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+  skip-dirs:
+    - vendor
+    - .git
+    - experiments
+
+linters:
+  enable:
+    # Error checking
+    - errcheck       # Catches unchecked errors
+    - govet          # Go vet checks
+    - staticcheck    # Advanced static analysis
+    - gosimple       # Simplification suggestions
+    - ineffassign    # Inefficient assignments
+    - unused         # Unused code detection
+
+    # Code quality
+    - gofmt          # Format checking
+    - goimports      # Import organization
+    - misspell       # Spelling errors
+    - goconst        # Repeated constants (magic numbers)
+    - godox          # TODO/FIXME/BUG comments
+    - revive         # Fast linter (replaces golint)
+    - stylecheck     # Go style guide enforcement
+
+    # Security
+    - gosec          # Security issues
+
+    # Complexity
+    - gocyclo        # Cyclomatic complexity
+    - gocognit       # Cognitive complexity
+
+    # Duplication
+    - dupl           # Code duplication detection
+
+  disable:
+    - typecheck      # Can be flaky with generics
+
+linters-settings:
+  goconst:
+    min-len: 2
+    min-occurrences: 3  # Flag constants used 3+ times
+
+  errcheck:
+    check-type-assertions: true
+    check-blank: true  # Flag _ = err
+    exclude-functions:
+      - (*database/sql.Rows).Close
+      - (*database/sql.DB).Close
+
+  revive:
+    rules:
+      - name: var-naming
+        severity: warning
+      - name: exported
+        severity: error
+      - name: error-return
+        severity: error
+      - name: error-strings
+        severity: warning
+      - name: error-naming
+        severity: warning
+      - name: if-return
+        severity: warning
+      - name: var-declaration
+        severity: warning
+      - name: package-comments
+        severity: warning
+
+  gosec:
+    severity: medium
+    confidence: medium
+    excludes:
+      - G104  # Duplicates errcheck
+
+  gocyclo:
+    min-complexity: 15  # Flag functions with complexity > 15
+
+  gocognit:
+    min-complexity: 20  # Flag functions with cognitive complexity > 20
+
+  dupl:
+    threshold: 100  # Flag duplicate blocks > 100 tokens
+
+  govet:
+    check-shadowing: true
+    enable-all: true
+
+  staticcheck:
+    checks: ["all"]
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - gocognit
+        - dupl
+        - gosec
+
+    # Exclude godox in cmd/ (TODOs acceptable in CLI commands)
+    - path: cmd/
+      linters:
+        - godox
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  new: false  # Report all issues, not just new ones
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  sort-results: true
+
+severity:
+  default-severity: warning
+  rules:
+    - linters:
+        - errcheck
+        - gosec
+        - govet
+      severity: error
+    - linters:
+        - revive
+        - stylecheck
+      severity: warning

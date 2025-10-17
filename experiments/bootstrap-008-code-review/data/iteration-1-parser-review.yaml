@@ -1,0 +1,303 @@
+module: parser
+files_reviewed:
+  - internal/parser/reader.go
+  - internal/parser/tools.go
+  - internal/parser/types.go
+total_lines: 472
+issues_found: 18
+
+issues:
+  # reader.go issues
+  - id: PARSER-001
+    severity: medium
+    category: readability
+    file: internal/parser/reader.go
+    line: 11-23
+    function: SessionParser
+    description: Chinese comments in English codebase
+    explanation: Comments are in Chinese (负责解析, 创建) which reduces readability for international contributors and violates Go community convention of English comments
+    recommendation: Translate all comments to English. Example "// SessionParser 负责解析" → "// SessionParser parses Claude Code session files"
+
+  - id: PARSER-002
+    severity: low
+    category: go_idioms
+    file: internal/parser/reader.go
+    line: 17-20
+    function: NewSessionParser
+    description: Constructor could use functional options pattern
+    explanation: Current constructor is simple, but if future options are needed (e.g., buffer size, validation mode), functional options pattern would be more extensible
+    recommendation: Consider functional options if complexity grows. Current simple constructor is acceptable for now.
+
+  - id: PARSER-003
+    severity: high
+    category: correctness
+    file: internal/parser/reader.go
+    line: 35
+    function: ParseEntries
+    description: Deferred file.Close() not checking error
+    explanation: "defer file.Close()" ignores potential error. If Close() fails, data may not be fully written (less critical for reads, but still violates best practice)
+    recommendation: |
+      Use named return with error check:
+      ```go
+      func (p *SessionParser) ParseEntries() (entries []SessionEntry, err error) {
+          file, err := os.Open(p.filePath)
+          if err != nil {
+              return nil, fmt.Errorf("failed to open session file: %w", err)
+          }
+          defer func() {
+              if cerr := file.Close(); cerr != nil && err == nil {
+                  err = fmt.Errorf("failed to close file: %w", cerr)
+              }
+          }()
+          // ...
+      }
+      ```
+
+  - id: PARSER-004
+    severity: medium
+    category: maintainability
+    file: internal/parser/reader.go
+    line: 42-44
+    function: ParseEntries
+    description: Magic number for buffer size
+    explanation: Buffer size "2 * 1024 * 1024" (2MB) is hardcoded with inline calculation. Should be a named constant for clarity and reusability
+    recommendation: |
+      Define package-level constant:
+      ```go
+      const (
+          // MaxLineSize is the maximum size of a single line in JSONL files.
+          // Claude Code sessions can have very long lines (>1MB), so we use 2MB.
+          MaxLineSize = 2 * 1024 * 1024 // 2MB
+      )
+      ```
+
+  - id: PARSER-005
+    severity: low
+    category: readability
+    file: internal/parser/reader.go
+    line: 52-54
+    function: ParseEntries
+    description: Chinese comment inconsistency
+    explanation: Comment "跳过空行和仅包含空白的行" is in Chinese
+    recommendation: Translate to "// Skip empty lines and whitespace-only lines"
+
+  - id: PARSER-006
+    severity: medium
+    category: correctness
+    file: internal/parser/reader.go
+    line: 63-66
+    function: ParseEntries
+    description: Comment filtering logic explanation incomplete
+    explanation: Comment "仅保留消息类型" doesn't explain WHY non-message types are filtered or what types exist
+    recommendation: Enhance comment "// Keep only message entries (user/assistant); filter out non-message types like file-history-snapshot"
+
+  - id: PARSER-007
+    severity: low
+    category: go_idioms
+    file: internal/parser/reader.go
+    line: 76-99
+    function: ParseEntriesFromContent
+    description: Code duplication with ParseEntries
+    explanation: Significant duplication between ParseEntries and ParseEntriesFromContent (parsing loop, error handling, filtering logic)
+    recommendation: |
+      Extract common logic:
+      ```go
+      func parseEntriesFromScanner(scanner *bufio.Scanner) ([]SessionEntry, error) {
+          var entries []SessionEntry
+          lineNum := 0
+          for scanner.Scan() {
+              lineNum++
+              line := scanner.Text()
+              if strings.TrimSpace(line) == "" {
+                  continue
+              }
+              var entry SessionEntry
+              if err := json.Unmarshal([]byte(line), &entry); err != nil {
+                  return nil, fmt.Errorf("failed to parse line %d: %w", lineNum, err)
+              }
+              if entry.IsMessage() {
+                  entries = append(entries, entry)
+              }
+          }
+          return entries, scanner.Err()
+      }
+      ```
+
+  # tools.go issues
+  - id: PARSER-008
+    severity: medium
+    category: readability
+    file: internal/parser/tools.go
+    line: 1-87
+    function: ExtractToolCalls
+    description: Chinese comments throughout file
+    explanation: All function and inline comments are in Chinese, reducing international accessibility
+    recommendation: Translate all comments to English
+
+  - id: PARSER-009
+    severity: medium
+    category: correctness
+    file: internal/parser/tools.go
+    line: 29-31
+    function: ExtractToolCalls
+    description: Silent skip of entries without Message
+    explanation: Code silently skips entries with nil Message without logging or explanation. This could hide data issues.
+    recommendation: Add debug logging or document why nil Message is expected. Consider returning a warning for diagnostic purposes.
+
+  - id: PARSER-010
+    severity: high
+    category: performance
+    file: internal/parser/tools.go
+    line: 19-86
+    function: ExtractToolCalls
+    description: Three-pass algorithm over entries
+    explanation: Function iterates entries three times (collect ToolUse, collect ToolResult, build ToolCall). For large sessions, this is inefficient.
+    recommendation: |
+      Optimize to single-pass or two-pass:
+      ```go
+      func ExtractToolCalls(entries []SessionEntry) []ToolCall {
+          toolUseMap := make(map[string]struct{uuid string; toolUse *ToolUse; timestamp string})
+          toolResultMap := make(map[string]*ToolResult)
+
+          // Single pass to collect both
+          for _, entry := range entries {
+              if entry.Message == nil {
+                  continue
+              }
+              for _, block := range entry.Message.Content {
+                  if block.Type == "tool_use" && block.ToolUse != nil {
+                      toolUseMap[block.ToolUse.ID] = struct{...}{...}
+                  } else if block.Type == "tool_result" && block.ToolResult != nil {
+                      toolResultMap[block.ToolResult.ToolUseID] = block.ToolResult
+                  }
+              }
+          }
+          // Then build ToolCall array
+          // ...
+      }
+      ```
+
+  - id: PARSER-011
+    severity: low
+    category: maintainability
+    file: internal/parser/tools.go
+    line: 21-25
+    function: ExtractToolCalls
+    description: Anonymous struct in map
+    explanation: Using anonymous struct in map makes code harder to read and maintain
+    recommendation: |
+      Define named type:
+      ```go
+      type toolUseEntry struct {
+          uuid      string
+          toolUse   *ToolUse
+          timestamp string
+      }
+      toolUseMap := make(map[string]toolUseEntry)
+      ```
+
+  # types.go issues
+  - id: PARSER-012
+    severity: medium
+    category: readability
+    file: internal/parser/types.go
+    line: 9-20
+    function: SessionEntry
+    description: Chinese comments in struct definition
+    explanation: All struct field comments are in Chinese
+    recommendation: Translate to English for international accessibility
+
+  - id: PARSER-013
+    severity: high
+    category: correctness
+    file: internal/parser/types.go
+    line: 60-73
+    function: Message.UnmarshalJSON
+    description: Silent handling of empty ContentRaw
+    explanation: "if len(aux.ContentRaw) == 0 { return nil }" silently succeeds for empty content. Should this be an error or warning?
+    recommendation: Document why empty content is valid, or return error if it's unexpected
+
+  - id: PARSER-014
+    severity: medium
+    category: go_idioms
+    file: internal/parser/types.go
+    line: 38-74
+    function: Message.UnmarshalJSON
+    description: Complex custom UnmarshalJSON logic
+    explanation: UnmarshalJSON handles string/array polymorphism but is complex. This is necessary for API compatibility but increases maintenance burden.
+    recommendation: Add comprehensive unit tests for all content variations (string content, array content, empty content, malformed content)
+
+  - id: PARSER-015
+    severity: medium
+    category: correctness
+    file: internal/parser/types.go
+    line: 116-169
+    function: ToolResult.UnmarshalJSON
+    description: Automatic error field population
+    explanation: Lines 138-141 and 163-166 automatically copy content to Error field when is_error=true. This implicit behavior may surprise users.
+    recommendation: Document this behavior clearly in struct comments, or make it explicit in the code with a comment explaining the rationale
+
+  - id: PARSER-016
+    severity: low
+    category: maintainability
+    file: internal/parser/types.go
+    line: 171-227
+    function: ContentBlock.UnmarshalJSON
+    description: Complex switch-based deserialization
+    explanation: ContentBlock.UnmarshalJSON has complex type-based deserialization logic (3 cases). This works but is fragile to schema changes.
+    recommendation: Add integration tests that validate all content block types (text, tool_use, tool_result) deserialize correctly
+
+  - id: PARSER-017
+    severity: medium
+    category: go_idioms
+    file: internal/parser/types.go
+    line: 232-287
+    function: ContentBlock.MarshalJSON
+    description: Value receiver for MarshalJSON
+    explanation: Using value receiver "(cb ContentBlock)" instead of pointer receiver. This is intentional for []ContentBlock serialization but should be documented.
+    recommendation: Add comment explaining why value receiver is used "// MarshalJSON uses value receiver to support serialization of []ContentBlock"
+
+  - id: PARSER-018
+    severity: low
+    category: correctness
+    file: internal/parser/types.go
+    line: 222-224
+    function: ContentBlock.UnmarshalJSON
+    description: Unknown content block types silently ignored
+    explanation: "default: // 未知类型，保留原始数据但不报错" - unknown types are silently ignored, which could hide API changes
+    recommendation: Consider logging unknown types at debug level or returning them in a structured way for forward compatibility
+
+summary:
+  critical_count: 0
+  high_count: 3
+  medium_count: 11
+  low_count: 4
+  by_category:
+    correctness: 6
+    maintainability: 4
+    readability: 5
+    go_idioms: 3
+    security: 0
+    performance: 1
+    testing: 0
+
+patterns_observed:
+  - pattern: Chinese Comments Throughout
+    description: All three files have extensive Chinese comments mixed with English code
+    occurrences: 3 files
+    recommendation: Establish English-only comment policy for international open source project. Create issue to translate all comments systematically.
+
+  - pattern: Custom JSON Unmarshaling
+    description: Complex custom UnmarshalJSON implementations for polymorphic JSON handling (Message.Content can be string or array, ToolResult.Content can be string or array)
+    occurrences: 3 functions
+    recommendation: This is necessary for API compatibility with Claude Code session format. Ensure comprehensive test coverage for all variations.
+
+  - pattern: Error Wrapping with fmt.Errorf
+    description: Consistent use of fmt.Errorf with %w for error wrapping throughout parser module
+    occurrences: 8 locations
+    recommendation: Good practice. Continue using this pattern.
+
+  - pattern: Silent Filtering
+    description: Several functions silently filter or skip invalid data (nil messages, non-message entries, unknown content types) without logging
+    occurrences: 4 locations
+    recommendation: Consider adding optional debug logging or metrics to track filtered data for diagnostic purposes.

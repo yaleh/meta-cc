@@ -1,0 +1,289 @@
+module: query
+files_reviewed:
+  - types.go (58 lines)
+  - context.go (202 lines)
+  - file_access.go (155 lines)
+  - sequences.go (242 lines)
+total_lines: 657
+issues_found: 14
+
+issues:
+  - id: QUERY-001
+    severity: high
+    category: correctness
+    file: context.go
+    line: 62
+    function: findErrorOccurrences
+    description: Variable shadowing in turn assignment
+    explanation: |
+      Variable 'turn' shadows outer scope, potentially confusing.
+      While not a bug here, could lead to errors in future modifications.
+    recommendation: Rename to 'toolTurn' to avoid shadowing
+    example: |
+      toolTurn, ok := turnIndex[tc.UUID]
+      if !ok {
+          continue
+      }
+
+  - id: QUERY-002
+    severity: medium
+    category: correctness
+    file: context.go
+    line: 189
+    function: parseTimestamp
+    description: Silent error return - returns 0 on parse failure
+    explanation: |
+      Returns 0 on error, which is ambiguous (could be Unix epoch 0 or error).
+      Callers cannot distinguish valid 0 from parse failure.
+    recommendation: Change signature to return error
+    example: |
+      func parseTimestamp(ts string) (int64, error) {
+          t, err := time.Parse(time.RFC3339Nano, ts)
+          if err != nil {
+              return 0, fmt.Errorf("failed to parse timestamp %q: %w", ts, err)
+          }
+          return t.Unix(), nil
+      }
+
+  - id: QUERY-003
+    severity: medium
+    category: readability
+    file: context.go
+    line: 143
+    function: buildTurnPreview
+    description: Magic number 100 for preview length
+    explanation: Hardcoded 100 without explanation
+    recommendation: Extract constant PreviewMaxLength = 100
+    example: |
+      const PreviewMaxLength = 100 // Maximum preview text length
+      preview.Preview = truncateText(block.Text, PreviewMaxLength)
+
+  - id: QUERY-004
+    severity: medium
+    category: maintainability
+    file: file_access.go
+    line: 79
+    function: extractFileFromToolCall
+    description: Hard-coded file parameter names
+    explanation: |
+      Hardcoded list ["file_path", "notebook_path", "path"].
+      If new tools use different parameter names, extraction breaks.
+    recommendation: |
+      Extract to package-level variable with documentation:
+      var filePathParameters = []string{"file_path", "notebook_path", "path"}
+
+  - id: QUERY-005
+    severity: high
+    category: performance
+    file: sequences.go
+    line: 221
+    function: calculateSequenceTimeSpan
+    description: Inefficient O(n*m) nested loop
+    explanation: |
+      Nested iteration over occurrences and toolCalls.
+      For large sessions (1000 occurrences × 5000 toolCalls = 5M iterations).
+    recommendation: Build turn→timestamp map once (O(n+m) instead of O(n*m))
+    example: |
+      turnTimestamps := make(map[int]int64)
+      for _, tc := range toolCalls {
+          turnTimestamps[tc.turn] = getToolCallTimestamp(entries, tc.uuid)
+      }
+      // Then lookup instead of iterate
+
+  - id: QUERY-006
+    severity: medium
+    category: maintainability
+    file: context.go
+    line: 82
+    function: buildContextBefore/buildContextAfter
+    description: Code duplication between buildContextBefore and buildContextAfter
+    explanation: |
+      Nearly identical functions differing only in range condition.
+      Violates DRY principle, increases maintenance burden.
+    recommendation: Extract common logic to buildContext(direction string)
+
+  - id: QUERY-007
+    severity: high
+    category: correctness
+    file: file_access.go
+    line: 12
+    function: BuildFileAccessQuery
+    description: Missing entries parameter validation
+    explanation: |
+      Only validates filePath, but entries could be nil.
+      Calling buildTurnIndex(nil) would panic.
+    recommendation: |
+      Add validation:
+      if entries == nil {
+          return nil, fmt.Errorf("entries cannot be nil")
+      }
+
+  - id: QUERY-008
+    severity: medium
+    category: performance
+    file: sequences.go
+    line: 145
+    function: findAllSequences
+    description: Inefficient pattern string building
+    explanation: |
+      Creates intermediate slice and joins on every iteration.
+      For large sessions, causes memory pressure.
+    recommendation: Use strings.Builder for better performance
+
+  - id: QUERY-009
+    severity: medium
+    category: correctness
+    file: file_access.go
+    line: 100
+    function: matchesFile
+    description: Fragile basename extraction using custom lastSlash
+    explanation: |
+      Custom path parsing doesn't handle edge cases (Windows paths, etc.).
+      Should use filepath.Base from standard library.
+    recommendation: |
+      Use filepath.Base(accessedFile) == queryFile
+
+  - id: QUERY-010
+    severity: medium
+    category: maintainability
+    file: file_access.go
+    line: 119
+    function: getActionType
+    description: Hard-coded tool names in switch statement
+    explanation: |
+      Switch on tool names. If Claude Code adds new tools, breaks.
+      Not extensible without code modification.
+    recommendation: Extract to map or configuration
+
+  - id: QUERY-011
+    severity: low
+    category: go_idioms
+    file: sequences.go
+    line: 15
+    function: N/A
+    description: Exported mutable global variable BuiltinTools
+    explanation: |
+      Exported map can be modified by callers, breaking encapsulation.
+      Violates Go best practice of minimal exported API surface.
+    recommendation: |
+      Make unexported and provide IsBuiltinTool(name string) bool accessor
+
+  - id: QUERY-012
+    severity: medium
+    category: readability
+    file: all
+    function: various
+    description: Missing godoc comments on private helpers
+    explanation: |
+      Functions like buildTurnIndex, findErrorOccurrences, extractFileFromToolCall
+      lack documentation explaining their purpose and behavior.
+    recommendation: Add godoc comments to all functions
+
+  - id: QUERY-013
+    severity: high
+    category: testing
+    file: all
+    function: N/A
+    description: Missing test coverage for edge cases
+    explanation: |
+      No visible tests for empty entries, nil inputs, invalid timestamps,
+      zero-length sequences. Current tests may only cover happy paths.
+    recommendation: |
+      Add comprehensive tests for edge cases:
+      - Empty/nil entries
+      - Invalid timestamps
+      - Zero-length sequences
+      - Boundary conditions
+
+  - id: QUERY-014
+    severity: low
+    category: correctness
+    file: file_access.go
+    line: 153
+    function: calculateTimeSpan
+    description: Potential integer overflow on 32-bit systems
+    explanation: |
+      Converting int64 to int could overflow for very long time spans.
+      Unlikely but possible for sessions spanning >68 years.
+    recommendation: Return int64 or cap value to MaxInt
+
+summary:
+  critical_count: 0
+  high_count: 4
+  medium_count: 7
+  low_count: 3
+  by_category:
+    correctness: 4
+    maintainability: 4
+    readability: 2
+    go_idioms: 1
+    performance: 2
+    testing: 1
+    security: 0
+
+patterns_observed:
+  - pattern: iteration_inefficiency
+    description: Multiple passes over same data (similar to analyzer/ module)
+    occurrences: 2
+    recommendation: Build index maps once, then lookup
+
+  - pattern: magic_numbers
+    description: Hardcoded values without constants
+    occurrences: 1
+    recommendation: Extract to named constants
+
+  - pattern: code_duplication
+    description: Similar logic repeated across functions
+    occurrences: 1
+    recommendation: Extract common logic
+
+  - pattern: missing_documentation
+    description: Private helpers lack godoc comments
+    occurrences: 10+
+    recommendation: Add godoc for all functions
+
+  - pattern: error_return_ambiguity
+    description: Return 0 on error vs valid 0
+    occurrences: 1
+    recommendation: Return explicit error values
+
+  - pattern: hard_coded_constants
+    description: Tool/parameter names embedded in code
+    occurrences: 3
+    recommendation: Extract to configuration or maps
+
+positive_observations:
+  - Consistent error wrapping with fmt.Errorf
+  - Clear type definitions in types.go
+  - Good separation of concerns (context, file access, sequences)
+  - Proper use of Go idioms (early returns, range loops)
+  - Well-structured query result types
+
+comparison_to_parser_analyzer:
+  similar_issues:
+    - O(n*m) iteration inefficiency (also in analyzer/)
+    - Magic numbers (also in parser/)
+    - Error return ambiguity (also in parser/)
+    - Missing documentation (pervasive)
+
+  unique_to_query:
+    - File path extraction logic
+    - Pattern string building
+    - Exported mutable globals
+
+recommendations:
+  immediate:
+    - Fix O(n*m) iteration in calculateSequenceTimeSpan (QUERY-005)
+    - Add entries validation in BuildFileAccessQuery (QUERY-007)
+    - Add comprehensive test coverage (QUERY-013)
+
+  short_term:
+    - Extract all magic numbers to constants
+    - Add godoc comments to private helpers
+    - Refactor duplicated buildContext logic
+    - Use filepath.Base for basename extraction
+
+  long_term:
+    - Consider configuration-driven tool/parameter mapping
+    - Add benchmarks for sequence detection
+    - Review and enhance test coverage to 80%+

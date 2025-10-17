@@ -1,0 +1,213 @@
+# Baseline Codebase Structure Analysis
+# Iteration 0 - Bootstrap-008 Code Review Methodology
+# Date: 2025-10-16
+
+target_codebase:
+  location: internal/
+  language: Go
+  total_lines: 5869
+  total_source_files: 42
+  total_test_files: 36
+
+modules:
+  - name: analyzer
+    lines: 752
+    source_files: 4
+    test_files: 4
+    purpose: "Pattern detection algorithms, statistical analysis, error classification"
+    test_coverage: 87.3%
+    complexity: medium
+    priority: high
+    notes: "Core analysis engine, heavily used"
+
+  - name: filter
+    lines: 980
+    source_files: 5
+    test_files: 5
+    purpose: "Query filtering, expression parsing, time/pagination handling"
+    test_coverage: 82.1%
+    complexity: medium-high
+    priority: high
+    notes: "Complex expression parsing logic"
+
+  - name: parser
+    lines: 472
+    source_files: 3
+    test_files: 4
+    purpose: "Session history JSONL parsing, tool call extraction"
+    test_coverage: 82.1%
+    complexity: medium
+    priority: high
+    notes: "Data ingestion layer, critical for correctness"
+
+  - name: mcp
+    lines: 936
+    source_files: 3
+    test_files: 3
+    purpose: "MCP server implementation, tool registry, session/project tools"
+    test_coverage: 93.1%
+    complexity: high
+    priority: high
+    notes: "Main MCP server interface, 16 tools"
+
+  - name: validation
+    lines: 786
+    source_files: 7
+    test_files: 3
+    purpose: "API schema validation, naming conventions, description validation"
+    test_coverage: 32.5%
+    complexity: medium-high
+    priority: critical
+    notes: "LOW TEST COVERAGE - quality issue, needs review"
+
+  - name: query
+    lines: 653
+    source_files: 4
+    test_files: 3
+    purpose: "Query engine, file access tracking, context extraction"
+    test_coverage: 92.2%
+    complexity: medium
+    priority: medium
+    notes: "Well-tested query logic"
+
+  - name: stats
+    lines: 389
+    source_files: 4
+    test_files: 4
+    purpose: "Time series metrics, aggregation, file statistics"
+    test_coverage: 93.6%
+    complexity: low-medium
+    priority: medium
+    notes: "Good test coverage"
+
+  - name: locator
+    lines: 305
+    source_files: 4
+    test_files: 4
+    purpose: "File/directory location, environment detection, argument parsing"
+    test_coverage: 81.2%
+    complexity: low-medium
+    priority: medium
+    notes: "Utility module"
+
+  - name: githelper
+    lines: 292
+    source_files: 1
+    test_files: 1
+    purpose: "Git repository helpers, branch/status detection"
+    test_coverage: 77.2%
+    complexity: low
+    priority: low
+    notes: "Simple git integration"
+
+  - name: output
+    lines: 207
+    source_files: 4
+    test_files: 4
+    purpose: "Output formatting, error handling, exit codes"
+    test_coverage: 88.1%
+    complexity: low
+    priority: low
+    notes: "Output layer"
+
+  - name: testutil
+    lines: 68
+    source_files: 2
+    test_files: 1
+    purpose: "Test fixtures and utilities"
+    test_coverage: 81.8%
+    complexity: low
+    priority: low
+    notes: "Test infrastructure"
+
+  - name: types
+    lines: 29
+    source_files: 1
+    test_files: 0
+    purpose: "Shared type definitions"
+    test_coverage: 0%
+    complexity: low
+    priority: low
+    notes: "No test files, simple types"
+
+  - name: aggregator
+    lines: 0
+    source_files: 0
+    test_files: 0
+    purpose: "Empty module (placeholder or deprecated)"
+    test_coverage: 0%
+    complexity: none
+    priority: none
+    notes: "Empty directory - may need cleanup"
+
+test_coverage_summary:
+  overall_range: "32.5% - 93.6%"
+  average: ~82%
+  target: 80%+
+  modules_below_target:
+    - validation: 32.5%
+    - types: 0% (no tests)
+    - githelper: 77.2%
+  modules_above_target:
+    - mcp: 93.1%
+    - stats: 93.6%
+    - query: 92.2%
+    - output: 88.1%
+    - analyzer: 87.3%
+    - filter: 82.1%
+    - parser: 82.1%
+    - locator: 81.2%
+    - testutil: 81.8%
+
+existing_quality_measures:
+  linting:
+    gofmt: yes (standard Go formatting)
+    go_vet: yes (via Makefile)
+    golangci_lint: no (not installed)
+    staticcheck: no (not installed)
+    golint: no
+  testing:
+    unit_tests: yes (36 test files)
+    test_coverage: yes (80%+ target in Makefile)
+    coverage_reports: yes (coverage.html)
+  static_analysis:
+    security_scanning: no (gosec not configured)
+    complexity_analysis: no (gocyclo not configured)
+    duplication_detection: no
+  automation:
+    pre_commit_hooks: no
+    ci_linting: yes (go vet in GitHub Actions)
+    ci_testing: yes (go test in GitHub Actions)
+
+code_characteristics:
+  historical_metrics:
+    total_edit_operations: 2476 (from session data)
+    most_edited_file: "tools.go (52 edits)"
+    error_rate: 6.06% (from session data)
+    project_churn: high
+  architectural_notes:
+    - "Well-structured package organization"
+    - "Clear separation of concerns"
+    - "Good test coverage overall (except validation)"
+    - "Minimal external dependencies"
+    - "Standard Go idioms generally followed"
+
+review_focus_areas:
+  critical:
+    - validation/ module (32.5% coverage - quality gap)
+    - aggregator/ module (empty directory)
+    - Error handling patterns across modules
+  high:
+    - parser/ module (data ingestion correctness)
+    - analyzer/ module (pattern detection algorithms)
+    - filter/ module (complex expression parsing)
+    - mcp/ module (16 MCP tools, main interface)
+  medium:
+    - query/ module (query engine logic)
+    - stats/ module (aggregation correctness)
+    - locator/ module (environment detection)
+  low:
+    - output/ module (formatting logic)
+    - githelper/ module (git integration)
+    - testutil/ module (test infrastructure)
+    - types/ module (simple type definitions)
