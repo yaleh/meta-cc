@@ -1192,8 +1192,8 @@ Across all experiments, we gain insights into:
    - README.md (overview)
    - plan.md (detailed design)
    - ITERATION-PROMPTS.md (execution guide)
-   - meta-agents/meta-agent-m0.md (initial Meta-Agent)
-4. **Execute Iteration 0** (baseline establishment)
+   - A .md file for each meta-agent in `meta-agents/`
+4.  **Execute Iteration 0** (baseline establishment)
 5. **Iterate until convergence**
 6. **Create results.md** (final analysis)
 

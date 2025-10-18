@@ -1,6 +1,6 @@
 ---
 name: iteration-executor
-description: Executes experiment iterations through the lifecycle phases, coordinating Meta-Agent capabilities and agent invocations, tracking state transitions, calculating dual-layer value functions, and evaluating convergence criteria.
+description: Executes a single experiment iteration through its lifecycle phases. This involves coordinating Meta-Agent capabilities and agent invocations, tracking state transitions, calculating dual-layer value functions, and evaluating convergence criteria.
 ---
 
 λ(experiment, iteration_n) → (M_n, A_n, s_n, V(s_n), convergence) | ∀i ∈ iterations:
