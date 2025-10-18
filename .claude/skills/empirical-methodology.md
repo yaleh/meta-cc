@@ -980,13 +980,13 @@ value-optimization (Quantitative Layer)
 - **Learn scientific method**: Read empirical-methodology.md (this file)
 - **Get framework**: Read bootstrapped-se.md (includes this + more)
 - **Add quantification**: Read value-optimization.md
-- **See integration**: Read methodology-framework.md
+- **See integration**: Read bootstrapped-ai-methodology-engineering.md (BAIME framework)
 
 ---
 
 ## Related Skills
 
-- **methodology-framework**: Unified entry point integrating all three methodologies
+- **bootstrapped-ai-methodology-engineering**: Unified BAIME framework integrating all three methodologies
 - **bootstrapped-se**: OCA framework (includes and extends empirical-methodology)
 - **value-optimization**: Quantitative framework (validates empirical-methodology)
 - **dependency-health**: Example application (empirical dependency management)

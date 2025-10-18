@@ -870,6 +870,215 @@ Different paradigm (Go→JS):  50-60% effort (rethink patterns)
 
 ---
 
+## Context Management for LLM Execution
+
+λ(iteration, context_state) → (work_output, context_optimized) | context < limit:
+
+**Context management is critical for LLM-based execution** where token limits constrain iteration depth and agent effectiveness.
+
+### Context Allocation Protocol
+
+```
+context_allocation :: Phase → Percentage
+context_allocation(phase) = match phase {
+  observation → 0.30,    -- Data collection, pattern analysis
+  codification → 0.40,   -- Documentation, methodology writing
+  automation → 0.20,     -- Tool creation, CI integration
+  reflection → 0.10      -- Evaluation, planning
+} where Σ = 1.0
+```
+
+**Rationale**: Based on 8 experiments, codification consumes most context (methodology docs, agent definitions), followed by observation (data analysis), automation (code writing), and reflection (evaluation).
+
+### Context Pressure Management
+
+```
+context_pressure :: State → Strategy
+context_pressure(s) =
+  if usage(s) > 0.80 then overflow_protocol(s)
+  else if usage(s) > 0.50 then compression_protocol(s)
+  else standard_protocol(s)
+```
+
+### Overflow Protocol (Context >80%)
+
+```
+overflow_protocol :: State → Action
+overflow_protocol(s) = prioritize(
+  serialize_to_disk: save(s.knowledge/*) ∧ compress(s.history),
+  reference_compression: link(files) ∧ ¬inline(content),
+  session_split: checkpoint(s) ∧ continue(s_{n+1}, fresh_context)
+) where preserve_critical ∧ drop_redundant
+```
+
+**Actions**:
+1. **Serialize to disk**: Save iteration state to `knowledge/` directory
+2. **Reference compression**: Link to files instead of inlining content
+3. **Session split**: Complete current phase, start new session for next iteration
+
+**Example** (from Bootstrap-013, 8 iterations):
+- Iteration 4: Context 85% → Serialized analysis to `knowledge/pattern-analysis.md`
+- Iteration 5: Started fresh session, loaded serialized state via file references
+- Result: Continued 4 more iterations without context overflow
+
+### Compression Protocol (Context 50-80%)
+
+```
+compression_protocol :: State → Optimizations
+compression_protocol(s) = apply(
+  deduplication: merge(similar_patterns) ∧ reference_once,
+  summarization: compress(historical_context) ∧ keep(structure),
+  lazy_loading: defer(load) ∧ fetch_on_demand
+)
+```
+
+**Optimizations**:
+1. **Deduplication**: Merge similar patterns, reference once
+2. **Summarization**: Compress historical iterations while preserving structure
+3. **Lazy loading**: Load agent definitions only when invoked
+
+### Convergence Adjustment Under Context Pressure
+
+```
+convergence_adjustment :: (Context, V_i, V_m) → Threshold
+convergence_adjustment(ctx, V_i, V_m) =
+  if usage(ctx) > 0.80 then
+    prefer(meta_focused) ∧ accept(V_i ≥ 0.55 ∧ V_m ≥ 0.80)
+  else if usage(ctx) > 0.50 then
+    standard_dual ∧ target(V_i ≥ 0.80 ∧ V_m ≥ 0.80)
+  else
+    extended_optimization ∧ pursue(V_i ≥ 0.90)
+```
+
+**Principle**: Under high context pressure, prioritize methodology quality (V_meta) over instance quality (V_instance), as methodology is more transferable and valuable long-term.
+
+**Validation** (Bootstrap-011):
+- Context pressure: High (95%+ transferability methodology)
+- Converged with: V_meta = 0.877, V_instance = 0.585
+- Pattern: Meta-Focused Convergence justified by context constraints
+
+### Context Tracking Metrics
+
+```
+context_metrics :: State → Metrics
+context_metrics(s) = {
+  usage_percentage: tokens_used / tokens_limit,
+  phase_distribution: {obs: 0.30, cod: 0.40, aut: 0.20, ref: 0.10},
+  compression_ratio: compressed_size / original_size,
+  session_splits: count(checkpoints)
+}
+```
+
+Track these metrics to predict when intervention needed.
+
+---
+
+## Prompt Evolution Protocol
+
+λ(agent, effectiveness_data) → agent' | ∀evolution: evidence_driven:
+
+**Systematic prompt engineering** based on empirical effectiveness data, not intuition.
+
+### Core Prompt Patterns
+
+```
+prompt_pattern :: Pattern → Template
+prompt_pattern(p) = match p {
+  context_bounded:
+    "Process {input} in chunks of {size}. For each chunk: {analysis}. Aggregate: {synthesis}.",
+
+  tool_orchestrating:
+    "Execute: {tool_sequence}. For each result: {validation}. If {condition}: {fallback}.",
+
+  iterative_refinement:
+    "Attempt: {approach_1}. Assess: {criteria}. If insufficient: {approach_2}. Repeat until: {threshold}.",
+
+  evidence_accumulation:
+    "Hypothesis: {H}. Seek confirming: {C}. Seek disconfirming: {D}. Weight: {W}. Decide: {decision}."
+}
+```
+
+**Usage**:
+- **context_bounded**: When processing large datasets (e.g., log analysis, file scanning)
+- **tool_orchestrating**: When coordinating multiple MCP tools (e.g., query cascade)
+- **iterative_refinement**: When solution quality improves through iteration (e.g., optimization)
+- **evidence_accumulation**: When validating hypotheses (e.g., pattern discovery)
+
+### Prompt Effectiveness Measurement
+
+```
+prompt_effectiveness :: Prompt → Metrics
+prompt_effectiveness(P) = measure(
+  convergence_contribution: ΔV_per_iteration,
+  token_efficiency: output_value / tokens_used,
+  error_rate: failures / total_invocations,
+  reusability: cross_domain_success_rate
+) where empirical_data ∧ comparative_baseline
+```
+
+**Metrics**:
+1. **Convergence contribution**: How much does agent improve V_instance or V_meta per iteration?
+2. **Token efficiency**: Value delivered per token consumed (cost-effectiveness)
+3. **Error rate**: Percentage of invocations that fail or produce invalid output
+4. **Reusability**: Success rate when applied to different domains
+
+**Example** (from Bootstrap-009):
+- log-analyzer agent:
+  - ΔV_per_iteration: +0.12 average
+  - Token efficiency: 0.85 (high value, moderate tokens)
+  - Error rate: 3% (acceptable)
+  - Reusability: 90% (worked in 009, 010, 012)
+- Result: Prompt kept, agent reused in subsequent experiments
+
+### Prompt Evolution Decision
+
+```
+prompt_evolution :: (P, Evidence) → P'
+prompt_evolution(P, E) =
+  if improvement_demonstrated(E) ∧ generalization_validated(E) then
+    update(P → P') ∧ version(P'.version + 1) ∧ document(E.rationale)
+  else
+    maintain(P) ∧ log(evolution_rejected, E.reason)
+  where ¬premature_optimization ∧ n_samples ≥ 3
+```
+
+**Evolution criteria**:
+1. **Improvement demonstrated**: Evidence shows measurable improvement (ΔV > 0.05 or error_rate < 50%)
+2. **Generalization validated**: Works across ≥3 different scenarios
+3. **n_samples ≥ 3**: Avoid overfitting to single case
+
+**Example** (theoretical - prompt evolution not yet observed in 8 experiments):
+```
+Original prompt: "Analyze logs for errors."
+Evidence: Error detection rate 67%, false positives 23%
+
+Evolved prompt: "Analyze {logs} for errors. For each: classify(type, severity, context). Filter: severity >= {threshold}. Output: structured_json."
+Evidence: Error detection rate 89%, false positives 8%
+
+Decision: Evolution accepted (improvement demonstrated, validated across 3 log types)
+```
+
+### Agent Prompt Protocol
+
+```
+agent_prompt_protocol :: Agent → Execution
+agent_prompt_protocol(A) = ∀invocation:
+  read(agents/{A.name}.md) ∧
+  extract(prompt_latest_version) ∧
+  apply(prompt) ∧
+  track(effectiveness) ∧
+  ¬cache_prompt
+```
+
+**Critical**: Always read agent definition fresh (no caching) to ensure latest prompt version used.
+
+**Tracking**:
+- Log each invocation: agent_name, prompt_version, input, output, success/failure
+- Aggregate metrics: Calculate effectiveness scores periodically
+- Trigger evolution: When n_samples ≥ 3 and improvement opportunity identified
+
+---
+
 ## Relationship to Other Methodologies
 
 **bootstrapped-se is the CORE framework** that integrates and extends two complementary methodologies.
@@ -980,13 +1189,13 @@ Every bootstrapped-se iteration:
 - **Start here**: Read bootstrapped-se.md (this file)
 - **Add evaluation**: Read value-optimization.md
 - **Add rigor**: Read empirical-methodology.md (optional)
-- **See integration**: Read methodology-framework.md
+- **See integration**: Read bootstrapped-ai-methodology-engineering.md (BAIME framework)
 
 ---
 
 ## Related Skills
 
-- **methodology-framework**: Unified entry point integrating all three methodologies
+- **bootstrapped-ai-methodology-engineering**: Unified BAIME framework integrating all three methodologies
 - **empirical-methodology**: Scientific foundation (included in bootstrapped-se)
 - **value-optimization**: Quantitative evaluation framework (used by bootstrapped-se)
 - **iteration-executor**: Implementation agent (coordinates bootstrapped-se execution)

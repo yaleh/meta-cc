@@ -1,16 +1,16 @@
 ---
-name: methodology-framework
-description: Unified Meta-CC Methodology Framework integrating three complementary methodologies (OCA + Empirical + Value Optimization) for systematic software development and methodology evolution
-keywords: framework, methodology, integration, oca, empirical, value-optimization, bootstrapping, meta-methodology
-category: methodology
+name: bootstrapped-ai-methodology-engineering
+description: Bootstrapped AI Methodology Engineering (BAIME) - Unified framework integrating OCA cycle, empirical validation, and value optimization for LLM-based development tools
+keywords: baime, bootstrapped, ai, methodology, oca, empirical, value-optimization, llm, agent, meta-methodology
+category: meta-methodology
 version: 2.0.0
 transferability: 95%
 effectiveness: 10-50x methodology development speedup
 ---
 
-# Meta-CC Methodology Framework
+# Bootstrapped AI Methodology Engineering (BAIME)
 
-**Unified framework for developing software engineering methodologies through systematic observation, empirical validation, and automated enforcement.**
+**Unified framework for developing software engineering methodologies through systematic observation, empirical validation, and automated enforcement, optimized for LLM-based development tools.**
 
 > The best methodologies are not **designed** but **evolved** through systematic observation, codification, and automation of successful practices.
 
@@ -18,7 +18,7 @@ effectiveness: 10-50x methodology development speedup
 
 ## Overview
 
-This framework integrates three complementary methodologies that work together to enable systematic software development and methodology evolution:
+BAIME integrates three complementary methodologies that work together to enable systematic software development and methodology evolution:
 
 1. **bootstrapped-se** (Core Framework) - OCA cycle and self-improvement
 2. **empirical-methodology** (Scientific Foundation) - Data-driven validation
@@ -127,7 +127,7 @@ Step 3: Add empirical-methodology for advanced rigor
 - Publication-quality methodology documentation
 - Cross-domain methodology transfer validation
 
-**Framework**:
+**BAIME Framework**:
 1. **Observe** (empirical-methodology Phase 1-2)
    - Build measurement infrastructure
    - Collect empirical data
@@ -226,7 +226,7 @@ bootstrapped-se needs:           value-optimization provides:
 
 ### All Three Together (Synergy)
 
-**Complete workflow** (as used in Bootstrap experiments):
+**Complete BAIME workflow** (as used in Bootstrap experiments):
 
 ```
 ┌─ bootstrapped-se ────────────────────────────────┐
@@ -286,7 +286,7 @@ bootstrapped-se needs:           value-optimization provides:
 | **Speedup vs Ad-hoc** | 3-46x | Depends on domain |
 
 **Key Findings**:
-- Framework is **robust** (100% success rate)
+- BAIME framework is **robust** (100% success rate)
 - **Converges efficiently** (avg 4.9 iterations)
 - **Highly transferable** (70-95%)
 - **Meta-Agent M₀ is sufficient** (no evolution needed in any experiment)
@@ -347,7 +347,7 @@ cat .claude/skills/value-optimization.md
 cat experiments/bootstrap-010-dependency-health/README.md
 cat experiments/bootstrap-010-dependency-health/results.md
 
-# Observe how the framework was applied:
+# Observe how BAIME was applied:
 # - OCA cycle execution
 # - Dual-layer value calculation
 # - Convergence achievement (3 iterations)
@@ -367,6 +367,81 @@ cat experiments/bootstrap-010-dependency-health/results.md
 2. Study 2-3 completed experiments (2-4 hours)
 3. Design your experiment with full rigor from iteration 0
 4. Use all three methodologies together
+
+---
+
+## Future Directions (Pending Validation)
+
+The following directions remain unexplored and require empirical validation before integration into core BAIME methodology:
+
+### Gap 3: Multi-Agent Coordination Patterns
+
+**Problem**: Multi-agent coordination patterns currently implicit, not formalized
+
+**Hypothesized Solutions**:
+- Sequential pipeline (A₁ → A₂ → A₃)
+- Parallel fork-join (A₁ ∥ A₂ ∥ A₃ → merge)
+- Conditional branching (if condition then A₁ else A₂)
+- Handoff protocols with state validation
+
+**Validation Requirements**:
+- Test in experiments with 10+ specialized agents
+- Measure coordination overhead and failure rates
+- Validate across different domain complexities
+
+**Validation Criteria**: n_experiments ≥ 3 ∧ success_rate ≥ 66%
+
+### Gap 4: Tool Integration Methodology
+
+**Problem**: MCP tool orchestration patterns not systematically documented
+
+**Hypothesized Solutions**:
+- Query cascade pattern (broad → specific drill-down)
+- Parallel fanout pattern (comprehensive snapshot)
+- Fallback chain pattern (primary → backup tools)
+- Tool dependency graphs
+
+**Validation Requirements**:
+- Test across different tool ecosystems (meta-cc, playwright, chrome-devtools)
+- Measure tool selection accuracy and latency
+- Validate error recovery effectiveness
+
+**Validation Criteria**: n_tool_ecosystems ≥ 2 ∧ reliability ≥ 90%
+
+### Gap 5: Human-in-the-Loop Integration
+
+**Problem**: Human intervention timing and feedback integration not standardized
+
+**Hypothesized Solutions**:
+- Mandatory intervention points (convergence ambiguity, contradictory evidence)
+- Optional intervention offers (optimization opportunities, alternative approaches)
+- Autonomous execution zones (clear criteria, routine tasks)
+- Feedback integration protocol
+
+**Validation Requirements**:
+- Test in production environments with actual human developers
+- Measure intervention frequency and effectiveness
+- Track autonomous capability growth over time
+
+**Validation Criteria**: n_production_uses ≥ 5 ∧ intervention_effectiveness ≥ 75%
+
+### Validation Principles
+
+**For all gaps**:
+```
+∀ pattern:
+  (n_experiments ≥ 3 ∧ success_rate ≥ 66%) → validated
+
+Unvalidated patterns:
+  - Listed for reference only
+  - NOT included in core methodology
+  - Prioritize validation based on frequency of actual need
+```
+
+**Integration Timeline**:
+- Validate one gap at a time through dedicated experiments
+- Require empirical data before promoting to core methodology
+- Document failure modes alongside success patterns
 
 ---
 
@@ -405,14 +480,14 @@ cat experiments/bootstrap-010-dependency-health/results.md
 - **bootstrapped-se**: Core framework (OCA cycle, three-tuple output)
 - **empirical-methodology**: Scientific foundation (5-phase process)
 - **value-optimization**: Quantitative framework (dual-layer values)
-- **iteration-executor**: Agent for coordinating methodology execution
+- **iteration-executor**: Agent for coordinating BAIME execution
 
 ---
 
 ## Knowledge Base
 
 ### Source Documentation
-- **Framework**: This file (`methodology-framework.md`)
+- **BAIME Framework**: This file (`bootstrapped-ai-methodology-engineering.md`)
 - **Core methodology**: `.claude/skills/bootstrapped-se.md`
 - **Evaluation**: `.claude/skills/value-optimization.md`
 - **Scientific method**: `.claude/skills/empirical-methodology.md`
@@ -430,12 +505,15 @@ cat experiments/bootstrap-010-dependency-health/results.md
 
 ## Version History
 
-- **v2.0.0** (2025-10-18): Initial unified framework release
+- **v2.0.0** (2025-10-18): Initial BAIME release
+  - Renamed from "Meta-CC Methodology Framework" to "Bootstrapped AI Methodology Engineering"
   - Integrates three methodologies (OCA, Empirical, Value Optimization)
   - Three-layer architecture established
+  - LLM-specific enhancements (Context Management, Prompt Evolution)
   - Based on learnings from 8 completed Bootstrap experiments
   - Beginner and expert usage paths defined
   - 95% transferability validated
+  - Future directions identified (Gap 3/4/5)
 
 ---
 
@@ -443,6 +521,6 @@ cat experiments/bootstrap-010-dependency-health/results.md
 **Validation**: 8 Bootstrap experiments (100% success rate)
 **Effectiveness**: 10-50x methodology development speedup
 **Transferability**: 95% (framework universal, tools adaptable)
-**Next Steps**: Use this framework to develop your first methodology
+**Next Steps**: Use BAIME to develop your first methodology
 
 **Quick Start**: Read `bootstrapped-se.md` → Read `value-optimization.md` → Study `bootstrap-010` → Start experimenting

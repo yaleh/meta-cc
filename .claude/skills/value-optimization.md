@@ -896,7 +896,7 @@ empirical-methodology (Scientific Foundation)
 
 **Complete Stack Usage** (recommended):
 ```
-┌─ methodology-framework ───────────────────┐
+┌─ BAIME Framework ─────────────────────────┐
 │                                            │
 │  bootstrapped-se (execution)               │
 │       ↓                                    │
@@ -917,13 +917,13 @@ empirical-methodology (Scientific Foundation)
 - **Learn evaluation**: Read value-optimization.md (this file)
 - **Get execution framework**: Read bootstrapped-se.md
 - **Add scientific rigor**: Read empirical-methodology.md
-- **See integration**: Read methodology-framework.md
+- **See integration**: Read bootstrapped-ai-methodology-engineering.md (BAIME framework)
 
 ---
 
 ## Related Skills
 
-- **methodology-framework**: Unified entry point integrating all three methodologies
+- **bootstrapped-ai-methodology-engineering**: Unified BAIME framework integrating all three methodologies
 - **bootstrapped-se**: OCA framework (uses value-optimization for evaluation)
 - **empirical-methodology**: Scientific foundation (validated by value-optimization)
 - **iteration-executor**: Implementation agent (coordinates value calculation)
