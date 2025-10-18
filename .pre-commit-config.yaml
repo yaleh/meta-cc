@@ -105,4 +105,4 @@ repos:
 
 # Global settings
 fail_fast: false  # Run all hooks even if one fails
-default_stages: [commit]
+default_stages: [pre-commit]
