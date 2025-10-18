@@ -2,6 +2,8 @@
 
 This directory contains formalized BAIME framework enhancements and reusable methodologies extracted from Bootstrap experiments.
 
+**Note**: Many knowledge artifacts have been promoted to Claude Code skills in `.claude/skills/`. See "Promoted to Skills" section below for references.
+
 ## Overview
 
 The knowledge base captures meta-level learnings from applying the BAIME (Bootstrapped AI Methodology Engineering) framework across multiple experiments. Each document represents a validated pattern, technique, or enhancement that improves the efficiency and effectiveness of future methodology development.
@@ -117,6 +119,85 @@ The knowledge base captures meta-level learnings from applying the BAIME (Bootst
 **ROI**: Spend 3-4 extra hours in iteration 0, save 3-6 hours overall (net time reduction)
 
 **Validation**: Bootstrap-003 achieved V_meta(s₀) = 0.48 (comprehensive baseline), converged in 3 iterations vs Bootstrap-002's V_meta(s₀) = 0.04 (minimal baseline), 6 iterations
+
+---
+
+## Promoted to Skills
+
+The following knowledge artifacts have been extracted and promoted to standalone Claude Code skills in `.claude/skills/`:
+
+### Core Framework Skills (5)
+
+1. **methodology-bootstrapping** ← Core BAIME framework
+   - Source: Multiple experiments (bootstrap-001 through bootstrap-013)
+   - Location: `.claude/skills/methodology-bootstrapping/`
+   - Content: OCA cycle, dual value functions, convergence criteria, scientific foundation
+
+2. **rapid-convergence** ← rapid-convergence-pattern.md
+   - Source: bootstrap-003, knowledge/rapid-convergence-pattern.md
+   - Location: `.claude/skills/rapid-convergence/`
+   - Content: 5 criteria, prediction model, 3-4 iteration acceleration
+
+3. **retrospective-validation** ← retrospective-validation-methodology.md
+   - Source: bootstrap-003, knowledge/retrospective-validation-methodology.md
+   - Location: `.claude/skills/retrospective-validation/`
+   - Content: 4-phase process, confidence calculation, historical data validation
+
+4. **agent-prompt-evolution** ← prompt-evolution-tracking.md
+   - Source: bootstrap-002, knowledge/prompt-evolution-tracking.md
+   - Location: `.claude/skills/agent-prompt-evolution/`
+   - Content: Aₙ/Mₙ tracking, specialization decision tree, reusability framework
+
+5. **baseline-quality-assessment** ← baseline-quality-metrics.md
+   - Source: bootstrap-003, knowledge/baseline-quality-metrics.md
+   - Location: `.claude/skills/baseline-quality-assessment/`
+   - Content: 4 quality levels, V_meta ≥0.40 in iteration 0, ROI analysis
+
+### Domain Methodology Skills (8)
+
+6. **testing-strategy**
+   - Source: bootstrap-002 (test strategy methodology)
+   - Location: `.claude/skills/testing-strategy/`
+   - Content: TDD, coverage-driven gap closure, 8 test patterns, 3 automation tools
+
+7. **error-recovery**
+   - Source: bootstrap-003 (error recovery methodology)
+   - Location: `.claude/skills/error-recovery/`
+   - Content: 13-category taxonomy, 8 diagnostic workflows, 5 recovery patterns
+
+8. **ci-cd-optimization**
+   - Source: bootstrap-007 (CI/CD pipeline methodology)
+   - Location: `.claude/skills/ci-cd-optimization/`
+   - Content: Quality gates, release automation, smoke testing, observability
+
+9. **observability-instrumentation**
+   - Source: bootstrap-009 (observability methodology)
+   - Location: `.claude/skills/observability-instrumentation/`
+   - Content: 3 pillars (logs/metrics/traces), structured logging, slog
+
+10. **dependency-health**
+    - Source: bootstrap-010 (dependency management methodology)
+    - Location: `.claude/skills/dependency-health/`
+    - Content: Security-first approach, batch remediation, policy-driven compliance
+
+11. **knowledge-transfer**
+    - Source: bootstrap-011 (knowledge transfer methodology)
+    - Location: `.claude/skills/knowledge-transfer/`
+    - Content: Progressive learning (Day-1, Week-1, Month-1), validation checkpoints
+
+12. **technical-debt-management**
+    - Source: bootstrap-012 (technical debt methodology)
+    - Location: `.claude/skills/technical-debt-management/`
+    - Content: SQALE quantification, value-effort prioritization, phased paydown
+
+13. **cross-cutting-concerns**
+    - Source: bootstrap-013 (cross-cutting concerns methodology)
+    - Location: `.claude/skills/cross-cutting-concerns/`
+    - Content: Pattern extraction, convention definition, automated enforcement
+
+**Total Skills**: 13 (5 core framework + 8 domain methodologies)
+
+**Status**: Phase 1-2 complete (all skills created and self-contained)
 
 ---
 
