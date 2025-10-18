@@ -1,0 +1,132 @@
+# Codebase Structure Analysis
+# Iteration: 0 (Baseline)
+# Date: 2025-10-17
+# Target: meta-cc MCP server and internal modules
+
+codebase_summary:
+  total_lines: 12121
+  mcp_server_lines: 2488
+  cmd_cli_lines: 9633
+  internal_modules_lines: 5883
+
+mcp_server:
+  location: cmd/mcp-server/
+  entry_point: main.go
+  lines_of_code: 2488
+  files:
+    - main.go: 49 lines (entry point)
+    - server.go: 123 lines (JSON-RPC handling)
+    - tools.go: ~10400 lines (16 tool definitions)
+    - executor.go: ~13461 lines (tool execution)
+    - capabilities.go: ~27720 lines (capability system)
+    - temp_file_manager.go: ~4104 lines (temp file handling)
+    - filters.go: ~3506 lines (filtering logic)
+    - output_mode.go: ~4547 lines (output formatting)
+    - jq_filter.go: ~2233 lines (jq integration)
+    - file_reference.go: ~3592 lines (file ref mode)
+    - response_adapter.go: ~3601 lines (response adaptation)
+
+internal_modules:
+  total_modules: 12
+  breakdown:
+    - parser: 472 lines (session history parsing)
+    - analyzer: 752 lines (pattern detection)
+    - query: 653 lines (query engine)
+    - filter: 980 lines (data filtering)
+    - stats: 389 lines (statistics calculation)
+    - output: 207 lines (output formatting)
+    - types: 29 lines (shared types)
+    - mcp: 936 lines (MCP protocol)
+    - aggregator: (not counted - empty or minimal)
+    - githelper: 292 lines (git operations)
+    - locator: 305 lines (session location)
+    - testutil: 68 lines (test utilities)
+    - validation: 800 lines (data validation)
+
+critical_paths:
+  tool_invocation:
+    - main.go → handleRequest() → handleToolsCall()
+    - server.go → executor.ExecuteTool()
+    - executor.go → tool-specific execution
+    - tools.go → tool definitions (16 tools)
+
+  query_execution:
+    - cmd/*.go → query functions (query_tools, query_messages, etc.)
+    - internal/parser → parse session JSONL
+    - internal/analyzer → detect patterns
+    - internal/query → execute queries
+    - internal/output → format results
+
+  error_handling:
+    - 300 "if err != nil" patterns across codebase
+    - Minimal error logging (no structured logging)
+    - Error responses via JSON-RPC writeError()
+    - Cleanup handling in main.go defer
+
+coverage_targets:
+  instrumentation_goal: 90% of critical paths
+
+  priority_paths:
+    - Tool invocation and execution (highest traffic)
+    - Query engine (complex logic)
+    - Parser (error-prone)
+    - MCP protocol handling (user-facing)
+    - Capability system (new feature)
+    - Error paths (diagnosis critical)
+
+  modules_requiring_instrumentation:
+    high_priority:
+      - cmd/mcp-server/executor.go (tool execution)
+      - cmd/mcp-server/tools.go (tool definitions)
+      - internal/parser (parsing errors common)
+      - internal/query (complex query logic)
+
+    medium_priority:
+      - cmd/mcp-server/server.go (request handling)
+      - internal/analyzer (pattern detection)
+      - internal/filter (filtering logic)
+      - cmd/mcp-server/capabilities.go (capability system)
+
+    low_priority:
+      - internal/stats (statistics calculation)
+      - internal/output (formatting)
+      - internal/types (simple types)
+      - internal/testutil (test only)
+
+observability_opportunities:
+  structured_logging:
+    - Replace ad-hoc error messages with structured logs
+    - Add request/response logging with trace IDs
+    - Log query execution with duration
+    - Log parser errors with context
+
+  metrics:
+    - RED metrics per tool (Rate, Errors, Duration)
+    - Query execution counts and latency
+    - Parser success/failure rates
+    - MCP request throughput
+
+  tracing:
+    - End-to-end request traces (tool call → query → response)
+    - Query execution spans (parse → analyze → output)
+    - Cross-module trace propagation
+
+  dashboards:
+    - Tool usage dashboard (calls per tool, error rates)
+    - Performance dashboard (latency p50/p95/p99)
+    - Error dashboard (error types, frequency)
+
+  alerts:
+    - High error rate (>10% errors in 5min)
+    - Slow queries (p95 > 1s)
+    - Parser failures (>5% parse errors)
+
+---
+
+# Analysis Notes
+
+- **Codebase Size**: ~2,488 lines in MCP server + ~5,883 lines in internal modules = ~8,371 total LOC to instrument
+- **Critical Paths**: 6 major paths requiring observability
+- **Error Handling**: 300 error check points (potential instrumentation points)
+- **Current Logging**: Minimal (1 fmt.Printf, 0 structured logs)
+- **Target Coverage**: 90% of critical paths (~7,500 lines instrumented)

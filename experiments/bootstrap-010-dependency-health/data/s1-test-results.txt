@@ -1,0 +1,40 @@
+?   	github.com/yaleh/meta-cc	[no test files]
+ok  	github.com/yaleh/meta-cc/cmd	54.879s
+ok  	github.com/yaleh/meta-cc/cmd/mcp-server	67.886s
+?   	github.com/yaleh/meta-cc/cmd/validate-api	[no test files]
+?   	github.com/yaleh/meta-cc/experiments/bootstrap-001-doc-methodology/data	[no test files]
+?   	github.com/yaleh/meta-cc/experiments/bootstrap-013-cross-cutting-concerns/knowledge/templates	[no test files]
+ok  	github.com/yaleh/meta-cc/internal/analyzer	0.030s
+ok  	github.com/yaleh/meta-cc/internal/filter	0.014s
+ok  	github.com/yaleh/meta-cc/internal/githelper	4.585s
+ok  	github.com/yaleh/meta-cc/internal/locator	0.022s
+ok  	github.com/yaleh/meta-cc/internal/mcp	0.013s
+ok  	github.com/yaleh/meta-cc/internal/output	0.008s
+ok  	github.com/yaleh/meta-cc/internal/parser	0.025s
+ok  	github.com/yaleh/meta-cc/internal/query	0.007s
+ok  	github.com/yaleh/meta-cc/internal/stats	0.008s
+ok  	github.com/yaleh/meta-cc/internal/testutil	0.008s
+?   	github.com/yaleh/meta-cc/internal/types	[no test files]
+--- FAIL: TestParseTools_ValidFile (0.00s)
+    parser_test.go:58: Expected 2 properties, got 0
+    parser_test.go:62: Expected 1 required parameter, got 0
+panic: runtime error: index out of range [0] with length 0 [recovered]
+	panic: runtime error: index out of range [0] with length 0
+
+goroutine 104 [running]:
+testing.tRunner.func1.2({0x5759a0, 0xc0001cc210})
+	/home/yale/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.9.linux-amd64/src/testing/testing.go:1734 +0x21c
+testing.tRunner.func1()
+	/home/yale/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.9.linux-amd64/src/testing/testing.go:1737 +0x35e
+panic({0x5759a0?, 0xc0001cc210?})
+	/home/yale/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.9.linux-amd64/src/runtime/panic.go:792 +0x132
+github.com/yaleh/meta-cc/internal/validation.TestParseTools_ValidFile(0xc0001fa380)
+	/home/yale/work/meta-cc/internal/validation/parser_test.go:65 +0x416
+testing.tRunner(0xc0001fa380, 0x593ca0)
+	/home/yale/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.9.linux-amd64/src/testing/testing.go:1792 +0xf4
+created by testing.(*T).Run in goroutine 1
+	/home/yale/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.9.linux-amd64/src/testing/testing.go:1851 +0x413
+FAIL	github.com/yaleh/meta-cc/internal/validation	0.010s
+ok  	github.com/yaleh/meta-cc/pkg/output	0.040s
+ok  	github.com/yaleh/meta-cc/pkg/pipeline	0.023s
+FAIL

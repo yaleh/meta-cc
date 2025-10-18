@@ -19,7 +19,7 @@ BINARY_NAME := meta-cc
 MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint fmt vet help sync-plugin-files dev
+.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint lint-errors fmt vet help sync-plugin-files dev
 
 all: lint test build
 
@@ -149,7 +149,7 @@ deps:
 	$(GOMOD) download
 	$(GOMOD) tidy
 
-lint: fmt vet
+lint: fmt vet lint-errors
 	@echo "Running static analysis..."
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run ./...; \
@@ -158,6 +158,10 @@ lint: fmt vet
 		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
 		echo "Skipping lint checks..."; \
 	fi
+
+lint-errors:
+	@echo "Running error linting..."
+	@./scripts/lint-errors.sh cmd/ internal/
 
 fmt:
 	@echo "Formatting code..."
@@ -214,7 +218,8 @@ help:
 	@echo "  make test-coverage           - Run tests with coverage report (includes E2E tests)"
 	@echo "  make test-coverage-check     - Check test coverage meets 80% threshold"
 	@echo "  make test-capability-package - Test capability package creation and extraction"
-	@echo "  make lint                    - Run static analysis (fmt + vet + golangci-lint)"
+	@echo "  make lint                    - Run static analysis (fmt + vet + error-linting + golangci-lint)"
+	@echo "  make lint-errors             - Run error linting (check error conventions)"
 	@echo "  make lint-fix                - Run golangci-lint with auto-fix"
 	@echo "  make fmt                     - Format code with gofmt"
 	@echo "  make vet                     - Run go vet"

@@ -1,0 +1,38 @@
+govulncheck: loading packages:
+There are errors with the provided package patterns:
+
+/home/yale/work/meta-cc/internal/parser/reader.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/internal/types/sequence.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/internal/analyzer/errors.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/internal/filter/expression.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/internal/locator/args.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/pkg/output/chunker.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/internal/output/error.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/internal/query/context.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/internal/stats/aggregator.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/go/pkg/mod/golang.org/x/sys@v0.37.0/unix/affinity_linux.go:7:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/go/pkg/mod/golang.org/x/sys@v0.37.0/unix/vgetrandom_linux.go:7:9: file requires newer Go version go1.24 (application built with go1.23)
+/home/yale/go/pkg/mod/golang.org/x/text@v0.30.0/transform/transform.go:9:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/go/pkg/mod/golang.org/x/text@v0.30.0/runes/cond.go:5:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/go/pkg/mod/golang.org/x/text@v0.30.0/unicode/norm/composition.go:5:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/go/pkg/mod/golang.org/x/text@v0.30.0/encoding/internal/identifier/identifier.go:27:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/go/pkg/mod/golang.org/x/text@v0.30.0/encoding/encoding.go:11:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/go/pkg/mod/golang.org/x/text@v0.30.0/encoding/internal/internal.go:6:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/go/pkg/mod/golang.org/x/text@v0.30.0/internal/utf8internal/utf8internal.go:7:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/go/pkg/mod/golang.org/x/text@v0.30.0/encoding/unicode/override.go:5:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/cmd/analyze.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/main.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/go/pkg/mod/github.com/itchyny/timefmt-go@v0.1.7/format.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/cmd/mcp-server/capabilities.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/internal/validation/description.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/cmd/validate-api/main.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/experiments/bootstrap-001-doc-methodology/data/code-docs-sample.go:5:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/experiments/bootstrap-013-cross-cutting-concerns/knowledge/templates/logger-setup.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/internal/githelper/githelper.go:3:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/internal/mcp/builder.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/internal/testutil/fixtures.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+/home/yale/work/meta-cc/pkg/pipeline/options.go:1:1: package requires newer Go version go1.24 (application built with go1.23)
+
+For details on package patterns, see https://pkg.go.dev/cmd/go#hdr-Package_lists_and_patterns.
+
+exit status 1

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/yaleh/meta-cc/internal/config"
 )
 
 // TestParseCapabilitySources tests parsing environment variable into source list
@@ -617,6 +619,7 @@ func TestReadLocalCapability(t *testing.T) {
 
 // TestExecuteGetCapabilityTool tests the get_capability MCP tool
 func TestExecuteGetCapabilityTool(t *testing.T) {
+	cfg, _ := config.Load()
 	// Use test fixtures
 	fixturesPath := filepath.Join("..", "..", "tests", "fixtures", "capabilities")
 	if _, err := os.Stat(fixturesPath); os.IsNotExist(err) {
@@ -657,7 +660,7 @@ func TestExecuteGetCapabilityTool(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := executeGetCapabilityTool(tt.args)
+			result, err := executeGetCapabilityTool(cfg, tt.args)
 			if tt.expectError {
 				if err == nil {
 					t.Error("expected error, got nil")
@@ -890,6 +893,7 @@ func TestBuildJsDelivrURL(t *testing.T) {
 
 // TestDefaultSourceIsPackage verifies that the default source is package URL when no env var is set
 func TestDefaultSourceIsPackage(t *testing.T) {
+	cfg, _ := config.Load()
 	// Clear environment variable
 	oldEnv := os.Getenv("META_CC_CAPABILITY_SOURCES")
 	os.Unsetenv("META_CC_CAPABILITY_SOURCES")
@@ -902,7 +906,7 @@ func TestDefaultSourceIsPackage(t *testing.T) {
 	// Test list_capabilities - should use package default
 	// This will actually try to download from GitHub releases
 	args := map[string]interface{}{}
-	result, err := executeListCapabilitiesTool(args)
+	result, err := executeListCapabilitiesTool(cfg, args)
 
 	// Since we're actually connecting to GitHub releases in the test, check the result
 	if err != nil {

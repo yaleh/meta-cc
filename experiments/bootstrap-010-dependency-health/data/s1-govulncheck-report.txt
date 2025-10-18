@@ -1,0 +1,97 @@
+=== Symbol Results ===
+
+Vulnerability #1: GO-2025-3956
+    Unexpected paths returned from LookPath in os/exec
+  More info: https://pkg.go.dev/vuln/GO-2025-3956
+  Standard library
+    Found in: os/exec@go1.23.1
+    Fixed in: os/exec@go1.23.12
+    Example traces found:
+      #1: internal/githelper/githelper.go:155:21: githelper.GetFileChurnSince calls exec.Command, which calls exec.LookPath
+
+Vulnerability #2: GO-2025-3751
+    Sensitive headers not cleared on cross-origin redirect in net/http
+  More info: https://pkg.go.dev/vuln/GO-2025-3751
+  Standard library
+    Found in: net/http@go1.23.1
+    Fixed in: net/http@go1.23.10
+    Example traces found:
+      #1: cmd/mcp-server/capabilities.go:361:23: mcp.downloadPackage calls http.Get
+
+Vulnerability #3: GO-2025-3750
+    Inconsistent handling of O_CREATE|O_EXCL on Unix and Windows in os in
+    syscall
+  More info: https://pkg.go.dev/vuln/GO-2025-3750
+  Standard library
+    Found in: os@go1.23.1
+    Fixed in: os@go1.23.10
+    Platforms: windows
+    Example traces found:
+      #1: cmd/mcp-server/temp_file_manager.go:64:24: mcp.writeJSONLFile calls os.Create
+      #2: internal/testutil/fixtures.go:45:31: testutil.TempSessionFile calls os.CreateTemp
+      #3: internal/locator/args.go:115:32: locator.SessionLocator.AllSessionsFromProject calls filepath.Glob, which eventually calls os.File.Readdirnames
+      #4: internal/locator/locator.go:46:23: locator.SessionLocator.Locate calls os.Getwd
+      #5: internal/locator/args.go:115:32: locator.SessionLocator.AllSessionsFromProject calls filepath.Glob, which eventually calls os.Lstat
+      #6: pkg/output/chunker.go:114:23: output.GenerateManifest calls os.MkdirAll
+      #7: pkg/output/chunker.go:6:2: output.init calls os.init, which calls os.NewFile
+      #8: internal/parser/reader.go:31:22: parser.SessionParser.ParseEntries calls os.Open
+      #9: internal/githelper/githelper.go:129:16: githelper.IsGitRepository calls exec.Cmd.Run, which eventually calls os.OpenFile
+      #10: internal/githelper/githelper.go:129:16: githelper.IsGitRepository calls exec.Cmd.Run, which eventually calls os.Pipe
+      #11: internal/locator/args.go:25:32: locator.SessionLocator.FromSessionID calls os.ReadDir
+      #12: internal/testutil/fixtures.go:33:26: testutil.LoadFixture calls os.ReadFile
+      #13: cmd/mcp-server/temp_file_manager.go:74:13: mcp.writeJSONLFile calls os.Remove
+      #14: cmd/mcp-server/capabilities.go:122:24: mcp.CleanupSessionCache calls os.RemoveAll
+      #15: cmd/mcp-server/temp_file_manager.go:93:21: mcp.writeJSONLFile calls os.Rename
+      #16: internal/githelper/githelper.go:129:16: githelper.IsGitRepository calls exec.Cmd.Run, which eventually calls os.StartProcess
+      #17: pkg/output/chunker.go:150:27: output.ChunkToolCalls calls os.Stat
+      #18: pkg/output/chunker.go:118:24: output.GenerateManifest calls os.WriteFile
+      #19: pkg/output/chunker.go:114:23: output.GenerateManifest calls os.MkdirAll, which eventually calls syscall.Open
+
+Vulnerability #4: GO-2025-3563
+    Request smuggling due to acceptance of invalid chunked data in net/http
+  More info: https://pkg.go.dev/vuln/GO-2025-3563
+  Standard library
+    Found in: net/http/internal@go1.23.1
+    Fixed in: net/http/internal@go1.23.8
+    Example traces found:
+      #1: internal/githelper/githelper.go:129:16: githelper.IsGitRepository calls exec.Cmd.Run, which eventually calls internal.chunkedReader.Read
+
+Vulnerability #5: GO-2025-3447
+    Timing sidechannel for P-256 on ppc64le in crypto/internal/nistec
+  More info: https://pkg.go.dev/vuln/GO-2025-3447
+  Standard library
+    Found in: crypto/internal/nistec@go1.23.1
+    Fixed in: crypto/internal/nistec@go1.23.6
+    Platforms: ppc64le
+    Example traces found:
+      #1: internal/output/error.go:87:14: output.WarnNoResults calls fmt.Fprintf, which eventually calls nistec.P256Point.ScalarBaseMult
+      #2: internal/output/error.go:87:14: output.WarnNoResults calls fmt.Fprintf, which eventually calls nistec.P256Point.ScalarMult
+      #3: internal/githelper/githelper.go:155:21: githelper.GetFileChurnSince calls exec.Command, which eventually calls nistec.P256Point.SetBytes
+
+Vulnerability #6: GO-2025-3420
+    Sensitive headers incorrectly sent after cross-domain redirect in net/http
+  More info: https://pkg.go.dev/vuln/GO-2025-3420
+  Standard library
+    Found in: net/http@go1.23.1
+    Fixed in: net/http@go1.23.5
+    Example traces found:
+      #1: cmd/mcp-server/capabilities.go:361:23: mcp.downloadPackage calls http.Get
+
+Vulnerability #7: GO-2025-3373
+    Usage of IPv6 zone IDs can bypass URI name constraints in crypto/x509
+  More info: https://pkg.go.dev/vuln/GO-2025-3373
+  Standard library
+    Found in: crypto/x509@go1.23.1
+    Fixed in: crypto/x509@go1.23.5
+    Example traces found:
+      #1: internal/githelper/githelper.go:155:21: githelper.GetFileChurnSince calls exec.Command, which eventually calls x509.CertPool.AppendCertsFromPEM
+      #2: internal/output/error.go:87:14: output.WarnNoResults calls fmt.Fprintf, which eventually calls x509.Certificate.Verify
+      #3: internal/output/error.go:87:14: output.WarnNoResults calls fmt.Fprintf, which eventually calls x509.Certificate.VerifyHostname
+      #4: internal/mcp/session_tools.go:229:52: mcp.BuildCommandArgs calls fmt.Sprintf, which eventually calls x509.HostnameError.Error
+      #5: internal/githelper/githelper.go:155:21: githelper.GetFileChurnSince calls exec.Command, which eventually calls x509.ParseCertificate
+
+Your code is affected by 7 vulnerabilities from the Go standard library.
+This scan also found 0 vulnerabilities in packages you import and 1
+vulnerability in modules you require, but your code doesn't appear to call these
+vulnerabilities.
+Use '-show verbose' for more details.

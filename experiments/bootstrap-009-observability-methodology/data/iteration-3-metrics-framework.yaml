@@ -1,0 +1,505 @@
+# Metrics Framework Design (RED + USE + Four Golden Signals)
+# Iteration: 3
+# Date: 2025-10-17
+# Agent: doc-writer (coordinated with data-analyst)
+# Target: meta-cc MCP server observability metrics
+
+framework_overview:
+  name: "Prometheus-based Observability Metrics"
+  methodologies:
+    - RED: "Rate, Errors, Duration (request-driven services)"
+    - USE: "Utilization, Saturation, Errors (resource monitoring)"
+    - Four_Golden_Signals: "Latency, Traffic, Errors, Saturation"
+  library: "github.com/prometheus/client_golang/prometheus"
+  exposition: "HTTP /metrics endpoint (Prometheus format)"
+  target_overhead: "< 2%"
+  cardinality_target: "< 1000 unique time series"
+
+design_principles:
+  - principle: "Low cardinality labels"
+    description: "Avoid high-cardinality labels (request_id, user_id) to prevent metric explosion"
+    example: "Use tool_name (16 values), status (3 values), error_type (5 values)"
+
+  - principle: "Metrics complement logs"
+    description: "Metrics provide aggregated time-series data, logs provide detailed context"
+    relationship: "Metrics for alerting and trends, logs for root cause analysis"
+
+  - principle: "Standard naming conventions"
+    description: "Follow Prometheus naming best practices"
+    format: "{namespace}_{subsystem}_{metric_name}_{unit}"
+    example: "mcp_server_request_duration_seconds"
+
+  - principle: "Minimal overhead"
+    description: "Metrics collection must not impact user experience"
+    target: "< 2% CPU overhead, < 10MB memory overhead"
+
+# RED Methodology: Rate, Errors, Duration
+# Best for: Request-driven services (MCP server is request-based)
+
+red_metrics:
+  overview:
+    methodology: "RED (Rate, Errors, Duration)"
+    applicability: "HIGH - MCP server is request-driven (JSON-RPC requests)"
+    source: "Brendan Gregg, Tom Wilkie (Prometheus best practices)"
+    use_case: "Monitor service health from user perspective"
+
+  rate_metrics:
+    - name: "mcp_server_requests_total"
+      type: "Counter"
+      description: "Total number of MCP requests received"
+      labels:
+        - tool_name: "MCP tool name (query_tools, get_session_stats, etc.)"
+        - method: "JSON-RPC method (tools/call, tools/list)"
+        - status: "Request outcome (success, error, invalid)"
+      cardinality: "16 tools × 2 methods × 3 statuses = 96 series"
+      example_query: "rate(mcp_server_requests_total[5m])"
+      use_case: "Track request throughput (requests/sec)"
+
+    - name: "mcp_server_tool_calls_total"
+      type: "Counter"
+      description: "Total number of tool calls executed (subset of requests)"
+      labels:
+        - tool_name: "MCP tool name"
+        - scope: "Query scope (project, session)"
+        - status: "Execution outcome (success, error)"
+      cardinality: "16 tools × 2 scopes × 2 statuses = 64 series"
+      example_query: "rate(mcp_server_tool_calls_total{status='success'}[5m])"
+      use_case: "Track successful tool execution rate"
+
+  error_metrics:
+    - name: "mcp_server_errors_total"
+      type: "Counter"
+      description: "Total number of errors encountered"
+      labels:
+        - tool_name: "MCP tool name (or 'server' for server-level errors)"
+        - error_type: "Error classification (parse_error, io_error, validation_error, execution_error, network_error)"
+        - severity: "Error severity (fatal, error, warning)"
+      cardinality: "17 tools × 5 error_types × 3 severities = 255 series"
+      example_query: "rate(mcp_server_errors_total[5m])"
+      use_case: "Track error rate and classify errors"
+
+    - name: "mcp_server_error_rate"
+      type: "Gauge (computed from Counters)"
+      description: "Percentage of requests that resulted in errors"
+      calculation: "mcp_server_errors_total / mcp_server_requests_total × 100"
+      example_query: "sum(rate(mcp_server_errors_total[5m])) / sum(rate(mcp_server_requests_total[5m])) * 100"
+      use_case: "Alerting on error rate spikes (> 5%)"
+
+  duration_metrics:
+    - name: "mcp_server_request_duration_seconds"
+      type: "Histogram"
+      description: "Request processing duration (end-to-end)"
+      labels:
+        - tool_name: "MCP tool name"
+        - status: "Request outcome (success, error)"
+      buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0, 30.0]
+      cardinality: "16 tools × 2 statuses × 10 buckets = 320 series"
+      example_queries:
+        p50: "histogram_quantile(0.50, rate(mcp_server_request_duration_seconds_bucket[5m]))"
+        p95: "histogram_quantile(0.95, rate(mcp_server_request_duration_seconds_bucket[5m]))"
+        p99: "histogram_quantile(0.99, rate(mcp_server_request_duration_seconds_bucket[5m]))"
+      use_case: "Track latency percentiles for SLO monitoring"
+
+    - name: "mcp_server_tool_execution_duration_seconds"
+      type: "Histogram"
+      description: "Tool execution duration (excludes network/parsing)"
+      labels:
+        - tool_name: "MCP tool name"
+        - scope: "Query scope (project, session)"
+      buckets: [0.001, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0, 30.0]
+      cardinality: "16 tools × 2 scopes × 9 buckets = 288 series"
+      example_query: "histogram_quantile(0.95, rate(mcp_server_tool_execution_duration_seconds_bucket[5m]))"
+      use_case: "Identify slow tools (> 5s p95 latency)"
+
+  red_dashboards:
+    - dashboard: "RED Overview"
+      panels:
+        - "Request rate (requests/sec) by tool"
+        - "Error rate (%) over time"
+        - "P50/P95/P99 latency by tool"
+        - "Error breakdown by error_type"
+      use_case: "Service health at-a-glance"
+
+    - dashboard: "Tool Performance"
+      panels:
+        - "Top 5 slowest tools (p95 latency)"
+        - "Top 5 highest error rate tools"
+        - "Tool call rate trends (24h)"
+      use_case: "Identify performance bottlenecks"
+
+# USE Methodology: Utilization, Saturation, Errors
+# Best for: Resource monitoring (CPU, memory, I/O)
+
+use_metrics:
+  overview:
+    methodology: "USE (Utilization, Saturation, Errors)"
+    applicability: "MEDIUM - Useful for resource monitoring, less critical than RED"
+    source: "Brendan Gregg (Systems Performance)"
+    use_case: "Monitor resource health and capacity planning"
+
+  utilization_metrics:
+    - name: "mcp_server_cpu_utilization_percent"
+      type: "Gauge"
+      description: "CPU utilization of MCP server process"
+      labels: []
+      collection: "runtime.ReadMemStats() or /proc/{pid}/stat"
+      example_query: "mcp_server_cpu_utilization_percent"
+      use_case: "Track CPU usage (alert if > 80%)"
+
+    - name: "mcp_server_memory_utilization_bytes"
+      type: "Gauge"
+      description: "Memory utilization of MCP server process"
+      labels:
+        - type: "Memory type (heap, stack, total)"
+      collection: "runtime.ReadMemStats()"
+      cardinality: "3 types = 3 series"
+      example_query: "mcp_server_memory_utilization_bytes{type='heap'}"
+      use_case: "Track memory usage (alert if heap > 500MB)"
+
+    - name: "mcp_server_goroutines_active"
+      type: "Gauge"
+      description: "Number of active goroutines"
+      labels: []
+      collection: "runtime.NumGoroutine()"
+      example_query: "mcp_server_goroutines_active"
+      use_case: "Detect goroutine leaks (alert if > 1000)"
+
+    - name: "mcp_server_file_descriptors_open"
+      type: "Gauge"
+      description: "Number of open file descriptors"
+      labels: []
+      collection: "/proc/{pid}/fd/ (Linux) or equivalent"
+      example_query: "mcp_server_file_descriptors_open"
+      use_case: "Track file descriptor usage (alert if > 80% of ulimit)"
+
+  saturation_metrics:
+    - name: "mcp_server_request_queue_depth"
+      type: "Gauge"
+      description: "Number of requests waiting to be processed"
+      labels: []
+      collection: "Track pending requests in server handler"
+      example_query: "mcp_server_request_queue_depth"
+      use_case: "Detect saturation (alert if > 10 queued requests)"
+
+    - name: "mcp_server_concurrent_requests"
+      type: "Gauge"
+      description: "Number of requests currently being processed"
+      labels: []
+      collection: "Increment on request start, decrement on completion"
+      example_query: "mcp_server_concurrent_requests"
+      use_case: "Track concurrency (alert if > 50 concurrent)"
+
+    - name: "mcp_server_memory_pressure_events_total"
+      type: "Counter"
+      description: "Number of GC pressure events (frequent GC cycles)"
+      labels: []
+      collection: "Track runtime.MemStats.NumGC increases"
+      example_query: "rate(mcp_server_memory_pressure_events_total[5m])"
+      use_case: "Detect memory pressure (alert if GC rate > 10/sec)"
+
+  resource_error_metrics:
+    - name: "mcp_server_resource_errors_total"
+      type: "Counter"
+      description: "Resource-related errors (OOM, file descriptor exhaustion)"
+      labels:
+        - resource_type: "Resource that failed (memory, file_descriptors, cpu)"
+      cardinality: "3 resource types = 3 series"
+      example_query: "rate(mcp_server_resource_errors_total[5m])"
+      use_case: "Track resource exhaustion events"
+
+  use_dashboards:
+    - dashboard: "Resource Utilization"
+      panels:
+        - "CPU utilization % over time"
+        - "Memory utilization (heap/stack) over time"
+        - "Goroutines active over time"
+        - "File descriptors open over time"
+      use_case: "Monitor resource consumption"
+
+    - dashboard: "Saturation Analysis"
+      panels:
+        - "Request queue depth over time"
+        - "Concurrent requests over time"
+        - "GC pressure events rate"
+      use_case: "Detect capacity issues"
+
+# Four Golden Signals: Latency, Traffic, Errors, Saturation
+# (Subset of RED + USE, formalized by Google SRE)
+
+four_golden_signals:
+  overview:
+    methodology: "Four Golden Signals"
+    source: "Google SRE Book"
+    applicability: "HIGH - Comprehensive service health monitoring"
+    relationship_to_red_use: "Latency=Duration, Traffic=Rate, Errors=Errors, Saturation=USE Saturation"
+
+  latency:
+    description: "Time taken to service a request"
+    metrics:
+      - mcp_server_request_duration_seconds (Histogram)
+      - mcp_server_tool_execution_duration_seconds (Histogram)
+    key_queries:
+      - "p50: histogram_quantile(0.50, rate(mcp_server_request_duration_seconds_bucket[5m]))"
+      - "p95: histogram_quantile(0.95, rate(mcp_server_request_duration_seconds_bucket[5m]))"
+      - "p99: histogram_quantile(0.99, rate(mcp_server_request_duration_seconds_bucket[5m]))"
+    alerting_threshold: "p95 > 5s or p99 > 10s"
+
+  traffic:
+    description: "Demand on the service (requests per second)"
+    metrics:
+      - mcp_server_requests_total (Counter)
+      - mcp_server_tool_calls_total (Counter)
+    key_queries:
+      - "rate(mcp_server_requests_total[5m])"
+      - "sum(rate(mcp_server_tool_calls_total[5m])) by (tool_name)"
+    alerting_threshold: "Sudden drops (< 10% of baseline) or spikes (> 500% of baseline)"
+
+  errors:
+    description: "Rate of failed requests"
+    metrics:
+      - mcp_server_errors_total (Counter)
+      - mcp_server_error_rate (Gauge, computed)
+    key_queries:
+      - "rate(mcp_server_errors_total[5m])"
+      - "sum(rate(mcp_server_errors_total[5m])) / sum(rate(mcp_server_requests_total[5m])) * 100"
+    alerting_threshold: "Error rate > 5%"
+
+  saturation:
+    description: "How full the service is (capacity utilization)"
+    metrics:
+      - mcp_server_concurrent_requests (Gauge)
+      - mcp_server_request_queue_depth (Gauge)
+      - mcp_server_cpu_utilization_percent (Gauge)
+      - mcp_server_memory_utilization_bytes (Gauge)
+    key_queries:
+      - "mcp_server_concurrent_requests"
+      - "mcp_server_cpu_utilization_percent"
+      - "mcp_server_memory_utilization_bytes{type='heap'}"
+    alerting_threshold: "Concurrent requests > 50, CPU > 80%, Memory > 500MB"
+
+# Implementation Design
+
+implementation_plan:
+  library: "github.com/prometheus/client_golang v1.18+"
+  exposition_endpoint: "/metrics (HTTP handler)"
+  port: "9090 (configurable via env var METRICS_PORT)"
+
+  metric_registry:
+    approach: "Global registry (prometheus.DefaultRegisterer)"
+    initialization: "Register all metrics at startup in init() or main()"
+    namespace: "mcp_server"
+
+  metric_types:
+    counter:
+      use_case: "Cumulative counts (requests, errors)"
+      methods: "Inc(), Add(float64)"
+      example: "mcp_server_requests_total.WithLabelValues('query_tools', 'success').Inc()"
+
+    gauge:
+      use_case: "Current value (goroutines, memory, queue depth)"
+      methods: "Set(float64), Inc(), Dec(), Add(float64), Sub(float64)"
+      example: "mcp_server_concurrent_requests.Inc() // on request start, Dec() on completion"
+
+    histogram:
+      use_case: "Distribution of values (latency, size)"
+      methods: "Observe(float64)"
+      example: "mcp_server_request_duration_seconds.WithLabelValues('query_tools', 'success').Observe(duration.Seconds())"
+      buckets: "Carefully chosen to balance granularity and cardinality"
+
+    summary:
+      use_case: "Alternative to histogram (client-side quantiles)"
+      decision: "NOT USED (Histogram preferred for aggregation)"
+
+  instrumentation_points:
+    - location: "cmd/mcp-server/server.go::handleToolsCall()"
+      metrics:
+        - mcp_server_requests_total (increment on request)
+        - mcp_server_concurrent_requests (increment on start, decrement on end)
+        - mcp_server_request_duration_seconds (observe on completion)
+
+    - location: "cmd/mcp-server/executor.go::ExecuteTool()"
+      metrics:
+        - mcp_server_tool_calls_total (increment on execution)
+        - mcp_server_tool_execution_duration_seconds (observe on completion)
+        - mcp_server_errors_total (increment on error)
+
+    - location: "cmd/mcp-server/main.go::main()"
+      metrics:
+        - mcp_server_cpu_utilization_percent (background goroutine, collect every 10s)
+        - mcp_server_memory_utilization_bytes (background goroutine, collect every 10s)
+        - mcp_server_goroutines_active (background goroutine, collect every 10s)
+
+    - location: "cmd/mcp-server/server.go::handleRequest()"
+      metrics:
+        - mcp_server_errors_total (increment on parse error, validation error)
+
+  cardinality_control:
+    total_expected_series: ~800
+    breakdown:
+      - "RED Rate: 96 series (mcp_server_requests_total)"
+      - "RED Errors: 255 series (mcp_server_errors_total)"
+      - "RED Duration: 320 series (mcp_server_request_duration_seconds)"
+      - "USE Utilization: 6 series (CPU, memory, goroutines, file descriptors)"
+      - "USE Saturation: 4 series (queue depth, concurrent requests, memory pressure)"
+      - "USE Errors: 3 series (resource errors)"
+    control_measures:
+      - "NO request_id label (high cardinality)"
+      - "NO user_id label (not applicable, single user)"
+      - "Limit tool_name to 16 known tools"
+      - "Limit error_type to 5 categories"
+      - "Limit status to 3 values (success, error, invalid)"
+
+  performance_overhead:
+    target: "< 2% CPU overhead, < 10MB memory overhead"
+    approach:
+      - "Metrics collection is lock-free (atomic operations)"
+      - "Histogram buckets are pre-allocated"
+      - "Background goroutines for resource metrics (10s interval)"
+      - "No metric computation in hot path (use Prometheus queries for aggregations)"
+
+  integration_with_logging:
+    relationship: "Metrics and logs are complementary"
+    metrics_for:
+      - "Aggregated time-series data (trends, rates, percentiles)"
+      - "Alerting (threshold-based)"
+      - "Dashboards (visualization)"
+    logs_for:
+      - "Detailed context (request_id, error messages, stack traces)"
+      - "Root cause analysis (what exactly went wrong)"
+      - "Audit trail (who did what when)"
+    example_workflow:
+      1: "Alert fires: 'Error rate > 5% for query_tools' (from metrics)"
+      2: "Investigate: Query logs for error_type='parse_error' AND tool_name='query_tools' (from logs)"
+      3: "Find: Specific JSONL parsing error at line 42 in session file XYZ (from logs)"
+
+# Validation and Testing
+
+validation_plan:
+  unit_tests:
+    - "Test metric registration (no panics on duplicate registration)"
+    - "Test metric increment/observe (verify values)"
+    - "Test label values (verify cardinality)"
+
+  integration_tests:
+    - "Test /metrics endpoint (verify Prometheus format)"
+    - "Test metric collection during tool execution"
+    - "Test histogram buckets (verify correct bucket assignment)"
+
+  performance_tests:
+    - "Benchmark metric collection overhead"
+    - "Load test with metrics enabled (compare vs baseline)"
+    - "Verify < 2% CPU overhead, < 10MB memory overhead"
+
+  production_validation:
+    - "Deploy to staging with Prometheus scraper"
+    - "Verify metrics appear in Prometheus UI"
+    - "Test Grafana dashboards"
+    - "Validate alerting rules"
+
+# Migration Strategy
+
+migration_phases:
+  phase_1_foundation:
+    goal: "Set up Prometheus infrastructure"
+    duration: "Iteration 4"
+    tasks:
+      - "Add prometheus/client_golang dependency"
+      - "Create metrics registry and registration"
+      - "Implement /metrics HTTP endpoint"
+      - "Add basic RED metrics (requests_total, errors_total, request_duration_seconds)"
+      - "Test metrics exposition"
+
+  phase_2_red_completion:
+    goal: "Complete RED metrics instrumentation"
+    duration: "Iteration 4-5"
+    tasks:
+      - "Add tool_calls_total counter"
+      - "Add tool_execution_duration_seconds histogram"
+      - "Instrument all error paths with errors_total counter"
+      - "Add error classification labels"
+      - "Test RED dashboard in Grafana"
+
+  phase_3_use_metrics:
+    goal: "Add USE resource monitoring"
+    duration: "Iteration 5-6"
+    tasks:
+      - "Add CPU utilization gauge"
+      - "Add memory utilization gauge"
+      - "Add goroutines active gauge"
+      - "Add concurrent requests gauge"
+      - "Add request queue depth gauge"
+      - "Create background collection goroutine (10s interval)"
+
+  phase_4_validation:
+    goal: "Validate in production scenario"
+    duration: "Iteration 6"
+    tasks:
+      - "Deploy to staging environment"
+      - "Configure Prometheus scraper"
+      - "Create Grafana dashboards (RED overview, USE overview)"
+      - "Configure alerting rules"
+      - "Benchmark overhead (< 2% CPU, < 10MB memory)"
+
+# Expected Outcomes
+
+expected_value_impact:
+  V_coverage:
+    before: 0.45
+    after_iteration_4: 0.60
+    delta: +0.15
+    rationale: "RED metrics cover 100% of request paths, USE metrics cover resource monitoring"
+
+  V_actionability:
+    before: 0.60
+    after_iteration_4: 0.75
+    delta: +0.15
+    rationale: "Metrics enable rapid diagnosis of performance issues (slow tools, error spikes)"
+
+  V_performance:
+    before: 0.92
+    after_iteration_4: 0.90
+    delta: -0.02
+    rationale: "Metrics collection adds ~2% overhead (acceptable, within target)"
+
+  V_instance:
+    before: 0.67
+    after_iteration_4: 0.73
+    delta: +0.06
+    rationale: "Weighted average of component improvements"
+
+  V_completeness:
+    before: 0.25
+    after_iteration_3: 0.42
+    delta: +0.17
+    rationale: "RED + USE methodologies documented (2.5 of 6 patterns)"
+
+  V_effectiveness:
+    before: 0.35
+    after_iteration_3: 0.50
+    delta: +0.15
+    rationale: "Metrics methodology designed, ready for validation in iteration 4"
+
+  V_reusability:
+    before: 0.40
+    after_iteration_3: 0.60
+    delta: +0.20
+    rationale: "RED/USE patterns highly transferable to any request-driven service"
+
+  V_meta:
+    before: 0.32
+    after_iteration_3: 0.50
+    delta: +0.18
+    rationale: "Significant meta-layer progress from methodology documentation"
+
+# Summary
+
+summary:
+  total_metrics_planned: 15
+  total_series_planned: ~800
+  methodologies_applied: 3 (RED, USE, Four Golden Signals)
+  cardinality_control: "Strict (no high-cardinality labels)"
+  performance_target: "< 2% overhead"
+  implementation_library: "prometheus/client_golang"
+  exposition: "HTTP /metrics endpoint (Prometheus format)"
+  next_iteration: "Iteration 4 - Implement RED metrics (foundation + RED completion)"
+  transferability: "Very high - RED/USE applicable to any Go service"

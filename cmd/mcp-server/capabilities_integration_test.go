@@ -6,10 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/yaleh/meta-cc/internal/config"
 )
 
 // TestIntegrationMultiSourceLocal tests loading capabilities from multiple local directories
 func TestIntegrationMultiSourceLocal(t *testing.T) {
+	cfg, _ := config.Load()
 	// Create test fixtures
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
@@ -54,7 +57,7 @@ This is a test capability from the second source.
 		"_disable_cache": true,
 	}
 
-	result, err := executeListCapabilitiesTool(args)
+	result, err := executeListCapabilitiesTool(cfg, args)
 	if err != nil {
 		t.Fatalf("Failed to list capabilities: %v", err)
 	}
@@ -94,6 +97,7 @@ This is a test capability from the second source.
 
 // TestIntegrationPriorityOverride tests that same-name capabilities follow priority order
 func TestIntegrationPriorityOverride(t *testing.T) {
+	cfg, _ := config.Load()
 	// Create test fixtures
 	tmpDirHigh := t.TempDir()
 	tmpDirLow := t.TempDir()
@@ -138,7 +142,7 @@ Content from low priority source.
 		"_disable_cache": true,
 	}
 
-	result, err := executeListCapabilitiesTool(args)
+	result, err := executeListCapabilitiesTool(cfg, args)
 	if err != nil {
 		t.Fatalf("Failed to list capabilities: %v", err)
 	}
@@ -168,7 +172,7 @@ Content from low priority source.
 		"_disable_cache": true,
 	}
 
-	contentResult, err := executeGetCapabilityTool(getArgs)
+	contentResult, err := executeGetCapabilityTool(cfg, getArgs)
 	if err != nil {
 		t.Fatalf("Failed to get capability: %v", err)
 	}
@@ -188,6 +192,7 @@ Content from low priority source.
 
 // TestIntegrationCacheBehavior tests that local sources bypass cache
 func TestIntegrationCacheBehavior(t *testing.T) {
+	cfg, _ := config.Load()
 	tmpDir := t.TempDir()
 
 	// Create initial capability
@@ -211,7 +216,7 @@ category: diagnostics
 		"_disable_cache": false, // Enable cache to test local bypass
 	}
 
-	result1, err := executeListCapabilitiesTool(args1)
+	result1, err := executeListCapabilitiesTool(cfg, args1)
 	if err != nil {
 		t.Fatalf("Failed to list capabilities (first): %v", err)
 	}
@@ -251,7 +256,7 @@ category: diagnostics
 		"_disable_cache": false, // Cache enabled, but local sources bypass
 	}
 
-	result2, err := executeListCapabilitiesTool(args2)
+	result2, err := executeListCapabilitiesTool(cfg, args2)
 	if err != nil {
 		t.Fatalf("Failed to list capabilities (second): %v", err)
 	}
@@ -271,6 +276,7 @@ category: diagnostics
 
 // TestIntegrationEndToEnd tests complete workflow: list + get + content verification
 func TestIntegrationEndToEnd(t *testing.T) {
+	cfg, _ := config.Load()
 	tmpDir := t.TempDir()
 
 	// Create multiple capabilities
@@ -307,7 +313,7 @@ func TestIntegrationEndToEnd(t *testing.T) {
 		"_disable_cache": true,
 	}
 
-	listResult, err := executeListCapabilitiesTool(listArgs)
+	listResult, err := executeListCapabilitiesTool(cfg, listArgs)
 	if err != nil {
 		t.Fatalf("Failed to list capabilities: %v", err)
 	}
@@ -355,7 +361,7 @@ func TestIntegrationEndToEnd(t *testing.T) {
 			"_disable_cache": true,
 		}
 
-		contentResult, err := executeGetCapabilityTool(getArgs)
+		contentResult, err := executeGetCapabilityTool(cfg, getArgs)
 		if err != nil {
 			t.Errorf("Failed to get capability %s: %v", capData.name, err)
 			continue

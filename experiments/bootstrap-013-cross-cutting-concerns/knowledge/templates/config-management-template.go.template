@@ -1,0 +1,675 @@
+package config
+
+import (
+	"fmt"
+	"log/slog"
+	"os"
+	"strconv"
+	"strings"
+)
+
+// ============================================================================
+// SECTION 1: Config Structure
+// ============================================================================
+
+// Config holds all application configuration
+// All configuration is loaded from environment variables following 12-Factor App principles
+type Config struct {
+	// Logging configuration
+	Log LogConfig
+
+	// Output configuration
+	Output OutputConfig
+
+	// Capability configuration
+	Capability CapabilityConfig
+
+	// Session configuration (provided by Claude Code)
+	Session SessionConfig
+
+	// Cache configuration
+	Cache CacheConfig
+
+	// Network configuration
+	Network NetworkConfig
+}
+
+// LogConfig holds logging-related configuration
+type LogConfig struct {
+	// Log level for output (DEBUG, INFO, WARN, ERROR)
+	// Environment: META_CC_LOG_LEVEL
+	// Default: INFO
+	Level slog.Level
+
+	// Log format (text for development, json for production)
+	// Environment: META_CC_LOG_FORMAT
+	// Default: text
+	Format string
+
+	// Enable or disable logging entirely
+	// Environment: META_CC_LOGGING_ENABLED
+	// Default: true
+	Enabled bool
+
+	// Add source file:line to log entries
+	// Environment: META_CC_LOG_ADD_SOURCE
+	// Default: false
+	AddSource bool
+}
+
+// OutputConfig holds output-related configuration
+type OutputConfig struct {
+	// Output mode (auto, inline, file_ref)
+	// Environment: META_CC_OUTPUT_MODE
+	// Default: auto
+	Mode string
+
+	// Threshold in bytes for switching from inline to file_ref
+	// Environment: META_CC_INLINE_THRESHOLD
+	// Default: 8192 (8 KB)
+	InlineThreshold int
+
+	// Directory for output files
+	// Environment: META_CC_OUTPUT_DIR
+	// Default: (system temp directory)
+	OutputDir string
+}
+
+// CapabilityConfig holds capability source configuration
+type CapabilityConfig struct {
+	// Capability source paths (colon-separated)
+	// Environment: META_CC_CAPABILITY_SOURCES
+	// Default: (uses package from GitHub Release)
+	Sources string
+
+	// Disable capability caching
+	// Environment: META_CC_CAPABILITY_NO_CACHE
+	// Default: false
+	NoCache bool
+}
+
+// SessionConfig holds session information from Claude Code
+type SessionConfig struct {
+	// Session UUID (set by Claude Code)
+	// Environment: CC_SESSION_ID
+	// Required: Yes (when running in Claude Code)
+	SessionID string
+
+	// Project path hash (set by Claude Code)
+	// Environment: CC_PROJECT_HASH
+	// Required: Yes (when running in Claude Code)
+	ProjectHash string
+
+	// Alternative session ID (MCP server)
+	// Environment: CLAUDE_CODE_SESSION_ID
+	// Required: No
+	AlternativeSessionID string
+}
+
+// CacheConfig holds cache-related configuration
+type CacheConfig struct {
+	// Cache directory
+	// Environment: META_CC_CACHE_DIR
+	// Default: (system temp directory)
+	Dir string
+
+	// Disable all caching
+	// Environment: META_CC_NO_CACHE
+	// Default: false
+	Disabled bool
+
+	// Cache TTL in seconds
+	// Environment: META_CC_CACHE_TTL
+	// Default: 3600 (1 hour)
+	TTL int
+}
+
+// NetworkConfig holds network-related configuration
+type NetworkConfig struct {
+	// HTTP timeout in seconds
+	// Environment: META_CC_HTTP_TIMEOUT
+	// Default: 30
+	HTTPTimeout int
+
+	// Max retry attempts
+	// Environment: META_CC_MAX_RETRIES
+	// Default: 3
+	MaxRetries int
+
+	// Enable/disable TLS verification
+	// Environment: META_CC_TLS_VERIFY
+	// Default: true
+	TLSVerify bool
+}
+
+// ============================================================================
+// SECTION 2: Config Loading
+// ============================================================================
+
+// Load loads configuration from environment variables
+// Validates all configuration and returns error if invalid
+// This should be called on application startup (fail-fast)
+func Load() (*Config, error) {
+	cfg := &Config{
+		Log:        loadLogConfig(),
+		Output:     loadOutputConfig(),
+		Capability: loadCapabilityConfig(),
+		Session:    loadSessionConfig(),
+		Cache:      loadCacheConfig(),
+		Network:    loadNetworkConfig(),
+	}
+
+	// Validate configuration
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	return cfg, nil
+}
+
+// loadLogConfig loads logging configuration from environment
+func loadLogConfig() LogConfig {
+	cfg := LogConfig{
+		Level:     slog.LevelInfo, // Default
+		Format:    getEnv("META_CC_LOG_FORMAT", "text"),
+		Enabled:   getEnvBool("META_CC_LOGGING_ENABLED", true),
+		AddSource: getEnvBool("META_CC_LOG_ADD_SOURCE", false),
+	}
+
+	// Parse log level
+	if levelStr := os.Getenv("META_CC_LOG_LEVEL"); levelStr != "" {
+		cfg.Level = parseLogLevel(levelStr)
+	}
+
+	return cfg
+}
+
+// loadOutputConfig loads output configuration from environment
+func loadOutputConfig() OutputConfig {
+	return OutputConfig{
+		Mode:            getEnv("META_CC_OUTPUT_MODE", "auto"),
+		InlineThreshold: getEnvInt("META_CC_INLINE_THRESHOLD", 8192),
+		OutputDir:       getEnv("META_CC_OUTPUT_DIR", os.TempDir()),
+	}
+}
+
+// loadCapabilityConfig loads capability configuration from environment
+func loadCapabilityConfig() CapabilityConfig {
+	return CapabilityConfig{
+		Sources: os.Getenv("META_CC_CAPABILITY_SOURCES"),
+		NoCache: getEnvBool("META_CC_CAPABILITY_NO_CACHE", false),
+	}
+}
+
+// loadSessionConfig loads session configuration from environment
+func loadSessionConfig() SessionConfig {
+	return SessionConfig{
+		SessionID:            os.Getenv("CC_SESSION_ID"),
+		ProjectHash:          os.Getenv("CC_PROJECT_HASH"),
+		AlternativeSessionID: os.Getenv("CLAUDE_CODE_SESSION_ID"),
+	}
+}
+
+// loadCacheConfig loads cache configuration from environment
+func loadCacheConfig() CacheConfig {
+	return CacheConfig{
+		Dir:      getEnv("META_CC_CACHE_DIR", os.TempDir()),
+		Disabled: getEnvBool("META_CC_NO_CACHE", false),
+		TTL:      getEnvInt("META_CC_CACHE_TTL", 3600),
+	}
+}
+
+// loadNetworkConfig loads network configuration from environment
+func loadNetworkConfig() NetworkConfig {
+	return NetworkConfig{
+		HTTPTimeout: getEnvInt("META_CC_HTTP_TIMEOUT", 30),
+		MaxRetries:  getEnvInt("META_CC_MAX_RETRIES", 3),
+		TLSVerify:   getEnvBool("META_CC_TLS_VERIFY", true),
+	}
+}
+
+// ============================================================================
+// SECTION 3: Validation
+// ============================================================================
+
+// Validate validates the configuration
+// Returns error with helpful message if any config is invalid
+func (c *Config) Validate() error {
+	// Validate log configuration
+	if err := c.validateLog(); err != nil {
+		return err
+	}
+
+	// Validate output configuration
+	if err := c.validateOutput(); err != nil {
+		return err
+	}
+
+	// Validate cache configuration
+	if err := c.validateCache(); err != nil {
+		return err
+	}
+
+	// Validate network configuration
+	if err := c.validateNetwork(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateLog validates logging configuration
+func (c *Config) validateLog() error {
+	// Validate log format
+	validFormats := []string{"text", "json"}
+	if !contains(validFormats, c.Log.Format) {
+		return fmt.Errorf("invalid META_CC_LOG_FORMAT: %s (must be one of: %v)",
+			c.Log.Format, validFormats)
+	}
+
+	// Log level is validated during parsing (always valid slog.Level)
+
+	return nil
+}
+
+// validateOutput validates output configuration
+func (c *Config) validateOutput() error {
+	// Validate output mode
+	validModes := []string{"auto", "inline", "file_ref"}
+	if !contains(validModes, c.Output.Mode) {
+		return fmt.Errorf("invalid META_CC_OUTPUT_MODE: %s (must be one of: %v)",
+			c.Output.Mode, validModes)
+	}
+
+	// Validate inline threshold
+	if c.Output.InlineThreshold <= 0 {
+		return fmt.Errorf("META_CC_INLINE_THRESHOLD must be positive, got: %d",
+			c.Output.InlineThreshold)
+	}
+
+	if c.Output.InlineThreshold > 10*1024*1024 { // 10 MB limit
+		return fmt.Errorf("META_CC_INLINE_THRESHOLD too large: %d (max: 10485760)",
+			c.Output.InlineThreshold)
+	}
+
+	return nil
+}
+
+// validateCache validates cache configuration
+func (c *Config) validateCache() error {
+	// Validate TTL
+	if c.Cache.TTL < 0 {
+		return fmt.Errorf("META_CC_CACHE_TTL must be non-negative, got: %d",
+			c.Cache.TTL)
+	}
+
+	return nil
+}
+
+// validateNetwork validates network configuration
+func (c *Config) validateNetwork() error {
+	// Validate timeout
+	if c.Network.HTTPTimeout <= 0 {
+		return fmt.Errorf("META_CC_HTTP_TIMEOUT must be positive, got: %d",
+			c.Network.HTTPTimeout)
+	}
+
+	// Validate max retries
+	if c.Network.MaxRetries < 0 {
+		return fmt.Errorf("META_CC_MAX_RETRIES must be non-negative, got: %d",
+			c.Network.MaxRetries)
+	}
+
+	if c.Network.MaxRetries > 10 {
+		return fmt.Errorf("META_CC_MAX_RETRIES too large: %d (max: 10)",
+			c.Network.MaxRetries)
+	}
+
+	return nil
+}
+
+// ============================================================================
+// SECTION 4: Helper Functions
+// ============================================================================
+
+// getEnv gets environment variable with default value
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvInt gets integer environment variable with default value
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intVal, err := strconv.Atoi(value); err == nil {
+			return intVal
+		}
+		// Invalid integer, use default
+		fmt.Fprintf(os.Stderr, "Warning: invalid integer for %s: %s, using default: %d\n",
+			key, value, defaultValue)
+	}
+	return defaultValue
+}
+
+// getEnvBool gets boolean environment variable with default value
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		lower := strings.ToLower(value)
+		return lower == "true" || lower == "1" || lower == "yes" || lower == "on"
+	}
+	return defaultValue
+}
+
+// parseLogLevel converts string to slog.Level
+func parseLogLevel(levelStr string) slog.Level {
+	switch strings.ToUpper(levelStr) {
+	case "DEBUG":
+		return slog.LevelDebug
+	case "INFO":
+		return slog.LevelInfo
+	case "WARN", "WARNING":
+		return slog.LevelWarn
+	case "ERROR":
+		return slog.LevelError
+	default:
+		fmt.Fprintf(os.Stderr, "Warning: invalid log level: %s, using INFO\n", levelStr)
+		return slog.LevelInfo
+	}
+}
+
+// contains checks if slice contains item
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// ============================================================================
+// SECTION 5: Config Accessors (Convenience Methods)
+// ============================================================================
+
+// LevelString returns the string representation of log level
+func (c LogConfig) LevelString() string {
+	switch c.Level {
+	case slog.LevelDebug:
+		return "DEBUG"
+	case slog.LevelInfo:
+		return "INFO"
+	case slog.LevelWarn:
+		return "WARN"
+	case slog.LevelError:
+		return "ERROR"
+	default:
+		return "INFO"
+	}
+}
+
+// IsDebug returns true if log level is DEBUG
+func (c LogConfig) IsDebug() bool {
+	return c.Level == slog.LevelDebug
+}
+
+// ShouldUseInline returns true if output should be inline based on size
+func (c OutputConfig) ShouldUseInline(size int) bool {
+	if c.Mode == "inline" {
+		return true
+	}
+	if c.Mode == "file_ref" {
+		return false
+	}
+	// auto mode: use inline if under threshold
+	return size < c.InlineThreshold
+}
+
+// GetSessionID returns the session ID (with fallback)
+func (c SessionConfig) GetSessionID() string {
+	if c.SessionID != "" {
+		return c.SessionID
+	}
+	return c.AlternativeSessionID
+}
+
+// HasSession returns true if session ID is available
+func (c SessionConfig) HasSession() bool {
+	return c.GetSessionID() != ""
+}
+
+// ============================================================================
+// SECTION 6: Usage Example (in main.go)
+// ============================================================================
+
+/*
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/yourusername/meta-cc/internal/config"
+	"log/slog"
+)
+
+func main() {
+	// Load configuration (fail-fast on invalid config)
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Configuration error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Please check your environment variables.\n")
+		os.Exit(1)
+	}
+
+	// Initialize logger with config
+	logger := initLogger(cfg.Log)
+
+	logger.Info("application started",
+		"log_level", cfg.Log.LevelString(),
+		"log_format", cfg.Log.Format,
+		"output_mode", cfg.Output.Mode,
+		"session_id", cfg.Session.GetSessionID(),
+	)
+
+	// Use configuration throughout application
+	if cfg.Log.IsDebug() {
+		logger.Debug("debug mode enabled",
+			"cache_disabled", cfg.Cache.Disabled,
+			"max_retries", cfg.Network.MaxRetries,
+		)
+	}
+
+	// ... rest of application ...
+}
+
+func initLogger(logCfg config.LogConfig) *slog.Logger {
+	opts := &slog.HandlerOptions{
+		Level:     logCfg.Level,
+		AddSource: logCfg.AddSource,
+	}
+
+	var handler slog.Handler
+	if logCfg.Format == "json" {
+		handler = slog.NewJSONHandler(os.Stderr, opts)
+	} else {
+		handler = slog.NewTextHandler(os.Stderr, opts)
+	}
+
+	return slog.New(handler)
+}
+*/
+
+// ============================================================================
+// SECTION 7: Testing Examples
+// ============================================================================
+
+/*
+package config_test
+
+import (
+	"os"
+	"testing"
+
+	"github.com/yourusername/meta-cc/internal/config"
+)
+
+func TestConfigLoad(t *testing.T) {
+	// Test with valid config
+	os.Setenv("META_CC_LOG_LEVEL", "DEBUG")
+	os.Setenv("META_CC_LOG_FORMAT", "json")
+	defer os.Unsetenv("META_CC_LOG_LEVEL")
+	defer os.Unsetenv("META_CC_LOG_FORMAT")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Log.LevelString() != "DEBUG" {
+		t.Errorf("expected DEBUG level, got %v", cfg.Log.LevelString())
+	}
+
+	if cfg.Log.Format != "json" {
+		t.Errorf("expected json format, got %s", cfg.Log.Format)
+	}
+}
+
+func TestConfigValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     map[string]string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "valid config",
+			env:     map[string]string{"META_CC_LOG_LEVEL": "INFO"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid log format",
+			env:     map[string]string{"META_CC_LOG_FORMAT": "xml"},
+			wantErr: true,
+			errMsg:  "invalid META_CC_LOG_FORMAT",
+		},
+		{
+			name:    "invalid output mode",
+			env:     map[string]string{"META_CC_OUTPUT_MODE": "invalid"},
+			wantErr: true,
+			errMsg:  "invalid META_CC_OUTPUT_MODE",
+		},
+		{
+			name:    "negative inline threshold",
+			env:     map[string]string{"META_CC_INLINE_THRESHOLD": "-1"},
+			wantErr: true,
+			errMsg:  "must be positive",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup environment
+			for k, v := range tt.env {
+				os.Setenv(k, v)
+				defer os.Unsetenv(k)
+			}
+
+			_, err := config.Load()
+
+			if tt.wantErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+
+			if !tt.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if tt.wantErr && tt.errMsg != "" {
+				if !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("error should contain %q, got: %v", tt.errMsg, err)
+				}
+			}
+		})
+	}
+}
+
+func TestConfigDefaults(t *testing.T) {
+	// Clear all environment variables
+	os.Clearenv()
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("should load with defaults: %v", err)
+	}
+
+	// Verify defaults
+	if cfg.Log.LevelString() != "INFO" {
+		t.Errorf("default log level should be INFO, got %v", cfg.Log.LevelString())
+	}
+
+	if cfg.Log.Format != "text" {
+		t.Errorf("default log format should be text, got %s", cfg.Log.Format)
+	}
+
+	if !cfg.Log.Enabled {
+		t.Error("logging should be enabled by default")
+	}
+
+	if cfg.Output.Mode != "auto" {
+		t.Errorf("default output mode should be auto, got %s", cfg.Output.Mode)
+	}
+
+	if cfg.Output.InlineThreshold != 8192 {
+		t.Errorf("default inline threshold should be 8192, got %d", cfg.Output.InlineThreshold)
+	}
+
+	if cfg.Network.HTTPTimeout != 30 {
+		t.Errorf("default HTTP timeout should be 30, got %d", cfg.Network.HTTPTimeout)
+	}
+
+	if cfg.Network.MaxRetries != 3 {
+		t.Errorf("default max retries should be 3, got %d", cfg.Network.MaxRetries)
+	}
+}
+
+func TestConvenienceMethods(t *testing.T) {
+	cfg := &config.Config{
+		Log: config.LogConfig{
+			Level: slog.LevelDebug,
+		},
+		Output: config.OutputConfig{
+			Mode:            "auto",
+			InlineThreshold: 1000,
+		},
+		Session: config.SessionConfig{
+			SessionID: "test-session-123",
+		},
+	}
+
+	// Test IsDebug
+	if !cfg.Log.IsDebug() {
+		t.Error("IsDebug should return true for DEBUG level")
+	}
+
+	// Test ShouldUseInline
+	if !cfg.Output.ShouldUseInline(500) {
+		t.Error("should use inline for small size")
+	}
+
+	if cfg.Output.ShouldUseInline(2000) {
+		t.Error("should not use inline for large size")
+	}
+
+	// Test HasSession
+	if !cfg.Session.HasSession() {
+		t.Error("should have session")
+	}
+
+	// Test GetSessionID
+	if cfg.Session.GetSessionID() != "test-session-123" {
+		t.Errorf("unexpected session ID: %s", cfg.Session.GetSessionID())
+	}
+}
+*/

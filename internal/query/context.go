@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/analyzer"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // BuildContextQuery builds a context query for a specific error signature
 func BuildContextQuery(entries []parser.SessionEntry, errorSignature string, window int) (*ContextQuery, error) {
 	if window < 0 {
-		return nil, fmt.Errorf("window size must be non-negative")
+		return nil, fmt.Errorf("window size must be non-negative for query_context (got: %d): %w", window, mcerrors.ErrInvalidInput)
 	}
 
 	// Build turn index map

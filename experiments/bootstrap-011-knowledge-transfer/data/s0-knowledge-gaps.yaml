@@ -1,0 +1,199 @@
+---
+# Knowledge Gaps Analysis - Baseline (s₀)
+# Bootstrap-011: Knowledge Transfer Methodology
+# Date: 2025-10-17
+
+gap_categories:
+  discovery_gaps:
+    - gap_id: DISC-1
+      name: no_learning_paths
+      severity: critical
+      description: "No guided onboarding paths (day-1, week-1, month-1)"
+      current_state: "New contributors explore manually for weeks"
+      desired_state: "Structured paths reduce onboarding to days"
+      impact_areas:
+        - V_discoverability
+        - V_relevance
+      addressability: high
+      expected_improvement: 0.15
+
+    - gap_id: DISC-2
+      name: no_code_navigation
+      severity: critical
+      description: "No code map, module explorer, or architecture visualization"
+      current_state: "Manual grep/find through codebase"
+      desired_state: "Interactive code map with module relationships"
+      impact_areas:
+        - V_discoverability
+        - V_completeness
+      addressability: high
+      expected_improvement: 0.12
+
+    - gap_id: DISC-3
+      name: no_search_optimization
+      severity: medium
+      description: "Basic grep/find only, no semantic search"
+      current_state: "Text-based search, no context awareness"
+      desired_state: "Semantic search with relevance ranking"
+      impact_areas:
+        - V_discoverability
+      addressability: low
+      expected_improvement: 0.08
+
+  completeness_gaps:
+    - gap_id: COMP-1
+      name: no_expert_map
+      severity: high
+      description: "No code ownership chart or expertise directory"
+      current_state: "Unknown who knows what"
+      desired_state: "Clear ownership map via git blame analysis"
+      impact_areas:
+        - V_completeness
+      addressability: medium
+      expected_improvement: 0.10
+
+    - gap_id: COMP-2
+      name: missing_workflow_docs
+      severity: medium
+      description: "Common workflows not systematically documented"
+      current_state: "Ad-hoc workflow mentions in various docs"
+      desired_state: "Comprehensive workflow catalog"
+      impact_areas:
+        - V_completeness
+      addressability: high
+      expected_improvement: 0.08
+
+    - gap_id: COMP-3
+      name: no_code_examples
+      severity: medium
+      description: "Limited inline code examples in documentation"
+      current_state: "Mostly text-based explanations"
+      desired_state: "Code snippets for all major concepts"
+      impact_areas:
+        - V_completeness
+      addressability: high
+      expected_improvement: 0.06
+
+  relevance_gaps:
+    - gap_id: REL-1
+      name: no_role_based_docs
+      severity: high
+      description: "One-size-fits-all documentation"
+      current_state: "Same docs for contributors, users, maintainers"
+      desired_state: "Role-specific documentation paths"
+      impact_areas:
+        - V_relevance
+      addressability: high
+      expected_improvement: 0.12
+
+    - gap_id: REL-2
+      name: no_time_based_paths
+      severity: high
+      description: "No progressive disclosure (day-1 → week-1 → month-1)"
+      current_state: "All information presented equally"
+      desired_state: "Time-based learning progression"
+      impact_areas:
+        - V_relevance
+      addressability: high
+      expected_improvement: 0.10
+
+    - gap_id: REL-3
+      name: no_context_recommendations
+      severity: medium
+      description: "No context-aware doc suggestions"
+      current_state: "Users must manually find relevant docs"
+      desired_state: "AI-powered recommendations based on current task"
+      impact_areas:
+        - V_relevance
+      addressability: low
+      expected_improvement: 0.15
+
+  freshness_gaps:
+    - gap_id: FRESH-1
+      name: no_freshness_tracking
+      severity: medium
+      description: "No automated staleness detection"
+      current_state: "Manual awareness of doc age"
+      desired_state: "Automated last-updated tracking"
+      impact_areas:
+        - V_freshness
+      addressability: medium
+      expected_improvement: 0.08
+
+    - gap_id: FRESH-2
+      name: no_update_automation
+      severity: medium
+      description: "No automated doc-code sync"
+      current_state: "Manual updates when remembered"
+      desired_state: "Code changes trigger doc review"
+      impact_areas:
+        - V_freshness
+      addressability: medium
+      expected_improvement: 0.10
+
+    - gap_id: FRESH-3
+      name: no_version_docs
+      severity: low
+      description: "No versioned documentation"
+      current_state: "Single version for all releases"
+      desired_state: "Docs per version"
+      impact_areas:
+        - V_freshness
+      addressability: low
+      expected_improvement: 0.05
+
+# Gap Prioritization Matrix
+prioritization:
+  critical_high_addressability:
+    - DISC-1: no_learning_paths
+    - DISC-2: no_code_navigation
+    - REL-1: no_role_based_docs
+    - REL-2: no_time_based_paths
+
+  high_medium_addressability:
+    - COMP-1: no_expert_map
+
+  medium_high_addressability:
+    - COMP-2: missing_workflow_docs
+    - COMP-3: no_code_examples
+
+  low_priority:
+    - DISC-3: no_search_optimization
+    - REL-3: no_context_recommendations
+    - FRESH-1: no_freshness_tracking
+    - FRESH-2: no_update_automation
+    - FRESH-3: no_version_docs
+
+# Iteration 1 Focus Recommendation
+iteration_1_focus:
+  selected_gap: DISC-1
+  gap_name: no_learning_paths
+  rationale: >
+    Creating Day-1 learning path addresses the most critical pain point:
+    new contributors currently spend weeks exploring the codebase manually.
+    A structured Day-1 path can reduce this to hours/days, providing
+    immediate high-impact value. This gap has:
+    - Critical severity (affects onboarding directly)
+    - High addressability (can be created systematically)
+    - High expected improvement (ΔV ≈ 0.15)
+    - Foundation for subsequent gaps (week-1, month-1 paths follow)
+
+  secondary_gaps_addressed:
+    - REL-2: no_time_based_paths (Day-1 is first of three time-based paths)
+    - REL-1: no_role_based_docs (Day-1 path for contributor role)
+
+  expected_outcomes:
+    - V_discoverability: 0.40 → 0.50 (+0.10)
+    - V_relevance: 0.20 → 0.32 (+0.12)
+    - V_instance: 0.34 → 0.40 (+0.06)
+
+  agent_needs_assessment:
+    likely_need_specialized_agent: true
+    candidate_agent: learning-path-designer
+    rationale: >
+      Systematic learning path design requires pedagogical expertise:
+      - Understanding learning theory (progressive disclosure, scaffolding)
+      - Defining clear learning objectives per stage
+      - Sequencing concepts for optimal comprehension
+      - Creating validation checkpoints
+      Generic doc-writer lacks this specialized knowledge.

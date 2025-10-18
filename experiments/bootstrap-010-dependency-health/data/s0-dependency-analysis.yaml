@@ -1,0 +1,222 @@
+# Dependency Analysis for meta-cc Project
+# Generated: 2025-10-17 (Iteration 0 - Baseline)
+
+project:
+  name: github.com/yaleh/meta-cc
+  go_version: "1.23.1"
+  analysis_date: "2025-10-17"
+
+dependency_counts:
+  total_dependencies: 38  # Including main module
+  direct_dependencies: 4
+  indirect_dependencies: 33
+
+direct_dependencies:
+  - name: github.com/itchyny/gojq
+    version: v0.12.17
+    latest: v0.12.17
+    updated: 2024-12-01
+    status: up-to-date
+    age_days: ~320
+    category: cli-tool
+    purpose: jq query processing for MCP
+
+  - name: github.com/spf13/cobra
+    version: v1.10.1
+    latest: v1.10.1
+    updated: 2025-09-01
+    status: up-to-date
+    age_days: ~46
+    category: cli-framework
+    purpose: CLI command framework
+
+  - name: github.com/spf13/viper
+    version: v1.21.0
+    latest: v1.21.0
+    updated: 2025-09-08
+    status: up-to-date
+    age_days: ~39
+    category: config
+    purpose: Configuration management
+
+  - name: github.com/stretchr/testify
+    version: v1.11.1
+    latest: v1.11.1
+    updated: 2025-08-27
+    status: up-to-date
+    age_days: ~51
+    category: testing
+    purpose: Test assertions and mocking
+
+indirect_dependencies_summary:
+  total: 33
+  updates_available: 11
+  up_to_date: 22
+
+indirect_dependencies_with_updates:
+  - name: github.com/cpuguy83/go-md2man/v2
+    current: v2.0.6
+    latest: v2.0.7
+    type: patch
+
+  - name: github.com/itchyny/timefmt-go
+    current: v0.1.6
+    latest: v0.1.7
+    type: patch
+
+  - name: github.com/mattn/go-runewidth
+    current: v0.0.15
+    latest: v0.0.19
+    type: patch
+
+  - name: github.com/sagikazarmark/locafero
+    current: v0.11.0
+    latest: v0.12.0
+    type: minor
+
+  - name: github.com/stretchr/objx
+    current: v0.5.2
+    latest: v0.5.3
+    type: patch
+
+  - name: golang.org/x/mod
+    current: v0.26.0
+    latest: v0.29.0
+    type: patch
+
+  - name: golang.org/x/sync
+    current: v0.16.0
+    latest: v0.17.0
+    type: patch
+
+  - name: golang.org/x/sys
+    current: v0.29.0
+    latest: v0.37.0
+    type: patch
+
+  - name: golang.org/x/text
+    current: v0.28.0
+    latest: v0.30.0
+    type: patch
+
+  - name: golang.org/x/tools
+    current: v0.35.0
+    latest: v0.38.0
+    type: patch
+
+  - name: gopkg.in/check.v1
+    current: v1.0.0-20190902080502-41f04d3bba15
+    latest: v1.0.0-20201130134442-10cb98267c6c
+    type: patch
+
+very_old_dependencies:
+  - name: github.com/davecgh/go-spew
+    version: v1.1.1
+    updated: 2018-02-21
+    age_days: ~2795 # ~7.7 years
+    status: stale
+    reason: "No updates since 2018, but stable testing library"
+
+  - name: github.com/pmezard/go-difflib
+    version: v1.0.0
+    updated: 2016-01-10
+    age_days: ~3567 # ~9.8 years
+    status: stale
+    reason: "Very old, but stable diff library"
+
+  - name: github.com/kr/text
+    version: v0.2.0
+    updated: 2020-02-14
+    age_days: ~2072 # ~5.7 years
+    status: stale
+    reason: "No updates since 2020"
+
+  - name: gopkg.in/check.v1
+    version: v1.0.0-20190902080502-41f04d3bba15
+    updated: 2019-09-02
+    age_days: ~2237 # ~6.1 years
+    status: stale
+    reason: "Old testing library, minor update available"
+
+dependency_freshness_distribution:
+  very_fresh: # <3 months
+    count: 4
+    percentage: 10.5%
+    dependencies:
+      - github.com/spf13/cobra (46 days)
+      - github.com/spf13/viper (39 days)
+      - github.com/stretchr/testify (51 days)
+      - github.com/fsnotify/fsnotify (193 days - from future?)
+
+  fresh: # 3-12 months
+    count: 10
+    percentage: 26.3%
+
+  moderately_stale: # 1-2 years
+    count: 15
+    percentage: 39.5%
+
+  stale: # 2-5 years
+    count: 5
+    percentage: 13.2%
+
+  very_stale: # >5 years
+    count: 4
+    percentage: 10.5%
+
+staleness_assessment:
+  up_to_date_percent: 57.9%  # (22/38)
+  outdated_percent: 28.9%    # (11/38)
+  very_stale_percent: 13.2%  # (5/38)
+
+  # Using more aggressive staleness criteria:
+  # Fresh: <6 months = 14 deps = 36.8%
+  # Stale: 6mo-2yr = 15 deps = 39.5%
+  # Very Stale: >2yr = 9 deps = 23.7%
+
+test_status:
+  total_packages_tested: 15
+  passed: 14
+  failed: 1
+  failure_location: internal/validation
+  failure_type: "Parser test failure (index out of range)"
+  stability_concern: "Minor test failure unrelated to dependencies"
+
+security_scan_status:
+  govulncheck_installed: false
+  govulncheck_run: false
+  manual_scan_needed: true
+  note: "govulncheck binary not available - needs installation"
+
+license_scan_status:
+  go_licenses_installed: false
+  license_scan_run: false
+  manual_scan_needed: true
+  note: "License compliance checking not automated"
+
+dependency_management_maturity:
+  automated_scanning: false
+  vulnerability_monitoring: false
+  license_compliance: false
+  update_automation: false
+  dependency_review: manual
+  bloat_detection: false
+
+current_gaps:
+  - "No automated vulnerability scanning"
+  - "No license compliance checking"
+  - "No dependency freshness monitoring"
+  - "No bloat detection (unnecessary dependencies)"
+  - "No update testing automation"
+  - "11 dependencies have available updates (not applied)"
+  - "4 very stale dependencies (>5 years old)"
+  - "No dependency health dashboard"
+  - "govulncheck tool not installed"
+  - "go-licenses tool not installed"
+
+recommendations_for_iteration_1:
+  priority_1: "Install and run govulncheck for vulnerability scanning"
+  priority_2: "Apply available patch updates (11 dependencies)"
+  priority_3: "Install and run go-licenses for license compliance"
+  priority_4: "Investigate very stale dependencies (4 deps >5 years old)"
+  priority_5: "Fix failing test in internal/validation"

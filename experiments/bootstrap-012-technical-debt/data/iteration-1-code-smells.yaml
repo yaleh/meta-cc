@@ -1,0 +1,179 @@
+# Code Smell Categorization - Iteration 1
+# Date: 2025-10-17
+# Taxonomy: SQALE Code Smell Classification
+
+code_smells:
+  bloaters:
+    - type: "Long Method"
+      severity: critical
+      instances:
+        - location: "cmd/mcp-server/executor.go:139"
+          function: "buildCommand"
+          complexity: 51
+          estimated_lines: "200+"
+          debt: 4.0
+          rationale: "Extremely high complexity indicates overly long method"
+
+        - location: "internal/mcp/tools_project.go:201"
+          function: "BuildProjectLevelCommandArgs"
+          complexity: 30
+          estimated_lines: "100+"
+          debt: 2.0
+          rationale: "High complexity from long argument processing"
+
+        - location: "internal/mcp/session_tools.go:204"
+          function: "BuildCommandArgs"
+          complexity: 28
+          estimated_lines: "100+"
+          debt: 2.0
+          rationale: "Parallel to tools_project.go, similar bloat"
+
+      total_instances: 10
+      total_debt: 20.0
+      percentage_of_total: 30.3
+
+  change_preventers:
+    - type: "Shotgun Surgery Risk"
+      severity: high
+      instances:
+        - location: "MCP command builders (executor.go, tools_project.go, session_tools.go, builder.go)"
+          pattern: "Similar argument processing logic across 4 files"
+          debt: 9.0
+          rationale: "Changing argument processing requires touching multiple files"
+          risk: "High maintenance cost, consistency issues"
+
+        - location: "Query commands (query_tools.go, query_successful_prompts.go, query_conversation.go)"
+          pattern: "Similar filtering/processing patterns across 3 files"
+          debt: 6.0
+          rationale: "Query logic changes require multi-file updates"
+          risk: "Inconsistent behavior across commands"
+
+      total_instances: 2
+      total_debt: 15.0
+      percentage_of_total: 22.7
+
+  dispensables:
+    - type: "Duplicate Code"
+      severity: low
+      instances:
+        - location: "internal/filter/parser.go:34 and :55"
+          functions: "parseOr and parseAnd"
+          tokens_duplicated: 50
+          debt: 1.0
+          rationale: "Binary expression parsing pattern repetition"
+          note: "May be intentional for parser clarity"
+
+      total_instances: 1
+      total_debt: 1.0
+      percentage_of_total: 1.5
+
+  couplers:
+    - type: "Feature Envy"
+      severity: moderate
+      instances:
+        - location: "Query commands"
+          pattern: "Commands heavily couple with internal/query and internal/filter"
+          debt: 4.0
+          rationale: "Query commands may be too intimate with query internals"
+          risk: "Changes to query module ripple to commands"
+
+      total_instances: 1
+      total_debt: 4.0
+      percentage_of_total: 6.1
+
+  reliability_issues:
+    - type: "Insufficient Test Coverage"
+      severity: moderate
+      instances:
+        - location: "cmd package"
+          coverage: 57.9
+          target: 80.0
+          gap: 22.1
+          debt: 8.0
+          risk: "Regressions in CLI commands"
+
+        - location: "internal/githelper"
+          coverage: 77.2
+          target: 80.0
+          gap: 2.8
+          debt: 2.0
+          risk: "Minor coverage gap"
+
+      total_instances: 2
+      total_debt: 10.0
+      percentage_of_total: 15.2
+
+  style_issues:
+    - type: "Error String Capitalization"
+      severity: trivial
+      instances:
+        - location: "internal/locator/args.go:21:14"
+          issue: "ST1005"
+          debt: 0.5
+          rationale: "Style inconsistency"
+
+      total_instances: 1
+      total_debt: 0.5
+      percentage_of_total: 0.7
+
+summary:
+  total_smells_identified: 17
+  total_debt: 66.0
+
+  by_category:
+    bloaters: 30.3            # Largest category
+    change_preventers: 22.7   # Second largest
+    reliability_issues: 15.2
+    couplers: 6.1
+    dispensables: 1.5
+    style_issues: 0.7
+
+  top_3_smell_types:
+    - type: "Long Method (Bloaters)"
+      debt: 20.0
+      instances: 10
+      priority: 1
+
+    - type: "Shotgun Surgery Risk (Change Preventers)"
+      debt: 15.0
+      instances: 2
+      priority: 2
+
+    - type: "Insufficient Test Coverage (Reliability)"
+      debt: 10.0
+      instances: 2
+      priority: 3
+
+architectural_patterns:
+  positive:
+    - "Minimal code duplication (1.5% of debt)"
+    - "Clean static analysis (0.7% of debt)"
+    - "Well-structured module boundaries"
+
+  negative:
+    - "Complexity concentration in MCP server layer"
+    - "Parallel patterns across MCP builders suggest missing abstraction"
+    - "Query command duplication suggests missing base abstraction"
+
+refactoring_opportunities:
+  high_impact:
+    - refactoring: "Extract MCP builder base class/interface"
+      affected_files: 4
+      potential_debt_reduction: 9.0
+      difficulty: "High (requires careful abstraction)"
+
+    - refactoring: "Split buildCommand into smaller methods"
+      affected_files: 1
+      potential_debt_reduction: 2.0
+      difficulty: "Medium (preserve behavior)"
+
+    - refactoring: "Extract query command base"
+      affected_files: 3
+      potential_debt_reduction: 6.0
+      difficulty: "Medium (common patterns clear)"
+
+  medium_impact:
+    - refactoring: "Increase cmd package test coverage"
+      affected_files: "Multiple cmd/*.go"
+      potential_debt_reduction: 4.0
+      difficulty: "Medium (CLI testing complexity)"

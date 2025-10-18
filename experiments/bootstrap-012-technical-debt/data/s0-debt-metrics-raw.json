@@ -1,0 +1,140 @@
+{
+  "collection_date": "2025-10-17",
+  "iteration": 0,
+  "codebase": "meta-cc",
+  "metrics": {
+    "complexity": {
+      "tool": "gocyclo",
+      "total_functions_analyzed": 589,
+      "average_complexity": 5.4,
+      "functions_over_10": 86,
+      "functions_over_15": 25,
+      "max_complexity": 51,
+      "max_complexity_function": "(*ToolExecutor).buildCommand",
+      "max_complexity_location": "cmd/mcp-server/executor.go:139",
+      "high_complexity_threshold": 10,
+      "critical_complexity_threshold": 15,
+      "percentage_high_complexity": 14.6,
+      "notes": "86 functions exceed complexity 10; 25 exceed complexity 15"
+    },
+    "duplication": {
+      "tool": "dupl",
+      "threshold_tokens": 50,
+      "duplicates_found": 1,
+      "duplicate_blocks": 2,
+      "locations": [
+        "internal/filter/parser.go:34 (parseOr)",
+        "internal/filter/parser.go:55 (parseAnd)"
+      ],
+      "pattern": "Similar binary expression parsing logic",
+      "severity": "low",
+      "notes": "Minimal duplication - parser pattern repetition is intentional for clarity"
+    },
+    "static_analysis": {
+      "tool": "staticcheck",
+      "issues_found": 1,
+      "issues_by_severity": {
+        "error": 0,
+        "warning": 1,
+        "info": 0
+      },
+      "issues": [
+        {
+          "location": "internal/locator/args.go:21:14",
+          "code": "ST1005",
+          "message": "error strings should not be capitalized",
+          "severity": "warning",
+          "category": "style"
+        }
+      ],
+      "notes": "Very clean codebase with only 1 style issue"
+    },
+    "test_coverage": {
+      "overall_coverage": 78.1,
+      "modules": {
+        "cmd": {
+          "coverage": 57.9,
+          "status": "moderate",
+          "note": "CLI commands harder to test"
+        },
+        "cmd/mcp-server": {
+          "coverage": 78.1,
+          "status": "good"
+        },
+        "internal/analyzer": {
+          "coverage": 86.9,
+          "status": "excellent"
+        },
+        "internal/filter": {
+          "coverage": 82.1,
+          "status": "good"
+        },
+        "internal/githelper": {
+          "coverage": 77.2,
+          "status": "good"
+        },
+        "internal/locator": {
+          "coverage": 81.2,
+          "status": "good"
+        },
+        "internal/mcp": {
+          "coverage": 93.1,
+          "status": "excellent"
+        },
+        "internal/output": {
+          "coverage": 88.1,
+          "status": "excellent"
+        },
+        "internal/parser": {
+          "coverage": 82.1,
+          "status": "good"
+        },
+        "internal/query": {
+          "coverage": 92.2,
+          "status": "excellent"
+        },
+        "internal/stats": {
+          "coverage": 93.6,
+          "status": "excellent"
+        },
+        "internal/testutil": {
+          "coverage": 81.8,
+          "status": "good"
+        },
+        "internal/validation": {
+          "coverage": "FAIL",
+          "status": "failing",
+          "note": "TestParseTools_ValidFile failing"
+        },
+        "pkg/output": {
+          "coverage": 82.7,
+          "status": "good"
+        },
+        "pkg/pipeline": {
+          "coverage": 92.9,
+          "status": "excellent"
+        }
+      },
+      "target_coverage": 80.0,
+      "modules_below_target": 2,
+      "notes": "Overall coverage 78.1% is good but below 80% target; 1 failing test in validation"
+    },
+    "go_vet": {
+      "tool": "go vet",
+      "issues_found": 0,
+      "notes": "No vet warnings - clean codebase"
+    }
+  },
+  "summary": {
+    "total_production_lines": 12759,
+    "debt_indicators": {
+      "high_complexity_functions": 86,
+      "critical_complexity_functions": 25,
+      "duplicate_code_blocks": 2,
+      "static_analysis_issues": 1,
+      "modules_below_coverage_target": 2,
+      "failing_tests": 1
+    },
+    "overall_assessment": "healthy codebase with some complexity debt"
+  }
+}

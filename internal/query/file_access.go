@@ -5,13 +5,14 @@ import (
 	"sort"
 	"strings"
 
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // BuildFileAccessQuery builds a file access history query
 func BuildFileAccessQuery(entries []parser.SessionEntry, filePath string) (*FileAccessQuery, error) {
 	if filePath == "" {
-		return nil, fmt.Errorf("file path is required")
+		return nil, fmt.Errorf("file path required for query_file_access: %w", mcerrors.ErrMissingParameter)
 	}
 
 	// Build turn index

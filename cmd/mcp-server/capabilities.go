@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yaleh/meta-cc/internal/config"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"gopkg.in/yaml.v3"
 )
 
@@ -94,9 +97,19 @@ func getSessionCacheDir() (string, error) {
 		// Create cache directory within session dir
 		cacheDir := filepath.Join(sessionDir, ".meta-cc-capabilities")
 
+		slog.Debug("initializing session cache",
+			"session_id", sessionID,
+			"cache_dir", cacheDir,
+		)
+
 		// Create directory if it doesn't exist
 		if err := os.MkdirAll(cacheDir, 0755); err != nil {
-			sessionCacheInitErr = fmt.Errorf("failed to create session cache dir: %w", err)
+			slog.Error("failed to create session cache directory",
+				"cache_dir", cacheDir,
+				"error", err.Error(),
+				"error_type", "io_error",
+			)
+			sessionCacheInitErr = fmt.Errorf("failed to create session cache directory '%s': %w", cacheDir, mcerrors.ErrFileIO)
 			return
 		}
 
@@ -120,7 +133,7 @@ func CleanupSessionCache() error {
 	// Remove the entire session directory (parent of cache dir)
 	sessionDir := filepath.Dir(sessionCacheDir)
 	if err := os.RemoveAll(sessionDir); err != nil {
-		return fmt.Errorf("failed to cleanup session cache: %w", err)
+		return fmt.Errorf("failed to cleanup session cache directory '%s': %w", sessionDir, mcerrors.ErrFileIO)
 	}
 
 	return nil
@@ -255,7 +268,7 @@ func parseFrontmatter(content string) (CapabilityMetadata, error) {
 	matches := frontmatterRegex.FindStringSubmatch(content)
 
 	if len(matches) < 2 {
-		return CapabilityMetadata{}, fmt.Errorf("no frontmatter found")
+		return CapabilityMetadata{}, fmt.Errorf("capability file missing frontmatter delimiters (---): %w", mcerrors.ErrParseError)
 	}
 
 	frontmatterYAML := matches[1]
@@ -263,12 +276,12 @@ func parseFrontmatter(content string) (CapabilityMetadata, error) {
 	// Parse YAML
 	var metadata CapabilityMetadata
 	if err := yaml.Unmarshal([]byte(frontmatterYAML), &metadata); err != nil {
-		return CapabilityMetadata{}, fmt.Errorf("failed to parse frontmatter YAML: %w", err)
+		return CapabilityMetadata{}, fmt.Errorf("failed to parse capability frontmatter YAML: %w", mcerrors.ErrParseError)
 	}
 
 	// Validate required fields
 	if metadata.Name == "" {
-		return CapabilityMetadata{}, fmt.Errorf("name field is required")
+		return CapabilityMetadata{}, fmt.Errorf("capability frontmatter missing required 'name' field: %w", mcerrors.ErrParseError)
 	}
 
 	// Parse keywords from comma-separated string
@@ -293,18 +306,18 @@ func loadLocalCapabilities(path string) ([]CapabilityMetadata, error) {
 	// Check if directory exists
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to access path %s: %w", path, err)
+		return nil, fmt.Errorf("failed to access capability source path '%s': %w", path, mcerrors.ErrFileIO)
 	}
 
 	if !info.IsDir() {
-		return nil, fmt.Errorf("path %s is not a directory", path)
+		return nil, fmt.Errorf("capability source path '%s' is not a directory: %w", path, mcerrors.ErrInvalidInput)
 	}
 
 	// Find all .md files in directory
 	pattern := filepath.Join(path, "*.md")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
-		return nil, fmt.Errorf("failed to glob .md files: %w", err)
+		return nil, fmt.Errorf("failed to glob .md files in '%s': %w", path, mcerrors.ErrFileIO)
 	}
 
 	capabilities := make([]CapabilityMetadata, 0, len(matches))
@@ -358,28 +371,58 @@ func getPackageCacheDir(packageLocation string) (string, error) {
 
 // downloadPackage downloads a package from URL to destination path
 func downloadPackage(url string, destPath string) error {
+	slog.Info("downloading capability package",
+		"url", url,
+		"dest_path", destPath,
+	)
+
 	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("failed to download package: %w", err)
+		slog.Error("package download failed",
+			"url", url,
+			"error", err.Error(),
+			"error_type", "network_error",
+		)
+		return fmt.Errorf("failed to download package from '%s': %w", url, mcerrors.ErrNetworkFailure)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("download failed with status %d", resp.StatusCode)
+		slog.Error("package download returned non-200 status",
+			"url", url,
+			"status_code", resp.StatusCode,
+			"error_type", "network_error",
+		)
+		return fmt.Errorf("download failed from '%s' with HTTP status %d: %w", url, resp.StatusCode, mcerrors.ErrNetworkFailure)
 	}
 
 	// Create destination file
 	out, err := os.Create(destPath)
 	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
+		slog.Error("failed to create package file",
+			"dest_path", destPath,
+			"error", err.Error(),
+			"error_type", "io_error",
+		)
+		return fmt.Errorf("failed to create package file '%s': %w", destPath, mcerrors.ErrFileIO)
 	}
 	defer out.Close()
 
 	// Copy data
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+		slog.Error("failed to write package file",
+			"dest_path", destPath,
+			"error", err.Error(),
+			"error_type", "io_error",
+		)
+		return fmt.Errorf("failed to write package file '%s': %w", destPath, mcerrors.ErrFileIO)
 	}
+
+	slog.Info("package downloaded successfully",
+		"url", url,
+		"dest_path", destPath,
+	)
 
 	return nil
 }
@@ -389,14 +432,14 @@ func extractPackage(packagePath string, destDir string) error {
 	// Open package file
 	file, err := os.Open(packagePath)
 	if err != nil {
-		return fmt.Errorf("failed to open package: %w", err)
+		return fmt.Errorf("failed to open package file '%s': %w", packagePath, mcerrors.ErrFileIO)
 	}
 	defer file.Close()
 
 	// Create gzip reader
 	gzr, err := gzip.NewReader(file)
 	if err != nil {
-		return fmt.Errorf("failed to create gzip reader: %w", err)
+		return fmt.Errorf("failed to create gzip reader for package '%s': %w", packagePath, mcerrors.ErrFileIO)
 	}
 	defer gzr.Close()
 
@@ -410,7 +453,7 @@ func extractPackage(packagePath string, destDir string) error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("tar read error: %w", err)
+			return fmt.Errorf("tar read error while extracting package '%s': %w", packagePath, mcerrors.ErrFileIO)
 		}
 
 		// Construct destination path
@@ -420,24 +463,24 @@ func extractPackage(packagePath string, destDir string) error {
 		case tar.TypeDir:
 			// Create directory
 			if err := os.MkdirAll(target, 0755); err != nil {
-				return fmt.Errorf("failed to create directory: %w", err)
+				return fmt.Errorf("failed to create directory '%s' from package: %w", target, mcerrors.ErrFileIO)
 			}
 		case tar.TypeReg:
 			// Create parent directory
 			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-				return fmt.Errorf("failed to create parent directory: %w", err)
+				return fmt.Errorf("failed to create parent directory for '%s': %w", target, mcerrors.ErrFileIO)
 			}
 
 			// Create file
 			outFile, err := os.Create(target)
 			if err != nil {
-				return fmt.Errorf("failed to create file: %w", err)
+				return fmt.Errorf("failed to create file '%s' from package: %w", target, mcerrors.ErrFileIO)
 			}
 
 			// Copy content
 			if _, err := io.Copy(outFile, tr); err != nil {
 				outFile.Close()
-				return fmt.Errorf("failed to write file: %w", err)
+				return fmt.Errorf("failed to write file '%s' from package: %w", target, mcerrors.ErrFileIO)
 			}
 			outFile.Close()
 		}
@@ -486,7 +529,7 @@ func downloadAndExtractPackage(packageLocation string, cacheDir string) error {
 		// Local path, expand tilde
 		packagePath = expandTilde(packageLocation)
 		if _, err := os.Stat(packagePath); os.IsNotExist(err) {
-			return fmt.Errorf("package file not found: %s", packagePath)
+			return fmt.Errorf("package file not found at path '%s': %w", packagePath, mcerrors.ErrNotFound)
 		}
 	}
 
@@ -545,7 +588,7 @@ func mergeSources(sources []CapabilitySource) (CapabilityIndex, error) {
 		case SourceTypePackage:
 			capabilities, err = loadPackageCapabilities(source.Location)
 		default:
-			return nil, fmt.Errorf("unknown source type: %s", source.Type)
+			return nil, fmt.Errorf("unknown source type '%s' for location '%s': %w", source.Type, source.Location, mcerrors.ErrInvalidInput)
 		}
 
 		if err != nil {
@@ -667,9 +710,9 @@ func retryWithBackoff(operation func() error, maxRetries int) error {
 }
 
 // executeListCapabilitiesTool handles the list_capabilities MCP tool
-func executeListCapabilitiesTool(args map[string]interface{}) (string, error) {
-	// Parse sources (test override or environment variable)
-	sourcesEnv := os.Getenv("META_CC_CAPABILITY_SOURCES")
+func executeListCapabilitiesTool(cfg *config.Config, args map[string]interface{}) (string, error) {
+	// Parse sources (test override or centralized config)
+	sourcesEnv := cfg.Capability.Sources
 	if override, ok := args["_sources"].(string); ok && override != "" {
 		sourcesEnv = override
 	}
@@ -678,6 +721,9 @@ func executeListCapabilitiesTool(args map[string]interface{}) (string, error) {
 	sources := parseCapabilitySources(sourcesEnv)
 	if len(sources) == 0 {
 		// Default to GitHub Release package if no sources configured
+		slog.Debug("no capability sources configured, using default",
+			"default_source", DefaultCapabilitySource,
+		)
 		sources = []CapabilitySource{
 			{Type: SourceTypePackage, Location: DefaultCapabilitySource, Priority: 0},
 		}
@@ -689,11 +735,25 @@ func executeListCapabilitiesTool(args map[string]interface{}) (string, error) {
 		disableCache = disable
 	}
 
+	slog.Debug("listing capabilities",
+		"source_count", len(sources),
+		"disable_cache", disableCache,
+	)
+
 	// Get capability index
 	index, err := getCapabilityIndex(sources, disableCache)
 	if err != nil {
+		slog.Error("failed to get capability index",
+			"source_count", len(sources),
+			"error", err.Error(),
+			"error_type", classifyError(err),
+		)
 		return "", fmt.Errorf("failed to get capability index: %w", err)
 	}
+
+	slog.Info("capabilities listed successfully",
+		"capability_count", len(index),
+	)
 
 	// Convert to array for JSON output
 	capabilities := make([]CapabilityMetadata, 0, len(index))
@@ -749,7 +809,7 @@ func isNotFoundError(err error) bool {
 // getCapabilityContent retrieves the complete content of a capability from sources
 func getCapabilityContent(name string, sources []CapabilitySource) (string, error) {
 	if len(sources) == 0 {
-		return "", fmt.Errorf("capability not found: %s (no sources configured)", name)
+		return "", fmt.Errorf("capability '%s' not found: no sources configured: %w", name, mcerrors.ErrNotFound)
 	}
 
 	// Search sources in priority order (left-to-right = high-to-low)
@@ -765,7 +825,7 @@ func getCapabilityContent(name string, sources []CapabilitySource) (string, erro
 		case SourceTypePackage:
 			content, err = readPackageCapability(name, source.Location)
 		default:
-			return "", fmt.Errorf("unknown source type: %s", source.Type)
+			return "", fmt.Errorf("unknown source type '%s' for capability '%s' in location '%s': %w", source.Type, name, source.Location, mcerrors.ErrInvalidInput)
 		}
 
 		if err == nil {
@@ -779,7 +839,7 @@ func getCapabilityContent(name string, sources []CapabilitySource) (string, erro
 		}
 	}
 
-	return "", fmt.Errorf("capability not found: %s", name)
+	return "", fmt.Errorf("capability '%s' not found in any configured source: %w", name, mcerrors.ErrNotFound)
 }
 
 // readLocalCapability reads a capability file from local filesystem
@@ -837,7 +897,7 @@ func parseGitHubSource(location string) (GitHubSource, error) {
 		// Parse owner/repo before @
 		parts := strings.SplitN(beforeAt, "/", 2)
 		if len(parts) < 2 {
-			return result, fmt.Errorf("invalid GitHub source format: %s", location)
+			return result, fmt.Errorf("invalid GitHub source format '%s', expected 'owner/repo[@branch][/subdir]': %w", location, mcerrors.ErrParseError)
 		}
 		result.Owner = parts[0]
 		result.Repo = parts[1]
@@ -852,7 +912,7 @@ func parseGitHubSource(location string) (GitHubSource, error) {
 		// No @ symbol, default to main branch
 		parts := strings.SplitN(location, "/", 3)
 		if len(parts) < 2 {
-			return result, fmt.Errorf("invalid GitHub source format: %s", location)
+			return result, fmt.Errorf("invalid GitHub source format '%s', expected 'owner/repo[@branch][/subdir]': %w", location, mcerrors.ErrParseError)
 		}
 		result.Owner = parts[0]
 		result.Repo = parts[1]
@@ -888,7 +948,7 @@ func readGitHubCapability(name string, repo string) (string, error) {
 	// Parse GitHub source
 	source, err := parseGitHubSource(repo)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to parse GitHub source '%s': %w", repo, err)
 	}
 
 	// Build jsDelivr URL
@@ -910,11 +970,11 @@ func readGitHubCapability(name string, repo string) (string, error) {
 		}
 
 		if resp.StatusCode >= 500 {
-			return fmt.Errorf("jsDelivr returned status %d (server error)", resp.StatusCode)
+			return fmt.Errorf("jsDelivr CDN returned server error (HTTP %d) for '%s': %w", resp.StatusCode, url, mcerrors.ErrNetworkFailure)
 		}
 
 		if resp.StatusCode != 200 {
-			return fmt.Errorf("jsDelivr returned status %d", resp.StatusCode)
+			return fmt.Errorf("jsDelivr CDN returned HTTP %d for '%s': %w", resp.StatusCode, url, mcerrors.ErrNetworkFailure)
 		}
 
 		body, err := io.ReadAll(resp.Body)
@@ -948,19 +1008,22 @@ func enhanceNotFoundError(name string, source GitHubSource) error {
 	msg += "  3. Repository or subdirectory is incorrect\n"
 	msg += "\nSuggestion: Run /meta to see available capabilities"
 
-	return fmt.Errorf("%s", msg)
+	return fmt.Errorf("%s: %w", msg, mcerrors.ErrNotFound)
 }
 
 // executeGetCapabilityTool handles the get_capability MCP tool
-func executeGetCapabilityTool(args map[string]interface{}) (string, error) {
+func executeGetCapabilityTool(cfg *config.Config, args map[string]interface{}) (string, error) {
 	// Get capability name
 	name, ok := args["name"].(string)
 	if !ok || name == "" {
-		return "", fmt.Errorf("missing required parameter: name")
+		slog.Error("missing required parameter: name",
+			"error_type", "validation_error",
+		)
+		return "", fmt.Errorf("missing required parameter 'name' for get_capability tool: %w", mcerrors.ErrMissingParameter)
 	}
 
-	// Parse sources (test override or environment variable)
-	sourcesEnv := os.Getenv("META_CC_CAPABILITY_SOURCES")
+	// Parse sources (test override or centralized config)
+	sourcesEnv := cfg.Capability.Sources
 	if override, ok := args["_sources"].(string); ok && override != "" {
 		sourcesEnv = override
 	}
@@ -974,11 +1037,26 @@ func executeGetCapabilityTool(args map[string]interface{}) (string, error) {
 		}
 	}
 
+	slog.Debug("getting capability",
+		"name", name,
+		"source_count", len(sources),
+	)
+
 	// Get capability content
 	content, err := getCapabilityContent(name, sources)
 	if err != nil {
+		slog.Error("failed to get capability",
+			"name", name,
+			"error", err.Error(),
+			"error_type", classifyError(err),
+		)
 		return "", fmt.Errorf("failed to get capability: %w", err)
 	}
+
+	slog.Info("capability retrieved successfully",
+		"name", name,
+		"content_length", len(content),
+	)
 
 	// Build response (inline mode)
 	result := map[string]interface{}{

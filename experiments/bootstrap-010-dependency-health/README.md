@@ -1,8 +1,31 @@
 # Bootstrap-010: Dependency Health Management
 
-**Status**: 📋 PLANNED (Ready to Start)
+**Status**: ✅ CONVERGED (Iteration 3)
 **Priority**: HIGH (Security and Maintenance)
 **Created**: 2025-10-17
+
+[![Dependency Health](https://github.com/yaleh/meta-cc/actions/workflows/dependency-health.yml/badge.svg)](https://github.com/yaleh/meta-cc/actions/workflows/dependency-health.yml)
+
+---
+
+## Quick Start
+
+**Automated Dependency Health Checks**:
+
+```bash
+# Run all health checks locally
+./scripts/check-deps.sh
+
+# Interactive dependency update
+./scripts/update-deps.sh
+
+# Generate license file
+./scripts/generate-licenses.sh
+```
+
+**CI/CD**: Automated vulnerability scanning, license compliance, and freshness checks on every push/PR and weekly schedule.
+
+**Documentation**: See [docs/dependency-health.md](docs/dependency-health.md) for complete usage guide.
 
 ---
 

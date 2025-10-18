@@ -1,0 +1,177 @@
+---
+# Documentation Inventory - Baseline (s₀)
+# Bootstrap-011: Knowledge Transfer Methodology
+# Date: 2025-10-17
+
+inventory_summary:
+  total_markdown_files: 56
+  total_lines: 35289
+  stale_files_count: 0
+  stale_files_percentage: 0.0
+  freshness_status: excellent
+
+# Documentation Categories
+categories:
+  core_documentation:
+    - README.md
+    - CLAUDE.md
+    - CONTRIBUTING.md
+    - CHANGELOG.md
+    - LICENSE
+    - SECURITY.md
+
+  architecture_and_design:
+    - docs/proposals/meta-cognition-proposal.md
+    - docs/methodology/*.md
+    - docs/core/plan.md
+    - docs/core/principles.md
+
+  user_guides:
+    - docs/guides/mcp.md
+    - docs/guides/integration.md
+    - docs/examples-usage.md
+    - docs/troubleshooting.md
+
+  api_reference:
+    - docs/reference/cli.md
+    - docs/mcp-tools-reference.md
+    - docs/mcp-usage.md
+    - docs/mcp-output-modes.md
+
+  development_guides:
+    - docs/guides/plugin-development.md
+    - docs/guides/git-hooks.md
+    - docs/release-process.md
+    - docs/capabilities-guide.md
+
+  experiments:
+    - experiments/EXPERIMENTS-OVERVIEW.md
+    - experiments/bootstrap-001-doc-methodology/
+    - experiments/bootstrap-002-test-strategy/
+    - experiments/bootstrap-003-error-recovery/
+    - experiments/bootstrap-006-api-design/
+    - experiments/bootstrap-007-cicd-pipeline/
+    - experiments/bootstrap-008-code-review/
+
+  slash_commands:
+    - .claude/commands/meta.md
+    - .claude/commands/meta-*.md
+
+  agents:
+    - .claude/agents/meta-coach.md
+    - .claude/agents/*.md
+
+# Coverage Analysis
+coverage:
+  well_documented:
+    - CLI interface (docs/reference/cli.md)
+    - MCP server (docs/guides/mcp.md)
+    - Development workflow (CLAUDE.md)
+    - Experiments framework (experiments/*)
+    - Methodology (docs/methodology/*)
+
+  partially_documented:
+    - Code architecture (proposal exists, no detailed map)
+    - Module structure (mentioned, not mapped)
+    - Testing strategies (experiment exists, no consolidated guide)
+
+  undocumented:
+    - Onboarding paths (no day-1, week-1, month-1 guides)
+    - Code navigation (no code map, module explorer)
+    - Expert map (no contributor guide, ownership chart)
+    - Learning checklist (no progress tracking)
+    - Context-aware recommendations (no system)
+
+# Accessibility Assessment
+accessibility:
+  entry_points:
+    - README.md: "Quick start, installation"
+    - CLAUDE.md: "Development workflow, common tasks"
+    - docs/plan.md: "Detailed project plan"
+    - experiments/EXPERIMENTS-OVERVIEW.md: "Experiment catalog"
+
+  discovery_mechanisms:
+    current:
+      - manual_search: "grep, find, ripgrep"
+      - file_exploration: "ls, tree"
+      - git_log: "History exploration"
+    missing:
+      - structured_index: "No searchable index"
+      - navigation_tools: "No code map or module explorer"
+      - recommendation_system: "No context-aware suggestions"
+
+  role_based_access:
+    current_state: "One-size-fits-all documentation"
+    missing:
+      - contributor_path: "No contributor-specific onboarding"
+      - user_path: "No user-specific guides"
+      - maintainer_path: "No maintainer-specific workflows"
+
+# Gap Analysis
+gaps:
+  high_priority:
+    - id: G1
+      name: no_learning_paths
+      description: "No structured day-1, week-1, month-1 onboarding paths"
+      impact: severe
+      addressability: high
+
+    - id: G2
+      name: no_code_navigation
+      description: "No code map, module explorer, architecture visualization"
+      impact: severe
+      addressability: high
+
+    - id: G3
+      name: no_expert_map
+      description: "No code ownership chart, expertise directory"
+      impact: moderate
+      addressability: medium
+
+  medium_priority:
+    - id: G4
+      name: no_doc_code_links
+      description: "No bidirectional links between docs and code"
+      impact: moderate
+      addressability: medium
+
+    - id: G5
+      name: no_freshness_automation
+      description: "No automated staleness detection"
+      impact: low
+      addressability: medium
+
+    - id: G6
+      name: no_context_recommendations
+      description: "No personalized doc suggestions"
+      impact: moderate
+      addressability: low
+
+# Recommendations for Iteration 1
+recommendations:
+  immediate:
+    - action: create_day1_path
+      description: "Design Day-1 onboarding path for new contributors"
+      expected_benefit: "Reduce onboarding time from weeks to days"
+
+    - action: create_code_map
+      description: "Build high-level architecture map"
+      expected_benefit: "Improve code discoverability by 50%"
+
+  short_term:
+    - action: create_week1_path
+      description: "Design Week-1 deep dive path"
+      expected_benefit: "Enable productive contributions in first week"
+
+    - action: build_expert_map
+      description: "Identify code ownership via git blame"
+      expected_benefit: "Enable targeted knowledge transfer"
+
+  medium_term:
+    - action: implement_doc_code_links
+      description: "Add bidirectional documentation links"
+      expected_benefit: "Improve context-aware discovery"
+
+    - action: automate_freshness_tracking
+      description: "Implement staleness detection"
+      expected_benefit: "Maintain documentation quality over time"

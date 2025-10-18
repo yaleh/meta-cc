@@ -1,0 +1,209 @@
+# Remediation Cost Breakdown - Iteration 1
+# Date: 2025-10-17
+# Prioritized by cost and value
+
+remediation_priorities:
+  - rank: 1
+    hotspot: "cmd/mcp-server/executor.go::buildCommand"
+    smell_category: "Bloater (Long Method)"
+    current_complexity: 51
+    target_complexity: 15
+    remediation_cost: 4.0
+    percentage_of_total: 6.1
+    business_value: "High - Core MCP functionality"
+    risk_if_deferred: "Maintenance bottleneck, error-prone"
+    recommended_approach: "Split into smaller methods (command validation, argument building, command assembly)"
+    difficulty: "High"
+
+  - rank: 2
+    hotspot: "MCP builder consolidation (executor.go, tools_project.go, session_tools.go, builder.go)"
+    smell_category: "Change Preventer (Shotgun Surgery Risk)"
+    current_state: "4 files with parallel logic"
+    target_state: "Consolidated builder abstraction"
+    remediation_cost: 9.0
+    percentage_of_total: 13.6
+    business_value: "High - Reduces change cost"
+    risk_if_deferred: "Inconsistent behavior, high maintenance cost"
+    recommended_approach: "Extract common builder interface, create base implementation"
+    difficulty: "High"
+
+  - rank: 3
+    hotspot: "cmd package test coverage"
+    smell_category: "Reliability Issue (Insufficient Coverage)"
+    current_coverage: 57.9
+    target_coverage: 80.0
+    gap: 22.1
+    remediation_cost: 8.0
+    percentage_of_total: 12.1
+    business_value: "High - User-facing commands"
+    risk_if_deferred: "Regressions in CLI, user impact"
+    recommended_approach: "Add integration tests for CLI commands, mock external dependencies"
+    difficulty: "Medium"
+
+  - rank: 4
+    hotspot: "Query command consolidation (query_tools.go, query_successful_prompts.go, query_conversation.go)"
+    smell_category: "Change Preventer (Shotgun Surgery Risk)"
+    current_state: "3 files with similar patterns"
+    target_state: "Query command base abstraction"
+    remediation_cost: 6.0
+    percentage_of_total: 9.1
+    business_value: "Medium - Improves maintainability"
+    risk_if_deferred: "Query inconsistency, duplicate bugs"
+    recommended_approach: "Extract query command base, parameterize differences"
+    difficulty: "Medium"
+
+  - rank: 5
+    hotspot: "internal/mcp/tools_project.go::BuildProjectLevelCommandArgs"
+    smell_category: "Bloater (Long Method)"
+    current_complexity: 30
+    target_complexity: 15
+    remediation_cost: 2.0
+    percentage_of_total: 3.0
+    business_value: "Medium - Part of MCP builder family"
+    risk_if_deferred: "Continues bloat pattern"
+    recommended_approach: "Extract argument processing helpers"
+    difficulty: "Medium"
+
+  - rank: 6
+    hotspot: "internal/mcp/session_tools.go::BuildCommandArgs"
+    smell_category: "Bloater (Long Method)"
+    current_complexity: 28
+    target_complexity: 15
+    remediation_cost: 2.0
+    percentage_of_total: 3.0
+    business_value: "Medium - Parallel to tools_project.go"
+    risk_if_deferred: "Parallel maintenance needed"
+    recommended_approach: "Consolidate with tools_project.go or extract common logic"
+    difficulty: "Medium"
+
+  - rank: 7
+    hotspot: "cmd/query_tools.go (runQueryTools + applyToolFilters)"
+    smell_category: "Bloater (Long Method)"
+    current_complexity: 27 + 18
+    target_complexity: 15 + 15
+    remediation_cost: 2.0
+    percentage_of_total: 3.0
+    business_value: "Medium - Query functionality"
+    risk_if_deferred: "Query complexity continues"
+    recommended_approach: "Split responsibilities (parsing, filtering, output)"
+    difficulty: "Medium"
+
+  - rank: 8
+    hotspot: "internal/githelper test coverage"
+    smell_category: "Reliability Issue (Insufficient Coverage)"
+    current_coverage: 77.2
+    target_coverage: 80.0
+    gap: 2.8
+    remediation_cost: 2.0
+    percentage_of_total: 3.0
+    business_value: "Low - Small gap"
+    risk_if_deferred: "Minor"
+    recommended_approach: "Add edge case tests"
+    difficulty: "Low"
+
+  - rank: 9
+    hotspot: "internal/filter/parser.go (parseOr/parseAnd duplication)"
+    smell_category: "Dispensable (Duplicate Code)"
+    duplicated_tokens: 50
+    remediation_cost: 1.0
+    percentage_of_total: 1.5
+    business_value: "Low - Parser clarity may justify duplication"
+    risk_if_deferred: "Minimal"
+    recommended_approach: "Consider if consolidation improves or hurts clarity"
+    difficulty: "Low"
+
+  - rank: 10
+    hotspot: "internal/locator/args.go:21:14"
+    smell_category: "Style Issue (Error String Capitalization)"
+    issue: "ST1005"
+    remediation_cost: 0.5
+    percentage_of_total: 0.7
+    business_value: "Trivial - Style consistency"
+    risk_if_deferred: "None"
+    recommended_approach: "Uncapitalize error string"
+    difficulty: "Trivial"
+
+summary:
+  total_remediation_cost: 66.0
+  top_3_priorities:
+    - "MCP builder consolidation (9.0 hours, 13.6%)"
+    - "cmd test coverage (8.0 hours, 12.1%)"
+    - "executor.go::buildCommand refactoring (4.0 hours, 6.1%)"
+
+  quick_wins:
+    - hotspot: "internal/locator/args.go (error capitalization)"
+      cost: 0.5
+      difficulty: "Trivial"
+      value: "Style consistency"
+
+    - hotspot: "internal/githelper coverage"
+      cost: 2.0
+      difficulty: "Low"
+      value: "Reach 80% target"
+
+  strategic_refactorings:
+    - refactoring: "MCP builder consolidation"
+      cost: 9.0
+      impact: "Reduces future change cost by 50%+"
+      roi: "High (prevents future debt accumulation)"
+
+    - refactoring: "Query command consolidation"
+      cost: 6.0
+      impact: "Unifies query behavior, reduces bugs"
+      roi: "Medium-High"
+
+value_effort_matrix:
+  high_value_low_effort:
+    - "Fix error capitalization (0.5 hours, style consistency)"
+    - "Increase githelper coverage (2.0 hours, reach target)"
+
+  high_value_high_effort:
+    - "MCP builder consolidation (9.0 hours, architectural improvement)"
+    - "cmd test coverage (8.0 hours, prevent regressions)"
+
+  medium_value_medium_effort:
+    - "Query command consolidation (6.0 hours, maintainability)"
+    - "Refactor high-complexity functions (6.0 hours total, reduce bloat)"
+
+  low_value_low_effort:
+    - "Parser duplication removal (1.0 hours, may reduce clarity)"
+
+recommended_paydown_sequence:
+  phase_1_quick_wins:
+    duration: "1 day (0.5 hours)"
+    items:
+      - "Fix error capitalization (0.5 hours)"
+    expected_debt_reduction: 0.5
+    new_td_ratio: 15.40
+
+  phase_2_coverage_improvement:
+    duration: "2 days (10 hours)"
+    items:
+      - "Increase cmd test coverage (8.0 hours)"
+      - "Increase githelper coverage (2.0 hours)"
+    expected_debt_reduction: 10.0
+    new_td_ratio: 13.17
+
+  phase_3_complexity_reduction:
+    duration: "3 days (15 hours)"
+    items:
+      - "MCP builder consolidation (9.0 hours)"
+      - "Refactor executor.go::buildCommand (4.0 hours)"
+      - "Refactor high-complexity MCP methods (2.0 hours)"
+    expected_debt_reduction: 15.0
+    new_td_ratio: 9.64  # Achieves B rating!
+
+  phase_4_query_consolidation:
+    duration: "2 days (6 hours)"
+    items:
+      - "Query command consolidation (6.0 hours)"
+    expected_debt_reduction: 6.0
+    new_td_ratio: 8.23  # Solidly in B rating
+
+total_paydown_plan:
+  total_duration: "8 days (31.5 hours)"
+  total_debt_reduction: 31.5
+  starting_td_ratio: 15.52
+  ending_td_ratio: 8.23
+  final_sqale_rating: "B (Good)"
+  percentage_improvement: 47.7

@@ -1,0 +1,295 @@
+# Logging Instrumentation Strategy
+# Iteration: 1
+# Date: 2025-10-17
+# Target: 90% of critical paths (~270 of 300 error points + tool/query paths)
+
+instrumentation_priorities:
+  priority_1_critical_errors:
+    description: "Instrument all error handling paths (300 'if err != nil' points)"
+    target_coverage: "90% (270 of 300 error points)"
+    level: "ERROR"
+    fields_required: ["error", "error_type", "operation", "context"]
+    expected_value_impact: "+0.10 to V_actionability (error context availability)"
+    estimated_effort: "~6-8 hours (systematic error path instrumentation)"
+
+    modules:
+      - name: "cmd/mcp-server/executor.go"
+        error_points: ~80
+        priority: "CRITICAL (tool execution errors)"
+        instrumentation: "Add ERROR logs with request_id, tool_name, error, error_type"
+
+      - name: "cmd/mcp-server/capabilities.go"
+        error_points: ~60
+        priority: "HIGH (capability system errors)"
+        instrumentation: "Add ERROR logs with capability_name, error, error_type"
+
+      - name: "internal/parser/*.go"
+        error_points: ~50
+        priority: "CRITICAL (parsing errors common)"
+        instrumentation: "Add ERROR logs with file_path, line_number, error, error_type"
+
+      - name: "internal/query/*.go"
+        error_points: ~40
+        priority: "HIGH (query execution errors)"
+        instrumentation: "Add ERROR logs with query_type, error, error_type"
+
+      - name: "internal/analyzer/*.go"
+        error_points: ~30
+        priority: "MEDIUM (analysis errors)"
+        instrumentation: "Add ERROR logs with analysis_type, error"
+
+      - name: "Other modules"
+        error_points: ~40
+        priority: "MEDIUM"
+        instrumentation: "Add ERROR logs as appropriate"
+
+  priority_2_tool_execution:
+    description: "Instrument 16 MCP tool invocation paths"
+    target_coverage: "100% (all 16 tools)"
+    levels: ["INFO (start/success)", "ERROR (failure)"]
+    fields_required: ["request_id", "tool_name", "scope", "duration_ms", "status"]
+    expected_value_impact: "+0.05 to V_coverage, +0.05 to V_actionability"
+    estimated_effort: "~4 hours"
+
+    tools_to_instrument:
+      - get_session_stats
+      - query_tools
+      - query_user_messages
+      - query_context
+      - query_tool_sequences
+      - query_file_access
+      - query_project_state
+      - query_successful_prompts
+      - query_tools_advanced
+      - query_time_series
+      - query_assistant_messages
+      - query_conversation
+      - query_files
+      - cleanup_temp_files
+      - list_capabilities
+      - get_capability
+
+    instrumentation_pattern:
+      start: |
+        logger.Info("tool execution started",
+            "request_id", requestID,
+            "tool_name", toolName,
+            "scope", scope,
+        )
+
+      success: |
+        logger.Info("tool execution completed",
+            "request_id", requestID,
+            "tool_name", toolName,
+            "status", "success",
+            "duration_ms", elapsed.Milliseconds(),
+        )
+
+      failure: |
+        logger.Error("tool execution failed",
+            "request_id", requestID,
+            "tool_name", toolName,
+            "error", err.Error(),
+            "error_type", classifyError(err),
+            "duration_ms", elapsed.Milliseconds(),
+        )
+
+  priority_3_query_pipeline:
+    description: "Instrument query execution pipeline (parser → analyzer → output)"
+    target_coverage: "80% (major query paths)"
+    levels: ["DEBUG (flow)", "INFO (milestones)"]
+    fields_required: ["query_type", "record_count", "duration_ms"]
+    expected_value_impact: "+0.03 to V_coverage (query flow visibility)"
+    estimated_effort: "~3 hours"
+
+    pipeline_stages:
+      - stage: "Parser (internal/parser)"
+        instrumentation:
+          - "DEBUG: Session file parsing start/end"
+          - "INFO: Parsing completed (file_path, record_count)"
+          - "ERROR: Parsing failures (already in Priority 1)"
+
+      - stage: "Analyzer (internal/analyzer)"
+        instrumentation:
+          - "DEBUG: Analysis start/end"
+          - "INFO: Pattern detection completed (pattern_count)"
+          - "ERROR: Analysis failures"
+
+      - stage: "Query Engine (internal/query)"
+        instrumentation:
+          - "DEBUG: Query execution start"
+          - "INFO: Query completed (query_type, record_count, duration_ms)"
+          - "ERROR: Query failures (already in Priority 1)"
+
+      - stage: "Output Formatter (internal/output)"
+        instrumentation:
+          - "DEBUG: Output formatting"
+          - "INFO: Output completed (format, size_bytes)"
+
+  priority_4_server_lifecycle:
+    description: "Instrument server startup, configuration, shutdown"
+    target_coverage: "100% (lifecycle events)"
+    level: "INFO"
+    expected_value_impact: "+0.02 to V_actionability (operational visibility)"
+    estimated_effort: "~1 hour"
+
+    events:
+      - event: "Server startup"
+        instrumentation: "logger.Info('MCP server starting', 'version', version)"
+
+      - event: "Configuration loaded"
+        instrumentation: "logger.Info('configuration loaded', 'log_level', logLevel)"
+
+      - event: "Tool registry initialized"
+        instrumentation: "logger.Info('tool registry initialized', 'tool_count', len(tools))"
+
+      - event: "Server ready"
+        instrumentation: "logger.Info('MCP server ready')"
+
+      - event: "Graceful shutdown"
+        instrumentation: "logger.Info('MCP server shutting down')"
+
+coverage_targets:
+  overall_target: "90% of critical paths instrumented"
+
+  breakdown:
+    error_paths: "270 of 300 (90%) - Priority 1"
+    tool_invocations: "16 of 16 (100%) - Priority 2"
+    query_pipeline: "~80% of major paths - Priority 3"
+    server_lifecycle: "100% - Priority 4"
+
+  estimated_total_log_statements: ~400
+    - error_logs: ~270
+    - info_logs: ~100
+    - debug_logs: ~30
+
+value_function_impact:
+  V_coverage:
+    current: 0.05
+    after_iteration_1: 0.60  # 60% of critical paths instrumented
+    delta: +0.55
+    rationale: "270 error points + 16 tools + query pipeline = ~60% coverage"
+
+  V_actionability:
+    current: 0.15
+    after_iteration_1: 0.50  # Hours → 30 minutes (structured logs enable faster diagnosis)
+    delta: +0.35
+    rationale: "Structured error context reduces diagnosis time from hours to ~30 minutes"
+
+  V_performance:
+    current: 0.98
+    after_iteration_1: 0.85  # 5% overhead from logging
+    delta: -0.13
+    rationale: "Logging adds ~5% overhead (acceptable trade-off for observability)"
+
+  V_consistency:
+    current: 0.10
+    after_iteration_1: 0.70  # Structured logging with standards = 70% consistency
+    delta: +0.60
+    rationale: "Logging standards ensure consistent patterns (field names, levels, format)"
+
+  V_instance_total:
+    current: 0.28
+    after_iteration_1: 0.58
+    delta: +0.30
+    calculation: "0.3×0.60 + 0.3×0.50 + 0.2×0.85 + 0.2×0.70 = 0.18 + 0.15 + 0.17 + 0.14 = 0.64"
+    note: "Conservative estimate 0.58 (accounting for partial implementation)"
+
+implementation_sequence:
+  phase_1_infrastructure:
+    duration: "~2 hours"
+    tasks:
+      - "Initialize slog in main.go with JSONHandler"
+      - "Add LOG_LEVEL environment variable support"
+      - "Create context propagation helpers (loggerFromContext, attachLogger)"
+      - "Add request ID generation (UUID v4)"
+    deliverables:
+      - "cmd/mcp-server/logging.go (logging infrastructure)"
+      - "cmd/mcp-server/main.go (logger initialization)"
+
+  phase_2_error_instrumentation:
+    duration: "~6-8 hours"
+    tasks:
+      - "Instrument executor.go error paths (~80 points)"
+      - "Instrument capabilities.go error paths (~60 points)"
+      - "Instrument parser error paths (~50 points)"
+      - "Instrument query error paths (~40 points)"
+      - "Instrument analyzer error paths (~30 points)"
+      - "Instrument remaining error paths (~40 points)"
+    deliverables:
+      - "ERROR logs in all critical error paths"
+      - "Error classification function (classifyError)"
+
+  phase_3_tool_instrumentation:
+    duration: "~4 hours"
+    tasks:
+      - "Add INFO logging to ExecuteTool() start/success/failure"
+      - "Add request ID generation per tool call"
+      - "Add duration tracking per tool"
+      - "Add tool-specific context fields"
+    deliverables:
+      - "INFO logs for all 16 tools (start, success, failure)"
+      - "Request ID propagation through tool execution"
+
+  phase_4_query_instrumentation:
+    duration: "~3 hours"
+    tasks:
+      - "Add DEBUG/INFO logging to parser pipeline"
+      - "Add DEBUG/INFO logging to analyzer"
+      - "Add DEBUG/INFO logging to query engine"
+      - "Add DEBUG logging to output formatter"
+    deliverables:
+      - "DEBUG/INFO logs in query pipeline"
+      - "Query flow visibility"
+
+  phase_5_validation:
+    duration: "~2 hours"
+    tasks:
+      - "Run test suite with LOG_LEVEL=DEBUG (verify logs generated)"
+      - "Run integration tests with LOG_LEVEL=INFO (verify production logs)"
+      - "Parse JSON logs with jq (validate structure)"
+      - "Benchmark performance (measure overhead)"
+    deliverables:
+      - "Performance benchmark results (overhead < 5%)"
+      - "Log sample validation (jq parsing successful)"
+
+  total_estimated_effort: "17-21 hours"
+
+testing_validation:
+  unit_tests:
+    - "Verify logger initialization"
+    - "Verify context propagation"
+    - "Verify structured fields present in logs"
+
+  integration_tests:
+    - "Execute tools with LOG_LEVEL=DEBUG (capture logs)"
+    - "Parse logs with jq (validate JSON structure)"
+    - "Verify request_id propagation"
+
+  performance_tests:
+    - "Benchmark tool execution with/without logging"
+    - "Measure CPU overhead (target < 5%)"
+    - "Measure latency increase (target < 1ms per log)"
+
+  manual_validation:
+    - "Review sample logs for readability"
+    - "Verify error context is actionable"
+    - "Confirm field naming consistency"
+
+---
+
+# Instrumentation Strategy Summary
+
+**Target**: 90% of critical paths instrumented (~400 log statements)
+
+**Priorities**:
+1. Error paths (270 points) - CRITICAL for diagnosis
+2. Tool execution (16 tools) - HIGH for operational visibility
+3. Query pipeline (80% coverage) - MEDIUM for flow understanding
+4. Server lifecycle - LOW but quick wins
+
+**Expected Value Impact**: ΔV_instance +0.30 (0.28 → 0.58)
+
+**Estimated Effort**: 17-21 hours (over ~3-4 work sessions)
+
+**Validation**: Performance benchmarks, log parsing, integration tests

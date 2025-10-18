@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/parser"
 	"github.com/yaleh/meta-cc/internal/types"
 )
@@ -32,7 +33,7 @@ var BuiltinTools = map[string]bool{
 // BuildToolSequenceQuery builds a tool sequence pattern query
 func BuildToolSequenceQuery(entries []parser.SessionEntry, minOccurrences int, pattern string, includeBuiltin bool) (*ToolSequenceQuery, error) {
 	if minOccurrences < 1 {
-		return nil, fmt.Errorf("minOccurrences must be at least 1")
+		return nil, fmt.Errorf("minOccurrences must be at least 1 for query_tool_sequences (got: %d): %w", minOccurrences, mcerrors.ErrInvalidInput)
 	}
 
 	// Build turn index

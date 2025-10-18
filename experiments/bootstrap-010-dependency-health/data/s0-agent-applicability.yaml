@@ -1,0 +1,388 @@
+# Agent Applicability Assessment: Dependency Health Management
+# Iteration 0 - Baseline Establishment
+# Date: 2025-10-17
+
+# Initial Agent Set (A_0)
+initial_agent_set:
+  total_agents: 3
+  generic_agents: 3
+  specialized_agents: 0
+
+  inherited_from: "Bootstrap experiment baseline (not Bootstrap-003)"
+  note: "Only 3 generic agents inherited, not 6 as mentioned in ITERATION-PROMPTS.md"
+
+# Agent Applicability Analysis
+
+agents:
+  - name: data-analyst
+    file: agents/data-analyst.md
+    specialization: low (generic)
+    original_domain: "Error data analysis"
+
+    applicability_to_dependency_management:
+      rating: ⭐⭐⭐ (3/3 - HIGHLY APPLICABLE)
+      adaptable: true
+      direct_use: true
+
+      applicable_capabilities:
+        - "Analyze dependency metrics (counts, versions, ages)"
+        - "Calculate statistics (freshness %, staleness %, update availability)"
+        - "Identify patterns (vulnerability trends, update patterns)"
+        - "Generate distribution analyses (by category, by freshness)"
+        - "Calculate value function components (V_security, V_freshness, etc.)"
+        - "Produce data summaries and reports"
+
+      adaptation_needed:
+        - "Change focus from error data to dependency data"
+        - "Analyze JSONL from go list instead of error logs"
+        - "Calculate dependency-specific metrics instead of error rates"
+        - "But core analytical capabilities directly applicable"
+
+      limitations:
+        - "Generic: lacks specialized Go module knowledge"
+        - "Cannot parse go.mod syntax (needs specialized agent)"
+        - "Cannot build dependency graphs (needs domain expertise)"
+        - "Cannot assess vulnerability severity (needs security expertise)"
+
+      use_in_iteration_0:
+        used: true
+        tasks:
+          - "Analyze dependency counts (direct vs indirect)"
+          - "Calculate freshness distribution"
+          - "Assess staleness metrics"
+          - "Calculate V_instance(s0) components"
+          - "Generate dependency analysis report"
+
+      future_use:
+        likely: true
+        tasks:
+          - "Analyze vulnerability scan results"
+          - "Track dependency update metrics over time"
+          - "Calculate improvement in V_instance across iterations"
+          - "Generate statistical summaries for methodology"
+
+  - name: doc-writer
+    file: agents/doc-writer.md
+    specialization: low (generic)
+    original_domain: "Error handling documentation"
+
+    applicability_to_dependency_management:
+      rating: ⭐⭐⭐ (3/3 - HIGHLY APPLICABLE)
+      adaptable: true
+      direct_use: true
+
+      applicable_capabilities:
+        - "Write iteration reports (iteration-N.md)"
+        - "Document state transitions (s_{n-1} → s_n)"
+        - "Create technical documentation (procedures, guides)"
+        - "Explain metrics and calculations"
+        - "Document methodology patterns"
+        - "Format structured markdown"
+
+      adaptation_needed:
+        - "Change focus from error handling to dependency management"
+        - "Document dependency health instead of error recovery"
+        - "But core documentation capabilities directly applicable"
+
+      limitations:
+        - "Generic: lacks specialized dependency domain knowledge"
+        - "Cannot create dependency taxonomies (needs domain expertise)"
+        - "Cannot design update strategies (needs security expertise)"
+        - "Cannot write code or automation (use coder agent)"
+
+      use_in_iteration_0:
+        used: true
+        tasks:
+          - "Create iteration-0.md (baseline documentation)"
+          - "Document M_0 and A_0 states"
+          - "Explain V_instance(s0) and V_meta(s0) calculations"
+          - "Document identified gaps"
+          - "Write data artifact descriptions"
+
+      future_use:
+        likely: true
+        tasks:
+          - "Document vulnerability assessment frameworks"
+          - "Write update decision criteria"
+          - "Create license compliance policies"
+          - "Document methodology patterns"
+          - "Write iteration reports for all iterations"
+
+  - name: coder
+    file: agents/coder.md
+    specialization: low (generic)
+    original_domain: "Error handling tools"
+
+    applicability_to_dependency_management:
+      rating: ⭐⭐ (2/3 - MODERATELY APPLICABLE)
+      adaptable: true
+      direct_use: true_but_limited
+
+      applicable_capabilities:
+        - "Write automation scripts (dependency scanning, updating)"
+        - "Create data processing tools (parse go list output)"
+        - "Implement CI/CD integration (GitHub Actions workflows)"
+        - "Write test automation (compatibility testing)"
+        - "Generate utilities (bloat detection scripts)"
+
+      adaptation_needed:
+        - "Change focus from error tools to dependency tools"
+        - "Implement dependency-specific utilities"
+        - "But core coding capabilities directly applicable"
+
+      limitations:
+        - "Generic: lacks specialized Go modules knowledge"
+        - "Cannot design dependency update algorithms (needs domain expertise)"
+        - "Cannot assess vulnerability remediation strategies (needs security expertise)"
+        - "Cannot perform data analysis (use data-analyst)"
+        - "Cannot write documentation (use doc-writer)"
+
+      use_in_iteration_0:
+        used: false
+        reason: "No coding tasks in baseline establishment"
+
+      future_use:
+        likely: true
+        tasks:
+          - "Write govulncheck automation script"
+          - "Create dependency update workflow"
+          - "Implement license scanning automation"
+          - "Build bloat detection tool"
+          - "Create CI/CD integration scripts"
+          - "Write compatibility testing automation"
+
+# Specialized Agents Assessment
+
+specialized_agents_needed:
+  assessment: "YES - Domain-specific expertise required"
+
+  likely_needed_agents:
+    - name: dependency-analyzer
+      iteration: 1
+      priority: HIGH
+      reason: "Generic agents insufficient for Go module analysis"
+
+      capabilities_needed:
+        - "Parse go.mod and go.sum files"
+        - "Build dependency graph (direct → transitive)"
+        - "Analyze dependency relationships"
+        - "Identify dependency bloat"
+        - "Extract dependency metadata"
+
+      why_generic_insufficient:
+        data_analyst: "Cannot parse Go module syntax"
+        coder: "Lacks domain knowledge for proper analysis"
+        needed: "Go modules domain expertise + graph analysis"
+
+      expected_value_impact:
+        V_instance: "+0.05 to +0.10"
+        rationale: "Better dependency understanding → better update decisions"
+
+    - name: vulnerability-scanner
+      iteration: 1-2
+      priority: CRITICAL
+      reason: "Security expertise and CVE database integration required"
+
+      capabilities_needed:
+        - "Run govulncheck and interpret results"
+        - "Query GitHub Advisory Database, OSV, NVD"
+        - "Assess vulnerability severity (CVSS scores)"
+        - "Map vulnerabilities to packages"
+        - "Prioritize remediation based on exploitability"
+        - "Generate vulnerability reports"
+
+      why_generic_insufficient:
+        data_analyst: "Lacks security domain expertise"
+        coder: "Cannot assess vulnerability impact"
+        needed: "Security vulnerability expertise + API integration knowledge"
+
+      expected_value_impact:
+        V_security: "+0.40 to +0.50"
+        rationale: "From unknown (0.50) to scanned and assessed (0.90-1.00)"
+
+    - name: update-advisor
+      iteration: 2-3
+      priority: HIGH
+      reason: "Safe update strategy and compatibility testing expertise needed"
+
+      capabilities_needed:
+        - "Recommend safe upgrade paths"
+        - "Assess breaking change risk"
+        - "Design update strategies (patch vs minor vs major)"
+        - "Plan incremental updates"
+        - "Test dependency compatibility"
+        - "Validate update safety"
+
+      why_generic_insufficient:
+        data_analyst: "Cannot assess upgrade safety"
+        coder: "Lacks update strategy expertise"
+        needed: "Semantic versioning + compatibility testing expertise"
+
+      expected_value_impact:
+        V_freshness: "+0.10 to +0.20"
+        V_stability: "+0.05"
+        rationale: "Safe updates improve freshness without breaking stability"
+
+    - name: license-checker
+      iteration: 2-3
+      priority: MEDIUM
+      reason: "License compliance and SPDX expertise needed"
+
+      capabilities_needed:
+        - "Run go-licenses and extract SPDX identifiers"
+        - "Assess license compatibility"
+        - "Detect license conflicts"
+        - "Generate compliance reports"
+        - "Recommend policy enforcement"
+
+      why_generic_insufficient:
+        data_analyst: "Lacks license law knowledge"
+        coder: "Cannot assess license compatibility"
+        needed: "SPDX + license compatibility expertise"
+
+      expected_value_impact:
+        V_license: "+0.35 to +0.45"
+        rationale: "From unknown (0.50) to compliant (0.85-0.95)"
+
+    - name: bloat-detector
+      iteration: 3-4
+      priority: LOW
+      reason: "Dependency optimization and import analysis needed"
+
+      capabilities_needed:
+        - "Analyze import usage across codebase"
+        - "Detect unused dependencies"
+        - "Identify duplicate dependencies in tree"
+        - "Calculate dependency weight/size"
+        - "Recommend dependency removal"
+
+      why_generic_insufficient:
+        data_analyst: "Cannot analyze import usage"
+        coder: "Lacks optimization expertise"
+        needed: "Go import analysis + dependency optimization knowledge"
+
+      expected_value_impact:
+        V_freshness: "+0.05"
+        rationale: "Removing bloat slightly improves freshness score"
+
+    - name: compatibility-tester
+      iteration: 3-4
+      priority: MEDIUM
+      reason: "Systematic testing and validation expertise needed"
+
+      capabilities_needed:
+        - "Run test suite before/after updates"
+        - "Detect breaking changes introduced by updates"
+        - "Validate rollback procedures"
+        - "Test integration compatibility"
+        - "Generate compatibility reports"
+
+      why_generic_insufficient:
+        coder: "Can run tests but lacks testing strategy expertise"
+        needed: "Testing strategy + compatibility validation expertise"
+
+      expected_value_impact:
+        V_stability: "+0.05"
+        rationale: "Systematic testing maintains high stability during updates"
+
+# Agent Creation Criteria Assessment
+
+should_create_specialized_agents:
+  decision: YES_BUT_NOT_IN_ITERATION_0
+  reason: "Generic agents sufficient for baseline establishment"
+
+  iteration_0_work:
+    tasks:
+      - "Collect dependency data (go list, go mod graph)"
+      - "Analyze dependency counts and versions"
+      - "Calculate baseline metrics"
+      - "Identify gaps"
+      - "Document baseline state"
+
+    agent_sufficiency:
+      data_analyst: sufficient
+      doc_writer: sufficient
+      coder: not_needed
+
+  iteration_1_needs:
+    tasks:
+      - "Install and run govulncheck"
+      - "Parse go.mod and build dependency graph"
+      - "Apply dependency updates"
+      - "Run license scanning"
+
+    agent_sufficiency:
+      generic_agents: insufficient
+      reason: "Domain expertise needed for vulnerability analysis and Go module parsing"
+
+    recommended_creations:
+      - dependency-analyzer (NEEDED)
+      - vulnerability-scanner (NEEDED)
+
+  evolution_trigger:
+    condition: "When generic_agents_failed OR inefficient"
+    M.plan: "Will assess in Iteration 1 planning phase"
+    M.evolve: "Will create agents based on need, not predetermined plan"
+
+# Expected Agent Evolution Path
+
+expected_evolution:
+  iteration_0:
+    A_0: [data-analyst, doc-writer, coder]
+    new_agents: []
+    total: 3
+
+  iteration_1:
+    A_1: [data-analyst, doc-writer, coder, dependency-analyzer, vulnerability-scanner]
+    new_agents: [dependency-analyzer, vulnerability-scanner]
+    total: 5
+    reason: "Go module parsing + vulnerability scanning require specialization"
+
+  iteration_2:
+    A_2: [... + update-advisor, license-checker]
+    new_agents: [update-advisor, license-checker]
+    total: 7
+    reason: "Safe update strategies + license compliance need expertise"
+
+  iteration_3:
+    A_3: [... + bloat-detector, compatibility-tester]
+    new_agents: [bloat-detector, compatibility-tester]
+    total: 9
+    reason: "Optimization + systematic testing need specialization"
+
+  final:
+    A_N: 9 agents (3 generic + 6 specialized)
+    specialization_ratio: 66.7%
+
+  note: "This is expected path, not predetermined. Actual evolution driven by needs."
+
+# Comparison to Other Experiments
+
+comparison:
+  bootstrap_001_doc_methodology:
+    initial_agents: 3 (data-analyst, doc-writer, coder)
+    final_agents: 6 (+ 3 specialized)
+    specialization_ratio: 50%
+
+  bootstrap_010_expected:
+    initial_agents: 3 (same)
+    final_agents: 9 (+ 6 specialized)
+    specialization_ratio: 66.7%
+    reason: "Dependency management more complex domain than documentation"
+
+# Summary
+
+summary:
+  generic_agents_sufficient_for_iteration_0: true
+  specialized_agents_will_be_needed: true
+  earliest_specialization: iteration_1
+
+  highest_priority_specializations:
+    1: vulnerability-scanner (CRITICAL for V_security)
+    2: dependency-analyzer (HIGH for proper analysis)
+    3: update-advisor (HIGH for safe updates)
+
+  generic_agent_utilization:
+    data_analyst: "HIGH (all iterations)"
+    doc_writer: "HIGH (all iterations)"
+    coder: "MEDIUM (automation tasks)"

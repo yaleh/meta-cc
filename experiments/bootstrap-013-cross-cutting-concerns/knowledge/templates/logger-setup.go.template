@@ -1,0 +1,86 @@
+package example
+
+import (
+	"io"
+	"log/slog"
+	"os"
+)
+
+// Package-level logger
+var log *slog.Logger
+
+func init() {
+	log = createLogger()
+}
+
+// createLogger initializes a structured logger with environment-based configuration
+func createLogger() *slog.Logger {
+	// Check if logging is disabled
+	if os.Getenv("META_CC_LOGGING_ENABLED") == "false" {
+		// Return a logger that discards all output
+		return slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+
+	// Parse log level from environment (default: INFO)
+	level := parseLogLevel(os.Getenv("META_CC_LOG_LEVEL"))
+
+	// Parse log format from environment (default: text)
+	format := os.Getenv("META_CC_LOG_FORMAT")
+
+	// Create appropriate handler
+	handler := createHandler(level, format)
+
+	return slog.New(handler)
+}
+
+// parseLogLevel converts string to slog.Level
+func parseLogLevel(levelStr string) slog.Level {
+	switch levelStr {
+	case "DEBUG":
+		return slog.LevelDebug
+	case "INFO":
+		return slog.LevelInfo
+	case "WARN":
+		return slog.LevelWarn
+	case "ERROR":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo // Default level
+	}
+}
+
+// createHandler creates the appropriate log handler based on format
+func createHandler(level slog.Level, format string) slog.Handler {
+	opts := &slog.HandlerOptions{
+		Level: level,
+	}
+
+	// Always log to stderr (stdout is for data output)
+	output := os.Stderr
+
+	// JSON format for production, text for development
+	if format == "json" {
+		return slog.NewJSONHandler(output, opts)
+	}
+	return slog.NewTextHandler(output, opts)
+}
+
+// Example usage in your package:
+//
+// func ProcessData(input string) error {
+//     log.Info("starting data processing", "input", input)
+//
+//     if err := validate(input); err != nil {
+//         log.Error("validation failed", "input", input, "error", err)
+//         return err
+//     }
+//
+//     log.Debug("validation passed", "input", input)
+//
+//     // ... processing logic ...
+//
+//     log.Info("data processing completed",
+//         "input", input,
+//         "results_count", len(results))
+//     return nil
+// }

@@ -4,7 +4,38 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/yaleh/meta-cc/internal/config"
 )
+
+// Helper function to create test config
+// Returns nil if config validation fails (for invalid env vars test cases)
+func getTestConfig() *config.Config {
+	cfg, err := config.Load()
+	if err != nil {
+		// Return a default config when validation fails
+		// This allows testing invalid values where config.Load() would fail
+		return &config.Config{
+			Log: config.LogConfig{
+				Level:   0, // slog.LevelInfo
+				Format:  "text",
+				Enabled: true,
+			},
+			Output: config.OutputConfig{
+				Mode:            "auto",
+				InlineThreshold: 8192,
+			},
+			Capability: config.CapabilityConfig{
+				Sources: "",
+			},
+			Session: config.SessionConfig{
+				SessionID:   "",
+				ProjectHash: "",
+			},
+		}
+	}
+	return cfg
+}
 
 // TestCalculateOutputSize verifies JSONL byte counting for various data types
 func TestCalculateOutputSize(t *testing.T) {
@@ -248,9 +279,10 @@ func abs(x int) int {
 
 // TestGetOutputModeConfigDefault verifies default 8KB threshold
 func TestGetOutputModeConfigDefault(t *testing.T) {
+	testCfg := getTestConfig()
 	params := map[string]interface{}{}
 
-	config := getOutputModeConfig(params)
+	config := getOutputModeConfig(testCfg, params)
 
 	if config.InlineThresholdBytes != 8*1024 {
 		t.Errorf("getOutputModeConfig() default threshold = %d, want %d", config.InlineThresholdBytes, 8*1024)
@@ -289,7 +321,8 @@ func TestGetOutputModeConfigParameter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := getOutputModeConfig(tt.params)
+			testCfg := getTestConfig()
+			config := getOutputModeConfig(testCfg, tt.params)
 
 			if config.InlineThresholdBytes != tt.wantBytes {
 				t.Errorf("getOutputModeConfig() threshold = %d, want %d", config.InlineThresholdBytes, tt.wantBytes)
@@ -334,12 +367,14 @@ func TestGetOutputModeConfigEnvironment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set environment variable
+			// Set environment variable BEFORE loading config
 			os.Setenv("META_CC_INLINE_THRESHOLD", tt.envValue)
 			defer os.Unsetenv("META_CC_INLINE_THRESHOLD")
 
+			// Load config AFTER setting env var
+			testCfg := getTestConfig()
 			params := map[string]interface{}{}
-			config := getOutputModeConfig(params)
+			config := getOutputModeConfig(testCfg, params)
 
 			if config.InlineThresholdBytes != tt.wantBytes {
 				t.Errorf("getOutputModeConfig() with env=%s threshold = %d, want %d", tt.envValue, config.InlineThresholdBytes, tt.wantBytes)
@@ -350,10 +385,6 @@ func TestGetOutputModeConfigEnvironment(t *testing.T) {
 
 // TestConfigPriority verifies parameter > env var > default priority
 func TestConfigPriority(t *testing.T) {
-	// Set environment variable to 4KB
-	os.Setenv("META_CC_INLINE_THRESHOLD", "4096")
-	defer os.Unsetenv("META_CC_INLINE_THRESHOLD")
-
 	tests := []struct {
 		name      string
 		params    map[string]interface{}
@@ -375,7 +406,13 @@ func TestConfigPriority(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := getOutputModeConfig(tt.params)
+			// Set environment variable BEFORE loading config
+			os.Setenv("META_CC_INLINE_THRESHOLD", "4096")
+			defer os.Unsetenv("META_CC_INLINE_THRESHOLD")
+
+			// Load config AFTER setting env var
+			testCfg := getTestConfig()
+			config := getOutputModeConfig(testCfg, tt.params)
 
 			if config.InlineThresholdBytes != tt.wantBytes {
 				t.Errorf("getOutputModeConfig() threshold = %d, want %d (priority test)", config.InlineThresholdBytes, tt.wantBytes)

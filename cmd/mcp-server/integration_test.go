@@ -8,24 +8,25 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/yaleh/meta-cc/internal/config"
 )
 
 // TestQueryToolsInlineMode tests small result sets use inline mode
 func TestQueryToolsInlineMode(t *testing.T) {
+	cfg, _ := config.Load()
 	// Simulate small query result (<8KB)
 	data := make([]interface{}, 0, 50)
 	for i := 0; i < 50; i++ {
 		data = append(data, map[string]interface{}{
-			"Timestamp": "2025-10-06T10:00:00Z",
-			"ToolName":  "Read",
-			"Status":    "success",
-			"Index":     i,
+			"tool":   "Read",
+			"status": "success",
+			"index":  i,
 		})
 	}
-
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -60,6 +61,7 @@ func TestQueryToolsInlineMode(t *testing.T) {
 
 // TestQueryToolsFileRefMode tests large result sets use file_ref mode
 func TestQueryToolsFileRefMode(t *testing.T) {
+	cfg, _ := config.Load()
 	// Generate large dataset (>8KB, ~250KB)
 	data := make([]interface{}, 0, 5000)
 	longString := strings.Repeat("test-data-padding-", 20) // 360 chars to ensure >8KB
@@ -76,7 +78,7 @@ func TestQueryToolsFileRefMode(t *testing.T) {
 
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -216,6 +218,7 @@ func TestCleanupTempFilesE2E(t *testing.T) {
 
 // TestMultipleQueriesConcurrent tests concurrent file writes are race-free
 func TestMultipleQueriesConcurrent(t *testing.T) {
+	cfg, _ := config.Load()
 	numGoroutines := 10
 	data := make([]interface{}, 100)
 	for i := 0; i < 100; i++ {
@@ -238,7 +241,7 @@ func TestMultipleQueriesConcurrent(t *testing.T) {
 				"output_mode": "file_ref", // Force file_ref mode
 			}
 
-			response, err := adaptResponse(data, params, "query_tools")
+			response, err := adaptResponse(cfg, data, params, "query_tools")
 			if err != nil {
 				errors <- err
 				return
@@ -273,6 +276,7 @@ func TestMultipleQueriesConcurrent(t *testing.T) {
 
 // TestFileRefWithReadToolSimulation simulates Claude reading generated file
 func TestFileRefWithReadToolSimulation(t *testing.T) {
+	cfg, _ := config.Load()
 	// Generate large dataset
 	data := make([]interface{}, 1000)
 	for i := 0; i < 1000; i++ {
@@ -287,7 +291,7 @@ func TestFileRefWithReadToolSimulation(t *testing.T) {
 	params := map[string]interface{}{}
 
 	// Execute query (should create file_ref)
-	response, err := adaptResponse(data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -358,7 +362,7 @@ func BenchmarkLargeQueryFileWrite(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		response, err := adaptResponse(data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_tools")
 		if err != nil {
 			b.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -389,6 +393,7 @@ func BenchmarkModeSelection(b *testing.B) {
 
 // TestQueryToolsNoLimit verifies no-limit queries return all results via file_ref
 func TestQueryToolsNoLimit(t *testing.T) {
+	cfg, _ := config.Load()
 	// Generate large dataset (1000 records)
 	data := make([]interface{}, 1000)
 	for i := 0; i < 1000; i++ {
@@ -403,7 +408,7 @@ func TestQueryToolsNoLimit(t *testing.T) {
 	// No limit parameter - should return all results
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -452,6 +457,7 @@ func TestQueryToolsNoLimit(t *testing.T) {
 
 // TestNoTruncationLargeData verifies no truncation occurs with 100KB+ data
 func TestNoTruncationLargeData(t *testing.T) {
+	cfg, _ := config.Load()
 	// Generate 100KB+ dataset
 	data := make([]interface{}, 2000)
 	longString := strings.Repeat("x", 100) // 100 chars per record
@@ -467,7 +473,7 @@ func TestNoTruncationLargeData(t *testing.T) {
 
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -529,6 +535,7 @@ func TestNoTruncationLargeData(t *testing.T) {
 
 // TestConfigurableThresholdParameter tests inline_threshold_bytes parameter
 func TestConfigurableThresholdParameter(t *testing.T) {
+	cfg, _ := config.Load()
 	// Generate dataset around 10KB (small enough for 20KB threshold, too large for 8KB)
 	data := make([]interface{}, 100)
 	for i := 0; i < 100; i++ {
@@ -544,7 +551,7 @@ func TestConfigurableThresholdParameter(t *testing.T) {
 	// Test 1: Default threshold (8KB) - should use file_ref
 	t.Run("default_threshold", func(t *testing.T) {
 		params := map[string]interface{}{}
-		response, err := adaptResponse(data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_tools")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -572,7 +579,7 @@ func TestConfigurableThresholdParameter(t *testing.T) {
 		params := map[string]interface{}{
 			"inline_threshold_bytes": 20 * 1024, // 20KB
 		}
-		response, err := adaptResponse(data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_tools")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -593,7 +600,7 @@ func TestConfigurableThresholdParameter(t *testing.T) {
 		params := map[string]interface{}{
 			"inline_threshold_bytes": 1024, // 1KB
 		}
-		response, err := adaptResponse(data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_tools")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -636,8 +643,11 @@ func TestConfigurableThresholdEnvironment(t *testing.T) {
 		os.Setenv("META_CC_INLINE_THRESHOLD", "20480") // 20KB
 		defer os.Unsetenv("META_CC_INLINE_THRESHOLD")
 
+		// Reload config to pick up environment variable
+		cfg, _ := config.Load()
+
 		params := map[string]interface{}{}
-		response, err := adaptResponse(data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_tools")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -658,10 +668,13 @@ func TestConfigurableThresholdEnvironment(t *testing.T) {
 		os.Setenv("META_CC_INLINE_THRESHOLD", "20480") // 20KB
 		defer os.Unsetenv("META_CC_INLINE_THRESHOLD")
 
+		// Reload config to pick up environment variable
+		cfg, _ := config.Load()
+
 		params := map[string]interface{}{
 			"inline_threshold_bytes": 1024, // 1KB parameter should override env
 		}
-		response, err := adaptResponse(data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_tools")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -687,6 +700,7 @@ func TestConfigurableThresholdEnvironment(t *testing.T) {
 
 // TestPerformanceBenchmarks verifies 100KB write meets <200ms requirement
 func TestPerformanceBenchmarks(t *testing.T) {
+	cfg, _ := config.Load()
 	// Generate 100KB dataset
 	data := make([]interface{}, 1000)
 	for i := 0; i < 1000; i++ {
@@ -703,7 +717,7 @@ func TestPerformanceBenchmarks(t *testing.T) {
 
 	// Measure write time
 	start := time.Now()
-	response, err := adaptResponse(data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	elapsed := time.Since(start)
 
 	if err != nil {
@@ -730,6 +744,7 @@ func TestPerformanceBenchmarks(t *testing.T) {
 // TestExecuteToolE2E_QuerySuccessfulPrompts verifies query_successful_prompts executes successfully
 // This is an end-to-end test that actually runs the meta-cc CLI
 func TestExecuteToolE2E_QuerySuccessfulPrompts(t *testing.T) {
+	cfg, _ := config.Load()
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode (takes ~6s)")
 	}
@@ -759,7 +774,7 @@ func TestExecuteToolE2E_QuerySuccessfulPrompts(t *testing.T) {
 		"scope":             "project",
 	}
 
-	result, err := executor.ExecuteTool("query_successful_prompts", args)
+	result, err := executor.ExecuteTool(cfg, "query_successful_prompts", args)
 	if err != nil {
 		t.Fatalf("ExecuteTool failed: %v", err)
 	}
@@ -807,6 +822,7 @@ func TestExecuteToolE2E_QuerySuccessfulPrompts(t *testing.T) {
 
 // TestExecuteToolE2E_AllTools verifies all tools execute without errors
 func TestExecuteToolE2E_AllTools(t *testing.T) {
+	cfg, _ := config.Load()
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode (takes ~22s)")
 	}
@@ -871,7 +887,7 @@ func TestExecuteToolE2E_AllTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := executor.ExecuteTool(tt.toolName, tt.args)
+			result, err := executor.ExecuteTool(cfg, tt.toolName, tt.args)
 			if err != nil {
 				t.Fatalf("ExecuteTool(%s) failed: %v", tt.toolName, err)
 			}

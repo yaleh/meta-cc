@@ -1,0 +1,246 @@
+---
+# Iteration 0 Baseline Metrics - Knowledge Transfer System
+# Bootstrap-011: Knowledge Transfer Methodology
+# Date: 2025-10-17
+
+iteration: 0
+date: 2025-10-17
+status: baseline_established
+
+# Instance Value Function Components (Knowledge Transfer Quality)
+instance_metrics:
+  V_discoverability:
+    value: 0.40
+    components:
+      search_success_rate: 0.50  # grep/find manual search possible
+      navigation_ease: 0.30       # no code map, no guided navigation
+      tool_availability: 0.40     # basic tools only (grep, find)
+    rationale: "Manual search possible but inefficient. No structured navigation or discovery tools."
+
+  V_completeness:
+    value: 0.40
+    components:
+      concept_coverage: 0.70      # core concepts documented (parser, analyzer, query, MCP)
+      code_coverage: 0.40         # some architecture docs, but no code maps
+      expert_coverage: 0.10       # no contributor guide, no expertise map
+    rationale: "Good concept documentation, weak code navigation, minimal expert knowledge capture."
+
+  V_relevance:
+    value: 0.20
+    components:
+      role_matching: 0.20         # no role-specific paths (contributor/user/maintainer)
+      time_matching: 0.20         # no time-based paths (day-1/week-1/month-1)
+      context_matching: 0.20      # no context-aware recommendations
+    rationale: "One-size-fits-all documentation. No personalization or context awareness."
+
+  V_freshness:
+    value: 0.30
+    components:
+      tracked_freshness: 0.30     # no last-updated dates
+      update_automation: 0.40     # ad-hoc updates with code changes
+      staleness_detection: 0.20   # no automated staleness checks
+    rationale: "Actually fresh (0 stale docs), but no tracking/automation system."
+
+  # Calculated Total
+  V_instance:
+    value: 0.34
+    calculation: "0.3×0.40 + 0.3×0.40 + 0.2×0.20 + 0.2×0.30"
+    breakdown:
+      discoverability_contribution: 0.12
+      completeness_contribution: 0.12
+      relevance_contribution: 0.04
+      freshness_contribution: 0.06
+
+# Meta Value Function Components (Methodology Quality)
+meta_metrics:
+  V_completeness: 0.00  # no methodology yet
+  V_effectiveness: 0.00 # nothing to measure
+  V_reusability: 0.00   # no methodology to transfer
+
+  V_meta:
+    value: 0.00
+    rationale: "Baseline - no methodology exists yet."
+
+# Meta-Agent State
+meta_agent:
+  version: M₀
+  capabilities: 5
+  capability_list:
+    - observe.md
+    - plan.md
+    - execute.md
+    - reflect.md
+    - evolve.md
+  status: inherited_from_bootstrap003
+  changes: none
+
+# Agent Set State
+agent_set:
+  version: A₀
+  count: 3
+  agents:
+    - name: data-analyst
+      type: generic
+      source: inherited
+    - name: doc-writer
+      type: generic
+      source: inherited
+    - name: coder
+      type: generic
+      source: inherited
+  status: inherited_from_bootstrap003
+  changes: none
+
+# Knowledge Transfer System Baseline Data
+documentation_inventory:
+  total_files: 56
+  total_lines: 35289
+  stale_files: 0
+  stale_percentage: 0.0
+  key_entry_points:
+    - file: docs/plan.md
+      accesses: 423
+      role: primary_reference
+    - file: README.md
+      accesses: 182
+      role: project_intro
+    - file: CLAUDE.md
+      accesses: 87
+      role: dev_guide
+    - file: experiments/EXPERIMENTS-OVERVIEW.md
+      accesses: 68
+      role: experiment_catalog
+
+knowledge_seeking_patterns:
+  total_questions: 495
+  common_patterns:
+    - how
+    - what
+    - where
+    - why
+    - explain
+    - show me
+    - tell me
+    - understand
+  pain_points:
+    - workflow_coaching: "How to work effectively in this codebase?"
+    - tech_debt: "Where is technical debt?"
+    - timeline: "What happened when?"
+    - architecture: "How is this structured?"
+    - capability_discovery: "What can I do?"
+    - debugging: "How to fix errors?"
+
+file_access_patterns:
+  total_files_accessed: 320
+  threshold: 5
+  top_entry_points:
+    - file: docs/plan.md
+      total_accesses: 423
+      read_count: 238
+      edit_count: 183
+    - file: README.md
+      total_accesses: 182
+      read_count: 90
+      edit_count: 89
+    - file: cmd/mcp-server/tools.go
+      total_accesses: 136
+      read_count: 72
+      edit_count: 63
+    - file: .claude/agents/meta-coach.md
+      total_accesses: 120
+      read_count: 73
+      edit_count: 45
+    - file: cmd/mcp-server/capabilities.go
+      total_accesses: 111
+      read_count: 51
+      edit_count: 58
+
+contributor_analysis:
+  primary_contributor:
+    name: Yale Huang
+    commits: 254
+    percentage: 80.4
+  secondary_contributor:
+    name: yale
+    commits: 62
+    percentage: 19.6
+  total_contributors: 2
+  code_ownership:
+    concentration: high
+    single_expert: true
+    bus_factor: 1
+
+# Identified Gaps (prioritized by severity × addressability)
+gaps:
+  critical:
+    - gap: no_learning_paths
+      description: "No guided day-1, week-1, month-1 onboarding paths"
+      impact: "New contributors spend weeks exploring instead of days"
+      addressability: high
+      affects: [discoverability, relevance]
+
+    - gap: no_code_navigation
+      description: "No code map, module explorer, or architecture guide"
+      impact: "Developers get lost in codebase structure"
+      addressability: high
+      affects: [discoverability, completeness]
+
+    - gap: no_expert_map
+      description: "No contributor guide or code ownership chart"
+      impact: "Don't know who to ask about what"
+      addressability: medium
+      affects: [completeness]
+
+  high:
+    - gap: no_doc_code_links
+      description: "No bidirectional links between docs and code"
+      impact: "Hard to find relevant docs for code sections"
+      addressability: medium
+      affects: [discoverability]
+
+    - gap: no_context_recommendations
+      description: "No context-aware doc suggestions based on current task"
+      impact: "Information overload or insufficient information"
+      addressability: low
+      affects: [relevance]
+
+    - gap: no_freshness_tracking
+      description: "No automated staleness detection or update reminders"
+      impact: "Risk of outdated docs (currently fresh but no system)"
+      addressability: medium
+      affects: [freshness]
+
+# Baseline Observations
+observations:
+  strengths:
+    - comprehensive_documentation: "56 files, 35K lines covering core concepts"
+    - actually_fresh: "0 stale files - docs are current"
+    - clear_entry_points: "README, CLAUDE.md, docs/plan.md well-accessed"
+
+  weaknesses:
+    - unguided_discovery: "No structured learning paths or navigation"
+    - missing_role_awareness: "One-size-fits-all, not tailored to contributor/user/maintainer roles"
+    - missing_time_awareness: "No progression paths (day-1 → week-1 → month-1)"
+    - missing_context_awareness: "No personalized recommendations"
+    - single_contributor: "Bus factor of 1, knowledge concentration risk"
+
+  opportunities:
+    - learning_path_design: "Create progressive onboarding (day-1, week-1, month-1)"
+    - code_navigation_tools: "Build architecture map, module explorer"
+    - expert_identification: "Map code ownership via git blame"
+    - doc_code_linking: "Automated bidirectional references"
+    - recommendation_system: "Context-aware doc suggestions"
+    - freshness_automation: "Automated staleness detection and alerts"
+
+# Next Steps (Iteration 1 Planning)
+next_iteration_focus:
+  primary_objective: "Design Day-1 learning path for new contributors"
+  rationale: "Biggest impact on onboarding experience (weeks → days)"
+  expected_delta_v: 0.08
+  agents_likely_needed:
+    - possibly_new: learning-path-designer
+      reason: "Systematic learning path design requires pedagogical expertise"
+    - reuse: data-analyst
+      reason: "Analyze question patterns to identify Day-1 needs"
+    - reuse: doc-writer
+      reason: "Write Day-1 onboarding guide"

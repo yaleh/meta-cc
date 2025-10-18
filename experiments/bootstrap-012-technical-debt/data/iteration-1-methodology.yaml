@@ -1,0 +1,213 @@
+# Methodology Patterns Extracted - Iteration 1
+# Date: 2025-10-17
+# Patterns observed during SQALE implementation
+
+patterns_extracted:
+  - pattern_name: "SQALE-Based Debt Quantification"
+    category: "Measurement Pattern"
+    description: "Systematic approach to calculating technical debt using SQALE methodology"
+    domain: "Technical Debt Measurement"
+    reusability: "High (90% transferable to other languages)"
+
+    steps:
+      - "Calculate development cost (LOC / productivity)"
+      - "Measure complexity debt (apply SQALE remediation model)"
+      - "Measure duplication debt (apply token-based model)"
+      - "Measure coverage debt (gap from target)"
+      - "Measure static analysis debt (issue severity weighting)"
+      - "Sum total debt"
+      - "Calculate TD ratio (debt / development cost)"
+      - "Assign SQALE rating (A-E based on ratio)"
+
+    decision_points:
+      - point: "Productivity rate"
+        decision: "Use 30 LOC/hour (SQALE standard)"
+        rationale: "Industry-standard baseline for comparison"
+        alternatives: "Could calibrate per-project, but reduces transferability"
+
+      - point: "Complexity thresholds"
+        decision: "Use 10 (high), 15 (critical) thresholds"
+        rationale: "Common practice in Go community"
+        alternatives: "Could use language-specific thresholds"
+
+      - point: "Remediation cost model"
+        decision: "Use SQALE standard rates (0.5h for 11-15, 1h for 16-20, etc.)"
+        rationale: "Enables comparison across projects"
+        alternatives: "Could empirically measure actual remediation times"
+
+    validation_status: "Proposed"
+    iteration_source: 1
+
+  - pattern_name: "Code Smell Taxonomy Mapping"
+    category: "Classification Pattern"
+    description: "Map metrics to SQALE code smell categories"
+    domain: "Technical Debt Categorization"
+    reusability: "High (80% transferable)"
+
+    mapping:
+      - metric: "High cyclomatic complexity"
+        smell_category: "Bloater (Long Method)"
+        sqale_characteristic: "Maintainability"
+
+      - metric: "Parallel logic across files"
+        smell_category: "Change Preventer (Shotgun Surgery)"
+        sqale_characteristic: "Maintainability"
+
+      - metric: "Duplicate code blocks"
+        smell_category: "Dispensable (Duplicate Code)"
+        sqale_characteristic: "Maintainability"
+
+      - metric: "Low test coverage"
+        smell_category: "Reliability Issue"
+        sqale_characteristic: "Reliability"
+
+      - metric: "Static analysis warnings"
+        smell_category: "Style Issue or Reliability Issue"
+        sqale_characteristic: "Maintainability or Reliability"
+
+    decision_points:
+      - point: "When to classify as 'Shotgun Surgery'"
+        decision: "When same logic appears in 3+ files"
+        rationale: "Indicates missing abstraction"
+
+      - point: "When duplication is acceptable"
+        decision: "Parser patterns, intentional clarity"
+        rationale: "Some duplication improves readability"
+
+    validation_status: "Proposed"
+    iteration_source: 1
+
+  - pattern_name: "Value-Effort Prioritization Matrix"
+    category: "Prioritization Pattern"
+    description: "Rank debt by business value and remediation effort"
+    domain: "Technical Debt Prioritization"
+    reusability: "Very High (95% transferable)"
+
+    quadrants:
+      - name: "High Value, Low Effort (Quick Wins)"
+        examples:
+          - "Fix error capitalization (0.5 hours, style consistency)"
+          - "Increase minor coverage gaps (2.0 hours)"
+        prioritization: "Immediate (Phase 1)"
+
+      - name: "High Value, High Effort (Strategic)"
+        examples:
+          - "MCP builder consolidation (9.0 hours, architectural improvement)"
+          - "cmd test coverage (8.0 hours, prevent regressions)"
+        prioritization: "Planned (Phase 2-3)"
+
+      - name: "Medium Value, Medium Effort"
+        examples:
+          - "Query command consolidation (6.0 hours)"
+          - "Refactor high-complexity functions (6.0 hours)"
+        prioritization: "Opportunistic (Phase 4)"
+
+      - name: "Low Value, Any Effort"
+        examples:
+          - "Parser duplication (may reduce clarity)"
+        prioritization: "Deferred"
+
+    decision_framework:
+      - dimension: "Business Value"
+        factors: ["User impact", "Change frequency", "Error risk"]
+        scoring: "High/Medium/Low"
+
+      - dimension: "Remediation Effort"
+        factors: ["Hours to fix", "Testing complexity", "Regression risk"]
+        scoring: "Hours (SQALE model)"
+
+      - dimension: "Priority"
+        formula: "Value / Effort ratio, adjusted for risk"
+
+    validation_status: "Proposed"
+    iteration_source: 1
+
+principles_discovered:
+  - principle_name: "Pay High-Value Low-Effort Debt First"
+    statement: "Prioritize technical debt by value/effort ratio to maximize ROI"
+    rationale: "Quick wins build momentum, strategic debt requires planning"
+    evidence: "Phase 1 (0.5 hours) provides immediate value, Phase 3 (15 hours) requires more planning"
+    applications: "All technical debt paydown planning"
+    validation_status: "Proposed"
+    iteration_source: 1
+
+  - principle_name: "SQALE Provides Objective Baseline"
+    statement: "Industry-standard metrics enable consistent measurement"
+    rationale: "Subjective assessment varies by developer; SQALE provides reproducible results"
+    evidence: "TD ratio 15.52% is comparable across projects, teams can calibrate from standard"
+    applications: "All technical debt measurement"
+    validation_status: "Proposed"
+    iteration_source: 1
+
+  - principle_name: "Complexity Drives Maintainability Debt"
+    statement: "Cyclomatic complexity is the primary driver of technical debt"
+    rationale: "82.6% of debt comes from complexity; duplication and style are minor"
+    evidence: "54.5/66 hours (82.6%) from complexity debt"
+    applications: "Focus refactoring efforts on high-complexity functions first"
+    validation_status: "Proposed"
+    iteration_source: 1
+
+templates_created:
+  - template_name: "SQALE Index Report Template"
+    file: "data/iteration-1-sqale-index.yaml"
+    reusability: "Very High"
+    usage: "Calculate SQALE index for any codebase"
+    components:
+      - "Development cost calculation"
+      - "Technical debt breakdown"
+      - "TD ratio and rating"
+      - "Debt by characteristic"
+      - "Remediation targets"
+
+  - template_name: "Code Smell Categorization Template"
+    file: "data/iteration-1-code-smells.yaml"
+    reusability: "High"
+    usage: "Categorize code smells using SQALE taxonomy"
+    components:
+      - "Smell categories (bloaters, change preventers, etc.)"
+      - "Severity assessment"
+      - "Debt calculation per smell"
+      - "Refactoring opportunities"
+
+  - template_name: "Remediation Cost Breakdown Template"
+    file: "data/iteration-1-remediation-costs.yaml"
+    reusability: "Very High"
+    usage: "Prioritize and sequence debt paydown"
+    components:
+      - "Priority ranking"
+      - "Value/effort matrix"
+      - "Paydown roadmap phases"
+      - "Expected improvements"
+
+best_practices_identified:
+  - practice: "Use SQALE standard productivity (30 LOC/hour)"
+    context: "Technical debt measurement"
+    justification: "Enables cross-project comparison"
+    trade_offs: "May not reflect actual team velocity, but provides consistent baseline"
+
+  - practice: "Apply graduated complexity thresholds (11-15, 16-20, 21-30, >30)"
+    context: "Complexity debt remediation cost estimation"
+    justification: "Reflects non-linear difficulty of refactoring"
+    trade_offs: "Threshold choice affects debt magnitude, but standard thresholds aid comparison"
+
+  - practice: "Categorize debt by SQALE characteristics (maintainability, reliability)"
+    context: "Debt categorization for prioritization"
+    justification: "Aligns with software quality standards"
+    trade_offs: "SQALE categories may not capture all debt types (e.g., performance)"
+
+methodology_completeness:
+  documented_patterns: 3
+  documented_principles: 3
+  documented_templates: 3
+  documented_best_practices: 3
+  total_components: 12
+
+  required_for_complete_methodology:
+    - "SQALE measurement framework ✓"
+    - "Code smell taxonomy ✓"
+    - "Prioritization framework ✓"
+    - "Paydown roadmap template ✓"
+    - "Prevention guidelines ✗ (not yet created)"
+    - "Tracking system design ✗ (not yet created)"
+
+  methodology_coverage: 66.7  # 4/6 components

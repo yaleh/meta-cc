@@ -3,6 +3,8 @@ package mcp
 import (
 	"fmt"
 	"sort"
+
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 )
 
 // Semantic default limits (Phase 9 + Phase 14 standardization)
@@ -174,7 +176,7 @@ func BuildToolCommand(toolName string, args map[string]interface{}) ([]string, e
 	case "query_user_messages":
 		pattern := getStringArg(args, "pattern", "")
 		if pattern == "" {
-			return nil, fmt.Errorf("pattern parameter is required")
+			return nil, fmt.Errorf("pattern parameter required for query_user_messages tool: %w", mcerrors.ErrMissingParameter)
 		}
 		limit := getIntArg(args, "limit", DefaultLimitSmall)
 
@@ -188,7 +190,7 @@ func BuildToolCommand(toolName string, args map[string]interface{}) ([]string, e
 	case "query_context":
 		errorSignature := getStringArg(args, "error_signature", "")
 		if errorSignature == "" {
-			return nil, fmt.Errorf("error_signature parameter is required")
+			return nil, fmt.Errorf("error_signature parameter required for query_context tool: %w", mcerrors.ErrMissingParameter)
 		}
 		window := getIntArg(args, "window", 3)
 
@@ -217,7 +219,7 @@ func BuildToolCommand(toolName string, args map[string]interface{}) ([]string, e
 	case "query_file_access":
 		file := getStringArg(args, "file", "")
 		if file == "" {
-			return nil, fmt.Errorf("file parameter is required")
+			return nil, fmt.Errorf("file parameter required for query_file_access tool: %w", mcerrors.ErrMissingParameter)
 		}
 
 		return NewCommandBuilder("query", "file-access").
@@ -247,7 +249,7 @@ func BuildToolCommand(toolName string, args map[string]interface{}) ([]string, e
 	case "query_tools_advanced":
 		where := getStringArg(args, "where", "")
 		if where == "" {
-			return nil, fmt.Errorf("where parameter is required")
+			return nil, fmt.Errorf("where parameter required for query_tools_advanced tool: %w", mcerrors.ErrMissingParameter)
 		}
 		limit := getIntArg(args, "limit", DefaultLimitMedium)
 
@@ -310,7 +312,7 @@ func BuildToolCommand(toolName string, args map[string]interface{}) ([]string, e
 		return builder.Build(), nil
 
 	default:
-		return nil, fmt.Errorf("unknown tool: %s", toolName)
+		return nil, fmt.Errorf("unknown tool %s in BuildToolCommand: %w", toolName, mcerrors.ErrUnknownTool)
 	}
 }
 

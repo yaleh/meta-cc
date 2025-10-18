@@ -5,6 +5,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/yaleh/meta-cc/internal/config"
 )
 
 func TestNewToolExecutor(t *testing.T) {
@@ -818,6 +820,9 @@ func TestBuildCommandAdditional(t *testing.T) {
 
 // Test getSessionHash with different environment variables
 func TestGetSessionHash(t *testing.T) {
+	os.Setenv("CC_SESSION_ID", "test-session-id")
+	os.Setenv("CC_PROJECT_HASH", "test-project-hash")
+	cfg, _ := config.Load()
 	// Save original env vars
 	origSessionID := os.Getenv("CC_SESSION_ID")
 	origProjectHash := os.Getenv("CC_PROJECT_HASH")
@@ -863,7 +868,7 @@ func TestGetSessionHash(t *testing.T) {
 			os.Setenv("CC_SESSION_ID", tt.sessionID)
 			os.Setenv("CC_PROJECT_HASH", tt.projectHash)
 
-			result := getSessionHash()
+			result := getSessionHash(cfg)
 
 			if tt.expectNotEmpty && result == "" {
 				t.Error("expected non-empty session hash")
@@ -977,6 +982,7 @@ fi
 
 // TestExecuteTool tests the full ExecuteTool flow with mock binary
 func TestExecuteTool(t *testing.T) {
+	cfg, _ := config.Load()
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping test on Windows - requires bash shell")
 	}
@@ -1119,7 +1125,7 @@ fi
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output, err := executor.ExecuteTool(tt.toolName, tt.args)
+			output, err := executor.ExecuteTool(cfg, tt.toolName, tt.args)
 
 			if tt.expectError {
 				if err == nil {
