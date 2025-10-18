@@ -42,7 +42,13 @@ func parseToolsFromContent(content string) ([]Tool, error) {
 		description := match[2]
 
 		// Extract parameters and required fields for this tool
-		toolDefStart := strings.Index(funcBody, fmt.Sprintf(`Name:        "%s"`, name))
+		namePos := strings.Index(funcBody, fmt.Sprintf(`Name:        "%s"`, name))
+		if namePos == -1 {
+			continue
+		}
+
+		// Find the opening brace before the Name field (struct literal starts with {)
+		toolDefStart := strings.LastIndex(funcBody[:namePos], "{")
 		if toolDefStart == -1 {
 			continue
 		}
@@ -53,7 +59,7 @@ func parseToolsFromContent(content string) ([]Tool, error) {
 			continue
 		}
 
-		toolDef := funcBody[toolDefStart : toolDefStart+toolDefEnd]
+		toolDef := funcBody[toolDefStart : toolDefStart+toolDefEnd+1]
 
 		properties := parseProperties(toolDef)
 		required := parseRequired(toolDef)
@@ -77,11 +83,39 @@ func parseToolsFromContent(content string) ([]Tool, error) {
 func parseProperties(toolDef string) map[string]Property {
 	properties := make(map[string]Property)
 
-	// Match property definitions: "param_name": { Type: "type", Description: "desc" }
+	// Match property definitions - support both struct field syntax and map key syntax
+	// Struct field: "param_name": { Type: "type", Description: "desc" }
+	// Map key: "param_name": map[string]interface{}{ "type": "type", "description": "desc" }
+
+	// Try struct field syntax first
 	propPattern := regexp.MustCompile(`"([^"]+)":\s*\{[\s\n]*Type:\s*"([^"]+)",[\s\n]*Description:\s*"([^"]+)",?[\s\n]*\}`)
 	propMatches := propPattern.FindAllStringSubmatch(toolDef, -1)
 
 	for _, match := range propMatches {
+		if len(match) < 4 {
+			continue
+		}
+
+		paramName := match[1]
+		paramType := match[2]
+		paramDesc := match[3]
+
+		// Skip standard parameters (these are added by MergeParameters)
+		if isStandardParameter(paramName) {
+			continue
+		}
+
+		properties[paramName] = Property{
+			Type:        paramType,
+			Description: paramDesc,
+		}
+	}
+
+	// Try map key syntax (lowercase field names in maps)
+	mapPropPattern := regexp.MustCompile(`"([^"]+)":\s*map\[string\]interface\{\}\s*\{[\s\n]*"type":\s*"([^"]+)",[\s\n]*"description":\s*"([^"]+)",?[\s\n]*\}`)
+	mapPropMatches := mapPropPattern.FindAllStringSubmatch(toolDef, -1)
+
+	for _, match := range mapPropMatches {
 		if len(match) < 4 {
 			continue
 		}
@@ -107,7 +141,7 @@ func parseProperties(toolDef string) map[string]Property {
 func parseRequired(toolDef string) []string {
 	var required []string
 
-	// Match Required: []string{"param1", "param2"}
+	// Match Required: []string{"param1", "param2"} (struct field syntax)
 	requiredPattern := regexp.MustCompile(`Required:\s*\[\]string\{([^}]+)\}`)
 	requiredMatch := requiredPattern.FindStringSubmatch(toolDef)
 
@@ -115,6 +149,22 @@ func parseRequired(toolDef string) []string {
 		// Extract quoted strings
 		quotedPattern := regexp.MustCompile(`"([^"]+)"`)
 		quotedMatches := quotedPattern.FindAllStringSubmatch(requiredMatch[1], -1)
+
+		for _, match := range quotedMatches {
+			if len(match) > 1 {
+				required = append(required, match[1])
+			}
+		}
+	}
+
+	// Match "required": []string{"param1", "param2"} (map key syntax)
+	mapRequiredPattern := regexp.MustCompile(`"required":\s*\[\]string\{([^}]+)\}`)
+	mapRequiredMatch := mapRequiredPattern.FindStringSubmatch(toolDef)
+
+	if len(mapRequiredMatch) > 1 {
+		// Extract quoted strings
+		quotedPattern := regexp.MustCompile(`"([^"]+)"`)
+		quotedMatches := quotedPattern.FindAllStringSubmatch(mapRequiredMatch[1], -1)
 
 		for _, match := range quotedMatches {
 			if len(match) > 1 {
@@ -147,8 +197,13 @@ func findClosingBrace(s string) int {
 		if char == '{' {
 			depth++
 		} else if char == '}' {
+			if depth == 0 {
+				// Found closing before opening
+				return i
+			}
 			depth--
-			if depth < 0 {
+			if depth == 0 {
+				// Found matching closing brace
 				return i
 			}
 		}

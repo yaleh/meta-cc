@@ -1245,3 +1245,76 @@ category: test
 // TestCacheValidation tests cache validation logic
 // DISABLED: Function removed due to session-scoped cache refactoring (no validation/TTL logic)
 // func TestCacheValidation(t *testing.T) { ... }
+
+// ===== Iteration 3 Tests: expandTilde Error Path Coverage =====
+
+// TestExpandTilde tests tilde expansion in file paths
+func TestExpandTilde(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected func(string) string // Function to compute expected value
+		desc     string
+	}{
+		{
+			name:  "no tilde",
+			input: "/home/user/path",
+			expected: func(s string) string {
+				return "/home/user/path"
+			},
+			desc: "path without tilde returns unchanged",
+		},
+		{
+			name:  "tilde only",
+			input: "~",
+			expected: func(s string) string {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return "~" // Should return unchanged on error
+				}
+				return home
+			},
+			desc: "~ expands to home directory",
+		},
+		{
+			name:  "tilde with slash",
+			input: "~/documents",
+			expected: func(s string) string {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return "~/documents" // Should return unchanged on error
+				}
+				return filepath.Join(home, "documents")
+			},
+			desc: "~/path expands correctly",
+		},
+		{
+			name:  "tilde without slash",
+			input: "~user",
+			expected: func(s string) string {
+				return "~user" // Should return unchanged (not ~/user)
+			},
+			desc: "~user (other user) returns unchanged",
+		},
+		{
+			name:  "tilde in middle",
+			input: "/path/~/file",
+			expected: func(s string) string {
+				return "/path/~/file"
+			},
+			desc: "tilde not at start returns unchanged",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := expandTilde(tt.input)
+			expected := tt.expected(tt.input)
+
+			if result != expected {
+				t.Errorf("expandTilde(%q) = %q, expected %q (%s)",
+					tt.input, result, expected, tt.desc)
+			}
+		})
+	}
+}
