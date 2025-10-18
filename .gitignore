@@ -4,6 +4,7 @@ coverage.out
 /bin/
 coverage.html
 /.gemini/
+/.pre-commit-cache/
 
 # Build artifacts
 /dist/
@@ -20,3 +21,6 @@ coverage_total.out
 validation_coverage.out
 /experiments/bootstrap-003-error-recovery/data/
 /experiments/bootstrap-007-cicd-pipeline/data/
+/experiments/bootstrap-002-test-strategy/python-validation/data/
+/experiments/bootstrap-002-test-strategy/python-validation/src/__pycache__/
+/experiments/bootstrap-002-test-strategy/python-validation/tests/__pycache__/
