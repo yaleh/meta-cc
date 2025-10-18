@@ -1,14 +1,28 @@
 ---
 name: Methodology Bootstrapping
-description: Develop project-specific methodologies through systematic Observe-Codify-Automate cycles with dual-layer value functions (instance quality + methodology quality). Use when creating testing strategies, CI/CD pipelines, error handling patterns, observability systems, or any reusable development methodology. Provides structured framework with convergence criteria, agent coordination, and empirical validation. Validated in 8 experiments with 100% success rate, 4.9 avg iterations, 10-50x speedup vs ad-hoc. Works for testing, CI/CD, error recovery, dependency management, documentation systems, knowledge transfer, technical debt, cross-cutting concerns.
+description: Apply Bootstrapped AI Methodology Engineering (BAIME) to develop project-specific methodologies through systematic Observe-Codify-Automate cycles with dual-layer value functions (instance quality + methodology quality). Use when creating testing strategies, CI/CD pipelines, error handling patterns, observability systems, or any reusable development methodology. Provides structured framework with convergence criteria, agent coordination, and empirical validation. Validated in 8 experiments with 100% success rate, 4.9 avg iterations, 10-50x speedup vs ad-hoc. Works for testing, CI/CD, error recovery, dependency management, documentation systems, knowledge transfer, technical debt, cross-cutting concerns.
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 
 # Methodology Bootstrapping
 
-**Systematically develop and validate software engineering methodologies through observation, codification, and automation.**
+**Apply Bootstrapped AI Methodology Engineering (BAIME) to systematically develop and validate software engineering methodologies through observation, codification, and automation.**
 
 > The best methodologies are not designed but evolved through systematic observation, codification, and automation of successful practices.
+
+---
+
+## What is BAIME?
+
+**BAIME (Bootstrapped AI Methodology Engineering)** is a unified framework that integrates three complementary methodologies optimized for LLM-based development:
+
+1. **OCA Cycle** (Observe-Codify-Automate) - Core iterative framework
+2. **Empirical Validation** - Scientific method and data-driven decisions
+3. **Value Optimization** - Dual-layer value functions for quantitative evaluation
+
+This skill provides the complete BAIME framework for systematic methodology development. The methodology is especially powerful when combined with AI agents (like Claude Code) that can execute the OCA cycle, coordinate specialized agents, and calculate value functions automatically.
+
+**Key Innovation**: BAIME treats methodology development like software development—with empirical observation, automated testing, continuous iteration, and quantitative metrics.
 
 ---
 
@@ -29,10 +43,10 @@ Use this skill when you need to:
 
 ---
 
-## Quick Start (10 minutes)
+## Quick Start with BAIME (10 minutes)
 
 ### 1. Define Your Domain
-Choose what methodology you want to develop:
+Choose what methodology you want to develop using BAIME:
 - Testing strategy (15x speedup example)
 - CI/CD pipeline (2.5-3.5x speedup example)
 - Error recovery patterns (80% error reduction example)
@@ -141,7 +155,7 @@ Methodology complete when:
 
 ## Three-Layer Architecture
 
-The framework integrates three complementary methodologies:
+**BAIME** integrates three complementary methodologies into a unified framework:
 
 **Layer 1: Core Framework (OCA Cycle)**
 - Observe → Codify → Automate → Evolve
@@ -149,17 +163,19 @@ The framework integrates three complementary methodologies:
 - Self-referential feedback loop
 - Agent coordination
 
-**Layer 2: Scientific Foundation**
+**Layer 2: Scientific Foundation (Empirical Methodology)**
 - Empirical observation tools
 - Data-driven pattern extraction
 - Hypothesis testing
 - Scientific validation
 
-**Layer 3: Quantitative Evaluation**
-- Dual-layer value functions
+**Layer 3: Quantitative Evaluation (Value Optimization)**
+- Dual-layer value functions (V_instance + V_meta)
 - Convergence mathematics
 - Agent as gradient, Meta-Agent as Hessian
 - Optimization perspective
+
+**Why "BAIME"?** The framework bootstraps itself—methodologies developed using BAIME can be applied to improve BAIME itself. This self-referential property, combined with AI-agent coordination, makes it uniquely suited for LLM-based development tools.
 
 **Detailed guide**: [reference/three-layer-architecture.md](reference/three-layer-architecture.md)
 
@@ -268,4 +284,6 @@ Use [templates/iteration-prompts-template.md](templates/iteration-prompts-templa
 
 ---
 
-**Status**: ✅ Production-ready | 8 experiments | 100% success rate | 95% transferable
+**Status**: ✅ Production-ready | BAIME Framework | 8 experiments | 100% success rate | 95% transferable
+
+**Terminology**: This skill implements the **Bootstrapped AI Methodology Engineering (BAIME)** framework. Use "BAIME" when referring to this methodology in documentation, research, or when asking Claude Code for assistance with methodology development.
