@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestBuildToolSequenceQuery(t *testing.T) {
@@ -547,6 +548,80 @@ func TestBuildToolSequenceQueryWithFilter(t *testing.T) {
 				if !hasMCP {
 					t.Error("Expected to find MCP tools in sequences")
 				}
+			}
+		})
+	}
+}
+
+// TestCalculateSequenceTimeSpan_EdgeCases tests edge cases for calculateSequenceTimeSpan
+// These are characterization tests documenting current behavior before refactoring
+func TestCalculateSequenceTimeSpan_EdgeCases(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name        string
+		occurrences []types.SequenceOccurrence
+		tools       []string // Tools to create entries from
+		want        int      // Expected time span in minutes
+	}{
+		{
+			name:        "empty occurrences",
+			occurrences: []types.SequenceOccurrence{},
+			tools:       []string{},
+			want:        0,
+		},
+		{
+			name: "single occurrence same turn",
+			occurrences: []types.SequenceOccurrence{
+				{StartTurn: 1, EndTurn: 1},
+			},
+			tools: []string{"Read"},
+			want:  0, // Same timestamp for start and end
+		},
+		{
+			name: "single occurrence different turns",
+			occurrences: []types.SequenceOccurrence{
+				{StartTurn: 1, EndTurn: 2},
+			},
+			tools: []string{"Read", "Edit"}, // 2-minute gap between tools
+			want:  0,                        // Current behavior: returns 0 (timestamps likely not found)
+		},
+		{
+			name: "multiple occurrences with time span",
+			occurrences: []types.SequenceOccurrence{
+				{StartTurn: 1, EndTurn: 2},
+				{StartTurn: 3, EndTurn: 4},
+			},
+			tools: []string{"Read", "Edit", "Bash", "Grep"}, // 0, 2, 4, 6 minutes
+			want:  2,                                        // Current behavior: returns 2 (partial span)
+		},
+		{
+			name: "occurrences out of order",
+			occurrences: []types.SequenceOccurrence{
+				{StartTurn: 3, EndTurn: 4}, // Later occurrence first
+				{StartTurn: 1, EndTurn: 2}, // Earlier occurrence second
+			},
+			tools: []string{"Read", "Edit", "Bash", "Grep"},
+			want:  2, // Current behavior: returns 2 (same as above)
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create entries
+			entries := createSequenceEntries(now, tt.tools)
+
+			// Build turn index
+			turnIndex := buildTurnIndex(entries)
+
+			// Extract tool calls
+			toolCalls := extractToolCallsWithTurns(entries, turnIndex, true)
+
+			// Call function
+			got := calculateSequenceTimeSpan(tt.occurrences, entries, toolCalls)
+
+			if got != tt.want {
+				t.Errorf("calculateSequenceTimeSpan() = %d, want %d", got, tt.want)
 			}
 		})
 	}
