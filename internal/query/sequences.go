@@ -137,8 +137,8 @@ func findSpecificPattern(toolCalls []toolCallWithTurn, pattern string, entries [
 func findAllSequences(toolCalls []toolCallWithTurn, minOccurrences int, entries []parser.SessionEntry) []types.SequencePattern {
 	sequenceMap := make(map[string][]types.SequenceOccurrence)
 
-	// Try sequences of different lengths (2-5 tools)
-	for seqLen := 2; seqLen <= 5 && seqLen <= len(toolCalls); seqLen++ {
+	// Try sequences of different lengths (MinSequenceLength-MaxSequenceLength tools)
+	for seqLen := MinSequenceLength; seqLen <= MaxSequenceLength && seqLen <= len(toolCalls); seqLen++ {
 		for i := 0; i <= len(toolCalls)-seqLen; i++ {
 			// Extract sequence
 			tools := make([]string, seqLen)
@@ -255,5 +255,5 @@ func calculateSequenceTimeSpan(occurrences []types.SequenceOccurrence, entries [
 		}
 	}
 
-	return int((maxTs - minTs) / 60)
+	return int((maxTs - minTs) / SecondsPerMinute)
 }

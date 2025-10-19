@@ -10,6 +10,20 @@ import (
 	"github.com/yaleh/meta-cc/internal/parser"
 )
 
+const (
+	// TurnPreviewMaxLength is the maximum length for turn preview text
+	TurnPreviewMaxLength = 100
+
+	// SecondsPerMinute is the conversion factor from seconds to minutes
+	SecondsPerMinute = 60
+
+	// MinSequenceLength is the minimum length of a tool sequence pattern
+	MinSequenceLength = 2
+
+	// MaxSequenceLength is the maximum length of a tool sequence pattern
+	MaxSequenceLength = 5
+)
+
 // BuildContextQuery builds a context query for a specific error signature
 func BuildContextQuery(entries []parser.SessionEntry, errorSignature string, window int) (*ContextQuery, error) {
 	if window < 0 {
@@ -140,7 +154,7 @@ func buildTurnPreview(entry parser.SessionEntry, turn int) TurnPreview {
 		case "text":
 			if preview.Preview == "" && block.Text != "" {
 				// Use first 100 chars as preview
-				preview.Preview = truncateText(block.Text, 100)
+				preview.Preview = truncateText(block.Text, TurnPreviewMaxLength)
 			}
 		case "tool_use":
 			if block.ToolUse != nil {

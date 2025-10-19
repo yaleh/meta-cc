@@ -151,5 +151,5 @@ func calculateTimeSpan(timeline []FileAccessEvent) int {
 	first := timeline[0].Timestamp
 	last := timeline[len(timeline)-1].Timestamp
 
-	return int((last - first) / 60)
+	return int((last - first) / SecondsPerMinute)
 }
