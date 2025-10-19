@@ -23,15 +23,15 @@ func setupTestRepo(t *testing.T) string {
 		t.Fatalf("failed to init git repo: %v", err)
 	}
 
-	// Configure git user for commits
-	cmd = exec.Command("git", "config", "user.name", "Test User")
+	// Configure git user for commits (use --local to avoid system config override)
+	cmd = exec.Command("git", "config", "--local", "user.name", "Test User")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
 		os.RemoveAll(tmpDir)
 		t.Fatalf("failed to config git user.name: %v", err)
 	}
 
-	cmd = exec.Command("git", "config", "user.email", "test@example.com")
+	cmd = exec.Command("git", "config", "--local", "user.email", "test@example.com")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
 		os.RemoveAll(tmpDir)
@@ -51,12 +51,16 @@ func createTestCommit(t *testing.T, repoDir, filename, content, message string) 
 
 	cmd := exec.Command("git", "add", filename)
 	cmd.Dir = repoDir
+	// Isolate from system git config
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "HOME="+repoDir)
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to git add: %v", err)
 	}
 
 	cmd = exec.Command("git", "commit", "-m", message)
 	cmd.Dir = repoDir
+	// Isolate from system git config
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "HOME="+repoDir)
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to git commit: %v", err)
 	}
