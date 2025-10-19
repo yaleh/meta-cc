@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAIME - 自举式 AI 方法论工程</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+        }
+
+        .logo {
+            font-size: 3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .tagline {
+            font-size: 1.3em;
+            opacity: 0.95;
+            margin-bottom: 30px;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin-top: -40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        section {
+            margin-bottom: 50px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #764ba2;
+            font-size: 1.5em;
+            margin: 25px 0 15px 0;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 25px;
+            border-radius: 12px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .feature-icon {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+
+        .feature-title {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .cycle-diagram {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .cycle-steps {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .cycle-step {
+            background: rgba(255,255,255,0.2);
+            padding: 20px 30px;
+            border-radius: 50px;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 10px;
+        }
+
+        .arrow {
+            font-size: 2em;
+            margin: 0 10px;
+        }
+
+        .quick-start {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            border-left: 5px solid #667eea;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 35px;
+            height: 35px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 35px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-top: 4px solid #764ba2;
+        }
+
+        .result-metric {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #764ba2;
+            margin-bottom: 5px;
+        }
+
+        .cta-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 15px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-top: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .cta-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .value-functions {
+            display: flex;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .value-box {
+            flex: 1;
+            min-width: 280px;
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            padding: 25px;
+            border-radius: 12px;
+            color: #1a1a1a;
+        }
+
+        .value-box h4 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        @media (max-width: 768px) {
+            .logo {
+                font-size: 2em;
+            }
+
+            .tagline {
+                font-size: 1.1em;
+            }
+
+            .hero-stats {
+                gap: 20px;
+            }
+
+            .stat-number {
+                font-size: 2em;
+            }
+
+            .content {
+                padding: 25px;
+            }
+
+            h2 {
+                font-size: 1.5em;
+            }
+
+            .cycle-steps {
+                flex-direction: column;
+            }
+
+            .arrow {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">🚀 BAIME</div>
+            <div class="tagline">Bootstrapped AI Methodology Engineering</div>
+            <p style="font-size: 1.1em; opacity: 0.9;">自举式 AI 方法论工程 - 系统化开发和验证软件工程方法论</p>
+
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-number">100%</span>
+                    <span class="stat-label">成功率</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">3-7</span>
+                    <span class="stat-label">迭代次数</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">10-50×</span>
+                    <span class="stat-label">效率提升</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">70-95%</span>
+                    <span class="stat-label">可迁移性</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="content">
+            <section id="what-is">
+                <h2>什么是 BAIME？</h2>
+                <p style="font-size: 1.1em; margin-bottom: 20px;">
+                    <strong>BAIME (Bootstrapped AI Methodology Engineering)</strong> 是一个统一框架，整合了三个针对 LLM 开发优化的互补方法论：
+                </p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔄</div>
+                        <div class="feature-title">OCA 循环</div>
+                        <p>观察-编码-自动化的核心迭代框架</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔬</div>
+                        <div class="feature-title">实证验证</div>
+                        <p>科学方法和数据驱动决策</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <div class="feature-title">价值优化</div>
+                        <p>双层价值函数进行定量评估</p>
+                    </div>
+                </div>
+
+                <div style="background: #fff3cd; padding: 20px; border-radius: 10px; border-left: 5px solid #ffc107; margin-top: 30px;">
+                    <h3 style="color: #856404; margin-top: 0;">💡 核心创新</h3>
+                    <p style="color: #856404;">BAIME 将方法论开发视为软件开发——通过实证观察、自动化测试、持续迭代和定量指标来进行。</p>
+                </div>
+            </section>
+
+            <section id="oca-cycle">
+                <h2>OCA 循环：核心流程</h2>
+
+                <div class="cycle-diagram">
+                    <h3 style="color: white; margin-top: 0;">观察 → 编码 → 自动化 → 演化</h3>
+                    <div class="cycle-steps">
+                        <div class="cycle-step">观察 (Observe)</div>
+                        <span class="arrow">→</span>
+                        <div class="cycle-step">编码 (Codify)</div>
+                        <span class="arrow">→</span>
+                        <div class="cycle-step">自动化 (Automate)</div>
+                        <span class="arrow">→</span>
+                        <div class="cycle-step">演化 (Evolve)</div>
+                    </div>
+                    <p style="font-size: 1.1em; margin-top: 20px;">每个阶段都有明确的目标和产出，通过迭代不断优化</p>
+                </div>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>🔍 观察阶段</h4>
+                        <p><strong>目标：</strong>收集当前实践的实证数据</p>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            <li>使用 meta-cc 工具分析会话历史</li>
+                            <li>Git 分析提交模式</li>
+                            <li>代码指标（覆盖率、复杂度）</li>
+                        </ul>
+                    </div>
+
+                    <div class="feature-card">
+                        <h4>📝 编码阶段</h4>
+                        <p><strong>目标：</strong>提取模式并文档化方法论</p>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            <li>从数据中识别模式</li>
+                            <li>形成假设</li>
+                            <li>创建 Markdown 文档</li>
+                        </ul>
+                    </div>
+
+                    <div class="feature-card">
+                        <h4>⚙️ 自动化阶段</h4>
+                        <p><strong>目标：</strong>将方法论转换为自动化检查</p>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            <li>检测：识别模式适用时机</li>
+                            <li>验证：检查合规性</li>
+                            <li>执行：CI/CD 门禁</li>
+                        </ul>
+                    </div>
+
+                    <div class="feature-card">
+                        <h4>🔄 演化阶段</h4>
+                        <p><strong>目标：</strong>持续改进方法论</p>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            <li>对开发过程使用工具</li>
+                            <li>发现元模式</li>
+                            <li>优化方法论</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="value-functions">
+                <h2>双层价值函数</h2>
+                <p style="font-size: 1.1em; margin-bottom: 25px;">
+                    每次迭代计算两个独立的质量分数，确保既完成任务又构建可复用方法论：
+                </p>
+
+                <div class="value-functions">
+                    <div class="value-box">
+                        <h4>📈 V_instance：实例层质量</h4>
+                        <p style="margin-bottom: 15px;"><strong>衡量具体交付物的质量</strong></p>
+                        <p>示例：</p>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            <li>测试方法论：覆盖率 × 质量 × 稳定性 × 性能</li>
+                            <li>CI/CD 流水线：速度 × 可靠性 × 自动化 × 可观测性</li>
+                        </ul>
+                        <p style="margin-top: 15px; font-weight: bold; color: #2c3e50;">目标：≥ 0.80</p>
+                    </div>
+
+                    <div class="value-box" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                        <h4>🎯 V_meta：方法论质量</h4>
+                        <p style="margin-bottom: 15px;"><strong>衡量方法论的可复用性</strong></p>
+                        <p>组成部分：</p>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            <li>完整性：方法论是否完整文档化</li>
+                            <li>有效性：提供多少倍速度提升</li>
+                            <li>可复用性：跨项目可迁移百分比</li>
+                            <li>验证性：是否经过实证验证</li>
+                        </ul>
+                        <p style="margin-top: 15px; font-weight: bold; color: #2c3e50;">目标：≥ 0.80</p>
+                    </div>
+                </div>
+
+                <div style="background: #d1ecf1; padding: 20px; border-radius: 10px; border-left: 5px solid #0c5460; margin-top: 20px;">
+                    <h4 style="color: #0c5460; margin-top: 0;">✅ 收敛标准</h4>
+                    <p style="color: #0c5460;">只有当 <strong>两个层面都达到 ≥ 0.80</strong> 时，方法论才算完成和就绪。如果只有一个收敛，需要继续迭代。</p>
+                </div>
+            </section>
+
+            <section id="quick-start">
+                <h2>快速开始</h2>
+
+                <div class="quick-start">
+                    <h3 style="margin-top: 0;">3 步体验 BAIME</h3>
+                    <p style="font-size: 1.1em; margin-bottom: 25px;">
+                        最简单的方式：只需给 Claude <strong>双重目标</strong>（构建方法论 + 完成任务）
+                    </p>
+
+                    <div style="margin: 30px 0;">
+                        <p style="font-weight: bold; margin-bottom: 10px;">
+                            <span class="step-number">1</span> 明确说明你的目标
+                        </p>
+                        <div style="background: white; padding: 15px; border-radius: 8px; margin-left: 45px;">
+                            <code style="display: block; background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                                使用 BAIME 构建 [领域] 能力（元目标）并完成以下任务（实例目标）：<br>
+                                - [具体任务 1]<br>
+                                - [具体任务 2]
+                            </code>
+                        </div>
+                    </div>
+
+                    <div style="margin: 30px 0;">
+                        <p style="font-weight: bold; margin-bottom: 10px;">
+                            <span class="step-number">2</span> Claude 自动执行
+                        </p>
+                        <ul style="margin-left: 45px; margin-top: 10px;">
+                            <li>使用 <code>iteration-prompt-designer</code> 创建实验结构</li>
+                            <li>使用 <code>iteration-executor</code> 运行迭代（0 → 1 → 2 → ... → N）</li>
+                            <li>使用 <code>knowledge-extractor</code> 创建可复用技能</li>
+                            <li>完成你的具体任务</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin: 30px 0;">
+                        <p style="font-weight: bold; margin-bottom: 10px;">
+                            <span class="step-number">3</span> 获得产出
+                        </p>
+                        <ul style="margin-left: 45px; margin-top: 10px;">
+                            <li>✅ 任务完成（README 更新、文档创建等）</li>
+                            <li>✅ 可复用方法论（技能包）</li>
+                            <li>✅ 完整实验轨迹（模板、模式、工具）</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="background: #e7f3ff; padding: 20px; border-radius: 10px; margin-top: 30px;">
+                    <h4 style="color: #004085; margin-top: 0;">💡 核心洞察</h4>
+                    <p style="color: #004085;"><strong>你不需要理解 BAIME 就能使用它</strong> —— 只需陈述：</p>
+                    <ol style="margin-top: 10px; padding-left: 20px; color: #004085;">
+                        <li><strong>元目标：</strong>你想构建什么能力</li>
+                        <li><strong>实例目标：</strong>你需要完成什么任务</li>
+                    </ol>
+                    <p style="color: #004085; margin-top: 10px;">Claude 会自动处理 BAIME 框架、专用代理和迭代管理。</p>
+                </div>
+            </section>
+
+            <section id="results">
+                <h2>已验证结果</h2>
+                <p style="font-size: 1.1em; margin-bottom: 25px;">
+                    在 8 个实验中验证，100% 成功率：
+                </p>
+
+                <div class="results-grid">
+                    <div class="result-card">
+                        <div class="result-metric">15×</div>
+                        <h4>测试策略</h4>
+                        <p>从 75% 提升到 86% 覆盖率，89% 可迁移性</p>
+                    </div>
+
+                    <div class="result-card">
+                        <div class="result-metric">2.5-3.5×</div>
+                        <h4>CI/CD 流水线</h4>
+                        <p>91.7% 模式验证，显著加速</p>
+                    </div>
+
+                    <div class="result-card">
+                        <div class="result-metric">80%</div>
+                        <h4>错误恢复</h4>
+                        <p>错误减少 80%，85% 可迁移性</p>
+                    </div>
+
+                    <div class="result-card">
+                        <div class="result-metric">23-46×</div>
+                        <h4>可观测性</h4>
+                        <p>巨大提速，90-95% 可迁移性</p>
+                    </div>
+
+                    <div class="result-card">
+                        <div class="result-metric">6×</div>
+                        <h4>依赖健康</h4>
+                        <p>9小时降至1.5小时，88% 可迁移性</p>
+                    </div>
+
+                    <div class="result-card">
+                        <div class="result-metric">47%</div>
+                        <h4>文档系统</h4>
+                        <p>Token 成本降低 47%，85% 可迁移性</p>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 40px; padding: 30px; background: #f8f9fa; border-radius: 12px;">
+                    <h3 style="color: #667eea; margin-bottom: 15px;">平均表现</h3>
+                    <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+                        <div>
+                            <div style="font-size: 2em; font-weight: bold; color: #764ba2;">4.9</div>
+                            <div style="color: #666;">平均迭代次数</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 2em; font-weight: bold; color: #764ba2;">9.1h</div>
+                            <div style="color: #666;">平均时长</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 2em; font-weight: bold; color: #764ba2;">0.784</div>
+                            <div style="color: #666;">平均 V_instance</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 2em; font-weight: bold; color: #764ba2;">0.840</div>
+                            <div style="color: #666;">平均 V_meta</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="use-cases">
+                <h2>适用场景</h2>
+
+                <h3 style="color: #28a745;">✅ 应该使用 BAIME</h3>
+                <div class="feature-grid">
+                    <div class="feature-card" style="background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);">
+                        <div class="feature-icon">🧪</div>
+                        <div class="feature-title">测试策略</div>
+                    </div>
+                    <div class="feature-card" style="background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);">
+                        <div class="feature-icon">🚀</div>
+                        <div class="feature-title">CI/CD 流水线</div>
+                    </div>
+                    <div class="feature-card" style="background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);">
+                        <div class="feature-icon">🔧</div>
+                        <div class="feature-title">错误处理模式</div>
+                    </div>
+                    <div class="feature-card" style="background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);">
+                        <div class="feature-icon">📊</div>
+                        <div class="feature-title">可观测性系统</div>
+                    </div>
+                    <div class="feature-card" style="background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);">
+                        <div class="feature-icon">📦</div>
+                        <div class="feature-title">依赖管理</div>
+                    </div>
+                    <div class="feature-card" style="background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);">
+                        <div class="feature-icon">📚</div>
+                        <div class="feature-title">文档系统</div>
+                    </div>
+                    <div class="feature-card" style="background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);">
+                        <div class="feature-icon">🎓</div>
+                        <div class="feature-title">知识传递</div>
+                    </div>
+                    <div class="feature-card" style="background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);">
+                        <div class="feature-icon">💳</div>
+                        <div class="feature-title">技术债务管理</div>
+                    </div>
+                </div>
+
+                <h3 style="color: #dc3545; margin-top: 40px;">❌ 不适合使用 BAIME</h3>
+                <ul style="font-size: 1.1em; margin-left: 20px;">
+                    <li>一次性临时任务（无可复用性目标）</li>
+                    <li>琐碎流程（< 100 行代码/文档）</li>
+                    <li>已有完善的行业标准完全解决你的问题</li>
+                </ul>
+            </section>
+
+            <section id="specialized-agents">
+                <h2>专用代理</h2>
+                <p style="font-size: 1.1em; margin-bottom: 25px;">
+                    BAIME 提供三个专用 Claude Code 子代理简化实验执行：
+                </p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">📝</div>
+                        <div class="feature-title">iteration-prompt-designer</div>
+                        <p><strong>何时使用：</strong>实验开始时</p>
+                        <p><strong>作用：</strong>为你的实验设计全面的 ITERATION-PROMPTS.md</p>
+                        <p style="margin-top: 10px; color: #667eea;"><strong>节省：</strong>2-3 小时设置时间</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">⚙️</div>
+                        <div class="feature-title">iteration-executor</div>
+                        <p><strong>何时使用：</strong>每次迭代（0, 1, 2, ...）</p>
+                        <p><strong>作用：</strong>通过完整的 OCA 循环执行迭代</p>
+                        <p style="margin-top: 10px; color: #667eea;"><strong>优势：</strong>一致的结构 + 系统化价值计算</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">💎</div>
+                        <div class="feature-title">knowledge-extractor</div>
+                        <p><strong>何时使用：</strong>实验收敛后</p>
+                        <p><strong>作用：</strong>提取知识并转换为可复用方法论</p>
+                        <p style="margin-top: 10px; color: #667eea;"><strong>节省：</strong>4-6 小时知识整理时间</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="cta-section">
+                <h2 style="color: white; margin-bottom: 20px;">准备好开始了吗？</h2>
+                <p style="font-size: 1.2em; margin-bottom: 30px;">
+                    只需三步：定义领域 → 设定目标 → 开始迭代
+                </p>
+                <a href="https://github.com/yaleh/meta-cc" class="cta-button" target="_blank">
+                    访问 GitHub 仓库 →
+                </a>
+                <p style="margin-top: 30px; opacity: 0.9;">
+                    详细文档请参考：<br>
+                    <a href="https://github.com/yaleh/meta-cc/blob/main/docs/tutorials/baime-usage.md" style="color: white; text-decoration: underline;">BAIME 使用指南</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <footer style="text-align: center; padding: 40px 20px; color: white;">
+        <p style="font-size: 0.9em; opacity: 0.8;">
+            BAIME - Bootstrapped AI Methodology Engineering<br>
+            从观察到自动化，系统化构建可复用方法论
+        </p>
+    </footer>
+</body>
+</html>
