@@ -9,12 +9,9 @@
   "plugins": [
     {
       "name": "meta-cc",
-      "source": {
-        "source": "github",
-        "repo": "yaleh/meta-cc"
-      },
+      "source": "./.claude",
       "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides unified /meta command with natural language intent matching, 5 specialized agents, 13 capabilities, and 16 MCP tools. Lightweight and fast.",
-      "version": "0.30.2",
+      "version": "0.31.0",
       "author": {
         "name": "Yale Huang",
         "email": "yaleh@ieee.org",
@@ -29,13 +26,23 @@
         "metacognition",
         "analytics",
         "optimization"
+      ],
+      "commands": [
+        "./commands/meta.md"
+      ],
+      "agents": [
+        "./agents/iteration-executor.md",
+        "./agents/iteration-prompt-designer.md",
+        "./agents/knowledge-extractor.md",
+        "./agents/project-planner.md",
+        "./agents/stage-executor.md"
       ]
     },
     {
       "name": "meta-cc-skills",
       "source": "./.claude",
-      "description": "Software development methodology skills - 15 validated patterns for testing, CI/CD, error recovery, refactoring, and more. Based on BAIME methodology with proven 10-50x speedup.",
-      "version": "0.29.1",
+      "description": "Software development methodology skills - 18 validated patterns for testing, CI/CD, error recovery, documentation, refactoring, and more. Based on BAIME methodology with proven 10-50x speedup.",
+      "version": "0.31.0",
       "author": {
         "name": "Yale Huang",
         "email": "yaleh@ieee.org",
@@ -53,21 +60,24 @@
       ],
       "strict": false,
       "skills": [
-        "./skills/testing-strategy",
+        "./skills/agent-prompt-evolution",
+        "./skills/agent-specialization",
+        "./skills/api-design",
+        "./skills/baime-methodology-development",
+        "./skills/baseline-quality-assessment",
         "./skills/ci-cd-optimization",
-        "./skills/error-recovery",
-        "./skills/dependency-health",
-        "./skills/knowledge-transfer",
-        "./skills/technical-debt-management",
         "./skills/code-refactoring",
         "./skills/cross-cutting-concerns",
-        "./skills/observability-instrumentation",
-        "./skills/api-design",
+        "./skills/dependency-health",
+        "./skills/documentation-management",
+        "./skills/error-recovery",
+        "./skills/knowledge-transfer",
         "./skills/methodology-bootstrapping",
-        "./skills/agent-prompt-evolution",
-        "./skills/baseline-quality-assessment",
+        "./skills/observability-instrumentation",
         "./skills/rapid-convergence",
-        "./skills/retrospective-validation"
+        "./skills/retrospective-validation",
+        "./skills/technical-debt-management",
+        "./skills/testing-strategy"
       ]
     }
   ]
