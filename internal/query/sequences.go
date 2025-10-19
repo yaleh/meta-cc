@@ -210,32 +210,52 @@ func matchesSequence(toolCalls []toolCallWithTurn, start int, tools []string) bo
 	return true
 }
 
+// findTimestampForTurn finds the timestamp for a specific turn
+func findTimestampForTurn(entries []parser.SessionEntry, toolCalls []toolCallWithTurn, turn int) int64 {
+	for _, tc := range toolCalls {
+		if tc.turn == turn {
+			return getToolCallTimestamp(entries, tc.uuid)
+		}
+	}
+	return 0
+}
+
 // calculateSequenceTimeSpan calculates time span for sequence occurrences
 func calculateSequenceTimeSpan(occurrences []types.SequenceOccurrence, entries []parser.SessionEntry, toolCalls []toolCallWithTurn) int {
 	if len(occurrences) == 0 {
 		return 0
 	}
 
-	// Find first and last timestamp
-	var minTs, maxTs int64
+	// Collect all relevant timestamps
+	var timestamps []int64
 
 	for _, occ := range occurrences {
-		// Find timestamps for start and end turns
-		for _, tc := range toolCalls {
-			if tc.turn == occ.StartTurn || tc.turn == occ.EndTurn {
-				ts := getToolCallTimestamp(entries, tc.uuid)
-				if minTs == 0 || ts < minTs {
-					minTs = ts
-				}
-				if ts > maxTs {
-					maxTs = ts
-				}
-			}
+		// Get timestamps for start and end of each occurrence
+		startTs := findTimestampForTurn(entries, toolCalls, occ.StartTurn)
+		endTs := findTimestampForTurn(entries, toolCalls, occ.EndTurn)
+
+		if startTs > 0 {
+			timestamps = append(timestamps, startTs)
+		}
+		if endTs > 0 && endTs != startTs {
+			timestamps = append(timestamps, endTs)
 		}
 	}
 
-	if minTs == 0 || maxTs == 0 {
+	if len(timestamps) == 0 {
 		return 0
+	}
+
+	// Find min and max
+	minTs := timestamps[0]
+	maxTs := timestamps[0]
+	for _, ts := range timestamps[1:] {
+		if ts < minTs {
+			minTs = ts
+		}
+		if ts > maxTs {
+			maxTs = ts
+		}
 	}
 
 	return int((maxTs - minTs) / 60)
