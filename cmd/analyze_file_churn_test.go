@@ -11,7 +11,7 @@ import (
 
 func TestAnalyzeFileChurnCommand_OutputFormat(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping integration test in CI - requires real git history")
+		t.Skip("Skipping integration test in short mode - requires real session data")
 	}
 
 	// Test: verify that analyze file-churn outputs array of objects (not wrapped)
