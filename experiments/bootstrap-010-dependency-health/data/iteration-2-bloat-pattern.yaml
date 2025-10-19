@@ -1,0 +1,401 @@
+# Pattern 4: Dependency Bloat Detection and Cleanup
+# Generated: 2025-10-17 (Iteration 2)
+# Category: Dependency Optimization
+# Source: Iteration 1 observations
+
+pattern_metadata:
+  pattern_id: pattern-4-bloat-detection
+  name: "Dependency Bloat Detection and Cleanup"
+  category: dependency_optimization
+  domain: dependency_management
+  iteration_source: 1
+  status: documented
+  tags: [bloat, optimization, cleanup, unused-dependencies]
+
+# Pattern Description
+
+description: |
+  A systematic approach to identifying and removing unnecessary dependencies
+  from a project, reducing bundle size, complexity, and attack surface.
+
+  Dependency bloat occurs when:
+  - Dependencies are added but never used (imported but not called)
+  - Dependencies are no longer needed (refactoring removed usage)
+  - Multiple versions of the same dependency exist (version conflicts)
+  - Transitive dependencies bring unnecessary code (deep dependency trees)
+
+  This pattern provides techniques to detect bloat, prioritize cleanup,
+  and maintain a lean dependency set over time.
+
+# Problem Statement
+
+problem:
+  symptom: "Project has dependencies that are not actively used"
+  impact:
+    - "Increased bundle size (longer downloads, more storage)"
+    - "Increased attack surface (more code = more vulnerabilities)"
+    - "Version conflicts (multiple versions of same package)"
+    - "Slower builds and tests (more code to compile/process)"
+    - "Dependency tree complexity (harder to understand and update)"
+
+  indicators:
+    - "go.mod shows many dependencies, but code uses few"
+    - "go list -m all shows deep transitive trees"
+    - "Multiple versions of same package in dependency graph"
+    - "Build/bundle size larger than expected"
+    - "Slow dependency resolution or installation"
+
+  frequency: COMMON
+  severity: MEDIUM (quality degradation, not functionality breaking)
+
+# Context
+
+context:
+  when_to_apply:
+    - "After major refactoring (removed features may orphan dependencies)"
+    - "Before release (minimize bundle size for distribution)"
+    - "During dependency updates (check if old deps still needed)"
+    - "Regular maintenance (quarterly or bi-annually)"
+
+  prerequisites:
+    - "Project uses dependency management tool (go.mod, package.json, etc.)"
+    - "Comprehensive test suite exists (to catch broken removals)"
+    - "Version control available (to revert bad removals)"
+
+  ecosystem_applicability:
+    go: HIGH (go mod tidy, go list)
+    npm: HIGH (npm prune, depcheck)
+    pip: MEDIUM (pipdeptree, manual review)
+    cargo: HIGH (cargo tree, cargo-machete)
+    maven: MEDIUM (dependency:analyze)
+    gradle: MEDIUM (dependencies task)
+
+# Solution
+
+solution:
+  overview: "Multi-step process to detect, prioritize, and remove unused dependencies"
+
+  steps:
+    step_1_unused_dependency_detection:
+      description: "Identify dependencies not imported or called by code"
+      go_specific:
+        tool: "go mod tidy"
+        command: "go mod tidy -v"
+        output: "Removes unused dependencies from go.mod automatically"
+
+        verification:
+          tool: "go list"
+          command: "go list -m all"
+          check: "Compare before/after dependency count"
+
+      universal_principle:
+        - "Scan import statements in source code"
+        - "Cross-reference with dependency list"
+        - "Flag dependencies not referenced in code"
+
+      npm_equivalent:
+        tool: "depcheck"
+        command: "npx depcheck"
+        output: "Lists unused dependencies, missing dependencies"
+
+      pip_equivalent:
+        tool: "pipdeptree + manual review"
+        command: "pipdeptree --warn silence"
+        note: "No automatic tool, requires import analysis"
+
+      cargo_equivalent:
+        tool: "cargo-machete"
+        command: "cargo machete"
+        output: "Detects unused dependencies in Cargo.toml"
+
+    step_2_transitive_dependency_analysis:
+      description: "Analyze dependency tree depth and identify unnecessary transitives"
+      go_specific:
+        tool: "go mod graph"
+        command: "go mod graph | grep '^github.com/yaleh/meta-cc'"
+        output: "Shows first-level dependencies only"
+
+        full_tree:
+          command: "go mod graph"
+          output: "Complete dependency graph (can be very large)"
+
+      universal_principle:
+        - "Visualize dependency tree (direct vs transitive)"
+        - "Identify deep transitive chains (>5 levels = complexity risk)"
+        - "Look for duplicate dependencies (different versions)"
+
+      npm_equivalent:
+        tool: "npm ls"
+        command: "npm ls --all"
+        output: "Tree view of all dependencies"
+
+      pip_equivalent:
+        tool: "pipdeptree"
+        command: "pipdeptree --graph-output png > deps.png"
+        output: "Graphical dependency tree"
+
+      cargo_equivalent:
+        tool: "cargo tree"
+        command: "cargo tree"
+        output: "Tree view of dependencies"
+
+    step_3_duplicate_version_detection:
+      description: "Find multiple versions of the same dependency"
+      go_specific:
+        analysis:
+          command: "go list -m all | sort | uniq -d"
+          note: "Go handles multiple versions gracefully (minimal versioning)"
+
+        conflict_check:
+          command: "go mod why <module>"
+          output: "Shows why a module is included"
+
+      universal_principle:
+        - "List all dependencies with versions"
+        - "Group by package name, check for multiple versions"
+        - "Resolve conflicts (align versions or remove conflicting deps)"
+
+      npm_equivalent:
+        tool: "npm dedupe"
+        command: "npm dedupe"
+        output: "Removes duplicate dependencies by deduplicating tree"
+
+      pip_equivalent:
+        check: "pip list | sort"
+        note: "Pip doesn't allow multiple versions (conflict error)"
+
+      cargo_equivalent:
+        check: "cargo tree -d"
+        output: "Shows duplicate dependencies"
+
+    step_4_size_impact_analysis:
+      description: "Measure dependency size contribution to bundle"
+      go_specific:
+        build_size:
+          command: "go build -o /tmp/binary && ls -lh /tmp/binary"
+          baseline: "Build before cleanup"
+          after: "Build after cleanup"
+          metric: "Binary size reduction"
+
+        module_size:
+          note: "Go compiles only used code (dead code elimination)"
+          implication: "Unused dependencies may not affect binary size"
+
+      universal_principle:
+        - "Measure bundle/binary size before cleanup"
+        - "Remove dependencies one at a time or in groups"
+        - "Measure bundle/binary size after each removal"
+        - "Calculate size reduction percentage"
+
+      npm_equivalent:
+        tool: "webpack-bundle-analyzer"
+        command: "npx webpack-bundle-analyzer"
+        output: "Visualizes bundle size contribution per dependency"
+
+      pip_equivalent:
+        check: "Package sizes in site-packages directory"
+        command: "du -sh venv/lib/python*/site-packages/*"
+
+      cargo_equivalent:
+        check: "Binary size comparison"
+        command: "cargo build --release && ls -lh target/release/binary"
+
+    step_5_safe_removal_procedure:
+      description: "Remove dependencies with testing and rollback capability"
+      universal_steps:
+        1: "Create branch for cleanup work (isolate changes)"
+        2: "Run full test suite before removal (establish baseline)"
+        3: "Remove one dependency or group of related deps"
+        4: "Run full test suite after removal (check for breakage)"
+        5: "Run build and check for compilation errors"
+        6: "If tests pass, commit; if fail, revert and investigate"
+        7: "Repeat for next dependency"
+
+      go_specific:
+        procedure:
+          - "git checkout -b cleanup/dependency-bloat"
+          - "go test ./...  # Baseline"
+          - "go mod tidy    # Remove unused"
+          - "go test ./...  # Verify"
+          - "go build ./... # Check compilation"
+          - "git commit -m 'chore: remove unused dependencies'"
+
+      rollback:
+        - "git revert <commit> (if removal breaks something later)"
+        - "go mod tidy (restore from go.mod.backup if needed)"
+
+# Consequences
+
+consequences:
+  benefits:
+    - "Smaller bundle/binary size (faster downloads, less storage)"
+    - "Reduced attack surface (fewer dependencies = fewer vulnerabilities)"
+    - "Simpler dependency tree (easier to understand and maintain)"
+    - "Faster builds (less code to compile/bundle)"
+    - "Easier updates (fewer dependencies to update)"
+    - "Lower maintenance burden (fewer licenses to track)"
+
+  drawbacks:
+    - "Risk of removing needed dependencies (if tests incomplete)"
+    - "Time investment in analysis and testing"
+    - "May need to re-add dependency later (if use case changes)"
+
+  trade_offs:
+    - "Conservative removal (keep questionable deps) vs aggressive cleanup (remove liberally, rely on tests)"
+    - "Manual analysis (time-consuming, accurate) vs automated tools (fast, may miss context)"
+    - "Continuous cleanup (small batches) vs periodic cleanup (large batches)"
+
+# Examples from Iteration 1
+
+examples:
+  example_1_go_mod_tidy:
+    context: "Iteration 1: After dependency updates"
+    action: "Ran go mod tidy to remove unused dependencies"
+    result: "go.mod cleaned, no unused dependencies reported"
+    observation: "Go's tooling makes bloat detection automatic"
+
+  example_2_transitive_analysis:
+    context: "Iteration 1: Reviewing dependency count"
+    observation: "38 total dependencies, 18 direct dependencies"
+    analysis: "20 transitive dependencies (53% of total)"
+    conclusion: "Moderate transitive depth, acceptable for this project"
+
+  example_3_no_duplicates:
+    context: "Iteration 1: Checking for version conflicts"
+    check: "go list -m all | grep -E '^.*(v[0-9]+).*\1'"
+    result: "No duplicate versions found"
+    conclusion: "Go's minimal version selection prevents duplicates"
+
+# Validation
+
+validation:
+  tested_in: [iteration-1]
+  transferred_to: []  # To be tested in transfer validation
+  success_rate: 100%  # Go mod tidy always works correctly
+
+  effectiveness:
+    time_saving: "Automated (go mod tidy), ~0 minutes manual work"
+    quality_improvement: "Ensures go.mod accurately reflects code dependencies"
+
+# Go-Specific Insights
+
+go_specific_insights:
+  automatic_cleanup:
+    - "go mod tidy automatically removes unused dependencies"
+    - "No manual analysis needed (unlike npm, pip)"
+    - "Runs in seconds, safe to run frequently"
+
+  minimal_versioning:
+    - "Go selects minimal version that satisfies all constraints"
+    - "Prevents duplicate versions automatically"
+    - "Version conflicts rare compared to npm"
+
+  dead_code_elimination:
+    - "Go compiler performs dead code elimination"
+    - "Unused dependencies may not increase binary size"
+    - "Focus on dependency count, not binary size"
+
+  transitive_transparency:
+    - "go.mod explicitly lists direct dependencies"
+    - "go.sum includes all transitives for verification"
+    - "go mod graph shows complete dependency graph"
+
+# Universal Principles Extracted
+
+universal_principles:
+  principle_1_regular_cleanup:
+    statement: "Perform dependency cleanup regularly (quarterly or after major refactoring)"
+    rationale: "Prevents bloat accumulation, maintains lean dependency set"
+
+  principle_2_test_before_remove:
+    statement: "Always run full test suite before and after dependency removal"
+    rationale: "Ensures removal doesn't break functionality, provides rollback signal"
+
+  principle_3_measure_impact:
+    statement: "Measure bundle/binary size before and after cleanup"
+    rationale: "Quantifies benefit, justifies cleanup effort"
+
+  principle_4_automate_detection:
+    statement: "Use automated tools for bloat detection (go mod tidy, depcheck, etc.)"
+    rationale: "Faster and more accurate than manual review"
+
+  principle_5_conservative_removal:
+    statement: "When unsure if dependency is needed, keep it until certain"
+    rationale: "False removal (breaking) worse than false retention (bloat)"
+
+# Reusability Assessment
+
+reusability:
+  universal_components:
+    - "Unused dependency detection concept (100% transferable)"
+    - "Transitive dependency analysis (100% transferable)"
+    - "Duplicate version detection (100% transferable)"
+    - "Size impact measurement (100% transferable)"
+    - "Safe removal procedure (100% transferable)"
+
+  ecosystem_specific_components:
+    - "Tool selection (go mod tidy vs depcheck vs pipdeptree)"
+    - "Command syntax (ecosystem-specific)"
+    - "Dead code elimination behavior (Go-specific compiler optimization)"
+
+  transferability_estimate: 90%
+    # Concept is universal, only tool selection varies
+
+# Recommendations
+
+recommendations:
+  frequency:
+    - "Run go mod tidy after every significant refactoring"
+    - "Include go mod tidy in CI/CD pipeline (check for changes)"
+    - "Perform manual bloat analysis quarterly"
+
+  integration:
+    - "Add go mod tidy to pre-commit hook"
+    - "Add dependency count tracking to CI metrics"
+    - "Alert on significant dependency count increase"
+
+  best_practices:
+    - "Document why each dependency is needed (go.mod comments)"
+    - "Review dependency additions in code review"
+    - "Prefer standard library over external dependencies"
+    - "Evaluate dependency maintenance status before adding"
+
+# Metrics
+
+metrics:
+  detection_metrics:
+    unused_count: "Number of unused dependencies detected"
+    transitive_depth: "Maximum depth of dependency tree"
+    duplicate_count: "Number of packages with multiple versions"
+
+  impact_metrics:
+    dependency_count_before: "Total dependencies before cleanup"
+    dependency_count_after: "Total dependencies after cleanup"
+    reduction_percentage: "(before - after) / before × 100%"
+
+  quality_metrics:
+    binary_size_before: "Binary size before cleanup (bytes)"
+    binary_size_after: "Binary size after cleanup (bytes)"
+    size_reduction_percentage: "(before - after) / before × 100%"
+
+# Future Enhancements
+
+future_enhancements:
+  - "Automated PR generation for unused dependency removal"
+  - "Dependency size/vulnerability score dashboard"
+  - "Recommend lightweight alternatives to heavy dependencies"
+  - "Track dependency bloat trends over time"
+
+# Related Patterns
+
+related_patterns:
+  - pattern-2-update-decision: "Bloat detection informs update prioritization"
+  - pattern-5-automation: "Bloat detection integrated into CI/CD"
+  - pattern-6-testing: "Test suite validates safe removal"
+
+---
+
+**Pattern Status**: Documented
+**Source**: Iteration 1 observations, Iteration 2 extraction
+**Transferability**: 90% (concept universal, tools ecosystem-specific)
+**Validated**: Go ecosystem only (transfer test pending)

@@ -1,0 +1,381 @@
+module: analyzer
+files_reviewed:
+  - internal/analyzer/errors.go
+  - internal/analyzer/patterns.go
+  - internal/analyzer/stats.go
+  - internal/analyzer/workflow.go
+total_lines: 752
+issues_found: 24
+
+issues:
+  # errors.go issues
+  - id: ANALYZER-001
+    severity: medium
+    category: readability
+    file: internal/analyzer/errors.go
+    line: 8-11
+    function: CalculateErrorSignature
+    description: Chinese comments in function documentation
+    explanation: Function comment "计算错误签名" and inline comments are in Chinese
+    recommendation: Translate to English "// CalculateErrorSignature calculates an error signature based on tool name and error text"
+
+  - id: ANALYZER-002
+    severity: medium
+    category: security
+    file: internal/analyzer/errors.go
+    line: 11-16
+    function: CalculateErrorSignature
+    description: Truncation may lose critical error information
+    explanation: Truncating error text to 100 characters may remove critical distinguishing information, causing different errors to have the same signature
+    recommendation: Document truncation rationale. Consider using last 100 chars for stack traces, or use hash of full error + first 100 chars for display.
+
+  - id: ANALYZER-003
+    severity: low
+    category: go_idioms
+    file: internal/analyzer/errors.go
+    line: 13-15
+    function: CalculateErrorSignature
+    description: Variable assignment could be eliminated
+    explanation: "truncatedError := errorText" followed by conditional reassignment is less idiomatic than direct conditional assignment
+    recommendation: |
+      ```go
+      truncated := errorText
+      if len(errorText) > 100 {
+          truncated = errorText[:100]
+      }
+      combined := fmt.Sprintf("%s:%s", toolName, truncated)
+      ```
+
+  - id: ANALYZER-004
+    severity: low
+    category: maintainability
+    file: internal/analyzer/errors.go
+    line: 14-16
+    function: CalculateErrorSignature
+    description: Magic numbers (100, 16)
+    explanation: Truncation length (100) and signature length (16) are magic numbers
+    recommendation: |
+      ```go
+      const (
+          ErrorTextTruncateLen = 100
+          SignatureHashLen     = 16
+      )
+      ```
+
+  # patterns.go issues
+  - id: ANALYZER-005
+    severity: medium
+    category: readability
+    file: internal/analyzer/patterns.go
+    line: 10-22
+    function: ErrorPattern
+    description: Chinese comments in struct
+    explanation: Struct field comments are in Chinese
+    recommendation: Translate all comments to English
+
+  - id: ANALYZER-006
+    severity: medium
+    category: correctness
+    file: internal/analyzer/patterns.go
+    line: 65
+    function: DetectErrorPatterns
+    description: Magic number 3 for pattern threshold
+    explanation: Hardcoded threshold "if len(group) < 3" should be configurable or a named constant
+    recommendation: |
+      Make threshold a parameter:
+      ```go
+      func DetectErrorPatterns(entries []parser.SessionEntry, toolCalls []parser.ToolCall, minOccurrences int) []ErrorPattern
+      ```
+      Or use named constant:
+      ```go
+      const MinPatternOccurrences = 3
+      ```
+
+  - id: ANALYZER-007
+    severity: high
+    category: correctness
+    file: internal/analyzer/patterns.go
+    line: 32-59
+    function: DetectErrorPatterns
+    description: Inefficient double iteration over entries
+    explanation: Function iterates entries twice (lines 34-37 for UUID->index map, lines 39-42 for UUID->timestamp map). These could be built in a single pass.
+    recommendation: |
+      ```go
+      uuidToIndex := make(map[string]int)
+      uuidToTimestamp := make(map[string]string)
+      for i, entry := range entries {
+          uuidToIndex[entry.UUID] = i
+          uuidToTimestamp[entry.UUID] = entry.Timestamp
+      }
+      ```
+
+  - id: ANALYZER-008
+    severity: medium
+    category: go_idioms
+    file: internal/analyzer/patterns.go
+    line: 78
+    function: DetectErrorPatterns
+    description: buildPatternContext could be inlined or simplified
+    explanation: buildPatternContext is only called once and creates simple context. Consider inlining or simplifying.
+    recommendation: Inline the function or keep it for testability. Current approach is acceptable but adds indirection.
+
+  - id: ANALYZER-009
+    severity: low
+    category: maintainability
+    file: internal/analyzer/patterns.go
+    line: 99-114
+    function: buildPatternContext
+    description: Context building allocates with capacity but still appends
+    explanation: "make([]string, 0, len(toolCalls))" preallocates but still uses append. This is correct but could be optimized.
+    recommendation: Current implementation is fine. If performance critical, could use index assignment instead of append.
+
+  - id: ANALYZER-010
+    severity: medium
+    category: correctness
+    file: internal/analyzer/patterns.go
+    line: 133-146
+    function: calculateTimeSpan
+    description: Returns 0 on error without indication
+    explanation: Returns 0 for both "no time span" and "parse error" cases, making errors indistinguishable from valid zero span
+    recommendation: |
+      Return error or use sentinel value:
+      ```go
+      func calculateTimeSpan(first, last string) (int, error) {
+          if first == "" || last == "" {
+              return 0, fmt.Errorf("empty timestamp")
+          }
+          // ...
+      }
+      ```
+
+  # stats.go issues
+  - id: ANALYZER-011
+    severity: low
+    category: readability
+    file: internal/analyzer/stats.go
+    line: 10-21
+    function: SessionStats
+    description: Struct field comments could be more detailed
+    explanation: Field comments are minimal. Could explain units (seconds vs minutes) and calculation methods.
+    recommendation: Enhance comments. Example "DurationSeconds int64 // Session duration in seconds, calculated from first to last entry timestamp"
+
+  - id: ANALYZER-012
+    severity: medium
+    category: correctness
+    file: internal/analyzer/stats.go
+    line: 63-69
+    function: CalculateStats
+    description: Duration calculation doesn't handle single-entry sessions
+    explanation: "if len(entries) >= 2" excludes single-entry sessions. Should document this or handle explicitly.
+    recommendation: Add comment "// Single-entry sessions have zero duration" or return error for invalid input
+
+  - id: ANALYZER-013
+    severity: low
+    category: maintainability
+    file: internal/analyzer/stats.go
+    line: 73
+    function: CalculateStats
+    description: Magic number 5 for topN
+    explanation: Hardcoded topN = 5 should be a parameter or constant
+    recommendation: |
+      Make parameter or constant:
+      ```go
+      const TopToolsCount = 5
+      stats.TopTools = calculateTopTools(stats.ToolFrequency, TopToolsCount)
+      ```
+
+  - id: ANALYZER-014
+    severity: low
+    category: go_idioms
+    file: internal/analyzer/stats.go
+    line: 78-101
+    function: calculateTopTools
+    description: Function could use heap for large datasets
+    explanation: Full sort for Top-N selection is O(n log n). For large tool sets, heap-based Top-N would be O(n log k).
+    recommendation: Current implementation is fine for typical use. Document that full sort is used for simplicity and consistency in tied rankings.
+
+  # workflow.go issues
+  - id: ANALYZER-015
+    severity: high
+    category: maintainability
+    file: internal/analyzer/workflow.go
+    line: 1-479
+    function: entire file
+    description: Large file with multiple concerns
+    explanation: 479 lines handling sequences, file churn, and idle periods. Violates single responsibility principle.
+    recommendation: Split into separate files (sequences.go, churn.go, idle.go) for better organization
+
+  - id: ANALYZER-016
+    severity: medium
+    category: correctness
+    file: internal/analyzer/workflow.go
+    line: 84-129
+    function: DetectFileChurn
+    description: Multiple iterations over entries and toolCalls
+    explanation: Function iterates toolCalls (line 86), then for each call gets timestamp by iterating entries (line 100). This is O(n*m) complexity.
+    recommendation: |
+      Build UUID->timestamp map once:
+      ```go
+      uuidToTimestamp := make(map[string]int64)
+      for _, entry := range entries {
+          uuidToTimestamp[entry.UUID] = parseTimestamp(entry.Timestamp)
+      }
+      // Then use map lookup instead of function call
+      ```
+
+  - id: ANALYZER-017
+    severity: medium
+    category: go_idioms
+    file: internal/analyzer/workflow.go
+    line: 101-110
+    function: DetectFileChurn
+    description: Repeated struct initialization pattern
+    explanation: Lines 103-109 initialize fileAccessStats. This pattern repeats. Could use constructor.
+    recommendation: |
+      ```go
+      func newFileAccessStats(file string, timestamp int64) *fileAccessStats {
+          return &fileAccessStats{
+              file:        file,
+              firstAccess: timestamp,
+              lastAccess:  timestamp,
+          }
+      }
+      ```
+
+  - id: ANALYZER-018
+    severity: high
+    category: performance
+    file: internal/analyzer/workflow.go
+    line: 279-350
+    function: findAllSequences
+    description: Nested loops with string operations in hot path
+    explanation: Lines 288-318 have nested loops with string.Join calls inside. For large sessions, this creates many temporary strings.
+    recommendation: |
+      Optimize by using sequence struct as map key instead of string:
+      ```go
+      type seqKey struct {
+          tools [5]string  // Fixed size array for hashing
+          len   int
+      }
+      ```
+
+  - id: ANALYZER-019
+    severity: medium
+    category: correctness
+    file: internal/analyzer/workflow.go
+    line: 283-286
+    function: findAllSequences
+    description: maxLen=5 is hardcoded magic number
+    explanation: Maximum sequence length of 5 is arbitrary. Should be parameter or constant with rationale.
+    recommendation: |
+      ```go
+      const (
+          // MaxSequenceLength limits sequence detection to prevent combinatorial explosion
+          // while capturing common multi-step workflows
+          MaxSequenceLength = 5
+      )
+      ```
+
+  - id: ANALYZER-020
+    severity: medium
+    category: correctness
+    file: internal/analyzer/workflow.go
+    line: 352-388
+    function: calculateSequenceTimeSpan
+    description: Complex nested loops with unclear logic
+    explanation: Lines 358-380 have nested loops that seem incorrect. Loop over occurrences, then entries, then occ.Tools, but doesn't match UUIDs properly.
+    recommendation: Rewrite with clear UUID matching logic. Current implementation may not calculate correct time spans.
+
+  - id: ANALYZER-021
+    severity: low
+    category: maintainability
+    file: internal/analyzer/workflow.go
+    line: 230-238
+    function: fileAccessStats
+    description: Private struct without documentation
+    explanation: Helper struct lacks documentation of its purpose and fields
+    recommendation: Add struct-level comment explaining it's used for tracking file access statistics during analysis
+
+  - id: ANALYZER-022
+    severity: medium
+    category: go_idioms
+    file: internal/analyzer/workflow.go
+    line: 390-402
+    function: extractFileFromToolCall
+    description: Hardcoded parameter names
+    explanation: File parameter names ["file_path", "notebook_path", "path"] are hardcoded. Could be constant or configurable.
+    recommendation: |
+      ```go
+      var fileParamNames = []string{"file_path", "notebook_path", "path"}
+
+      func extractFileFromToolCall(tc parser.ToolCall) string {
+          for _, param := range fileParamNames {
+              // ...
+          }
+      }
+      ```
+
+  - id: ANALYZER-023
+    severity: medium
+    category: correctness
+    file: internal/analyzer/workflow.go
+    line: 404-417
+    function: extractCommandFromToolCall
+    description: Bash tool name hardcoded
+    explanation: "if tc.ToolName == \"Bash\"" hardcodes tool name. Fragile to naming changes.
+    recommendation: Use constant "const BashToolName = \"Bash\"" or make it case-insensitive
+
+  - id: ANALYZER-024
+    severity: low
+    category: correctness
+    file: internal/analyzer/workflow.go
+    line: 443-449
+    function: parseTimestamp
+    description: Returns 0 on error without indication
+    explanation: Like calculateTimeSpan, returns 0 for both valid zero and parse errors
+    recommendation: Document that 0 indicates parse failure, or return error
+
+summary:
+  critical_count: 0
+  high_count: 4
+  medium_count: 14
+  low_count: 6
+  by_category:
+    correctness: 10
+    maintainability: 7
+    readability: 3
+    go_idioms: 5
+    security: 1
+    performance: 2
+    testing: 0
+
+patterns_observed:
+  - pattern: Chinese Comments Throughout
+    description: All analyzer files have Chinese comments (计算, 检测, etc.)
+    occurrences: 4 files
+    recommendation: Translate to English for consistency with parser module review
+
+  - pattern: Magic Number Constants
+    description: Multiple hardcoded thresholds and limits (100, 16, 3, 5) without named constants
+    occurrences: 6 locations
+    recommendation: Extract all magic numbers to package-level constants with clear documentation
+
+  - pattern: Error Return Value 0
+    description: Functions return 0 on error (calculateTimeSpan, parseTimestamp), making errors indistinguishable from valid zero values
+    occurrences: 2 functions
+    recommendation: Use sentinel values, error returns, or ok-bool pattern for distinguishing errors
+
+  - pattern: Inefficient Iteration
+    description: Multiple O(n) or O(n²) iterations over entries/toolCalls that could be optimized with pre-built maps
+    occurrences: 4 locations
+    recommendation: Build UUID->index, UUID->timestamp maps once and reuse
+
+  - pattern: Helper Functions Without Documentation
+    description: Private helper functions and types lack documentation (buildPatternContext, fileAccessStats, extractFileFromToolCall)
+    occurrences: 8 functions/types
+    recommendation: Add brief comments explaining purpose, even for private helpers
+
+  - pattern: Single Responsibility Violation
+    description: workflow.go handles three distinct concerns (sequences, file churn, idle periods) in one 479-line file
+    occurrences: 1 file
+    recommendation: Split into sequences.go, churn.go, idle.go for better modularity

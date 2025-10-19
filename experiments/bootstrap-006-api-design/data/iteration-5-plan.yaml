@@ -1,0 +1,538 @@
+# Iteration 5: Execution Plan
+
+iteration: 5
+date: 2025-10-15
+status: planned
+experiment: bootstrap-006-api-design
+
+---
+
+## Context
+
+### Previous Iteration Summary
+
+iteration_4:
+  status: CONVERGED
+  V_s4: 0.83
+  gap_to_threshold: -0.03 (exceeds)
+  agent_stability: A₄ = A₃ = A₂ = A₁
+  meta_stability: M₄ = M₃ = M₂ = M₁ = M₀
+
+  completed:
+    - task_1: "Parameter reordering (100% operational)"
+    - methodology: "3 patterns extracted and codified"
+
+  deferred:
+    - task_2: "Validation tool MVP (skeleton only)"
+    - task_3: "Pre-commit hook (spec created)"
+    - task_4: "Documentation enhancement (spec created)"
+
+---
+
+## State Assessment
+
+current_state:
+  V_s4: 0.83
+
+  components:
+    V_usability: 0.78
+      error_messages: 0.85 (design quality, not operational)
+      parameter_clarity: 0.85 (operational)
+      documentation: 0.80 (unchanged, needs examples)
+
+    V_consistency: 0.94
+      design_layer: 0.95 (methodology extracted)
+      implementation_layer: 1.00 (operational)
+      enforcement_layer: 0.85 (design quality, not operational) # WEAKEST
+
+    V_completeness: 0.72
+      feature_coverage: 0.65 (unchanged)
+      documentation_completeness: 0.80 (methodology added)
+      parameter_coverage: 0.75 (unchanged)
+
+    V_evolvability: 0.86
+      has_versioning: 1.00
+      has_deprecation_policy: 1.00
+      backward_compatible_design: 0.85
+      migration_support: 0.60
+      extensibility: 0.85
+
+  weakest_component:
+    name: "V_consistency (enforcement_layer)"
+    current: 0.85
+    target: 0.97
+    gap: 0.12
+    priority: P0
+
+---
+
+## Iteration Goal
+
+primary_objective: "Make enforcement layer operational by implementing validation tool + pre-commit hook"
+
+success_criteria:
+  operational:
+    - "Validation tool (meta-cc validate-api) working with all tests passing"
+    - "Pre-commit hook installed and functional"
+    - "Documentation updated with practical examples"
+
+  measurable:
+    - "V_consistency (enforcement_layer): 0.85 → 0.97 (+0.12)"
+    - "V_usability: 0.78 → 0.82 (+0.04)"
+    - "V_completeness: 0.72 → 0.74 (+0.02)"
+    - "V(s₅): 0.83 → 0.86 (+0.03)"
+
+  achievable:
+    - "All tasks well-specified (Iteration 3 specs)"
+    - "Total effort: 11-15 hours (within token budget)"
+    - "No new agent specialization needed"
+
+expected_delta_V: +0.03
+target_V_s5: 0.86
+
+constraints:
+  focused: "Single primary objective (make enforcement operational)"
+  achievable: "All tasks completable in iteration"
+  measurable: "Clear operational metrics"
+
+---
+
+## Task Prioritization
+
+tasks:
+
+  task_2_validation_tool:
+    name: "Validation Tool MVP Implementation"
+    priority: P0
+    rationale: "Highest impact, enables Task 3, critical for enforcement"
+
+    specification: "data/task2-validation-tool-spec.md"
+
+    scope:
+      - "3 core validators: naming, parameter ordering, description"
+      - "CLI command: meta-cc validate-api"
+      - "Regex-based parser (MVP, not AST)"
+      - "Exit codes: 0 (pass), 1 (fail), 2 (error)"
+      - "Output: terminal (default), JSON (--json)"
+
+    deliverables:
+      code:
+        - "cmd/validate-api/main.go"
+        - "internal/validation/validator.go"
+        - "internal/validation/naming.go"
+        - "internal/validation/ordering.go"
+        - "internal/validation/description.go"
+        - "internal/validation/parser.go"
+        - "internal/validation/reporter.go"
+        - "internal/validation/types.go"
+      tests:
+        - "internal/validation/*_test.go (unit tests)"
+        - "cmd/validate-api/main_test.go (integration tests)"
+      docs:
+        - "CLI reference entry in docs/reference/cli.md"
+
+    effort: "8-10 hours"
+    complexity: "MODERATE"
+
+    expected_delta_V:
+      V_consistency_enforcement: +0.07  # 0.85 → 0.92
+      V_usability_errors: +0.05         # 0.85 → 0.90
+      total_weighted: +0.036            # 0.30 × 0.07/0.25 + 0.30 × 0.05/0.33
+
+    agent: "coder"
+    agent_rationale:
+      - "Go development expertise"
+      - "CLI tool implementation experience"
+      - "Well-specified task (implementation work)"
+      - "No specialization needed"
+
+  task_4_documentation:
+    name: "Documentation Enhancement"
+    priority: P1
+    rationale: "High ROI, independent of Task 2/3, improves usability + completeness"
+
+    specification: "data/task3-documentation-updates-spec.md"
+
+    scope:
+      - "Update docs/guides/mcp.md: 10-15 examples with tier-based ordering"
+      - "Add docs/reference/cli.md: meta-cc validate-api section"
+      - "Create docs/guides/git-hooks.md: pre-commit hook guide"
+
+    deliverables:
+      - "docs/guides/mcp.md (UPDATED)"
+      - "docs/reference/cli.md (UPDATED)"
+      - "docs/guides/git-hooks.md (NEW)"
+
+    effort: "2-3 hours"
+    complexity: "LOW"
+
+    expected_delta_V:
+      V_usability_docs: +0.05           # 0.80 → 0.85
+      V_completeness_docs: +0.05        # 0.80 → 0.85
+      total_weighted: +0.025            # 0.30 × 0.05/0.33 + 0.20 × 0.05/0.33
+
+    agent: "doc-writer"
+    agent_rationale:
+      - "Documentation expertise"
+      - "Markdown editing experience"
+      - "Well-specified task"
+      - "No specialization needed"
+
+    independence: "Can execute in parallel with Task 2"
+
+  task_3_precommit_hook:
+    name: "Pre-Commit Hook Implementation"
+    priority: P1
+    rationale: "Highest ROI, completes enforcement layer"
+
+    specification: "data/task4-precommit-hook-spec.md"
+
+    scope:
+      - "Pre-commit hook script: scripts/pre-commit.sample"
+      - "Installation script: scripts/install-consistency-hooks.sh"
+      - "Hook detects tools.go changes, runs validation"
+      - "4 test cases: detect, skip, block, bypass"
+
+    deliverables:
+      - "scripts/pre-commit.sample (NEW)"
+      - "scripts/install-consistency-hooks.sh (NEW)"
+      - "Test results documentation"
+
+    effort: "1-2 hours"
+    complexity: "LOW"
+
+    expected_delta_V:
+      V_consistency_enforcement: +0.05  # 0.92 → 0.97 (beyond Task 2)
+      total_weighted: +0.015            # 0.30 × 0.05/0.25
+
+    agent: "coder"
+    agent_rationale:
+      - "Bash scripting expertise"
+      - "Git hooks knowledge"
+      - "Simple implementation"
+
+    dependency: "Requires Task 2 (validation tool) to be operational"
+
+---
+
+## Work Breakdown & Sequencing
+
+execution_order:
+
+  phase_1_parallel:
+    task_2: "Validation tool MVP (coder)"
+    task_4: "Documentation enhancement (doc-writer)"
+    rationale: "Independent tasks, can execute in parallel for efficiency"
+    duration: "8-10 hours (Task 2) + 2-3 hours (Task 4) = 10-13 hours"
+
+  phase_2_sequential:
+    task_3: "Pre-commit hook (coder)"
+    rationale: "Depends on Task 2 completion (requires meta-cc validate-api)"
+    duration: "1-2 hours"
+
+  total_duration: "11-15 hours"
+
+dependencies:
+  task_2: []  # No dependencies
+  task_4: []  # No dependencies
+  task_3: ["task_2"]  # Requires validation tool
+
+---
+
+## Agent Selection
+
+agents_selected:
+
+  coder:
+    tasks:
+      - task_2: "Validation tool MVP (8-10 hours)"
+      - task_3: "Pre-commit hook (1-2 hours)"
+
+    rationale:
+      - "Go development expertise (Task 2)"
+      - "Bash scripting expertise (Task 3)"
+      - "CLI tool implementation experience"
+      - "Well-specified implementation work"
+      - "No specialization needed (ΔV < 0.05 per task)"
+
+    inputs:
+      - "data/task2-validation-tool-spec.md"
+      - "data/task4-precommit-hook-spec.md"
+      - "cmd/mcp-server/tools.go (to parse)"
+      - "Iteration 4 parameter reordering implementation"
+
+    outputs:
+      - "Working validation tool (cmd/validate-api/)"
+      - "Validation internals (internal/validation/)"
+      - "Pre-commit hook scripts (scripts/)"
+      - "Tests (unit + integration)"
+
+  doc-writer:
+    tasks:
+      - task_4: "Documentation enhancement (2-3 hours)"
+
+    rationale:
+      - "Documentation expertise"
+      - "Markdown editing experience"
+      - "Example creation skills"
+      - "Well-specified documentation work"
+
+    inputs:
+      - "data/task3-documentation-updates-spec.md"
+      - "docs/guides/mcp.md (to update)"
+      - "docs/reference/cli.md (to update)"
+      - "data/api-parameter-convention.md (tier system)"
+
+    outputs:
+      - "Updated mcp.md (tier-based examples)"
+      - "Updated cli.md (validate-api docs)"
+      - "New git-hooks.md (hook guide)"
+
+specialization_decision:
+  question: "Do tasks require agent specialization?"
+
+  analysis:
+    task_2:
+      complex_domain_knowledge: false  # Implementation follows spec
+      expected_delta_V: 0.036           # < 0.05 threshold
+      reusable: true                    # Validation tool reusable
+      generic_sufficient: true          # coder has Go expertise
+      work_type: "implementation"       # Favors generic agents
+      conclusion: "USE_EXISTING(coder)"
+
+    task_3:
+      complex_domain_knowledge: false  # Bash scripting
+      expected_delta_V: 0.015           # < 0.05 threshold
+      reusable: true                    # Hooks reusable
+      generic_sufficient: true          # coder has scripting expertise
+      work_type: "implementation"       # Favors generic agents
+      conclusion: "USE_EXISTING(coder)"
+
+    task_4:
+      complex_domain_knowledge: false  # Documentation updates
+      expected_delta_V: 0.025           # < 0.05 threshold
+      reusable: true                    # Documentation patterns reusable
+      generic_sufficient: true          # doc-writer has expertise
+      work_type: "implementation"       # Favors generic agents
+      conclusion: "USE_EXISTING(doc-writer)"
+
+  decision: "A₅ = A₄ (no specialization needed)"
+
+  rationale:
+    - "All tasks well-specified (Iteration 3 specs)"
+    - "Expected ΔV < 0.05 per task (below threshold)"
+    - "Generic agents sufficient (coder + doc-writer)"
+    - "Implementation work favors generic agents"
+    - "Demonstrates sustained agent stability (4 consecutive iterations)"
+
+---
+
+## Convergence Projection
+
+current:
+  V_s4: 0.83
+  gap_to_threshold: -0.03
+
+projected:
+  V_s5: 0.86
+  delta_V: +0.03
+  gap_to_threshold: -0.06
+
+  component_projections:
+    V_usability: 0.78 → 0.82 (+0.04)
+    V_consistency: 0.94 → 0.97 (+0.03)
+    V_completeness: 0.72 → 0.74 (+0.02)
+    V_evolvability: 0.86 → 0.87 (+0.01)
+
+  convergence_criteria:
+    meta_agent_stable: true       # M₅ = M₄
+    agent_set_stable: true         # A₅ = A₄
+    value_threshold: true          # V(s₅) = 0.86 > 0.80
+    objectives_complete: true      # All tasks operational
+    diminishing_returns: true      # ΔV = +0.03 < previous +0.032
+
+status: "CONVERGED (SUBSTANTIALLY EXCEEDS THRESHOLD)"
+
+---
+
+## Risks & Mitigations
+
+risks:
+
+  risk_1_token_budget:
+    description: "May not complete all 3 tasks in single iteration (11-15 hours)"
+    probability: "MEDIUM"
+    impact: "MEDIUM"
+    mitigation:
+      - "Prioritize Task 2 (highest impact)"
+      - "Execute Task 4 in parallel (independent)"
+      - "If budget limited: Complete 2/3 tasks, document remaining"
+      - "Iteration 4 already converged, this is enhancement"
+
+  risk_2_test_failures:
+    description: "Validation tool or hooks may fail tests"
+    probability: "LOW"
+    impact: "MEDIUM"
+    mitigation:
+      - "Use TDD approach (write tests first)"
+      - "Run make all after each component"
+      - "Fix issues incrementally"
+      - "Well-specified implementation reduces risk"
+
+  risk_3_parser_complexity:
+    description: "Regex-based parser may be fragile"
+    probability: "MEDIUM"
+    impact: "LOW"
+    mitigation:
+      - "Use regex for MVP (simpler than AST)"
+      - "Test parser with actual tools.go"
+      - "Document parser limitations"
+      - "Plan AST-based parser for future"
+
+  risk_4_integration_issues:
+    description: "Pre-commit hook may not integrate with validation tool"
+    probability: "LOW"
+    impact: "MEDIUM"
+    mitigation:
+      - "Complete Task 2 before Task 3"
+      - "Test validation tool CLI interface"
+      - "Test hook with actual git workflow"
+
+---
+
+## Methodology Extraction Plan
+
+patterns_to_extract:
+
+  pattern_4_validation_automation:
+    source: "Task 2 execution (validation tool implementation)"
+
+    observable_behaviors:
+      - "How validation tool categorizes violations"
+      - "How error messages are structured (actionable, specific)"
+      - "How suggestions are generated automatically"
+      - "How parsers extract API definitions (regex patterns)"
+      - "How validators apply deterministic checks"
+
+    expected_pattern:
+      name: "Automated Consistency Validation"
+      context: "Need to enforce API conventions at scale"
+      problem: "Manual consistency checks error-prone and slow"
+      solution: "Build validation tool with deterministic checks"
+      evidence: "Task 2 execution observations"
+      reusability: "Universal to any API with conventions"
+
+  pattern_5_quality_gates:
+    source: "Task 3 execution (pre-commit hook implementation)"
+
+    observable_behaviors:
+      - "How hooks detect relevant changes (git diff patterns)"
+      - "How hooks integrate with validation tools (exit codes)"
+      - "How hooks balance strictness vs flexibility (bypass option)"
+      - "How installation scripts automate setup"
+      - "How hooks provide clear feedback"
+
+    expected_pattern:
+      name: "Automated Quality Gates"
+      context: "Need to prevent violations from entering repository"
+      problem: "Post-commit fixes costly, manual checks skipped"
+      solution: "Pre-commit hooks run validation automatically"
+      evidence: "Task 3 execution observations"
+      reusability: "Universal to any quality enforcement scenario"
+
+  pattern_6_documentation_usability:
+    source: "Task 4 execution (documentation enhancement)"
+
+    observable_behaviors:
+      - "How examples reinforce conventions (tier-based ordering)"
+      - "How documentation structure guides users"
+      - "How practical examples reduce learning curve"
+      - "How consistency in examples improves comprehension"
+      - "How reference docs complement guides"
+
+    expected_pattern:
+      name: "Example-Driven Documentation"
+      context: "Need to teach API conventions effectively"
+      problem: "Abstract guidelines difficult to apply"
+      solution: "Provide practical examples following conventions"
+      evidence: "Task 4 execution observations"
+      reusability: "Universal to any documentation effort"
+
+extraction_process:
+  1: "Observe agent decision-making during task execution"
+  2: "Identify reusable patterns in how problems are solved"
+  3: "Extract decision criteria and verification steps"
+  4: "Codify patterns in API-DESIGN-METHODOLOGY.md"
+  5: "Validate reusability across different contexts"
+
+---
+
+## Success Metrics
+
+operational_success:
+  validation_tool:
+    - "meta-cc validate-api command works"
+    - "All 3 checks implemented (naming, ordering, description)"
+    - "Tests pass (unit + integration)"
+    - "Exit codes correct (0, 1, 2)"
+    - "Output formats working (terminal, JSON)"
+
+  precommit_hook:
+    - "Hook installed via script"
+    - "Hook detects tools.go changes"
+    - "Hook runs validation correctly"
+    - "Hook blocks on violations"
+    - "Hook allows on pass"
+    - "All 4 test cases pass"
+
+  documentation:
+    - "10-15 examples updated (tier-based ordering)"
+    - "Parameter ordering section added to mcp.md"
+    - "validate-api documented in cli.md"
+    - "git-hooks.md created with full guide"
+    - "All links valid"
+
+value_success:
+  V_s5: ">= 0.85 (target 0.86)"
+  V_consistency: ">= 0.97"
+  V_usability: ">= 0.82"
+  V_completeness: ">= 0.74"
+  all_components: ">= 0.74"
+
+methodology_success:
+  patterns_extracted: ">= 3 (Patterns 4-6)"
+  patterns_codified: "Added to API-DESIGN-METHODOLOGY.md"
+  reusability_validated: "Patterns applicable beyond API design"
+
+---
+
+## Plan Summary
+
+iteration_goal: "Make enforcement layer operational + enhance documentation"
+
+tasks_prioritized:
+  1: "Task 2 (P0): Validation tool MVP (8-10 hours)"
+  2: "Task 4 (P1): Documentation enhancement (2-3 hours, parallel)"
+  3: "Task 3 (P1): Pre-commit hook (1-2 hours, sequential)"
+
+agents_selected:
+  coder: "Tasks 2 + 3"
+  doc-writer: "Task 4"
+
+specialization: "A₅ = A₄ (no new agents)"
+
+expected_outcome:
+  V_s5: 0.86
+  delta_V: +0.03
+  convergence: "SUBSTANTIALLY EXCEEDS THRESHOLD"
+  patterns: "3 new patterns extracted (4-6)"
+
+risks: "Manageable (token budget, test failures)"
+
+next_phase: "EXECUTE"
+
+---
+
+**Plan Status**: ✅ COMPLETE
+**Ready for Execution**: YES
+**Next Phase**: EXECUTE (Task 2 → Task 4 parallel → Task 3 sequential)

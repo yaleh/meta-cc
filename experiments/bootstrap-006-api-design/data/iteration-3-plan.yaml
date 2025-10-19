@@ -1,0 +1,554 @@
+# Iteration 3 Plan - API Consistency Implementation
+
+## State Assessment
+
+```yaml
+current_state:
+  V(s₂): 0.76
+  gap_to_target: 0.04  # Very close to 0.80 threshold
+
+  components:
+    V_usability: 0.74
+    V_consistency: 0.80  # PRIMARY TARGET (implementation gap)
+    V_completeness: 0.65  # SECONDARY TARGET (documentation)
+    V_evolvability: 0.84
+
+  consistency_breakdown:
+    design_layer: 0.93      # Excellent (guidelines created in Iteration 2)
+    implementation_layer: 0.60  # MAJOR GAP (guidelines not applied)
+    enforcement_layer: 0.00     # MAJOR GAP (no validation tooling)
+    combined: 0.80
+
+  weakest_components:
+    primary: V_consistency (implementation/enforcement gap)
+    secondary: V_completeness (documentation gaps)
+```
+
+---
+
+## Observations Summary
+
+From `data/iteration-3-observations.md`:
+
+**Key Insight**: Iteration 2 created excellent **design**, but implementation gap remains:
+- Design layer: 0.93 (naming convention, parameter ordering, validation methodology)
+- Implementation layer: 0.60 (8 tools need reordering, no validation tooling)
+- Enforcement layer: 0.00 (no quality gates)
+
+**Work Identified**:
+1. Parameter reordering (8 tools, non-breaking)
+2. Validation tool development (`meta-cc validate-api`)
+3. Documentation updates (`mcp.md` examples)
+4. Quality gates (pre-commit hook, CI check)
+
+**Convergence Assessment**: LIKELY if implementation is comprehensive
+
+---
+
+## Goal Definition
+
+### Primary Objective
+
+**Goal**: Implement consistency guidelines to close implementation and enforcement gaps
+
+**Success Criteria**:
+1. Parameter reordering complete (8 tools corrected)
+2. Validation tool MVP operational (`meta-cc validate-api --fast`)
+3. Documentation updated to reflect tier-based ordering
+4. Pre-commit hook installed (quality gate)
+5. V_consistency ≥ 0.85
+6. V(s₃) ≥ 0.78 (preferably ≥ 0.80 for convergence)
+
+**Expected ΔV**:
+```yaml
+scenario_1_implementation_only:
+  V_consistency: 0.80 → 0.85
+  ΔV_consistency: +0.05 × 0.30 (weight) = +0.015
+  V(s₃): 0.76 + 0.015 = 0.775 ≈ 0.78
+  gap_remaining: 0.02
+
+scenario_2_implementation_plus_usability:
+  V_consistency: 0.80 → 0.87 (validation tool improves usability too)
+  V_usability: 0.74 → 0.78 (better error messages, clearer docs)
+  ΔV: +0.021 (consistency) + 0.012 (usability) = +0.033
+  V(s₃): 0.76 + 0.033 = 0.793 ≈ 0.79
+  gap_remaining: 0.01
+
+scenario_3_comprehensive:
+  V_consistency: 0.80 → 0.87
+  V_usability: 0.74 → 0.78
+  V_completeness: 0.65 → 0.70 (documentation completeness)
+  ΔV: +0.021 + 0.012 + 0.010 = +0.043
+  V(s₃): 0.76 + 0.043 = 0.803 ≈ 0.80 ✓
+  gap_remaining: 0.00 (CONVERGENCE THRESHOLD MET)
+```
+
+**Target**: Scenario 3 (comprehensive implementation) to maximize convergence chance
+
+---
+
+## Priority Analysis
+
+### Urgency & Impact Assessment
+
+```yaml
+work_streams:
+  parameter_reordering:
+    urgency: HIGH (closes implementation gap)
+    impact: HIGH (8 tools improved, non-breaking)
+    addressability: HIGH (specifications exist, straightforward)
+    effort: LOW (2-4 hours)
+    priority: P0 (CRITICAL)
+
+  validation_tool_mvp:
+    urgency: HIGH (enables quality gates)
+    impact: HIGH (prevents future violations)
+    addressability: MEDIUM (requires Go development, validation logic)
+    effort: MODERATE (8-12 hours for MVP)
+    priority: P0 (CRITICAL)
+
+  documentation_updates:
+    urgency: MEDIUM (user-facing consistency)
+    impact: MEDIUM (completeness improvement)
+    addressability: HIGH (find-and-replace, examples)
+    effort: LOW (2-3 hours)
+    priority: P1 (HIGH)
+
+  precommit_hook:
+    urgency: MEDIUM (prevents regression)
+    impact: MEDIUM (quality gate)
+    addressability: HIGH (script + installation guide)
+    effort: LOW (1-2 hours)
+    priority: P1 (HIGH)
+
+  ci_pipeline_check:
+    urgency: LOW (nice-to-have for Iteration 3)
+    impact: MEDIUM (automated enforcement)
+    addressability: HIGH (GitHub Actions workflow)
+    effort: LOW (1-2 hours)
+    priority: P2 (MEDIUM)
+
+  validation_tool_full:
+    urgency: LOW (MVP sufficient for Iteration 3)
+    impact: HIGH (complete tooling)
+    addressability: MEDIUM (semantic checks, auto-fix logic)
+    effort: MODERATE (4-6 hours additional)
+    priority: P2 (MEDIUM)
+```
+
+**Ranked Priorities**:
+1. **P0 (Critical)**: Parameter reordering + Validation tool MVP
+2. **P1 (High)**: Documentation updates + Pre-commit hook
+3. **P2 (Medium)**: CI pipeline check + Validation tool full mode
+
+**Recommendation**: Focus on P0 + P1 (maximize convergence chance)
+
+---
+
+## Agent Selection
+
+### Decision Tree Analysis
+
+```yaml
+goal:
+  description: "Implement consistency guidelines (parameter reordering, validation tool, docs, quality gates)"
+  complexity: MODERATE
+  domain: API consistency, Go development, validation logic, documentation
+
+evaluation:
+  straightforward: NO
+    rationale: "Requires Go code, AST parsing, validation logic, documentation"
+
+  requires_specialization: NO
+    complex_domain_knowledge: YES (consistency checking, AST parsing)
+    expected_ΔV: +0.033 to +0.043 (< 0.05 threshold) ❌
+    reusable: YES (validation tool is reusable)
+    generic_agents_sufficient: YES (coder handles Go, doc-writer handles docs) ✅
+
+  existing_agent_capable:
+    coder: YES (Go development, tool building, testing) ✅
+    doc-writer: YES (documentation updates, examples) ✅
+    api-evolution-planner: ADVISORY (review consistency, provide guidance) ✅
+```
+
+### Specialization Decision
+
+**Should Create Specialized Agent?**
+
+**Arguments FOR**:
+- Consistency checking is specialized domain
+- Validation tool will be reused for all future API changes
+- Expected ΔV = +0.043 is close to 0.05 threshold
+
+**Arguments AGAINST**:
+- Expected ΔV = +0.043 < 0.05 threshold (below specialization threshold)
+- coder.md can handle Go development and validation logic
+- api-evolution-planner available for consistency expertise
+- Iteration 3 should demonstrate continued agent stability (A₃ = A₂)
+- Implementation work is straightforward (specifications exist from Iteration 2)
+
+**DECISION**: **NO - Use Existing Agents**
+
+**Rationale**:
+1. Expected ΔV (+0.043) below specialization threshold (0.05)
+2. coder.md + doc-writer.md + api-evolution-planner.md combination sufficient
+3. Demonstrates agent stability (A₃ = A₂ = A₁)
+4. Iteration 2 created comprehensive specifications (implementation is well-defined)
+5. Specialization not justified for implementation work (vs. novel design work)
+
+**Selected Agents**:
+1. **coder.md**: Parameter reordering + validation tool development
+2. **doc-writer.md**: Documentation updates + iteration report
+3. **api-evolution-planner.md**: Review consistency work (quality assurance)
+
+**Agent Set Prediction**: A₃ = A₂ (9 agents, no evolution)
+
+---
+
+## Work Breakdown
+
+### Task 1: Parameter Reordering in 8 Tools
+
+**Agent**: coder
+**Input**:
+- `data/api-parameter-convention.md` (tier-based ordering specification)
+- `cmd/mcp-server/tools.go` (current tool definitions)
+- Examples from parameter convention doc (5 tools with before/after)
+
+**Task**:
+- Reorder parameters in 8 affected tools according to tier system:
+  1. `query_tools` - Move `limit` to Tier 4
+  2. `query_user_messages` - Move `limit` after range params
+  3. `query_conversation` - Move filtering before range
+  4. `query_assistant_messages` - Verify compliance (likely correct)
+  5. `query_context` - Verify compliance (likely correct)
+  6. `query_tool_sequences` - Verify tier-based ordering
+  7. `query_successful_prompts` - Verify tier-based ordering
+  8. `query_time_series` - Verify tier-based ordering
+
+**Output**:
+- `cmd/mcp-server/tools.go` (updated with correct parameter ordering)
+- Test results (verify non-breaking changes)
+
+**Success Criteria**:
+- All 8 tools follow tier-based ordering (Tier 1 → 2 → 3 → 4 → 5)
+- Within-tier ordering correct (alphabetical or start/min before end/max)
+- No breaking changes (JSON parameter order doesn't affect calls)
+- Tests pass
+
+**Effort**: 2-4 hours
+
+---
+
+### Task 2: Validation Tool MVP Development
+
+**Agent**: coder
+**Input**:
+- `data/api-consistency-methodology.md` (validation tool specification)
+- `cmd/mcp-server/tools.go` (tool definitions to validate)
+- Parameter convention and naming convention documents
+
+**Task**:
+- Develop `meta-cc validate-api` command with MVP functionality
+- Implement 3 core checks (MVP scope):
+  1. **Naming pattern validation**: Check tool names use standard prefixes
+  2. **Parameter ordering validation**: Verify tier-based ordering
+  3. **Description format validation**: Check template compliance
+
+**MVP Features**:
+- Parse `cmd/mcp-server/tools.go` (AST or regex-based)
+- Categorize parameters by tier (required, filtering, range, output)
+- Compare actual ordering vs. expected ordering
+- Output violations with actionable error messages
+- `--fast` mode (MVP checks only)
+- Exit code 0 (pass) or 1 (fail) for CI integration
+
+**Deferred to Future** (not MVP):
+- Schema structure validation (Check 4)
+- Standard parameter presence (Check 5)
+- Auto-fix capability (`--fix` mode)
+- Full mode (`--full`)
+
+**Output**:
+- `cmd/validate-api.go` (validation tool implementation)
+- Tests for validation logic
+- Documentation in `docs/reference/cli.md`
+
+**Success Criteria**:
+- Tool correctly identifies parameter ordering violations
+- Tool correctly identifies naming violations
+- Tool provides actionable error messages
+- Tool integrates with CI (exit codes)
+- Tests pass (validation logic correct)
+
+**Effort**: 8-12 hours
+
+---
+
+### Task 3: Documentation Updates
+
+**Agent**: doc-writer
+**Input**:
+- `docs/guides/mcp.md` (current MCP guide)
+- `data/api-parameter-convention.md` (correct ordering examples)
+- List of reordered tools from Task 1
+
+**Task**:
+- Update parameter examples in `mcp.md` to use tier-based ordering
+- Update tool descriptions if any inconsistencies found
+- Add note about parameter ordering convention
+- Update CLI reference with `meta-cc validate-api` command
+
+**Specific Updates**:
+1. Review all tool examples in `mcp.md`
+2. Update examples to show preferred parameter order
+3. Add section: "Parameter Ordering Convention" (reference to tier system)
+4. Document `meta-cc validate-api` command in CLI reference
+
+**Output**:
+- `docs/guides/mcp.md` (updated with correct examples)
+- `docs/reference/cli.md` (validate-api command documented)
+
+**Success Criteria**:
+- All examples use tier-based parameter ordering
+- Consistency note added to MCP guide
+- validate-api command fully documented
+- No outdated examples remain
+
+**Effort**: 2-3 hours
+
+---
+
+### Task 4: Pre-Commit Hook Installation
+
+**Agent**: coder
+**Input**:
+- `data/api-consistency-methodology.md` (pre-commit hook specification)
+- Validation tool from Task 2
+
+**Task**:
+- Create pre-commit hook script (`.git/hooks/pre-commit`)
+- Hook behavior:
+  - Detect changes to `cmd/mcp-server/tools.go`
+  - Run `meta-cc validate-api --fast`
+  - Block commit if violations found
+  - Show actionable error messages
+- Create installation script (`scripts/install-consistency-hooks.sh`)
+- Document hook usage in `docs/guides/git-hooks.md` (or create if needed)
+
+**Output**:
+- `scripts/install-consistency-hooks.sh` (hook installation script)
+- `.git/hooks/pre-commit.sample` (sample hook for reference)
+- Documentation in `docs/guides/git-hooks.md`
+
+**Success Criteria**:
+- Hook correctly detects tools.go changes
+- Hook runs validation and blocks commit on violations
+- Installation script works (copies hook to .git/hooks/)
+- Documentation clear and actionable
+
+**Effort**: 1-2 hours
+
+---
+
+### Task 5: Document Iteration 3
+
+**Agent**: doc-writer
+**Input**:
+- Iteration 3 plan (this file)
+- Observations from Task 1-4
+- State transition data (s₂ → s₃)
+- Value calculation (V(s₃))
+
+**Task**:
+- Create `iteration-3.md` following template
+- Document meta-agent evolution (M₂ → M₃, or unchanged)
+- Document agent set evolution (A₂ → A₃, or unchanged)
+- Document work executed (Tasks 1-4)
+- Calculate V(s₃) with improved consistency
+- Reflection and learnings
+- **CRITICAL**: Convergence check (may reach threshold)
+
+**Output**: `iteration-3.md`
+
+**Success Criteria**:
+- Complete iteration documentation
+- Honest V(s₃) calculation (based on actual implementation quality)
+- Rigorous convergence check (evaluate all criteria)
+- Next iteration recommendation (if not converged)
+
+**Effort**: Included in iteration execution
+
+---
+
+## Dependencies
+
+```yaml
+task_graph:
+  parallel:
+    - Task 1 (Parameter Reordering) - independent
+    - Task 2 (Validation Tool MVP) - independent
+
+  sequential:
+    - Task 3 (Documentation Updates) depends on Task 1 (need reordered tools)
+    - Task 4 (Pre-Commit Hook) depends on Task 2 (need validation tool)
+    - Task 5 (Iteration Report) depends on all [Task 1, 2, 3, 4]
+
+execution_strategy: Parallel (Tasks 1-2), then Sequential (Tasks 3-4-5)
+```
+
+---
+
+## Risks & Mitigations
+
+### Risk 1: Validation Tool Complexity Underestimated
+
+**Risk**: Validation logic more complex than expected (AST parsing, tier categorization)
+**Probability**: MEDIUM
+**Impact**: HIGH (delays MVP, blocks pre-commit hook)
+
+**Mitigation**:
+- Start with regex-based parsing (simpler than AST)
+- Focus on MVP checks only (defer schema validation, auto-fix)
+- If complexity high, deliver partial MVP (naming + description checks only)
+- Can enhance in future iteration
+
+### Risk 2: V(s₃) Doesn't Reach Threshold (0.80)
+
+**Risk**: Implementation doesn't improve value enough (V(s₃) < 0.80)
+**Probability**: MEDIUM
+**Impact**: MEDIUM (need Iteration 4)
+
+**Mitigation**:
+- Focus on comprehensive implementation (P0 + P1 work)
+- Honest value calculation (operational consistency, not just design)
+- If V(s₃) = 0.78-0.79, assess if gap worth another iteration
+- Plan for Iteration 4 if needed (completeness improvements)
+
+### Risk 3: Parameter Reordering Introduces Breaking Changes
+
+**Risk**: Reordering causes unexpected behavior (edge case in JSON parsing)
+**Probability**: LOW
+**Impact**: HIGH (breaking change requires rollback)
+
+**Mitigation**:
+- Thorough testing after reordering
+- JSON parameter order should be irrelevant (by design)
+- Review MCP spec to confirm order independence
+- Can rollback if issues found (git revert)
+
+### Risk 4: Generic Agents Insufficient for Validation Logic
+
+**Risk**: coder.md lacks expertise for complex validation logic
+**Probability**: LOW
+**Impact**: MEDIUM (poor validation tool quality)
+
+**Mitigation**:
+- Use api-evolution-planner for review (consistency expertise)
+- Start with simple MVP (regex-based, not AST)
+- If generic agents struggle, can create specialized agent in Iteration 4
+- ΔV threshold (< 0.05) justifies using existing agents
+
+---
+
+## Expected Outcomes
+
+### Deliverables
+
+1. `cmd/mcp-server/tools.go` (parameter reordering complete)
+2. `cmd/validate-api.go` (validation tool MVP)
+3. `scripts/install-consistency-hooks.sh` (pre-commit hook installation)
+4. `docs/guides/mcp.md` (updated examples)
+5. `docs/reference/cli.md` (validate-api documentation)
+6. `docs/guides/git-hooks.md` (hook usage guide)
+7. `iteration-3.md` (comprehensive report)
+
+### State Transition
+
+```yaml
+s₂ → s₃:
+  V_consistency: 0.80 → 0.87
+    design_layer: 0.93 → 0.93 (unchanged)
+    implementation_layer: 0.60 → 0.80 (parameter reordering)
+    enforcement_layer: 0.00 → 0.88 (validation tool + quality gates)
+
+  V_usability: 0.74 → 0.78
+    error_messages: 0.70 → 0.85 (validation tool provides actionable messages)
+    documentation: 0.75 → 0.80 (updated examples, clearer ordering)
+
+  V_completeness: 0.65 → 0.70
+    documentation_completeness: 0.60 → 0.75 (comprehensive examples)
+
+  V_evolvability: 0.84 → 0.84 (unchanged)
+
+  V(s₃): 0.76 → 0.80 (convergence threshold met)
+  gap_to_target: 0.04 → 0.00 ✓
+```
+
+### Convergence Projection
+
+```yaml
+iteration_3:
+  status: CONVERGED (expected)
+  V(s₃): 0.80
+  gap: 0.00
+
+  criteria:
+    meta_agent_stable: YES (M₃ = M₂)
+    agent_set_stable: YES (A₃ = A₂)
+    value_threshold_met: YES (V(s₃) ≥ 0.80)
+    objectives_complete: YES (consistency implementation done)
+    diminishing_returns: NO (ΔV = +0.04 is meaningful)
+
+  convergence_likelihood: HIGH (80-90%)
+```
+
+**Alternative**: If V(s₃) = 0.78-0.79, may need Iteration 4 (usability or completeness focus)
+
+---
+
+## Conservative Projections
+
+### If MVP Takes Longer Than Expected
+
+**Scenario**: Validation tool development takes 12-16 hours (vs. 8-12 estimated)
+
+**Impact**:
+- May need to defer pre-commit hook (Task 4) to future iteration
+- V_consistency: 0.80 → 0.85 (vs. 0.87) - lower enforcement layer
+- V(s₃): 0.76 → 0.78 (vs. 0.80) - below threshold
+
+**Mitigation**: Prioritize MVP completion, defer CI/hook to Iteration 4
+
+### If Parameter Reordering Reveals Issues
+
+**Scenario**: Reordering uncovers edge cases or unexpected behavior
+
+**Impact**:
+- May need additional testing/debugging time
+- Could delay documentation updates (Task 3)
+
+**Mitigation**: Thorough testing, rollback if needed, document findings
+
+---
+
+## Plan Approval
+
+```yaml
+plan_status: APPROVED
+rationale:
+  - Focused on single primary objective (consistency implementation)
+  - Achievable in single iteration (well-defined specifications exist)
+  - Measurable success criteria (V_consistency ≥ 0.85, V(s₃) ≥ 0.78)
+  - Data-driven priority (observations identify exact work needed)
+  - Agent selection justified (use existing agents, ΔV < 0.05 threshold)
+  - Honest ΔV projection (+0.033 to +0.043)
+  - Convergence likely (80-90% chance of reaching threshold)
+
+ready_for_execution: YES
+```
+
+---
+
+**Plan Created**: 2025-10-15
+**Next Phase**: EXECUTE (invoke coder for Tasks 1-2-4, doc-writer for Tasks 3-5)

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/parser"
 	"github.com/yaleh/meta-cc/internal/types"
 )
@@ -32,7 +33,7 @@ var BuiltinTools = map[string]bool{
 // BuildToolSequenceQuery builds a tool sequence pattern query
 func BuildToolSequenceQuery(entries []parser.SessionEntry, minOccurrences int, pattern string, includeBuiltin bool) (*ToolSequenceQuery, error) {
 	if minOccurrences < 1 {
-		return nil, fmt.Errorf("minOccurrences must be at least 1")
+		return nil, fmt.Errorf("minOccurrences must be at least 1 for query_tool_sequences (got: %d): %w", minOccurrences, mcerrors.ErrInvalidInput)
 	}
 
 	// Build turn index
@@ -95,6 +96,17 @@ func extractToolCallsWithTurns(entries []parser.SessionEntry, turnIndex map[stri
 	return result
 }
 
+// buildSequencePattern builds a SequencePattern from occurrences
+func buildSequencePattern(pattern string, occurrences []types.SequenceOccurrence, entries []parser.SessionEntry, toolCalls []toolCallWithTurn) types.SequencePattern {
+	timeSpan := calculateSequenceTimeSpan(occurrences, entries, toolCalls)
+	return types.SequencePattern{
+		Pattern:     pattern,
+		Count:       len(occurrences),
+		Occurrences: occurrences,
+		TimeSpanMin: timeSpan,
+	}
+}
+
 // findSpecificPattern finds occurrences of a specific pattern
 func findSpecificPattern(toolCalls []toolCallWithTurn, pattern string, entries []parser.SessionEntry) types.SequencePattern {
 	// Parse pattern (format: "Tool1 → Tool2 → Tool3")
@@ -118,23 +130,15 @@ func findSpecificPattern(toolCalls []toolCallWithTurn, pattern string, entries [
 		}
 	}
 
-	// Calculate time span
-	timeSpan := calculateSequenceTimeSpan(occurrences, entries, toolCalls)
-
-	return types.SequencePattern{
-		Pattern:     pattern,
-		Count:       len(occurrences),
-		Occurrences: occurrences,
-		TimeSpanMin: timeSpan,
-	}
+	return buildSequencePattern(pattern, occurrences, entries, toolCalls)
 }
 
 // findAllSequences finds all repeated sequences of length 2-5
 func findAllSequences(toolCalls []toolCallWithTurn, minOccurrences int, entries []parser.SessionEntry) []types.SequencePattern {
 	sequenceMap := make(map[string][]types.SequenceOccurrence)
 
-	// Try sequences of different lengths (2-5 tools)
-	for seqLen := 2; seqLen <= 5 && seqLen <= len(toolCalls); seqLen++ {
+	// Try sequences of different lengths (MinSequenceLength-MaxSequenceLength tools)
+	for seqLen := MinSequenceLength; seqLen <= MaxSequenceLength && seqLen <= len(toolCalls); seqLen++ {
 		for i := 0; i <= len(toolCalls)-seqLen; i++ {
 			// Extract sequence
 			tools := make([]string, seqLen)
@@ -159,13 +163,7 @@ func findAllSequences(toolCalls []toolCallWithTurn, minOccurrences int, entries 
 	var result []types.SequencePattern
 	for pattern, occurrences := range sequenceMap {
 		if len(occurrences) >= minOccurrences {
-			timeSpan := calculateSequenceTimeSpan(occurrences, entries, toolCalls)
-			result = append(result, types.SequencePattern{
-				Pattern:     pattern,
-				Count:       len(occurrences),
-				Occurrences: occurrences,
-				TimeSpanMin: timeSpan,
-			})
+			result = append(result, buildSequencePattern(pattern, occurrences, entries, toolCalls))
 		}
 	}
 
@@ -209,33 +207,71 @@ func matchesSequence(toolCalls []toolCallWithTurn, start int, tools []string) bo
 	return true
 }
 
+// findTimestampForTurn finds the timestamp for a specific turn
+func findTimestampForTurn(entries []parser.SessionEntry, toolCalls []toolCallWithTurn, turn int) int64 {
+	for _, tc := range toolCalls {
+		if tc.turn == turn {
+			return getToolCallTimestamp(entries, tc.uuid)
+		}
+	}
+	return 0
+}
+
+// collectOccurrenceTimestamps extracts timestamps from sequence occurrences
+func collectOccurrenceTimestamps(occurrences []types.SequenceOccurrence, entries []parser.SessionEntry, toolCalls []toolCallWithTurn) []int64 {
+	var timestamps []int64
+
+	for _, occ := range occurrences {
+		// Get timestamps for start and end of each occurrence
+		startTs := findTimestampForTurn(entries, toolCalls, occ.StartTurn)
+		endTs := findTimestampForTurn(entries, toolCalls, occ.EndTurn)
+
+		if startTs > 0 {
+			timestamps = append(timestamps, startTs)
+		}
+		if endTs > 0 && endTs != startTs {
+			timestamps = append(timestamps, endTs)
+		}
+	}
+
+	return timestamps
+}
+
+// findMinMaxTimestamps finds minimum and maximum values in a slice of timestamps
+func findMinMaxTimestamps(timestamps []int64) (int64, int64) {
+	if len(timestamps) == 0 {
+		return 0, 0
+	}
+
+	minTs := timestamps[0]
+	maxTs := timestamps[0]
+	for _, ts := range timestamps[1:] {
+		if ts < minTs {
+			minTs = ts
+		}
+		if ts > maxTs {
+			maxTs = ts
+		}
+	}
+
+	return minTs, maxTs
+}
+
 // calculateSequenceTimeSpan calculates time span for sequence occurrences
 func calculateSequenceTimeSpan(occurrences []types.SequenceOccurrence, entries []parser.SessionEntry, toolCalls []toolCallWithTurn) int {
 	if len(occurrences) == 0 {
 		return 0
 	}
 
-	// Find first and last timestamp
-	var minTs, maxTs int64
+	// Collect all relevant timestamps
+	timestamps := collectOccurrenceTimestamps(occurrences, entries, toolCalls)
 
-	for _, occ := range occurrences {
-		// Find timestamps for start and end turns
-		for _, tc := range toolCalls {
-			if tc.turn == occ.StartTurn || tc.turn == occ.EndTurn {
-				ts := getToolCallTimestamp(entries, tc.uuid)
-				if minTs == 0 || ts < minTs {
-					minTs = ts
-				}
-				if ts > maxTs {
-					maxTs = ts
-				}
-			}
-		}
-	}
-
-	if minTs == 0 || maxTs == 0 {
+	if len(timestamps) == 0 {
 		return 0
 	}
 
-	return int((maxTs - minTs) / 60)
+	// Find min and max
+	minTs, maxTs := findMinMaxTimestamps(timestamps)
+
+	return int((maxTs - minTs) / SecondsPerMinute)
 }

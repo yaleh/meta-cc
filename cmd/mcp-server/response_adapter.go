@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+
+	"github.com/yaleh/meta-cc/internal/config"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 )
 
 const (
@@ -23,7 +25,7 @@ const (
 //   - Inline mode: {"mode": "inline", "data": [...]}
 //   - File ref mode: {"mode": "file_ref", "file_ref": {...}}
 //   - Legacy mode: [...] (raw array)
-func adaptResponse(data []interface{}, params map[string]interface{}, toolName string) (interface{}, error) {
+func adaptResponse(cfg *config.Config, data []interface{}, params map[string]interface{}, toolName string) (interface{}, error) {
 	// Check for legacy mode (backward compatibility)
 	if outputMode := getStringParam(params, "output_mode", ""); outputMode == OutputModeLegacy {
 		return data, nil
@@ -31,7 +33,7 @@ func adaptResponse(data []interface{}, params map[string]interface{}, toolName s
 
 	// Determine output mode (no truncation - rely on hybrid mode)
 	size := calculateOutputSize(data)
-	config := getOutputModeConfig(params)
+	config := getOutputModeConfig(cfg, params)
 	mode := selectOutputModeWithConfig(size, getStringParam(params, "output_mode", ""), config)
 
 	// Build response based on mode
@@ -41,19 +43,19 @@ func adaptResponse(data []interface{}, params map[string]interface{}, toolName s
 
 	case OutputModeFileRef:
 		// Create temp file
-		sessionHash := getSessionHash()
+		sessionHash := getSessionHash(cfg)
 		filePath := createTempFilePath(sessionHash, toolName)
 
 		// Write data to temp file
 		if err := writeJSONLFile(filePath, data); err != nil {
-			return nil, fmt.Errorf("failed to write temp file: %w", err)
+			return nil, fmt.Errorf("failed to write temp file %s: %w", filePath, mcerrors.ErrFileIO)
 		}
 
 		// Build file reference response
 		return buildFileRefResponse(filePath, data)
 
 	default:
-		return nil, fmt.Errorf("unknown output mode: %s", mode)
+		return nil, fmt.Errorf("unknown output mode '%s' in adaptResponse: %w", mode, mcerrors.ErrInvalidInput)
 	}
 }
 
@@ -70,7 +72,7 @@ func buildFileRefResponse(filePath string, data []interface{}) (map[string]inter
 	// Generate file reference metadata
 	fileRef, err := generateFileReference(filePath, data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate file reference: %w", err)
+		return nil, fmt.Errorf("failed to generate file reference for %s: %w", filePath, mcerrors.ErrFileIO)
 	}
 
 	// Convert FileReference struct to map
@@ -95,16 +97,17 @@ func buildFileRefResponse(filePath string, data []interface{}) (map[string]inter
 func serializeResponse(response interface{}) (string, error) {
 	jsonBytes, err := json.Marshal(response)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize response: %w", err)
+		return "", fmt.Errorf("failed to serialize response to JSON: %w", mcerrors.ErrParseError)
 	}
 	return string(jsonBytes), nil
 }
 
 // getSessionHash returns current session hash for temp file naming
 // Falls back to "unknown" if session info is not available
-func getSessionHash() string {
-	// Try to get session hash from environment
-	if sessionID := os.Getenv("CC_SESSION_ID"); sessionID != "" {
+func getSessionHash(cfg *config.Config) string {
+	// Use session hash from centralized config
+	sessionID := cfg.Session.SessionID
+	if sessionID != "" {
 		// Use first 8 chars of session ID as hash
 		if len(sessionID) > 8 {
 			return sessionID[:8]
@@ -112,8 +115,9 @@ func getSessionHash() string {
 		return sessionID
 	}
 
-	// Try to get project hash
-	if projectHash := os.Getenv("CC_PROJECT_HASH"); projectHash != "" {
+	// Try project hash
+	projectHash := cfg.Session.ProjectHash
+	if projectHash != "" {
 		if len(projectHash) > 8 {
 			return projectHash[:8]
 		}

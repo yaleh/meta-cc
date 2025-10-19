@@ -60,21 +60,25 @@ mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
 echo "✓ marketplace.json updated"
 echo ""
 
-# Prompt for CHANGELOG update
-echo "Please update CHANGELOG.md with release notes for $VERSION"
-echo "Press Enter when ready to continue, or Ctrl+C to abort..."
-read
+# Generate CHANGELOG entry automatically
+echo "Generating CHANGELOG entry for $VERSION..."
+bash scripts/generate-changelog-entry.sh "$VERSION"
 
-# Verify CHANGELOG was updated
-if ! grep -q "## \[$VERSION_NUM\]" CHANGELOG.md; then
-    echo "Warning: Version $VERSION_NUM not found in CHANGELOG.md"
-    echo "Continue anyway? (y/N)"
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to generate CHANGELOG entry"
+    echo "Would you like to edit CHANGELOG.md manually? (y/N)"
     read -r response
-    if [[ ! "$response" =~ ^[Yy]$ ]]; then
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        echo "Please update CHANGELOG.md with release notes for $VERSION"
+        echo "Press Enter when ready to continue, or Ctrl+C to abort..."
+        read
+    else
         echo "Aborted"
         exit 1
     fi
 fi
+
+echo "✓ CHANGELOG.md updated automatically"
 
 # Commit version updates
 echo "Committing version updates..."

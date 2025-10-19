@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -20,7 +21,7 @@ func TestHandleInitialize(t *testing.T) {
 	outputWriter = &buf
 	defer func() { outputWriter = origStdout }()
 
-	handleInitialize(req)
+	handleInitialize(context.Background(), req)
 
 	var resp JSONRPCResponse
 	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
@@ -64,7 +65,7 @@ func TestHandleToolsList(t *testing.T) {
 	outputWriter = &buf
 	defer func() { outputWriter = origStdout }()
 
-	handleToolsList(req)
+	handleToolsList(context.Background(), req)
 
 	var resp JSONRPCResponse
 	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
@@ -222,7 +223,7 @@ func TestHandleToolsCall_MissingToolName(t *testing.T) {
 	outputWriter = &buf
 	defer func() { outputWriter = origStdout }()
 
-	handleToolsCall(req)
+	handleToolsCall(context.Background(), req)
 
 	var resp JSONRPCResponse
 	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {

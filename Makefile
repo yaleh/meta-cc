@@ -19,7 +19,7 @@ BINARY_NAME := meta-cc
 MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint fmt vet help sync-plugin-files dev
+.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint lint-errors fmt vet help sync-plugin-files dev
 
 all: lint test build
 
@@ -93,19 +93,22 @@ cross-compile:
 
 sync-plugin-files:
 	@echo "Preparing plugin files for release packaging..."
-	@mkdir -p $(DIST_DIR)/commands $(DIST_DIR)/agents
+	@mkdir -p $(DIST_DIR)/commands $(DIST_DIR)/agents $(DIST_DIR)/skills
 	@echo "  Copying entry point from .claude/commands/..."
 	@cp .claude/commands/meta.md $(DIST_DIR)/commands/
-	@echo "  Copying capabilities from $(CAPABILITIES_DIR)/commands/..."
-	@cp $(CAPABILITIES_DIR)/commands/*.md $(DIST_DIR)/commands/ 2>/dev/null || true
 	@echo "  Copying agents from .claude/agents/..."
 	@cp .claude/agents/*.md $(DIST_DIR)/agents/ 2>/dev/null || true
-	@echo "  Copying agents from $(CAPABILITIES_DIR)/agents/..."
-	@cp $(CAPABILITIES_DIR)/agents/*.md $(DIST_DIR)/agents/ 2>/dev/null || true
+	@echo "  Copying skills from .claude/skills/..."
+	@if [ -d ".claude/skills" ]; then \
+		cp -r .claude/skills/* $(DIST_DIR)/skills/; \
+		SKILL_COUNT=$$(find $(DIST_DIR)/skills -name "SKILL.md" 2>/dev/null | wc -l); \
+		echo "    ✓ Copied $$SKILL_COUNT skills"; \
+	fi
 	@echo "✓ Plugin files synced to $(DIST_DIR)/"
 	@CMD_COUNT=$$(find $(DIST_DIR)/commands -name "*.md" 2>/dev/null | wc -l); \
 	AGENT_COUNT=$$(find $(DIST_DIR)/agents -name "*.md" 2>/dev/null | wc -l); \
-	echo "✓ Total: $$CMD_COUNT command files, $$AGENT_COUNT agent files"
+	SKILL_COUNT=$$(find $(DIST_DIR)/skills -name "SKILL.md" 2>/dev/null | wc -l); \
+	echo "✓ Total: $$CMD_COUNT commands, $$AGENT_COUNT agents, $$SKILL_COUNT skills"
 
 dev: build
 	@echo "Development build complete"
@@ -149,7 +152,7 @@ deps:
 	$(GOMOD) download
 	$(GOMOD) tidy
 
-lint: fmt vet
+lint: fmt vet lint-errors
 	@echo "Running static analysis..."
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run ./...; \
@@ -159,6 +162,10 @@ lint: fmt vet
 		echo "Skipping lint checks..."; \
 	fi
 
+lint-errors:
+	@echo "Running error linting..."
+	@./scripts/lint-errors.sh cmd/ internal/
+
 fmt:
 	@echo "Formatting code..."
 	@gofmt -l -w .
@@ -166,6 +173,42 @@ fmt:
 vet:
 	@echo "Running go vet..."
 	@$(GOCMD) vet ./...
+
+# Quality gates (added in Bootstrap-008 Iteration 3)
+install-pre-commit:
+	@echo "Installing pre-commit hooks..."
+	@bash scripts/install-pre-commit.sh
+
+test-coverage-check:
+	@echo "Checking test coverage meets 80% threshold..."
+	@$(GOTEST) -coverprofile=coverage.out ./... > /dev/null 2>&1
+	@COVERAGE=$$(go tool cover -func=coverage.out | tail -1 | awk '{print $$3}' | sed 's/%//'); \
+	if [ "$$(echo "$$COVERAGE < 80" | bc)" -eq 1 ]; then \
+		echo "FAIL: Coverage $$COVERAGE% is below 80% target"; \
+		exit 1; \
+	else \
+		echo "PASS: Coverage $$COVERAGE% meets 80% target"; \
+	fi
+
+lint-fix:
+	@echo "Running golangci-lint with auto-fix..."
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run --fix ./...; \
+	else \
+		echo "golangci-lint not found. Install with:"; \
+		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
+		exit 1; \
+	fi
+
+security:
+	@echo "Running security scan with gosec..."
+	@if command -v gosec >/dev/null 2>&1; then \
+		gosec ./...; \
+	else \
+		echo "gosec not found. Install with:"; \
+		echo "  go install github.com/securego/gosec/v2/cmd/gosec@latest"; \
+		echo "Skipping security scan..."; \
+	fi
 
 help:
 	@echo "Available targets:"
@@ -176,10 +219,15 @@ help:
 	@echo "  make test                    - Run tests (short mode, skips slow E2E tests)"
 	@echo "  make test-all                - Run all tests (including slow E2E tests ~30s)"
 	@echo "  make test-coverage           - Run tests with coverage report (includes E2E tests)"
+	@echo "  make test-coverage-check     - Check test coverage meets 80% threshold"
 	@echo "  make test-capability-package - Test capability package creation and extraction"
-	@echo "  make lint                    - Run static analysis (fmt + vet + golangci-lint)"
+	@echo "  make lint                    - Run static analysis (fmt + vet + error-linting + golangci-lint)"
+	@echo "  make lint-errors             - Run error linting (check error conventions)"
+	@echo "  make lint-fix                - Run golangci-lint with auto-fix"
 	@echo "  make fmt                     - Format code with gofmt"
 	@echo "  make vet                     - Run go vet"
+	@echo "  make security                - Run security scan with gosec"
+	@echo "  make install-pre-commit      - Install pre-commit framework hooks"
 	@echo "  make clean                   - Remove build artifacts ($(BUILD_DIR)/, $(DIST_DIR)/)"
 	@echo "  make clean-capabilities      - Remove capability packages only"
 	@echo "  make install                 - Install to GOPATH/bin"

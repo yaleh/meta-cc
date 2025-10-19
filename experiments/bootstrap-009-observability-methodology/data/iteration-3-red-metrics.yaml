@@ -1,0 +1,479 @@
+# RED Metrics Methodology Application
+# Iteration: 3
+# Date: 2025-10-17
+# Methodology: RED (Rate, Errors, Duration)
+# Source: Tom Wilkie (Prometheus), Brendan Gregg
+# Domain: Request-driven services (MCP server)
+
+methodology_overview:
+  name: "RED Metrics"
+  full_name: "Rate, Errors, Duration"
+  source: "Tom Wilkie (Weaveworks), Prometheus best practices"
+  use_case: "Monitor health of request-driven services from user perspective"
+  applicability: "HIGH for MCP server (request-based JSON-RPC service)"
+
+  three_golden_metrics:
+    rate:
+      description: "How many requests per second are being served"
+      why: "Indicates service demand and capacity planning needs"
+      metric_type: "Counter (rate() function for per-second rate)"
+
+    errors:
+      description: "How many of those requests are failing"
+      why: "Indicates service reliability and quality"
+      metric_type: "Counter (ratio to total requests for error rate %)"
+
+    duration:
+      description: "How long those requests take to process"
+      why: "Indicates service performance and user experience"
+      metric_type: "Histogram (for percentiles: p50, p95, p99)"
+
+  relationship_to_four_golden_signals:
+    rate: "Maps to Traffic (demand on service)"
+    errors: "Maps to Errors (failed requests)"
+    duration: "Maps to Latency (response time)"
+    note: "RED is focused subset of Four Golden Signals for request-driven services"
+
+# Application to MCP Server
+
+mcp_server_characteristics:
+  service_type: "Request-driven (JSON-RPC over stdio)"
+  request_pattern: "Synchronous request-response"
+  tools_count: 16
+  typical_request_rate: "1-10 requests/second (development), 10-100 requests/second (production)"
+  typical_latency: "10ms-5s (depends on tool and query complexity)"
+  error_rate_baseline: "Unknown (not yet measured)"
+
+# Rate Metrics
+
+rate_metrics:
+  primary_metric:
+    name: "mcp_server_requests_total"
+    type: "Counter"
+    description: "Total number of MCP requests received by the server"
+    labels:
+      - name: "tool_name"
+        values: ["query_tools", "get_session_stats", "query_user_messages", "query_context", "query_tool_sequences", "query_file_access", "query_project_state", "query_successful_prompts", "query_tools_advanced", "query_time_series", "query_assistant_messages", "query_conversation", "query_files", "cleanup_temp_files", "list_capabilities", "get_capability"]
+        cardinality: 16
+
+      - name: "method"
+        values: ["tools/call", "tools/list"]
+        cardinality: 2
+
+      - name: "status"
+        values: ["success", "error", "invalid"]
+        cardinality: 3
+        description: "Request outcome (success=200, error=execution failed, invalid=parse/validation failed)"
+
+    total_cardinality: 96  # 16 × 2 × 3 = 96 time series
+
+    collection_points:
+      - location: "cmd/mcp-server/server.go::handleRequest()"
+        when: "On every JSON-RPC request received"
+        code: |
+          requestsTotal.WithLabelValues(toolName, method, status).Inc()
+
+    prometheus_queries:
+      requests_per_second:
+        query: "rate(mcp_server_requests_total[5m])"
+        description: "Overall request rate (requests/sec) over 5-minute window"
+
+      requests_per_second_by_tool:
+        query: "sum(rate(mcp_server_requests_total[5m])) by (tool_name)"
+        description: "Request rate broken down by tool"
+
+      requests_per_second_by_status:
+        query: "sum(rate(mcp_server_requests_total[5m])) by (status)"
+        description: "Request rate broken down by outcome"
+
+      top_5_tools_by_rate:
+        query: "topk(5, sum(rate(mcp_server_requests_total[5m])) by (tool_name))"
+        description: "Top 5 most-called tools"
+
+  secondary_metric:
+    name: "mcp_server_tool_calls_total"
+    type: "Counter"
+    description: "Total number of tool calls executed (subset of requests, excludes tools/list)"
+    labels:
+      - name: "tool_name"
+        values: ["query_tools", "get_session_stats", ...]
+        cardinality: 16
+
+      - name: "scope"
+        values: ["project", "session"]
+        cardinality: 2
+
+      - name: "status"
+        values: ["success", "error"]
+        cardinality: 2
+
+    total_cardinality: 64  # 16 × 2 × 2 = 64 time series
+
+    collection_points:
+      - location: "cmd/mcp-server/executor.go::ExecuteTool()"
+        when: "On every tool execution (after validation)"
+        code: |
+          toolCallsTotal.WithLabelValues(toolName, scope, status).Inc()
+
+  rate_visualization:
+    dashboard: "RED - Rate"
+    panels:
+      - title: "Overall Request Rate"
+        query: "sum(rate(mcp_server_requests_total[5m]))"
+        type: "Graph (time series)"
+        unit: "requests/sec"
+
+      - title: "Request Rate by Tool"
+        query: "sum(rate(mcp_server_requests_total[5m])) by (tool_name)"
+        type: "Graph (stacked area)"
+        unit: "requests/sec"
+
+      - title: "Request Rate by Status"
+        query: "sum(rate(mcp_server_requests_total[5m])) by (status)"
+        type: "Graph (stacked area)"
+        unit: "requests/sec"
+
+      - title: "Top 5 Tools (24h)"
+        query: "topk(5, sum(increase(mcp_server_requests_total[24h])) by (tool_name))"
+        type: "Bar chart"
+        unit: "total requests"
+
+  rate_alerting:
+    - alert: "RequestRateDropped"
+      condition: "sum(rate(mcp_server_requests_total[5m])) < 0.1 * avg_over_time(sum(rate(mcp_server_requests_total[5m]))[1h:5m])"
+      severity: "warning"
+      description: "Request rate dropped to < 10% of 1-hour average (possible service disruption)"
+
+    - alert: "RequestRateSpike"
+      condition: "sum(rate(mcp_server_requests_total[5m])) > 5 * avg_over_time(sum(rate(mcp_server_requests_total[5m]))[1h:5m])"
+      severity: "warning"
+      description: "Request rate spiked to > 500% of 1-hour average (possible attack or load surge)"
+
+# Error Metrics
+
+error_metrics:
+  primary_metric:
+    name: "mcp_server_errors_total"
+    type: "Counter"
+    description: "Total number of errors encountered during request processing"
+    labels:
+      - name: "tool_name"
+        values: ["query_tools", "get_session_stats", ..., "server"]
+        cardinality: 17  # 16 tools + "server" for server-level errors
+
+      - name: "error_type"
+        values: ["parse_error", "validation_error", "execution_error", "io_error", "network_error"]
+        cardinality: 5
+        description: "Error classification (aligns with logging error_type)"
+
+      - name: "severity"
+        values: ["fatal", "error", "warning"]
+        cardinality: 3
+        description: "Error severity (fatal=service crash, error=request failed, warning=degraded)"
+
+    total_cardinality: 255  # 17 × 5 × 3 = 255 time series
+
+    collection_points:
+      - location: "cmd/mcp-server/server.go::handleRequest()"
+        when: "On JSON-RPC parse errors, validation errors"
+        code: |
+          errorsTotal.WithLabelValues("server", classifyError(err), "error").Inc()
+
+      - location: "cmd/mcp-server/executor.go::ExecuteTool()"
+        when: "On tool execution failures"
+        code: |
+          errorsTotal.WithLabelValues(toolName, classifyError(err), "error").Inc()
+
+      - location: "cmd/mcp-server/capabilities.go::downloadPackage()"
+        when: "On package download failures"
+        code: |
+          errorsTotal.WithLabelValues("server", "network_error", "warning").Inc()
+
+  computed_metric:
+    name: "mcp_server_error_rate"
+    type: "Computed (from Counters)"
+    description: "Percentage of requests that resulted in errors"
+    formula: "(mcp_server_errors_total / mcp_server_requests_total) × 100"
+    prometheus_query: |
+      sum(rate(mcp_server_errors_total[5m])) / sum(rate(mcp_server_requests_total[5m])) * 100
+
+  error_visualization:
+    dashboard: "RED - Errors"
+    panels:
+      - title: "Error Rate (%)"
+        query: "sum(rate(mcp_server_errors_total[5m])) / sum(rate(mcp_server_requests_total[5m])) * 100"
+        type: "Graph (time series)"
+        unit: "%"
+        threshold: 5.0  # Alert if > 5%
+
+      - title: "Error Rate by Tool"
+        query: "sum(rate(mcp_server_errors_total[5m])) by (tool_name) / sum(rate(mcp_server_requests_total[5m])) by (tool_name) * 100"
+        type: "Graph (multi-line)"
+        unit: "%"
+
+      - title: "Error Breakdown by Type"
+        query: "sum(rate(mcp_server_errors_total[5m])) by (error_type)"
+        type: "Pie chart"
+        unit: "errors/sec"
+
+      - title: "Error Rate Heatmap (tool × error_type)"
+        query: "sum(rate(mcp_server_errors_total[5m])) by (tool_name, error_type)"
+        type: "Heatmap"
+        unit: "errors/sec"
+
+  error_alerting:
+    - alert: "HighErrorRate"
+      condition: "sum(rate(mcp_server_errors_total[5m])) / sum(rate(mcp_server_requests_total[5m])) > 0.05"
+      severity: "critical"
+      description: "Error rate > 5% (violates SLO)"
+      for: "5m"
+
+    - alert: "ToolErrorRateHigh"
+      condition: "sum(rate(mcp_server_errors_total[5m])) by (tool_name) / sum(rate(mcp_server_requests_total[5m])) by (tool_name) > 0.10"
+      severity: "warning"
+      description: "Specific tool error rate > 10%"
+      for: "5m"
+
+    - alert: "ParseErrorSpike"
+      condition: "rate(mcp_server_errors_total{error_type='parse_error'}[5m]) > 0.1"
+      severity: "warning"
+      description: "Parse error rate > 0.1/sec (possible malformed input)"
+      for: "2m"
+
+# Duration Metrics
+
+duration_metrics:
+  primary_metric:
+    name: "mcp_server_request_duration_seconds"
+    type: "Histogram"
+    description: "End-to-end request processing duration (from JSON-RPC receive to response send)"
+    labels:
+      - name: "tool_name"
+        values: ["query_tools", "get_session_stats", ...]
+        cardinality: 16
+
+      - name: "status"
+        values: ["success", "error"]
+        cardinality: 2
+        description: "Request outcome"
+
+    buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0, 30.0]
+    bucket_rationale:
+      - "0.001s (1ms): Very fast queries (cache hits)"
+      - "0.01s (10ms): Fast queries (simple lookups)"
+      - "0.1s (100ms): Typical queries"
+      - "1.0s (1s): Complex queries"
+      - "5.0s (5s): Slow queries (large datasets)"
+      - "30.0s (30s): Very slow queries (should be rare)"
+
+    total_cardinality: 320  # 16 × 2 × 10 = 320 time series
+
+    collection_points:
+      - location: "cmd/mcp-server/server.go::handleToolsCall()"
+        when: "On request completion (wrap entire request handling)"
+        code: |
+          start := time.Now()
+          defer func() {
+            duration := time.Since(start)
+            requestDuration.WithLabelValues(toolName, status).Observe(duration.Seconds())
+          }()
+
+  secondary_metric:
+    name: "mcp_server_tool_execution_duration_seconds"
+    type: "Histogram"
+    description: "Tool execution duration (excludes JSON-RPC parsing, network overhead)"
+    labels:
+      - name: "tool_name"
+        values: ["query_tools", "get_session_stats", ...]
+        cardinality: 16
+
+      - name: "scope"
+        values: ["project", "session"]
+        cardinality: 2
+
+    buckets: [0.001, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0, 30.0]
+    total_cardinality: 288  # 16 × 2 × 9 = 288 time series
+
+    collection_points:
+      - location: "cmd/mcp-server/executor.go::ExecuteTool()"
+        when: "Around meta-cc command execution"
+        code: |
+          start := time.Now()
+          // ... execute meta-cc command ...
+          duration := time.Since(start)
+          toolExecutionDuration.WithLabelValues(toolName, scope).Observe(duration.Seconds())
+
+  duration_visualization:
+    dashboard: "RED - Duration"
+    panels:
+      - title: "Request Latency (p50/p95/p99)"
+        queries:
+          p50: "histogram_quantile(0.50, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (le))"
+          p95: "histogram_quantile(0.95, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (le))"
+          p99: "histogram_quantile(0.99, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (le))"
+        type: "Graph (multi-line)"
+        unit: "seconds"
+
+      - title: "Latency by Tool (p95)"
+        query: "histogram_quantile(0.95, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (tool_name, le))"
+        type: "Graph (multi-line)"
+        unit: "seconds"
+
+      - title: "Slowest Tools (p95 latency, 24h)"
+        query: "topk(5, histogram_quantile(0.95, sum(rate(mcp_server_request_duration_seconds_bucket[24h])) by (tool_name, le)))"
+        type: "Table"
+        unit: "seconds"
+
+      - title: "Latency Distribution (histogram)"
+        query: "sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (le)"
+        type: "Heatmap"
+        unit: "requests/sec"
+
+  duration_alerting:
+    - alert: "HighP95Latency"
+      condition: "histogram_quantile(0.95, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (le)) > 5.0"
+      severity: "warning"
+      description: "p95 latency > 5s (violates SLO)"
+      for: "5m"
+
+    - alert: "HighP99Latency"
+      condition: "histogram_quantile(0.99, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (le)) > 10.0"
+      severity: "warning"
+      description: "p99 latency > 10s (tail latency issue)"
+      for: "5m"
+
+    - alert: "ToolLatencyRegression"
+      condition: "histogram_quantile(0.95, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (tool_name, le)) > 2 * histogram_quantile(0.95, sum(rate(mcp_server_request_duration_seconds_bucket[5m] offset 1h)) by (tool_name, le))"
+      severity: "warning"
+      description: "Tool p95 latency 2x higher than 1 hour ago (performance regression)"
+      for: "10m"
+
+# RED Dashboard
+
+red_dashboard:
+  name: "MCP Server - RED Overview"
+  description: "Unified RED dashboard for at-a-glance service health monitoring"
+
+  layout:
+    row_1_rate:
+      - panel: "Request Rate (req/s)"
+        query: "sum(rate(mcp_server_requests_total[5m]))"
+        visualization: "Single stat (with sparkline)"
+        unit: "req/s"
+        threshold: "Green > 0.1, Yellow 0.01-0.1, Red < 0.01"
+
+      - panel: "Request Rate by Tool"
+        query: "sum(rate(mcp_server_requests_total[5m])) by (tool_name)"
+        visualization: "Graph (stacked area)"
+        unit: "req/s"
+
+      - panel: "Top 5 Tools (24h)"
+        query: "topk(5, sum(increase(mcp_server_requests_total[24h])) by (tool_name))"
+        visualization: "Bar chart (horizontal)"
+        unit: "total requests"
+
+    row_2_errors:
+      - panel: "Error Rate (%)"
+        query: "sum(rate(mcp_server_errors_total[5m])) / sum(rate(mcp_server_requests_total[5m])) * 100"
+        visualization: "Single stat (with threshold)"
+        unit: "%"
+        threshold: "Green < 1%, Yellow 1-5%, Red > 5%"
+
+      - panel: "Error Rate Over Time"
+        query: "sum(rate(mcp_server_errors_total[5m])) / sum(rate(mcp_server_requests_total[5m])) * 100"
+        visualization: "Graph (line)"
+        unit: "%"
+
+      - panel: "Error Breakdown by Type"
+        query: "sum(rate(mcp_server_errors_total[5m])) by (error_type)"
+        visualization: "Pie chart"
+        unit: "errors/sec"
+
+    row_3_duration:
+      - panel: "Latency p50/p95/p99"
+        queries:
+          p50: "histogram_quantile(0.50, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (le))"
+          p95: "histogram_quantile(0.95, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (le))"
+          p99: "histogram_quantile(0.99, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (le))"
+        visualization: "Graph (multi-line)"
+        unit: "seconds"
+        threshold: "p95 < 5s (green), p95 5-10s (yellow), p95 > 10s (red)"
+
+      - panel: "Latency by Tool (p95)"
+        query: "histogram_quantile(0.95, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (tool_name, le))"
+        visualization: "Graph (multi-line)"
+        unit: "seconds"
+
+      - panel: "Slowest Tools"
+        query: "topk(5, histogram_quantile(0.95, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (tool_name, le)))"
+        visualization: "Table"
+        unit: "seconds"
+
+    row_4_correlation:
+      - panel: "Request Rate vs Error Rate"
+        queries:
+          request_rate: "sum(rate(mcp_server_requests_total[5m]))"
+          error_rate: "sum(rate(mcp_server_errors_total[5m])) / sum(rate(mcp_server_requests_total[5m])) * 100"
+        visualization: "Graph (dual-axis)"
+        unit: "req/s (left), % (right)"
+
+      - panel: "Request Rate vs p95 Latency"
+        queries:
+          request_rate: "sum(rate(mcp_server_requests_total[5m]))"
+          p95_latency: "histogram_quantile(0.95, sum(rate(mcp_server_request_duration_seconds_bucket[5m])) by (le))"
+        visualization: "Graph (dual-axis)"
+        unit: "req/s (left), seconds (right)"
+
+# Transferability
+
+transferability:
+  applicability: "Any request-driven service"
+  examples:
+    - "REST API servers (HTTP requests)"
+    - "gRPC services (RPC calls)"
+    - "Message queue consumers (message processing)"
+    - "Database query engines (query execution)"
+    - "Background job processors (job execution)"
+
+  adaptation_guide:
+    step_1: "Identify request/response pattern"
+    step_2: "Define 'request' unit (HTTP request, RPC call, message, query, job)"
+    step_3: "Implement Rate metric (counter for total requests)"
+    step_4: "Implement Errors metric (counter for failed requests)"
+    step_5: "Implement Duration metric (histogram for request latency)"
+    step_6: "Add labels for dimensionality (endpoint, status, method, etc.)"
+    step_7: "Create RED dashboard in Grafana"
+    step_8: "Configure alerting rules"
+
+  universal_pattern:
+    rate:
+      metric: "{service}_requests_total"
+      labels: ["endpoint", "method", "status"]
+      queries:
+        - "rate({service}_requests_total[5m])"
+
+    errors:
+      metric: "{service}_errors_total"
+      labels: ["endpoint", "error_type"]
+      queries:
+        - "sum(rate({service}_errors_total[5m])) / sum(rate({service}_requests_total[5m]))"
+
+    duration:
+      metric: "{service}_request_duration_seconds"
+      labels: ["endpoint", "status"]
+      queries:
+        - "histogram_quantile(0.95, rate({service}_request_duration_seconds_bucket[5m]))"
+
+# Summary
+
+summary:
+  methodology: "RED (Rate, Errors, Duration)"
+  applicability_to_mcp_server: "Very high - MCP server is request-driven"
+  metrics_count: 5 (requests_total, tool_calls_total, errors_total, request_duration_seconds, tool_execution_duration_seconds)
+  total_series: ~668 (96 + 64 + 255 + 320 + 288)
+  cardinality_control: "Strict - no high-cardinality labels"
+  dashboard: "RED Overview (4 rows: Rate, Errors, Duration, Correlations)"
+  alerting_rules: 8
+  transferability: "Universal - applicable to any request-driven service"
+  implementation_priority: "HIGH - foundational metrics for service health"
+  next_steps: "Implement in Iteration 4, validate in Iteration 5"

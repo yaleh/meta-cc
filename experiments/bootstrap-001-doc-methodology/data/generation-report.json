@@ -1,0 +1,92 @@
+{
+  "go_analysis": {
+    "total_files": 33,
+    "documented_commands": 20,
+    "undocumented_commands": [],
+    "total_functions": 163,
+    "documented_functions": 64,
+    "coverage": 0.39263803680981596
+  },
+  "consolidation": {
+    "archive_candidates": [],
+    "duplicate_content": [],
+    "oversized_files": [
+      {
+        "file": "docs/architecture/proposals/meta-cognition-proposal.md",
+        "lines": 1383,
+        "recommendation": "Split or summarize"
+      },
+      {
+        "file": "docs/archive/mcp-tools-reference.md",
+        "lines": 1455,
+        "recommendation": "Split or summarize"
+      },
+      {
+        "file": "docs/archive/proposals/proposal_2.md",
+        "lines": 1893,
+        "recommendation": "Split or summarize"
+      },
+      {
+        "file": "docs/methodology/empirical-methodology-development.md",
+        "lines": 1555,
+        "recommendation": "Split or summarize"
+      },
+      {
+        "file": "docs/methodology/bootstrapped-software-engineering.md",
+        "lines": 1317,
+        "recommendation": "Split or summarize"
+      },
+      {
+        "file": "docs/methodology/documentation-management.md",
+        "lines": 1013,
+        "recommendation": "Split or summarize"
+      },
+      {
+        "file": "docs/methodology/value-space-optimization.md",
+        "lines": 2130,
+        "recommendation": "Split or summarize"
+      },
+      {
+        "file": "docs/methodology/role-based-documentation.md",
+        "lines": 2039,
+        "recommendation": "Split or summarize"
+      }
+    ],
+    "consolidation_suggestions": [
+      {
+        "action": "Merge methodology docs",
+        "files": [
+          "empirical-methodology-development.md",
+          "bootstrapped-software-engineering.md",
+          "value-space-optimization.md"
+        ],
+        "into": "methodology-overview.md",
+        "expected_reduction": "~5000 lines"
+      },
+      {
+        "action": "Archive old MCP docs",
+        "files": [
+          "archive/mcp-usage.md",
+          "archive/mcp-tools-reference.md"
+        ],
+        "reason": "Superseded by guides/mcp.md",
+        "expected_reduction": "~2400 lines"
+      }
+    ]
+  },
+  "coverage": {
+    "code_coverage": 0.39263803680981596,
+    "feature_coverage": 0.9565217391304348,
+    "undocumented_items": [],
+    "improvement_since_baseline": 0.04
+  },
+  "efficiency": {
+    "current_lines": 21500,
+    "after_consolidation": 18000,
+    "reduction": 3500,
+    "reduction_percentage": 16.27906976744186,
+    "efficiency_before": 0.6976744186046512,
+    "efficiency_after": 0.8333333333333334,
+    "efficiency_gain": 0.1356589147286822
+  }
+}

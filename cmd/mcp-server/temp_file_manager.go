@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 )
 
 // TempFileManager manages temporary JSONL files with concurrency safety
@@ -56,14 +58,14 @@ func writeJSONLFile(path string, data []interface{}) error {
 	// Ensure parent directory exists
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+		return fmt.Errorf("failed to create directory %s: %w", dir, mcerrors.ErrFileIO)
 	}
 
 	// Create temp file for atomic write
 	tmpPath := path + ".tmp"
 	file, err := os.Create(tmpPath)
 	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
+		return fmt.Errorf("failed to create temp file %s: %w", tmpPath, mcerrors.ErrFileIO)
 	}
 
 	// Write JSONL data
@@ -72,7 +74,7 @@ func writeJSONLFile(path string, data []interface{}) error {
 		if err := encoder.Encode(record); err != nil {
 			file.Close()
 			os.Remove(tmpPath)
-			return fmt.Errorf("failed to encode record: %w", err)
+			return fmt.Errorf("failed to encode record to %s: %w", tmpPath, mcerrors.ErrParseError)
 		}
 	}
 
@@ -80,19 +82,19 @@ func writeJSONLFile(path string, data []interface{}) error {
 	if err := file.Sync(); err != nil {
 		file.Close()
 		os.Remove(tmpPath)
-		return fmt.Errorf("failed to sync file: %w", err)
+		return fmt.Errorf("failed to sync file %s: %w", tmpPath, mcerrors.ErrFileIO)
 	}
 
 	// Close file before rename (required on Windows)
 	if err := file.Close(); err != nil {
 		os.Remove(tmpPath)
-		return fmt.Errorf("failed to close file: %w", err)
+		return fmt.Errorf("failed to close file %s: %w", tmpPath, mcerrors.ErrFileIO)
 	}
 
 	// Atomic rename
 	if err := os.Rename(tmpPath, path); err != nil {
 		os.Remove(tmpPath)
-		return fmt.Errorf("failed to rename file: %w", err)
+		return fmt.Errorf("failed to rename file %s to %s: %w", tmpPath, path, mcerrors.ErrFileIO)
 	}
 
 	return nil
@@ -114,7 +116,7 @@ func cleanupOldFiles(maxAgeDays int) ([]string, int64, error) {
 	pattern := filepath.Join(os.TempDir(), "meta-cc-mcp-*.jsonl")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to glob files: %w", err)
+		return nil, 0, fmt.Errorf("failed to glob files with pattern %s: %w", pattern, mcerrors.ErrFileIO)
 	}
 
 	threshold := time.Now().Add(-time.Duration(maxAgeDays) * 24 * time.Hour)

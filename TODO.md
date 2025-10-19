@@ -93,16 +93,18 @@ Project-wide task tracking and future improvements.
   - **Requirements**: LLM-powered semantic analysis
   - **Priority**: Completes documentation management toolchain
 
-- [ ] **Fix internal documentation links**
-  - Fix 70+ broken internal links across 18 files
-  - Prioritize: core/ > guides/ > reference/ > tutorials/
-  - Can be done incrementally or with batch script
+- [x] **Fix internal documentation links** ✅ **COMPLETED: 2025-10-12**
+  - Fixed 70+ broken internal links across 18 files
+  - Updated cross-directory references and architecture paths
+  - All documentation links now working correctly
+  - Verified via documentation link checker capability
 
 ### Low Priority
 
-- [ ] **Plans directory restructuring**
-  - Add descriptive names to plans directories: `N/` → `NN-descriptive-name/`
-  - Example: `8/` → `08-mcp-integration/`
+- [x] **Plans directory restructuring** ✅ **COMPLETED: 2025-10-12**
+  - Renamed all 21 phase directories with descriptive names
+  - Format: NN-descriptive-name/ (e.g., 08-mcp-integration/)
+  - Created README.md quick references for 12 phase directories
   - Improves readability and discoverability
 
 ## Features
@@ -120,37 +122,27 @@ Project-wide task tracking and future improvements.
 
 ---
 
-## Link Test Report
+## Documentation Management Tools
 
-**Date**: 2025-10-12
-**Branch**: `docs/restructure-directories`
+**Available Capabilities** (2025-10-12):
 
-### Files with Broken Internal Links
+### Link Validation Tool
+- **Capability**: `meta-doc-links` via `/meta doc-links`
+- **Purpose**: Automated checking of internal markdown links
+- **Features**: Severity classification, anchor validation, pre-commit safety
+- **Status**: ✅ COMPLETED - Use for ongoing link validation
 
-```
-docs/core/plan.md                       (8 broken links)
-docs/core/principles.md                 (14 broken links)
-docs/guides/capabilities.md             (3 broken links)
-docs/guides/integration.md              (4 broken links)
-docs/guides/mcp.md                      (4 broken links)
-docs/guides/plugin-development.md       (5 broken links)
-docs/guides/release-process.md          (1 broken link)
-docs/guides/troubleshooting.md          (1 broken link)
-docs/reference/cli.md                   (4 broken links)
-docs/reference/features.md              (7 broken links)
-docs/reference/jsonl.md                 (3 broken links)
-docs/reference/repository-structure.md  (5 broken links)
-docs/reference/unified-meta-command.md  (3 broken links)
-docs/tutorials/cli-composability.md     (1 broken link)
-docs/tutorials/cookbook.md              (2 broken links)
-docs/tutorials/examples.md              (3 broken links)
-docs/tutorials/github-setup.md          (1 broken link)
-docs/tutorials/installation.md          (2 broken links)
-```
+### Documentation Sync Checker
+- **Capability**: `meta-doc-sync` via `/meta doc-sync`
+- **Purpose**: Cross-reference validation between core documents
+- **Features**: Phase status consistency, constraints verification, merge safety
+- **Status**: ✅ COMPLETED - Use for pre-merge validation
 
-**Total**: 18 files, 70+ broken links
-
-**Note**: Main entry points (CLAUDE.md, README.md, DOCUMENTATION_MAP.md) have all links working correctly.
+### Project Bootstrap
+- **Capability**: `meta-project-bootstrap` via `/meta project-bootstrap`
+- **Purpose**: Automated Phase 0 documentation setup
+- **Features**: Complete methodology implementation, language-specific templates
+- **Status**: ✅ COMPLETED - Use for new project initialization
 
 ---
 

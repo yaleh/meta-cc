@@ -1,0 +1,79 @@
+# Codebase Inventory - Iteration 0 Baseline
+# Date: 2025-10-17
+# Meta-cc project technical debt baseline
+
+summary:
+  total_lines_production: 12759  # internal (5883) + cmd (6876)
+  total_lines_with_tests: 33475
+  test_to_code_ratio: 2.62
+  modules_count: 14
+
+modules:
+  internal:
+    aggregator:
+      description: "Data aggregation and statistics"
+      status: "active"
+    analyzer:
+      description: "Pattern detection and data analysis"
+      status: "active"
+    filter:
+      description: "Query filtering and expression parsing"
+      status: "active"
+    githelper:
+      description: "Git history analysis utilities"
+      status: "active"
+    locator:
+      description: "Session file location and discovery"
+      status: "active"
+    mcp:
+      description: "MCP server protocol implementation"
+      status: "active"
+    output:
+      description: "Output formatting and presentation"
+      status: "active"
+    parser:
+      description: "JSONL parsing and session data extraction"
+      status: "active"
+    query:
+      description: "Query engine, filtering, sorting"
+      status: "active"
+    stats:
+      description: "Statistical calculations"
+      status: "active"
+    testutil:
+      description: "Test utilities and fixtures"
+      status: "active"
+    types:
+      description: "Core type definitions"
+      status: "active"
+    validation:
+      description: "Schema validation, input checking"
+      status: "active"
+
+  cmd:
+    description: "CLI commands and MCP server entry points"
+    main_files:
+      - "query_*.go (query commands)"
+      - "analyze_*.go (analysis commands)"
+      - "stats_*.go (statistics commands)"
+      - "parse.go (parsing commands)"
+      - "mcp-server/* (MCP server implementation)"
+
+languages:
+  go:
+    production_lines: 12759
+    test_lines: 20716
+    total: 33475
+    percentage: 100.0%
+
+file_categories:
+  production_code: 12759
+  test_code: 20716
+  documentation: "external (not counted)"
+  configuration: "external (not counted)"
+
+notes:
+  - "Total production code: 12,759 lines"
+  - "Test coverage excellent: 2.62x test-to-code ratio"
+  - "14 internal modules + cmd package"
+  - "Well-structured with clear module boundaries"

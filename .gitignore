@@ -1,9 +1,10 @@
-meta-cc
+/meta-cc
 coverage.out
-meta-cc-mcp
+/meta-cc-mcp
 /bin/
 coverage.html
 /.gemini/
+/.pre-commit-cache/
 
 # Build artifacts
 /dist/
@@ -13,3 +14,13 @@ coverage.html
 
 # Runtime capability cache
 /.capabilities-cache/
+/experiments/bootstrap-002-test-strategy/data/
+/experiments/bootstrap-004-refactoring-guide/data/
+coverage_total.out
+/mcp-server
+validation_coverage.out
+/experiments/bootstrap-003-error-recovery/data/
+/experiments/bootstrap-007-cicd-pipeline/data/
+/experiments/bootstrap-002-test-strategy/python-validation/data/
+/experiments/bootstrap-002-test-strategy/python-validation/src/__pycache__/
+/experiments/bootstrap-002-test-strategy/python-validation/tests/__pycache__/

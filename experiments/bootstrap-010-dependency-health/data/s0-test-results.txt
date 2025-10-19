@@ -1,0 +1,40 @@
+?   	github.com/yaleh/meta-cc	[no test files]
+?   	github.com/yaleh/meta-cc/cmd/validate-api	[no test files]
+ok  	github.com/yaleh/meta-cc/cmd	(cached)
+ok  	github.com/yaleh/meta-cc/cmd/mcp-server	(cached)
+?   	github.com/yaleh/meta-cc/experiments/bootstrap-001-doc-methodology/data	[no test files]
+ok  	github.com/yaleh/meta-cc/internal/analyzer	(cached)
+ok  	github.com/yaleh/meta-cc/internal/filter	(cached)
+ok  	github.com/yaleh/meta-cc/internal/githelper	(cached)
+ok  	github.com/yaleh/meta-cc/internal/locator	(cached)
+ok  	github.com/yaleh/meta-cc/internal/mcp	(cached)
+ok  	github.com/yaleh/meta-cc/internal/output	(cached)
+ok  	github.com/yaleh/meta-cc/internal/parser	(cached)
+ok  	github.com/yaleh/meta-cc/internal/query	(cached)
+ok  	github.com/yaleh/meta-cc/internal/stats	(cached)
+ok  	github.com/yaleh/meta-cc/internal/testutil	(cached)
+?   	github.com/yaleh/meta-cc/internal/types	[no test files]
+--- FAIL: TestParseTools_ValidFile (0.00s)
+    parser_test.go:58: Expected 2 properties, got 0
+    parser_test.go:62: Expected 1 required parameter, got 0
+panic: runtime error: index out of range [0] with length 0 [recovered]
+	panic: runtime error: index out of range [0] with length 0
+
+goroutine 77 [running]:
+testing.tRunner.func1.2({0x555e40, 0xc00001e2e8})
+	/usr/lib/go-1.23/src/testing/testing.go:1632 +0x230
+testing.tRunner.func1()
+	/usr/lib/go-1.23/src/testing/testing.go:1635 +0x35e
+panic({0x555e40?, 0xc00001e2e8?})
+	/usr/lib/go-1.23/src/runtime/panic.go:785 +0x132
+github.com/yaleh/meta-cc/internal/validation.TestParseTools_ValidFile(0xc0001784e0)
+	/home/yale/work/meta-cc/internal/validation/parser_test.go:65 +0x416
+testing.tRunner(0xc0001784e0, 0x5725c8)
+	/usr/lib/go-1.23/src/testing/testing.go:1690 +0xf4
+created by testing.(*T).Run in goroutine 1
+	/usr/lib/go-1.23/src/testing/testing.go:1743 +0x390
+FAIL	github.com/yaleh/meta-cc/internal/validation	0.009s
+ok  	github.com/yaleh/meta-cc/pkg/output	(cached)
+ok  	github.com/yaleh/meta-cc/pkg/pipeline	(cached)
+FAIL
+EXIT_CODE:

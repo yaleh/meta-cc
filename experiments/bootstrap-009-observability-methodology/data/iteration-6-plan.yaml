@@ -1,0 +1,381 @@
+---
+iteration: 6
+phase: plan
+timestamp: 2025-10-17
+meta_agent: M5.plan
+domain: Observability Methodology
+
+goal:
+  primary: "Implement distributed tracing to achieve V_meta convergence (≥ 0.80)"
+  focus: "Complete Three Pillars of Observability (Logging + Metrics + Tracing)"
+
+  success_criteria:
+    technical:
+      - "OpenTelemetry SDK integrated and configured"
+      - "Request traces with W3C Trace Context propagation"
+      - "Tool execution spans with parent-child relationships"
+      - "Trace IDs in all log statements (correlation)"
+      - "Trace sampling strategy configured"
+      - "Build passes, no new test failures"
+
+    value_targets:
+      V_instance_s6:
+        target: ">= 0.86"
+        expected: "0.87 to 0.88"
+        delta: "+0.01 to +0.02"
+
+      V_meta_s6:
+        target: ">= 0.80"  # CONVERGENCE THRESHOLD
+        expected: "0.80 to 0.85"
+        delta: "+0.08 to +0.13"
+        components:
+          V_completeness:
+            current: 0.67
+            target: 0.83
+            delta: +0.16
+            reason: "5/6 patterns validated (add tracing, defer dashboards)"
+          V_effectiveness:
+            current: 0.75
+            target: 0.83
+            delta: +0.08
+            reason: "Tracing methodology validated through implementation"
+          V_reusability:
+            current: 0.75
+            target: 0.83
+            delta: +0.08
+            reason: "Tracing patterns universally transferable"
+
+    methodology:
+      - "Distributed tracing pattern documented in knowledge/patterns/"
+      - "Tracing methodology validated (OpenTelemetry implementation)"
+      - "Three Pillars methodology complete (Logging + Metrics + Tracing)"
+      - "Trace-metrics-logs correlation demonstrated"
+
+    convergence:
+      instance_layer: "MAINTAIN (0.86 → 0.87-0.88, already converged)"
+      meta_layer: "ACHIEVE (0.72 → 0.80-0.85, FULL CONVERGENCE expected)"
+      system_stability: "M₆ == M₅, A₆ == A₅ (no evolution needed)"
+
+state_analysis:
+  current_value:
+    V_instance_s5: 0.86
+    V_meta_s5: 0.72
+    status: PARTIAL_CONVERGENCE
+
+  weakest_component: V_completeness (0.67)
+
+  gap_to_target:
+    instance: -0.06  # EXCEEDED (0.86 > 0.80)
+    meta: 0.08  # NEAR CONVERGENCE (90% of target)
+
+  critical_gaps:
+    - "Distributed tracing not implemented (blocks V_completeness)"
+    - "Tracing methodology not validated (blocks V_effectiveness)"
+    - "Trace correlation missing (blocks V_actionability improvement)"
+
+priority_queue:
+  priority_1_distributed_tracing:
+    description: "Implement OpenTelemetry distributed tracing"
+    urgency: CRITICAL
+    impact: HIGH
+    addressability: MEDIUM_HIGH
+    expected_ΔV_meta: +0.08 to +0.13
+    rationale:
+      - "Unblocks V_meta convergence (primary blocker)"
+      - "Completes Three Pillars of Observability"
+      - "Enables trace-metrics-logs correlation"
+      - "Highest methodology value (universal patterns)"
+
+  priority_2_tracing_pattern:
+    description: "Document distributed tracing pattern"
+    urgency: HIGH
+    impact: HIGH
+    addressability: HIGH
+    expected_ΔV_completeness: +0.16
+    rationale:
+      - "Critical for V_completeness improvement"
+      - "Validates tracing methodology"
+      - "Provides transferable pattern"
+
+  priority_3_convergence_validation:
+    description: "Validate dual convergence achievement"
+    urgency: HIGH
+    impact: CRITICAL
+    addressability: HIGH
+    rationale:
+      - "Verify V_meta ≥ 0.80 (CONVERGENCE)"
+      - "Confirm system stability (M₆ == M₅, A₆ == A₅)"
+
+expected_value_increase:
+  V_instance:
+    from: 0.86
+    to: 0.87 to 0.88
+    delta: +0.01 to +0.02
+    components:
+      V_coverage: +0.01  # Tracing adds observability coverage
+      V_actionability: +0.02  # Trace correlation improves diagnosis
+      V_performance: 0  # Sampling keeps overhead low
+      V_consistency: 0  # Already at 0.92
+
+  V_meta:
+    from: 0.72
+    to: 0.80 to 0.85
+    delta: +0.08 to +0.13
+    components:
+      V_completeness: +0.16  # 4/6 → 5/6 patterns (67% → 83%)
+      V_effectiveness: +0.08  # Tracing methodology validated
+      V_reusability: +0.08  # Tracing patterns transferable
+
+agent_selection:
+  decision_tree_evaluation:
+    goal_complexity: MEDIUM_HIGH
+    domain_knowledge_required: "OpenTelemetry, W3C Trace Context, span propagation"
+    expected_ΔV_instance: +0.01 to +0.02
+    expected_ΔV_meta: +0.08 to +0.13
+    reusability: VERY_HIGH
+
+  specialization_needed: false
+
+  rationale:
+    - "OpenTelemetry SDK well-documented (official Go SDK)"
+    - "W3C Trace Context standard (clear specification)"
+    - "Span creation patterns well-established (request → tool spans)"
+    - "Similar to metrics implementation (coder agent succeeded in iterations 4-5)"
+    - "Generic coder agent sufficient for instrumentation"
+
+  decision: USE_GENERIC_CODER
+
+  agents_selected:
+    - name: coder
+      role: "Implement OpenTelemetry distributed tracing"
+      rationale: "Successfully implemented logging (iteration 2), RED metrics (iteration 4), USE metrics (iteration 5)"
+      expected_quality: HIGH
+
+    - name: doc-writer
+      role: "Document distributed tracing pattern"
+      rationale: "Created logging and metrics patterns in iterations 2-5"
+      expected_quality: HIGH
+
+    - name: data-analyst
+      role: "Calculate V_instance(s₆), V_meta(s₆), validate convergence"
+      rationale: "Performed value calculations in iterations 1-5"
+      expected_quality: HIGH
+
+work_breakdown:
+  task_1_opentelemetry_integration:
+    agent: coder
+    duration: 90 minutes
+    description: "Integrate OpenTelemetry SDK and configure trace provider"
+    inputs:
+      - "go.opentelemetry.io/otel documentation"
+      - "OpenTelemetry exporters (OTLP, stdout for testing)"
+      - "iteration-6-observations.yaml"
+    outputs:
+      - "cmd/mcp-server/tracing.go (trace provider, exporter config)"
+      - "go.mod (OpenTelemetry dependencies)"
+    success_criteria:
+      - "Trace provider initialized"
+      - "OTLP exporter configured (or stdout for testing)"
+      - "Global tracer registered"
+
+  task_2_request_tracing:
+    agent: coder
+    duration: 60 minutes
+    description: "Implement request traces with W3C Trace Context propagation"
+    inputs:
+      - "cmd/mcp-server/server.go (handleRequest)"
+      - "W3C Trace Context specification"
+      - "OpenTelemetry context propagation APIs"
+    outputs:
+      - "cmd/mcp-server/server.go (request span creation)"
+      - "HTTP headers for trace context propagation"
+    success_criteria:
+      - "Request spans created for each incoming request"
+      - "Trace context extracted from HTTP headers"
+      - "Trace context propagated to downstream operations"
+
+  task_3_tool_execution_spans:
+    agent: coder
+    duration: 60 minutes
+    description: "Create tool execution spans with parent-child relationships"
+    inputs:
+      - "cmd/mcp-server/server.go (handleToolsCall)"
+      - "OpenTelemetry span APIs (StartSpan, SetAttributes, End)"
+    outputs:
+      - "cmd/mcp-server/server.go (tool execution spans)"
+      - "Span attributes (tool name, parameters, result)"
+    success_criteria:
+      - "Tool execution spans created as children of request span"
+      - "Span attributes include tool metadata"
+      - "Spans properly closed (defer span.End())"
+
+  task_4_trace_log_correlation:
+    agent: coder
+    duration: 30 minutes
+    description: "Add trace IDs to log statements for correlation"
+    inputs:
+      - "cmd/mcp-server/*.go (all log statements)"
+      - "OpenTelemetry trace ID extraction (trace.SpanFromContext)"
+    outputs:
+      - "Updated log statements with trace_id field"
+    success_criteria:
+      - "All log statements include trace_id"
+      - "Trace IDs match between logs and traces"
+
+  task_5_sampling_configuration:
+    agent: coder
+    duration: 15 minutes
+    description: "Configure trace sampling strategy"
+    inputs:
+      - "OpenTelemetry sampler APIs"
+      - "Sampling strategies (AlwaysOn, TraceIDRatioBased, ParentBased)"
+    outputs:
+      - "cmd/mcp-server/tracing.go (sampler configuration)"
+    success_criteria:
+      - "Sampler configured (default: AlwaysOn for testing)"
+      - "Sampling ratio configurable via environment variable"
+
+  task_6_testing:
+    agent: coder
+    duration: 30 minutes
+    description: "Test tracing implementation"
+    inputs:
+      - "Built mcp-server binary"
+      - "Test requests"
+    outputs:
+      - "Trace output (stdout or OTLP collector)"
+      - "Validation report"
+    success_criteria:
+      - "Traces generated for requests"
+      - "Parent-child relationships correct"
+      - "Trace IDs in logs match traces"
+
+  task_7_pattern_documentation:
+    agent: doc-writer
+    duration: 60 minutes
+    description: "Document distributed tracing pattern"
+    inputs:
+      - "Implementation code (tracing.go, server.go)"
+      - "OpenTelemetry best practices"
+      - "Existing patterns (logging, RED, USE)"
+    outputs:
+      - "knowledge/patterns/distributed-tracing-pattern.md"
+    success_criteria:
+      - "Pattern structure documented (provider, spans, context)"
+      - "Implementation examples provided"
+      - "Integration with metrics/logs shown"
+      - "Transferability guidelines included"
+
+  task_8_value_calculation:
+    agent: data-analyst
+    duration: 30 minutes
+    description: "Calculate V_instance(s₆), V_meta(s₆), validate convergence"
+    inputs:
+      - "Implementation artifacts (code, traces, documentation)"
+      - "Previous iteration values (s₅)"
+    outputs:
+      - "data/iteration-6-metrics.json"
+    success_criteria:
+      - "V_instance(s₆) ≥ 0.86 (maintain or improve)"
+      - "V_meta(s₆) ≥ 0.80 (CONVERGENCE)"
+      - "Component values calculated with evidence"
+      - "Convergence status determined"
+
+dependencies:
+  task_1_opentelemetry_integration:
+    depends_on: []
+    enables: [task_2, task_3, task_4, task_5]
+
+  task_2_request_tracing:
+    depends_on: [task_1]
+    enables: [task_3, task_6]
+
+  task_3_tool_execution_spans:
+    depends_on: [task_1, task_2]
+    enables: [task_6]
+
+  task_4_trace_log_correlation:
+    depends_on: [task_1, task_2]
+    enables: [task_6]
+
+  task_5_sampling_configuration:
+    depends_on: [task_1]
+    enables: [task_6]
+
+  task_6_testing:
+    depends_on: [task_2, task_3, task_4, task_5]
+    enables: [task_7, task_8]
+
+  task_7_pattern_documentation:
+    depends_on: [task_6]
+    enables: [task_8]
+
+  task_8_value_calculation:
+    depends_on: [task_6, task_7]
+    enables: []
+
+execution_strategy: SEQUENTIAL
+execution_order:
+  - task_1_opentelemetry_integration
+  - task_2_request_tracing
+  - task_3_tool_execution_spans
+  - task_4_trace_log_correlation
+  - task_5_sampling_configuration
+  - task_6_testing
+  - task_7_pattern_documentation
+  - task_8_value_calculation
+
+total_estimated_duration: "6 hours 35 minutes"
+
+risks:
+  risk_1_opentelemetry_complexity:
+    description: "OpenTelemetry SDK may have steep learning curve"
+    probability: MEDIUM
+    impact: MEDIUM
+    mitigation:
+      - "Use official Go SDK documentation"
+      - "Start with simple stdout exporter for testing"
+      - "Follow OpenTelemetry quick start guide"
+
+  risk_2_context_propagation:
+    description: "Context propagation may be tricky in MCP server architecture"
+    probability: MEDIUM
+    impact: MEDIUM
+    mitigation:
+      - "Use Go context.Context consistently"
+      - "Follow OpenTelemetry context propagation patterns"
+      - "Test trace IDs across operations"
+
+  risk_3_performance_overhead:
+    description: "Tracing may add unacceptable performance overhead"
+    probability: LOW
+    impact: MEDIUM
+    mitigation:
+      - "Configure sampling (reduce overhead)"
+      - "Use efficient exporters (OTLP, batch mode)"
+      - "Measure overhead during testing"
+
+convergence_expectations:
+  meta_agent_evolution:
+    expected: "M₆ == M₅ (no evolution needed)"
+    rationale: "Core 5 capabilities sufficient for tracing implementation"
+
+  agent_set_evolution:
+    expected: "A₆ == A₅ (no evolution needed)"
+    rationale: "Generic coder, doc-writer, data-analyst sufficient"
+
+  instance_value:
+    expected: "V_instance(s₆) = 0.87-0.88 (maintain convergence)"
+    confidence: HIGH
+
+  meta_value:
+    expected: "V_meta(s₆) = 0.80-0.85 (FULL CONVERGENCE)"
+    confidence: MEDIUM_HIGH
+    key_factor: "Tracing pattern documentation quality"
+
+  convergence_status:
+    expected: "FULL_CONVERGENCE (V_instance ≥ 0.80, V_meta ≥ 0.80)"
+    probability: 75%
+    alternative: "NEAR_CONVERGENCE (V_meta = 0.78-0.79, need iteration 7)"
+
+---

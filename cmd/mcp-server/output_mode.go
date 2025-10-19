@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"os"
-	"strconv"
+
+	"github.com/yaleh/meta-cc/internal/config"
 )
 
 const (
@@ -110,23 +110,24 @@ func selectOutputModeWithConfig(size int, explicitMode string, config *OutputMod
 	return OutputModeFileRef
 }
 
-// getOutputModeConfig returns output mode configuration from parameters or environment.
-// Priority: parameter > environment variable > default (8192 bytes)
+// getOutputModeConfig returns output mode configuration from centralized config and parameters.
+// Priority: parameter > centralized config (from environment) > default (8192 bytes)
 //
 // Parameters:
+//   - globalCfg: Centralized configuration (loaded at startup)
 //   - params: MCP tool parameters (may contain inline_threshold_bytes)
 //
 // Returns:
 //   - OutputModeConfig with resolved threshold
 //
 // Configuration Sources:
-//  1. Parameter: inline_threshold_bytes (highest priority)
-//  2. Environment: META_CC_INLINE_THRESHOLD (bytes)
-//  3. Default: 8192 bytes (8KB)
-func getOutputModeConfig(params map[string]interface{}) *OutputModeConfig {
+//  1. Parameter: inline_threshold_bytes (highest priority - per-request override)
+//  2. Centralized Config: cfg.Output.InlineThreshold (from META_CC_INLINE_THRESHOLD)
+//  3. Default: 8192 bytes (8KB, applied in config.Load())
+func getOutputModeConfig(globalCfg *config.Config, params map[string]interface{}) *OutputModeConfig {
 	config := DefaultOutputModeConfig()
 
-	// Check parameter first (highest priority)
+	// Check parameter first (highest priority - per-request override)
 	if thresholdParam, ok := params["inline_threshold_bytes"]; ok {
 		if threshold, ok := thresholdParam.(float64); ok {
 			config.InlineThresholdBytes = int(threshold)
@@ -138,14 +139,7 @@ func getOutputModeConfig(params map[string]interface{}) *OutputModeConfig {
 		}
 	}
 
-	// Check environment variable
-	if envThreshold := os.Getenv("META_CC_INLINE_THRESHOLD"); envThreshold != "" {
-		if threshold, err := strconv.Atoi(envThreshold); err == nil && threshold > 0 {
-			config.InlineThresholdBytes = threshold
-			return config
-		}
-	}
-
-	// Use default
+	// Use centralized config (loaded from environment at startup)
+	config.InlineThresholdBytes = globalCfg.Output.InlineThreshold
 	return config
 }

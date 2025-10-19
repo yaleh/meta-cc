@@ -22,7 +22,7 @@ if [ ! -d "$CAPABILITIES_DIR/commands" ]; then
 fi
 
 # Create dist directories
-mkdir -p "$DIST_DIR/commands" "$DIST_DIR/agents"
+mkdir -p "$DIST_DIR/commands" "$DIST_DIR/agents" "$DIST_DIR/skills"
 
 # Copy ONLY the unified meta command (capabilities are distributed separately)
 echo "  Copying unified meta command from .claude/commands/..."
@@ -39,10 +39,20 @@ if [ -d "$CAPABILITIES_DIR/agents" ] && ls "$CAPABILITIES_DIR/agents/"*.md 1> /d
     cp "$CAPABILITIES_DIR/agents/"*.md "$DIST_DIR/agents/"
 fi
 
+# Copy skills directory with all supporting files
+echo "  Copying skills from .claude/skills/..."
+if [ -d "$PROJECT_ROOT/.claude/skills" ]; then
+    cp -r "$PROJECT_ROOT/.claude/skills/"* "$DIST_DIR/skills/"
+    SKILL_COUNT=$(find "$DIST_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l)
+    SKILL_FILES=$(find "$DIST_DIR/skills" -type f 2>/dev/null | wc -l)
+    echo "    ✓ Copied $SKILL_COUNT skills ($SKILL_FILES total files)"
+fi
+
 # Count files
-CMD_COUNT=$(find "$DIST_DIR/commands" -name "*.md" | wc -l)
-AGENT_COUNT=$(find "$DIST_DIR/agents" -name "*.md" | wc -l)
+CMD_COUNT=$(find "$DIST_DIR/commands" -name "*.md" 2>/dev/null | wc -l)
+AGENT_COUNT=$(find "$DIST_DIR/agents" -name "*.md" 2>/dev/null | wc -l)
+SKILL_COUNT=$(find "$DIST_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l)
 
 echo "✓ Plugin files synced to $DIST_DIR/"
-echo "✓ Total: $CMD_COUNT command file (unified meta.md), $AGENT_COUNT agent files"
+echo "✓ Total: $CMD_COUNT command, $AGENT_COUNT agents, $SKILL_COUNT skills"
 echo "  Note: 13 capability files distributed separately in capabilities-latest.tar.gz"

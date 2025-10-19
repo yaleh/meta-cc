@@ -9,7 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
+
+	"github.com/yaleh/meta-cc/internal/config"
 )
 
 // TestParseCapabilitySources tests parsing environment variable into source list
@@ -395,50 +396,8 @@ func TestEmptySourcesHandling(t *testing.T) {
 }
 
 // TestHasLocalSources tests detection of local sources
-func TestHasLocalSources(t *testing.T) {
-	tests := []struct {
-		name     string
-		sources  []CapabilitySource
-		expected bool
-	}{
-		{
-			name:     "no sources",
-			sources:  []CapabilitySource{},
-			expected: false,
-		},
-		{
-			name: "only local sources",
-			sources: []CapabilitySource{
-				{Type: SourceTypeLocal, Location: "/path/to/dir", Priority: 0},
-			},
-			expected: true,
-		},
-		{
-			name: "only GitHub sources",
-			sources: []CapabilitySource{
-				{Type: SourceTypeGitHub, Location: "owner/repo", Priority: 0},
-			},
-			expected: false,
-		},
-		{
-			name: "mixed sources with local",
-			sources: []CapabilitySource{
-				{Type: SourceTypeGitHub, Location: "owner/repo", Priority: 0},
-				{Type: SourceTypeLocal, Location: "./local", Priority: 1},
-			},
-			expected: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := hasLocalSources(tt.sources)
-			if result != tt.expected {
-				t.Errorf("expected %v, got %v", tt.expected, result)
-			}
-		})
-	}
-}
+// DISABLED: Function removed due to session-scoped cache refactoring
+// func TestHasLocalSources(t *testing.T) { ... }
 
 // TestGetCapabilityIndexCaching tests caching behavior
 func TestGetCapabilityIndexCaching(t *testing.T) {
@@ -474,78 +433,12 @@ func TestGetCapabilityIndexCaching(t *testing.T) {
 }
 
 // TestGetCapabilityIndexDisableCache tests cache bypass
-func TestGetCapabilityIndexDisableCache(t *testing.T) {
-	// Use test fixtures
-	fixturesPath := filepath.Join("..", "..", "tests", "fixtures", "capabilities")
-	if _, err := os.Stat(fixturesPath); os.IsNotExist(err) {
-		t.Skip("test fixtures not found")
-	}
-
-	// Use GitHub source (would normally be cached)
-	sources := []CapabilitySource{
-		{Type: SourceTypeGitHub, Location: "yaleh/meta-cc-capabilities", Priority: 0},
-	}
-
-	// Clear cache
-	cacheMutex.Lock()
-	globalCapabilityCache = nil
-	cacheMutex.Unlock()
-
-	// First call with cache disabled - should fail (GitHub not implemented)
-	_, err := getCapabilityIndex(sources, true)
-	if err == nil {
-		t.Error("expected error for unimplemented GitHub source")
-	}
-
-	// Cache should still be nil
-	cacheMutex.RLock()
-	if globalCapabilityCache != nil {
-		t.Error("cache should not be populated when GitHub source fails")
-	}
-	cacheMutex.RUnlock()
-}
+// DISABLED: Function removed due to session-scoped cache refactoring
+// func TestGetCapabilityIndexDisableCache(t *testing.T) { ... }
 
 // TestIsCacheValid tests cache validation
-func TestIsCacheValid(t *testing.T) {
-	sources := []CapabilitySource{
-		{Type: SourceTypeLocal, Location: "/path", Priority: 0},
-	}
-
-	// Test with no cache
-	cacheMutex.Lock()
-	globalCapabilityCache = nil
-	cacheMutex.Unlock()
-
-	if isCacheValid(sources) {
-		t.Error("cache should be invalid when nil")
-	}
-
-	// Test with fresh cache
-	cacheMutex.Lock()
-	globalCapabilityCache = &CapabilityCache{
-		Index:     make(CapabilityIndex),
-		Timestamp: time.Now(),
-		TTL:       1 * time.Hour,
-	}
-	cacheMutex.Unlock()
-
-	if !isCacheValid(sources) {
-		t.Error("cache should be valid when fresh")
-	}
-
-	// Test with expired cache
-	cacheMutex.Lock()
-	globalCapabilityCache = &CapabilityCache{
-		Index:     make(CapabilityIndex),
-		Timestamp: time.Now().Add(-2 * time.Hour),
-		TTL:       1 * time.Hour,
-	}
-	cacheMutex.Unlock()
-
-	if isCacheValid(sources) {
-		t.Error("cache should be invalid when expired")
-	}
-}
+// DISABLED: Function removed due to session-scoped cache refactoring
+// func TestIsCacheValid(t *testing.T) { ... }
 
 // TestGetCapabilityContent tests retrieval of capability content
 func TestGetCapabilityContent(t *testing.T) {
@@ -726,6 +619,7 @@ func TestReadLocalCapability(t *testing.T) {
 
 // TestExecuteGetCapabilityTool tests the get_capability MCP tool
 func TestExecuteGetCapabilityTool(t *testing.T) {
+	cfg, _ := config.Load()
 	// Use test fixtures
 	fixturesPath := filepath.Join("..", "..", "tests", "fixtures", "capabilities")
 	if _, err := os.Stat(fixturesPath); os.IsNotExist(err) {
@@ -766,7 +660,7 @@ func TestExecuteGetCapabilityTool(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := executeGetCapabilityTool(tt.args)
+			result, err := executeGetCapabilityTool(cfg, tt.args)
 			if tt.expectError {
 				if err == nil {
 					t.Error("expected error, got nil")
@@ -990,100 +884,16 @@ func TestBuildJsDelivrURL(t *testing.T) {
 }
 
 // TestDetectVersionType tests version type detection (branch vs tag)
-func TestDetectVersionType(t *testing.T) {
-	tests := []struct {
-		name     string
-		version  string
-		expected VersionType
-	}{
-		{
-			name:     "semantic version with v prefix",
-			version:  "v1.0.0",
-			expected: VersionTypeTag,
-		},
-		{
-			name:     "semantic version without v prefix",
-			version:  "1.0.0",
-			expected: VersionTypeTag,
-		},
-		{
-			name:     "semantic version with v and patch",
-			version:  "v1.2.3",
-			expected: VersionTypeTag,
-		},
-		{
-			name:     "semantic version with prerelease",
-			version:  "1.2.3-beta",
-			expected: VersionTypeTag,
-		},
-		{
-			name:     "main branch",
-			version:  "main",
-			expected: VersionTypeBranch,
-		},
-		{
-			name:     "develop branch",
-			version:  "develop",
-			expected: VersionTypeBranch,
-		},
-		{
-			name:     "feature branch with slash",
-			version:  "feature/xyz",
-			expected: VersionTypeBranch,
-		},
-		{
-			name:     "commit hash",
-			version:  "abc123def",
-			expected: VersionTypeBranch,
-		},
-		{
-			name:     "numeric branch name",
-			version:  "123",
-			expected: VersionTypeBranch,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := detectVersionType(tt.version)
-			if result != tt.expected {
-				t.Errorf("expected %v, got %v", tt.expected, result)
-			}
-		})
-	}
-}
+// DISABLED: Function removed due to session-scoped cache refactoring (no TTL needed)
+// func TestDetectVersionType(t *testing.T) { ... }
 
 // TestGetCacheTTL tests cache TTL based on version type
-func TestGetCacheTTL(t *testing.T) {
-	tests := []struct {
-		name        string
-		versionType VersionType
-		expected    time.Duration
-	}{
-		{
-			name:        "tag version (7 days)",
-			versionType: VersionTypeTag,
-			expected:    7 * 24 * time.Hour,
-		},
-		{
-			name:        "branch version (1 hour)",
-			versionType: VersionTypeBranch,
-			expected:    1 * time.Hour,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := getCacheTTL(tt.versionType)
-			if result != tt.expected {
-				t.Errorf("expected %v, got %v", tt.expected, result)
-			}
-		})
-	}
-}
+// DISABLED: Function removed due to session-scoped cache refactoring (no TTL needed)
+// func TestGetCacheTTL(t *testing.T) { ... }
 
 // TestDefaultSourceIsPackage verifies that the default source is package URL when no env var is set
 func TestDefaultSourceIsPackage(t *testing.T) {
+	cfg, _ := config.Load()
 	// Clear environment variable
 	oldEnv := os.Getenv("META_CC_CAPABILITY_SOURCES")
 	os.Unsetenv("META_CC_CAPABILITY_SOURCES")
@@ -1096,7 +906,7 @@ func TestDefaultSourceIsPackage(t *testing.T) {
 	// Test list_capabilities - should use package default
 	// This will actually try to download from GitHub releases
 	args := map[string]interface{}{}
-	result, err := executeListCapabilitiesTool(args)
+	result, err := executeListCapabilitiesTool(cfg, args)
 
 	// Since we're actually connecting to GitHub releases in the test, check the result
 	if err != nil {
@@ -1217,62 +1027,8 @@ func TestIsNetworkUnreachableError(t *testing.T) {
 }
 
 // TestIsCacheStale tests stale cache detection
-func TestIsCacheStale(t *testing.T) {
-	sources := []CapabilitySource{
-		{Type: SourceTypeGitHub, Location: "yaleh/meta-cc@main/commands", Priority: 0},
-	}
-
-	// Test with no cache
-	cacheMutex.Lock()
-	globalCapabilityCache = nil
-	cacheMutex.Unlock()
-
-	if isCacheStale(sources) {
-		t.Error("cache should not be stale when nil")
-	}
-
-	// Test with fresh cache (within TTL)
-	cacheMutex.Lock()
-	globalCapabilityCache = &CapabilityCache{
-		Index:     make(CapabilityIndex),
-		Timestamp: time.Now().Add(-30 * time.Minute), // 30 minutes old
-		TTL:       1 * time.Hour,                     // 1 hour TTL
-		Sources:   sources,
-	}
-	cacheMutex.Unlock()
-
-	if isCacheStale(sources) {
-		t.Error("cache should not be stale when within TTL")
-	}
-
-	// Test with stale cache (expired but within 7 days)
-	cacheMutex.Lock()
-	globalCapabilityCache = &CapabilityCache{
-		Index:     make(CapabilityIndex),
-		Timestamp: time.Now().Add(-2 * time.Hour), // 2 hours old
-		TTL:       1 * time.Hour,                  // 1 hour TTL (expired)
-		Sources:   sources,
-	}
-	cacheMutex.Unlock()
-
-	if !isCacheStale(sources) {
-		t.Error("cache should be stale when expired but within 7 days")
-	}
-
-	// Test with very old cache (beyond 7 days)
-	cacheMutex.Lock()
-	globalCapabilityCache = &CapabilityCache{
-		Index:     make(CapabilityIndex),
-		Timestamp: time.Now().Add(-8 * 24 * time.Hour), // 8 days old
-		TTL:       1 * time.Hour,
-		Sources:   sources,
-	}
-	cacheMutex.Unlock()
-
-	if isCacheStale(sources) {
-		t.Error("cache should not be stale when beyond 7 days (too old to use)")
-	}
-}
+// DISABLED: Function removed due to session-scoped cache refactoring (no TTL/staleness concept)
+// func TestIsCacheStale(t *testing.T) { ... }
 
 // Test package source detection
 func TestDetectSourceTypePackage(t *testing.T) {
@@ -1475,202 +1231,90 @@ category: test
 }
 
 // TestGetPackageTTL tests TTL calculation for packages
-func TestGetPackageTTL(t *testing.T) {
-	tests := []struct {
-		name        string
-		packageURL  string
-		expectedTTL time.Duration
-	}{
-		{
-			name:        "GitHub release package",
-			packageURL:  "https://github.com/yaleh/meta-cc/releases/latest/download/capabilities-latest.tar.gz",
-			expectedTTL: 7 * 24 * time.Hour,
-		},
-		{
-			name:        "GitHub versioned release",
-			packageURL:  "https://github.com/yaleh/meta-cc/releases/download/v1.0.0/capabilities-v1.0.0.tar.gz",
-			expectedTTL: 7 * 24 * time.Hour,
-		},
-		{
-			name:        "Custom URL package",
-			packageURL:  "https://example.com/caps.tar.gz",
-			expectedTTL: 1 * time.Hour,
-		},
-		{
-			name:        "Local package file",
-			packageURL:  "/path/to/caps.tar.gz",
-			expectedTTL: 1 * time.Hour,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := getPackageTTL(tt.packageURL)
-			if result != tt.expectedTTL {
-				t.Errorf("getPackageTTL(%q) = %v, want %v",
-					tt.packageURL, result, tt.expectedTTL)
-			}
-		})
-	}
-}
+// DISABLED: Function removed due to session-scoped cache refactoring (no TTL needed)
+// func TestGetPackageTTL(t *testing.T) { ... }
 
 // TestIsReleasePackage tests release package detection
-func TestIsReleasePackage(t *testing.T) {
+// DISABLED: Function removed due to session-scoped cache refactoring (no TTL needed)
+// func TestIsReleasePackage(t *testing.T) { ... }
+
+// TestPackageCacheMetadata tests cache metadata persistence
+// DISABLED: Function removed due to session-scoped cache refactoring (no metadata persistence)
+// func TestPackageCacheMetadata(t *testing.T) { ... }
+
+// TestCacheValidation tests cache validation logic
+// DISABLED: Function removed due to session-scoped cache refactoring (no validation/TTL logic)
+// func TestCacheValidation(t *testing.T) { ... }
+
+// ===== Iteration 3 Tests: expandTilde Error Path Coverage =====
+
+// TestExpandTilde tests tilde expansion in file paths
+func TestExpandTilde(t *testing.T) {
 	tests := []struct {
-		name       string
-		packageURL string
-		expected   bool
+		name     string
+		input    string
+		expected func(string) string // Function to compute expected value
+		desc     string
 	}{
 		{
-			name:       "GitHub release latest",
-			packageURL: "https://github.com/yaleh/meta-cc/releases/latest/download/caps.tar.gz",
-			expected:   true,
+			name:  "no tilde",
+			input: "/home/user/path",
+			expected: func(s string) string {
+				return "/home/user/path"
+			},
+			desc: "path without tilde returns unchanged",
 		},
 		{
-			name:       "GitHub release versioned",
-			packageURL: "https://github.com/yaleh/meta-cc/releases/download/v1.0.0/caps.tar.gz",
-			expected:   true,
+			name:  "tilde only",
+			input: "~",
+			expected: func(s string) string {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return "~" // Should return unchanged on error
+				}
+				return home
+			},
+			desc: "~ expands to home directory",
 		},
 		{
-			name:       "Custom URL",
-			packageURL: "https://example.com/caps.tar.gz",
-			expected:   false,
+			name:  "tilde with slash",
+			input: "~/documents",
+			expected: func(s string) string {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return "~/documents" // Should return unchanged on error
+				}
+				return filepath.Join(home, "documents")
+			},
+			desc: "~/path expands correctly",
 		},
 		{
-			name:       "Local file",
-			packageURL: "/path/to/caps.tar.gz",
-			expected:   false,
+			name:  "tilde without slash",
+			input: "~user",
+			expected: func(s string) string {
+				return "~user" // Should return unchanged (not ~/user)
+			},
+			desc: "~user (other user) returns unchanged",
+		},
+		{
+			name:  "tilde in middle",
+			input: "/path/~/file",
+			expected: func(s string) string {
+				return "/path/~/file"
+			},
+			desc: "tilde not at start returns unchanged",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isReleasePackage(tt.packageURL)
-			if result != tt.expected {
-				t.Errorf("isReleasePackage(%q) = %v, want %v",
-					tt.packageURL, result, tt.expected)
+			result := expandTilde(tt.input)
+			expected := tt.expected(tt.input)
+
+			if result != expected {
+				t.Errorf("expandTilde(%q) = %q, expected %q (%s)",
+					tt.input, result, expected, tt.desc)
 			}
 		})
-	}
-}
-
-// TestPackageCacheMetadata tests cache metadata persistence
-func TestPackageCacheMetadata(t *testing.T) {
-	// Create temporary cache directory
-	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
-
-	// Test saving metadata
-	metadata := &CacheMetadataFile{
-		Version: "1.0",
-		Packages: map[string]PackageCacheMetadata{
-			"abc123": {
-				PackageURL:    "https://example.com/caps.tar.gz",
-				DownloadTime:  time.Now(),
-				ExtractedPath: filepath.Join(tmpDir, "extracted"),
-				TTL:           3600,
-				IsRelease:     false,
-			},
-		},
-	}
-
-	err := saveCacheMetadata(metadata)
-	if err != nil {
-		t.Fatalf("saveCacheMetadata failed: %v", err)
-	}
-
-	// Test loading metadata
-	loaded, err := loadCacheMetadata()
-	if err != nil {
-		t.Fatalf("loadCacheMetadata failed: %v", err)
-	}
-
-	// Verify loaded data
-	if loaded.Version != "1.0" {
-		t.Errorf("expected version '1.0', got %q", loaded.Version)
-	}
-
-	pkg, exists := loaded.Packages["abc123"]
-	if !exists {
-		t.Fatal("package 'abc123' not found in loaded metadata")
-	}
-
-	if pkg.PackageURL != "https://example.com/caps.tar.gz" {
-		t.Errorf("unexpected package URL: %s", pkg.PackageURL)
-	}
-	if pkg.TTL != 3600 {
-		t.Errorf("expected TTL 3600, got %d", pkg.TTL)
-	}
-}
-
-// TestCacheValidation tests cache validation logic
-func TestCacheValidation(t *testing.T) {
-	// Create temporary cache directory
-	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
-
-	packageURL := "https://example.com/caps.tar.gz"
-
-	// Initially, cache should be invalid (doesn't exist)
-	if isCacheValidForPackage(packageURL) {
-		t.Error("expected cache to be invalid initially")
-	}
-
-	// Create cache directory structure
-	cacheDir, _ := getPackageCacheDir(packageURL)
-	commandsDir := filepath.Join(cacheDir, "commands")
-	if err := os.MkdirAll(commandsDir, 0755); err != nil {
-		t.Fatalf("failed to create cache directory: %v", err)
-	}
-
-	// Create cache metadata with recent download
-	hash := getPackageHash(packageURL)
-	metadata := &CacheMetadataFile{
-		Version: "1.0",
-		Packages: map[string]PackageCacheMetadata{
-			hash: {
-				PackageURL:    packageURL,
-				DownloadTime:  time.Now(),
-				ExtractedPath: filepath.Join(tmpDir, "extracted"),
-				TTL:           3600, // 1 hour
-				IsRelease:     false,
-			},
-		},
-	}
-
-	if err := saveCacheMetadata(metadata); err != nil {
-		t.Fatalf("failed to save metadata: %v", err)
-	}
-
-	// Now cache should be valid
-	if !isCacheValidForPackage(packageURL) {
-		t.Error("expected cache to be valid")
-	}
-
-	// Test expired cache (mock old download time)
-	metadata.Packages[hash] = PackageCacheMetadata{
-		PackageURL:    packageURL,
-		DownloadTime:  time.Now().Add(-2 * time.Hour), // 2 hours ago
-		ExtractedPath: filepath.Join(tmpDir, "extracted"),
-		TTL:           3600, // 1 hour
-		IsRelease:     false,
-	}
-
-	if err := saveCacheMetadata(metadata); err != nil {
-		t.Fatalf("failed to save metadata: %v", err)
-	}
-
-	// Cache should be invalid (expired)
-	if isCacheValidForPackage(packageURL) {
-		t.Error("expected cache to be invalid (expired)")
-	}
-
-	// But should be stale (not too old)
-	if !isCacheStaleForPackage(packageURL) {
-		t.Error("expected cache to be stale")
 	}
 }

@@ -1,0 +1,248 @@
+# Dependency Health Automation
+# Automated vulnerability scanning, license compliance, and dependency freshness checks
+# Pattern: CI/CD Automation Integration (Pattern 5)
+# Source: iteration-2-automation-pattern.yaml
+
+name: Dependency Health
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Run weekly on Monday at 9:00 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  security-scan:
+    name: Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        id: vuln-scan
+        run: |
+          echo "Running vulnerability scan..."
+          govulncheck ./... | tee govulncheck-report.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+
+          # Count vulnerabilities
+          VULN_COUNT=$(grep -c "Vulnerability" govulncheck-report.txt || echo "0")
+
+          echo "Found $VULN_COUNT vulnerabilities"
+          echo "vuln_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+
+          # Upload report as artifact
+          if [ -f govulncheck-report.txt ]; then
+            echo "Uploading vulnerability report..."
+          fi
+
+          exit $EXIT_CODE
+
+      - name: Upload vulnerability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-report
+          path: govulncheck-report.txt
+          retention-days: 90
+
+      - name: Comment on PR (if vulnerabilities found)
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('govulncheck-report.txt', 'utf8');
+            const vulnCount = '${{ steps.vuln-scan.outputs.vuln_count }}';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ⚠️ Vulnerability Scan Failed
+
+Found ${vulnCount} vulnerabilities in dependencies.
+
+<details>
+<summary>Full Report</summary>
+
+\`\`\`
+${report}
+\`\`\`
+</details>
+
+Please address these vulnerabilities before merging.`
+            });
+
+  license-compliance:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+
+      - name: Install go-licenses
+        run: go install github.com/google/go-licenses@latest
+
+      - name: Run license check
+        id: license-check
+        run: |
+          echo "Running license compliance check..."
+          go-licenses csv ./... > licenses.csv
+
+          # Check for prohibited licenses
+          PROHIBITED="GPL-2.0|GPL-3.0|AGPL-3.0|SSPL|Commons-Clause"
+
+          if grep -E "($PROHIBITED)" licenses.csv; then
+            echo "ERROR: Prohibited license found!"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "All licenses compliant"
+            echo "status=passed" >> $GITHUB_OUTPUT
+          fi
+
+          # Count dependencies
+          DEP_COUNT=$(wc -l < licenses.csv)
+          echo "dep_count=$DEP_COUNT" >> $GITHUB_OUTPUT
+          echo "Analyzed $DEP_COUNT dependencies"
+
+      - name: Upload license report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: licenses.csv
+          retention-days: 90
+
+      - name: Comment on PR (if license violations found)
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const licenses = fs.readFileSync('licenses.csv', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ❌ License Compliance Failed
+
+One or more dependencies have prohibited licenses (GPL-2.0, GPL-3.0, AGPL-3.0, SSPL, Commons-Clause).
+
+<details>
+<summary>License Report</summary>
+
+\`\`\`csv
+${licenses}
+\`\`\`
+</details>
+
+Please remove or replace dependencies with prohibited licenses.`
+            });
+
+  dependency-freshness:
+    name: Dependency Freshness Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+
+      - name: Check for outdated dependencies
+        id: outdated-check
+        run: |
+          echo "Checking for outdated dependencies..."
+          go list -m -u all > dependency-versions.txt
+
+          # Count outdated dependencies (lines with [vX.Y.Z])
+          OUTDATED_COUNT=$(grep -c '\[' dependency-versions.txt || echo "0")
+
+          echo "outdated_count=$OUTDATED_COUNT" >> $GITHUB_OUTPUT
+
+          if [ "$OUTDATED_COUNT" -eq 0 ]; then
+            echo "All dependencies are up to date!"
+          else
+            echo "Found $OUTDATED_COUNT outdated dependencies"
+            echo "Outdated dependencies:"
+            grep '\[' dependency-versions.txt || true
+          fi
+
+      - name: Upload dependency report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-freshness-report
+          path: dependency-versions.txt
+          retention-days: 90
+
+      - name: Comment on PR (if outdated dependencies found)
+        if: steps.outdated-check.outputs.outdated_count != '0' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const versions = fs.readFileSync('dependency-versions.txt', 'utf8');
+            const outdatedCount = '${{ steps.outdated-check.outputs.outdated_count }}';
+
+            // Extract only outdated dependencies
+            const outdated = versions.split('\n').filter(line => line.includes('[')).join('\n');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 📦 Dependency Freshness Report
+
+Found ${outdatedCount} outdated dependencies.
+
+<details>
+<summary>Outdated Dependencies</summary>
+
+\`\`\`
+${outdated}
+\`\`\`
+</details>
+
+Consider updating dependencies using \`scripts/update-deps.sh\`.`
+            });
+
+  summary:
+    name: Dependency Health Summary
+    runs-on: ubuntu-latest
+    needs: [security-scan, license-compliance, dependency-freshness]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## Dependency Health Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Vulnerability Scan | ${{ needs.security-scan.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| License Compliance | ${{ needs.license-compliance.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Freshness | ${{ needs.dependency-freshness.result == 'success' && '✅ Up to date' || '⚠️ Updates available' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See individual job logs for details." >> $GITHUB_STEP_SUMMARY

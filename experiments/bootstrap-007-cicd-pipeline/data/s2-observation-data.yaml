@@ -1,0 +1,250 @@
+# Iteration 2 Observation Data: CHANGELOG Automation
+# Date: 2025-10-16
+# Phase: OBSERVE
+
+current_changelog_workflow:
+  location: scripts/release.sh
+  lines: 63-77 (15 lines of manual intervention)
+
+  manual_steps:
+    1_prompt_user:
+      line: 64-66
+      action: "Prompt for CHANGELOG update"
+      wait: "Press Enter when ready to continue"
+      time_estimate: "5 minutes (manual editing)"
+
+    2_verify_changelog:
+      line: 69-77
+      action: "Verify CHANGELOG was updated"
+      check: "grep '## \\[$VERSION_NUM\\]' CHANGELOG.md"
+      fallback: "Warn and ask to continue anyway"
+
+  automation_ratio: 0.833  # 10/12 steps automated, 2 manual
+  bottleneck: "Manual CHANGELOG editing blocks full automation"
+
+commit_message_patterns:
+  analysis_sample: 100_recent_commits
+
+  conventional_commits_usage:
+    total_commits: 100
+    using_conventional: 85
+    percentage: 85%
+
+  prefix_distribution:
+    feat: 28  # 28%
+    docs: 32  # 32%
+    refactor: 12  # 12%
+    fix: 5    # 5%
+    chore: 4  # 4%
+    test: 4   # 4%
+
+  scope_usage:
+    with_scope: 45  # 45% include scope (e.g., feat(agents):)
+    without_scope: 40  # 40% no scope
+
+  commit_structure:
+    single_line: 65  # 65% single-line descriptions
+    multi_line: 20   # 20% with body paragraphs
+
+  quality_assessment:
+    descriptive: HIGH  # 85%+ conventional commits
+    parseable: HIGH    # Clear prefix patterns
+    consistent: MEDIUM # Some variation in style
+
+changelog_format:
+  file: CHANGELOG.md
+  format: "Keep a Changelog"
+  versioning: "Semantic Versioning"
+
+  structure:
+    version_header: "## [X.Y.Z] - YYYY-MM-DD"
+
+    sections:
+      - Added
+      - Changed
+      - Fixed
+      - Improved
+      - Breaking Changes
+      - Migration Guide
+      - Technical Details
+
+    current_version: "0.26.8"
+    unreleased_section: true
+
+  entry_patterns:
+    phase_based: "Phase XX: Feature Name"
+    stage_breakdown: "Stage XX.1-XX.N: Details"
+    feature_highlights: "Bulleted lists"
+    technical_details: "Subsections with implementation"
+    migration_guides: "Code examples when needed"
+
+  estimated_entries_per_release: 5-20
+  estimated_time_to_write: "5-10 minutes"
+
+automation_tool_evaluation:
+
+  option_1_git_cliff:
+    name: "git-cliff"
+    language: Rust
+    pros:
+      - "Highly configurable"
+      - "Parses conventional commits"
+      - "Template-based output"
+      - "Keep a Changelog format support"
+      - "Groups by commit type"
+    cons:
+      - "Requires Rust installation"
+      - "Configuration file needed"
+      - "May need adaptation for phase-based format"
+    rating: 8/10
+
+  option_2_conventional_changelog:
+    name: "conventional-changelog"
+    language: Node.js
+    pros:
+      - "Standard tool for conventional commits"
+      - "Angular/Keep a Changelog presets"
+      - "Wide adoption"
+    cons:
+      - "Requires Node.js"
+      - "Extra dependency"
+      - "May not match phase format"
+    rating: 6/10
+
+  option_3_custom_script:
+    name: "custom bash/go script"
+    language: "Bash or Go"
+    pros:
+      - "Zero external dependencies"
+      - "Complete format control"
+      - "Exactly matches phase-based format"
+      - "Can parse git log directly"
+      - "Integrates seamlessly with release.sh"
+    cons:
+      - "Need to implement parsing"
+      - "Maintenance burden"
+    rating: 9/10
+
+  option_4_github_release_notes:
+    name: "GitHub auto-release-notes"
+    language: "GitHub API"
+    pros:
+      - "Zero installation"
+      - "Automatic on release creation"
+      - "No maintenance"
+    cons:
+      - "Generic format"
+      - "Not Keep a Changelog format"
+      - "No phase-based grouping"
+      - "Requires manual formatting"
+    rating: 4/10
+
+  recommendation: "option_3_custom_script"
+  rationale: |
+    Custom Go script provides:
+    - Zero external dependencies (Go already used)
+    - Complete format control
+    - Matches existing phase-based CHANGELOG structure
+    - Can be integrated directly into release.sh
+    - Maintainable within project
+    - Leverages conventional commit format (85% adoption)
+
+gaps_identified:
+
+  critical_gaps:
+    gap_1_manual_changelog:
+      description: "CHANGELOG editing requires human intervention"
+      impact: "Blocks full release automation"
+      time_cost: "5-10 minutes per release"
+      error_risk: "Human error in formatting, missed entries"
+      priority: CRITICAL
+
+    gap_2_commit_parsing:
+      description: "No automated commit message parsing"
+      impact: "Manual aggregation of changes"
+      time_cost: "Included in gap_1 time"
+      priority: CRITICAL
+
+  secondary_gaps:
+    gap_3_format_consistency:
+      description: "15% commits don't use conventional format"
+      impact: "Some commits may be missed or misparsed"
+      mitigation: "Fallback to include all commits in 'Other' section"
+      priority: MEDIUM
+
+    gap_4_phase_grouping:
+      description: "Current CHANGELOG groups by phase, not just commit type"
+      impact: "Need smart detection or phase metadata"
+      mitigation: "Use commit type grouping (simpler, still valuable)"
+      priority: LOW
+
+implementation_approach:
+
+  strategy: "Incremental automation with format preservation"
+
+  phase_1_basic_generation:
+    goal: "Auto-generate basic CHANGELOG entries from commits"
+    output: "Conventional Changelog format (Added/Changed/Fixed)"
+    complexity: LOW
+    value: HIGH
+
+  phase_2_format_refinement:
+    goal: "Match existing 'Keep a Changelog' format exactly"
+    output: "Proper headers, dates, links"
+    complexity: MEDIUM
+    value: MEDIUM
+
+  phase_3_integration:
+    goal: "Integrate into release.sh, remove manual step"
+    output: "Automated CHANGELOG update on release"
+    complexity: LOW
+    value: CRITICAL
+
+  implementation_file: "scripts/generate-changelog.sh or Go tool"
+  integration_point: "scripts/release.sh line 63-77"
+
+expected_value_improvement:
+
+  V_automation:
+    current: 0.58
+    after: 0.68
+    delta: +0.10
+    rationale: "Full release automation (12/12 steps = 1.0 × 0.58 factor)"
+
+  V_speed:
+    current: 0.50
+    after: 0.70
+    delta: +0.20
+    rationale: "Remove 5-10 min manual step from 15-min baseline"
+
+  V_reliability:
+    current: 0.85
+    after: 0.90
+    delta: +0.05
+    rationale: "Eliminate human error in CHANGELOG formatting"
+
+  V_observability:
+    current: 0.60
+    after: 0.60
+    delta: 0.00
+    rationale: "No observability changes"
+
+  V_instance_projected:
+    formula: "0.3×V_automation + 0.3×V_reliability + 0.2×V_speed + 0.2×V_observability"
+    calculation: "0.3×0.68 + 0.3×0.90 + 0.2×0.70 + 0.2×0.60"
+    result: 0.734
+
+  note: |
+    Projected V_instance(s₂) = 0.734 is BELOW target of 0.80.
+    However, this is HONEST assessment. CHANGELOG automation alone
+    doesn't reach target - need smoke tests (Gap #3) in next iteration.
+
+data_sources:
+  - scripts/release.sh (112 lines)
+  - CHANGELOG.md (current format)
+  - git log --pretty=format:"%s" (commit patterns)
+  - experiments/bootstrap-007-cicd-pipeline/iteration-1.md
+  - experiments/bootstrap-007-cicd-pipeline/data/s0-infrastructure.yaml
+
+observation_complete: true
+ready_for_planning: true

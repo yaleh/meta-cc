@@ -1,0 +1,330 @@
+# Structured Logging Framework Design
+# Iteration: 1
+# Date: 2025-10-17
+# Agent: log-analyzer
+# Target: meta-cc MCP server (cmd/mcp-server + internal modules)
+
+framework_overview:
+  name: "Go log/slog Structured Logging"
+  library: "log/slog (Go 1.21+)"
+  approach: "Structured JSON logging with context propagation"
+  target_overhead: "< 5%"
+  deployment: "Production-ready, development-friendly"
+
+handler_configuration:
+  handler_type: "slog.JSONHandler"
+  output_destination: "os.Stdout (for container/systemd log capture)"
+  fallback: "os.Stderr for critical errors if stdout fails"
+
+  log_levels:
+    development: "DEBUG (slog.LevelDebug)"
+    production: "INFO (slog.LevelInfo)"
+    configuration: "Environment variable LOG_LEVEL (default: INFO)"
+
+  handler_options:
+    add_source: true  # Include file:line for debugging
+    replace_attr: "Custom formatter for sensitive data masking (if needed)"
+    level: "slog.LevelInfo (default)"
+
+  initialization_code: |
+    // Initialize global logger
+    var logLevel = slog.LevelInfo
+    if envLevel := os.Getenv("LOG_LEVEL"); envLevel != "" {
+        switch envLevel {
+        case "DEBUG":
+            logLevel = slog.LevelDebug
+        case "WARN":
+            logLevel = slog.LevelWarn
+        case "ERROR":
+            logLevel = slog.LevelError
+        }
+    }
+
+    logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+        Level: logLevel,
+        AddSource: true,
+    }))
+    slog.SetDefault(logger)
+
+structured_fields:
+  standard_fields:
+    - name: "request_id"
+      type: "string"
+      purpose: "Unique request identifier (UUID v4)"
+      when: "All tool invocations and significant operations"
+      example: "550e8400-e29b-41d4-a716-446655440000"
+
+    - name: "tool_name"
+      type: "string"
+      purpose: "MCP tool being executed"
+      when: "Tool invocation paths"
+      example: "query_tools, get_session_stats, query_user_messages"
+
+    - name: "duration_ms"
+      type: "int64"
+      purpose: "Operation duration in milliseconds"
+      when: "Completion of significant operations"
+      example: "45 (45ms execution time)"
+
+    - name: "status"
+      type: "string"
+      purpose: "Operation outcome"
+      when: "Tool completion, query completion"
+      values: ["success", "error", "partial"]
+      example: "success"
+
+    - name: "error"
+      type: "string"
+      purpose: "Error message (if applicable)"
+      when: "ERROR level logs"
+      example: "failed to parse session file: invalid JSON at line 42"
+
+    - name: "error_type"
+      type: "string"
+      purpose: "Error classification"
+      when: "ERROR level logs"
+      values: ["parse_error", "validation_error", "execution_error", "io_error", "network_error"]
+      example: "parse_error"
+
+  tool_specific_fields:
+    - name: "scope"
+      type: "string"
+      purpose: "Query scope (project vs session)"
+      when: "All MCP tool executions"
+      values: ["project", "session"]
+
+    - name: "jq_filter"
+      type: "string"
+      purpose: "Applied jq filter (if any)"
+      when: "Query tools with filtering"
+      example: ".[] | select(.status == \"error\")"
+
+    - name: "output_format"
+      type: "string"
+      purpose: "Output format requested"
+      when: "Tool execution"
+      values: ["jsonl", "tsv"]
+
+  query_specific_fields:
+    - name: "query_type"
+      type: "string"
+      purpose: "Type of query executed"
+      when: "Query execution paths"
+      example: "tools, user_messages, context, sequences"
+
+    - name: "record_count"
+      type: "int"
+      purpose: "Number of records processed/returned"
+      when: "Query completion"
+      example: "1247"
+
+    - name: "filter_applied"
+      type: "bool"
+      purpose: "Whether filtering was applied"
+      when: "Query execution"
+
+  error_specific_fields:
+    - name: "stack_trace"
+      type: "string"
+      purpose: "Stack trace for debugging (DEBUG level only)"
+      when: "ERROR level in development"
+      note: "Only in DEBUG mode to avoid log bloat"
+
+    - name: "error_context"
+      type: "map[string]interface{}"
+      purpose: "Additional error context (file path, line number, etc.)"
+      when: "ERROR level logs"
+
+context_propagation:
+  approach: "Context-based logger propagation"
+  mechanism: "Attach logger to context.Context"
+
+  pattern: |
+    // Create request-scoped logger with request_id
+    requestLogger := slog.Default().With(
+        "request_id", requestID,
+        "tool_name", toolName,
+    )
+
+    // Attach to context
+    ctx = context.WithValue(ctx, loggerKey, requestLogger)
+
+    // Retrieve from context in deeper functions
+    logger := ctx.Value(loggerKey).(*slog.Logger)
+    logger.Info("executing query",
+        "query_type", queryType,
+    )
+
+  trace_context_integration:
+    note: "Future: Add trace_id, span_id when distributed tracing implemented (Iteration 3)"
+    fields:
+      - "trace_id" (from OpenTelemetry)
+      - "span_id" (from OpenTelemetry)
+      - "parent_span_id"
+
+log_level_guidelines:
+  DEBUG:
+    when: "Detailed diagnostic information (development only)"
+    use_cases:
+      - "Function entry/exit (flow tracing)"
+      - "Variable values at key points"
+      - "Internal state transitions"
+      - "Detailed error context (stack traces)"
+    overhead: "High (verbose) - only in development"
+    production: "Disabled (set LOG_LEVEL=INFO)"
+
+  INFO:
+    when: "General informational messages (normal operations)"
+    use_cases:
+      - "Tool invocation start/success"
+      - "Query execution start/success"
+      - "Significant milestones (server started, capability loaded)"
+      - "Request/response logging (with request_id)"
+    overhead: "Low (selective) - production default"
+    production: "Enabled"
+
+  WARN:
+    when: "Warning conditions (degraded but functional)"
+    use_cases:
+      - "Fallback to defaults (missing config)"
+      - "Retries or degraded performance"
+      - "Deprecated feature usage"
+      - "Resource usage approaching limits"
+    overhead: "Minimal (rare) - production enabled"
+    production: "Enabled"
+
+  ERROR:
+    when: "Error conditions (failures requiring attention)"
+    use_cases:
+      - "Query execution failures"
+      - "Parsing errors (invalid JSON, malformed JSONL)"
+      - "Tool execution failures"
+      - "I/O errors (file not found, permission denied)"
+      - "Unexpected conditions (should never happen)"
+    overhead: "Minimal (errors only) - production enabled"
+    production: "Enabled (always log errors)"
+
+performance_considerations:
+  overhead_targets:
+    logging: "< 5% (structured logging with slog is efficient)"
+    per_operation: "< 1ms overhead per log statement"
+    production: "INFO level minimizes overhead (no DEBUG noise)"
+
+  optimization_techniques:
+    - technique: "Lazy evaluation"
+      description: "slog evaluates structured fields only if log level is enabled"
+      benefit: "Zero cost for DEBUG logs when INFO level set"
+
+    - technique: "Avoid logging in tight loops"
+      description: "Don't log inside hot paths (e.g., per-record processing)"
+      recommendation: "Log aggregated results instead (e.g., 'processed 1000 records')"
+
+    - technique: "Conditional DEBUG logging"
+      description: "Use if logger.Enabled(slog.LevelDebug) for expensive DEBUG logs"
+      benefit: "Avoid building debug strings when DEBUG disabled"
+
+    - technique: "Structured fields over string formatting"
+      description: "Use slog.String(), slog.Int() instead of fmt.Sprintf()"
+      benefit: "More efficient, more queryable"
+
+  measurement_approach:
+    - "Benchmark logging overhead with go test -bench"
+    - "Measure production performance before/after logging"
+    - "Monitor CPU usage increase (should be < 5%)"
+
+migration_strategy:
+  phase_1_foundation:
+    goal: "Set up logging infrastructure"
+    tasks:
+      - "Initialize slog in main.go"
+      - "Configure JSON handler with LOG_LEVEL env var"
+      - "Create context propagation pattern"
+      - "Add request ID generation (UUID v4)"
+
+  phase_2_critical_errors:
+    goal: "Instrument error paths (Priority 1)"
+    tasks:
+      - "Add ERROR logging to all 300 'if err != nil' patterns"
+      - "Include error context (error_type, error_message, operation)"
+      - "Validate error logging with error injection tests"
+
+  phase_3_tool_execution:
+    goal: "Instrument tool invocation paths (Priority 2)"
+    tasks:
+      - "Add INFO logging to tool start (with tool_name, request_id)"
+      - "Add INFO logging to tool success (with duration_ms, status)"
+      - "Add ERROR logging to tool failure (with error context)"
+
+  phase_4_query_pipeline:
+    goal: "Instrument query execution (Priority 3)"
+    tasks:
+      - "Add DEBUG logging to parser (flow tracing)"
+      - "Add INFO logging to query execution (query_type, record_count)"
+      - "Add DEBUG logging to analyzer (pattern detection)"
+
+  validation:
+    - "Run test suite with LOG_LEVEL=DEBUG (verify logs generated)"
+    - "Run production scenario with LOG_LEVEL=INFO (verify minimal overhead)"
+    - "Parse JSON logs with jq (verify structured format)"
+    - "Measure performance impact (benchmark)"
+
+example_log_statements:
+  tool_invocation_start:
+    level: "INFO"
+    code: |
+      logger.Info("tool execution started",
+          "request_id", requestID,
+          "tool_name", toolName,
+          "scope", scope,
+      )
+    output: |
+      {"time":"2025-10-17T10:30:45Z","level":"INFO","source":"executor.go:125","msg":"tool execution started","request_id":"550e8400-e29b-41d4-a716-446655440000","tool_name":"query_tools","scope":"project"}
+
+  tool_invocation_success:
+    level: "INFO"
+    code: |
+      logger.Info("tool execution completed",
+          "request_id", requestID,
+          "tool_name", toolName,
+          "status", "success",
+          "duration_ms", elapsed.Milliseconds(),
+          "record_count", recordCount,
+      )
+    output: |
+      {"time":"2025-10-17T10:30:45.123Z","level":"INFO","source":"executor.go:245","msg":"tool execution completed","request_id":"550e8400-e29b-41d4-a716-446655440000","tool_name":"query_tools","status":"success","duration_ms":45,"record_count":127}
+
+  error_logging:
+    level: "ERROR"
+    code: |
+      logger.Error("query execution failed",
+          "request_id", requestID,
+          "query_type", "tools",
+          "error", err.Error(),
+          "error_type", "parse_error",
+      )
+    output: |
+      {"time":"2025-10-17T10:30:46Z","level":"ERROR","source":"parser.go:85","msg":"query execution failed","request_id":"550e8400-e29b-41d4-a716-446655440000","query_type":"tools","error":"invalid JSON at line 42: unexpected token","error_type":"parse_error"}
+
+  debug_logging:
+    level: "DEBUG"
+    code: |
+      if logger.Enabled(context.Background(), slog.LevelDebug) {
+          logger.Debug("parsing session file",
+              "file_path", filePath,
+              "file_size", fileSize,
+          )
+      }
+    output: |
+      {"time":"2025-10-17T10:30:44.500Z","level":"DEBUG","source":"parser.go:42","msg":"parsing session file","file_path":"/Users/user/.claude/sessions/session-1.jsonl","file_size":45678}
+
+---
+
+# Framework Design Summary
+
+**Chosen Framework**: log/slog (Go 1.21+)
+**Handler**: JSONHandler (structured JSON output)
+**Default Level**: INFO (production), DEBUG (development)
+**Standard Fields**: request_id, tool_name, duration_ms, status, error, query_type, record_count
+**Context Propagation**: Attach logger to context.Context with request_id
+**Performance Target**: < 5% overhead (achievable with INFO level)
+**Migration**: 4-phase approach (foundation → errors → tools → queries)

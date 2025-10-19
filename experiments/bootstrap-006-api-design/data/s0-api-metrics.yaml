@@ -1,0 +1,125 @@
+# API Baseline Metrics (Iteration 0)
+# Generated: 2025-10-15
+# State: s₀
+
+value_function:
+  V_total: 0.61
+  target: 0.80
+  gap_to_target: 0.19
+
+  formula: "V(s) = 0.3·V_usability + 0.3·V_consistency + 0.2·V_completeness + 0.2·V_evolvability"
+
+components:
+  V_usability:
+    score: 0.74
+    weight: 0.30
+    contribution: 0.222
+    subcomponents:
+      parameter_clarity: 0.75
+      default_values: 0.85
+      error_messages: 0.60
+      documentation_quality: 0.80
+      ease_of_use: 0.70
+
+  V_consistency:
+    score: 0.72
+    weight: 0.30
+    contribution: 0.216
+    subcomponents:
+      naming_conventions: 0.69
+      parameter_patterns: 0.75
+      response_formats: 0.80
+      error_handling: 0.65
+
+  V_completeness:
+    score: 0.65
+    weight: 0.20
+    contribution: 0.130
+    subcomponents:
+      feature_coverage: 0.70
+      parameter_options: 0.75
+      edge_case_handling: 0.55
+      missing_functionality: 0.60
+
+  V_evolvability:
+    score: 0.22
+    weight: 0.20
+    contribution: 0.044
+    subcomponents:
+      has_versioning: 0.00
+      has_deprecation_policy: 0.00
+      backward_compatible_design: 0.50
+      migration_support: 0.00
+      extensibility: 0.60
+
+component_rankings:
+  strongest: V_usability (0.74)
+  weakest: V_evolvability (0.22)
+  improvement_priority:
+    - evolvability (critical: 0.22)
+    - completeness (moderate: 0.65)
+    - consistency (minor: 0.72)
+    - usability (minor: 0.74)
+
+tool_coverage:
+  total_tools: 16
+  tools_analyzed: 16
+  coverage_percentage: 100%
+
+usage_statistics:
+  total_meta_cc_calls_analyzed: 467
+  heavily_used_tools: 2
+  frequently_used_tools: 2
+  moderate_use_tools: 5
+  low_use_tools: 4
+  rarely_used_tools: 3
+
+naming_patterns:
+  query_prefix_tools: 11
+  get_prefix_tools: 2
+  action_verb_tools: 2
+  list_prefix_tools: 1
+  naming_consistency_score: 0.69
+
+parameter_patterns:
+  common_parameters:
+    scope: 13/16 tools
+    jq_filter: 13/16 tools
+    stats_only: 13/16 tools
+    output_format: 13/16 tools
+  parameter_consistency_score: 0.75
+
+response_patterns:
+  hybrid_mode_enabled: true
+  inline_threshold: 8192 bytes
+  primary_format: jsonl
+  alternative_format: tsv
+  response_consistency_score: 0.80
+
+key_findings:
+  strengths:
+    - Hybrid output mode innovation
+    - Strong core query patterns
+    - Comprehensive tool coverage
+    - Good documentation
+
+  critical_gaps:
+    - No versioning strategy (V_evolvability: 0.00)
+    - No deprecation policy (V_evolvability: 0.00)
+    - No migration support (V_evolvability: 0.00)
+
+  inconsistencies:
+    - get_session_stats vs query_project_state naming
+    - cleanup_temp_files vs query_* pattern
+    - list_capabilities vs get_capability
+
+improvement_potential:
+  if_evolvability_improved_to_0.70:
+    delta_V: +0.096
+    new_V_total: 0.71
+    percentage_improvement: 15.6%
+
+  if_consistency_improved_to_0.85:
+    delta_V: +0.039
+    new_V_total: 0.65
+    percentage_improvement: 6.4%

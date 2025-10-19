@@ -1,6 +1,6 @@
 {
   "name": "meta-cc",
-  "version": "0.28.0",
+  "version": "0.29.0",
   "description": "Meta-Cognition tool for Claude Code - analyze session history for workflow optimization",
   "author": {
     "name": "Yale Huang",
@@ -18,13 +18,35 @@
     "analytics",
     "optimization",
     "mcp",
-    "subagents"
+    "subagents",
+    "skills",
+    "methodologies"
   ],
   "commands": [
     "./.claude/commands/meta.md"
   ],
   "agents": [
+    "./.claude/agents/iteration-executor.md",
+    "./.claude/agents/iteration-prompt-designer.md",
+    "./.claude/agents/knowledge-extractor.md",
     "./.claude/agents/project-planner.md",
     "./.claude/agents/stage-executor.md"
+  ],
+  "skills": [
+    "./.claude/skills/testing-strategy/SKILL.md",
+    "./.claude/skills/ci-cd-optimization/SKILL.md",
+    "./.claude/skills/error-recovery/SKILL.md",
+    "./.claude/skills/dependency-health/SKILL.md",
+    "./.claude/skills/knowledge-transfer/SKILL.md",
+    "./.claude/skills/technical-debt-management/SKILL.md",
+    "./.claude/skills/code-refactoring/SKILL.md",
+    "./.claude/skills/cross-cutting-concerns/SKILL.md",
+    "./.claude/skills/observability-instrumentation/SKILL.md",
+    "./.claude/skills/api-design/SKILL.md",
+    "./.claude/skills/methodology-bootstrapping/SKILL.md",
+    "./.claude/skills/agent-prompt-evolution/SKILL.md",
+    "./.claude/skills/baseline-quality-assessment/SKILL.md",
+    "./.claude/skills/rapid-convergence/SKILL.md",
+    "./.claude/skills/retrospective-validation/SKILL.md"
   ]
 }

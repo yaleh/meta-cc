@@ -4,10 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/yaleh/meta-cc/internal/config"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 )
 
 type ToolExecutor struct {
@@ -28,27 +33,68 @@ func NewToolExecutor() *ToolExecutor {
 }
 
 // ExecuteTool executes a meta-cc command and applies jq filtering
-func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{}) (string, error) {
+func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map[string]interface{}) (string, error) {
+	// Get scope for metrics
+	scope := getStringParam(args, "scope", "project")
+
+	// Start timing for tool execution metrics
+	start := time.Now()
+
 	// Handle cleanup tool separately (no meta-cc command needed)
 	if toolName == "cleanup_temp_files" {
-		return executeCleanupTool(args)
+		output, err := executeCleanupTool(args)
+		elapsed := time.Since(start)
+
+		if err != nil {
+			RecordToolCall(toolName, scope, "error")
+			RecordToolExecutionDuration(toolName, scope, elapsed)
+			RecordError(toolName, classifyError(err), GetErrorSeverity(classifyError(err)))
+			return "", err
+		}
+
+		RecordToolCall(toolName, scope, "success")
+		RecordToolExecutionDuration(toolName, scope, elapsed)
+		return output, nil
 	}
 
 	// Handle list_capabilities tool separately (no meta-cc command needed)
 	if toolName == "list_capabilities" {
-		return executeListCapabilitiesTool(args)
+		output, err := executeListCapabilitiesTool(cfg, args)
+		elapsed := time.Since(start)
+
+		if err != nil {
+			RecordToolCall(toolName, scope, "error")
+			RecordToolExecutionDuration(toolName, scope, elapsed)
+			RecordError(toolName, classifyError(err), GetErrorSeverity(classifyError(err)))
+			return "", err
+		}
+
+		RecordToolCall(toolName, scope, "success")
+		RecordToolExecutionDuration(toolName, scope, elapsed)
+		return output, nil
 	}
 
 	// Handle get_capability tool separately (no meta-cc command needed)
 	if toolName == "get_capability" {
-		return executeGetCapabilityTool(args)
+		output, err := executeGetCapabilityTool(cfg, args)
+		elapsed := time.Since(start)
+
+		if err != nil {
+			RecordToolCall(toolName, scope, "error")
+			RecordToolExecutionDuration(toolName, scope, elapsed)
+			RecordError(toolName, classifyError(err), GetErrorSeverity(classifyError(err)))
+			return "", err
+		}
+
+		RecordToolCall(toolName, scope, "success")
+		RecordToolExecutionDuration(toolName, scope, elapsed)
+		return output, nil
 	}
 
 	// Extract common parameters
 	jqFilter := getStringParam(args, "jq_filter", ".[]")
 	statsOnly := getBoolParam(args, "stats_only", false)
 	statsFirst := getBoolParam(args, "stats_first", false)
-	scope := getStringParam(args, "scope", "project")
 	outputFormat := getStringParam(args, "output_format", "jsonl")
 
 	// Extract message truncation parameters (for query_user_messages)
@@ -59,25 +105,50 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 	// Build meta-cc command
 	cmdArgs := e.buildCommand(toolName, args, scope, outputFormat)
 	if cmdArgs == nil {
-		return "", fmt.Errorf("unknown tool: %s", toolName)
+		elapsed := time.Since(start)
+		RecordToolCall(toolName, scope, "error")
+		RecordToolExecutionDuration(toolName, scope, elapsed)
+		RecordError(toolName, "validation_error", "error")
+		return "", fmt.Errorf("unknown tool %s in executor: %w", toolName, mcerrors.ErrUnknownTool)
 	}
 
 	// Execute meta-cc
 	rawOutput, err := e.executeMetaCC(cmdArgs)
 	if err != nil {
+		elapsed := time.Since(start)
+		errorType := classifyError(err)
+		slog.Error("meta-cc execution failed",
+			"tool_name", toolName,
+			"error", err.Error(),
+			"error_type", errorType,
+		)
+		RecordToolCall(toolName, scope, "error")
+		RecordToolExecutionDuration(toolName, scope, elapsed)
+		RecordError(toolName, errorType, GetErrorSeverity(errorType))
 		return "", err
 	}
 
 	// Apply jq filter
 	filtered, err := ApplyJQFilter(rawOutput, jqFilter)
 	if err != nil {
-		return "", fmt.Errorf("jq filter error: %w", err)
+		slog.Error("jq filter application failed",
+			"tool_name", toolName,
+			"jq_filter", jqFilter,
+			"error", err.Error(),
+			"error_type", "execution_error",
+		)
+		return "", fmt.Errorf("jq filter error for tool %s: %w", toolName, mcerrors.ErrParseError)
 	}
 
 	// Parse JSONL to interface array for hybrid mode adaptation
 	parsedData, err := e.parseJSONL(filtered)
 	if err != nil {
-		return "", fmt.Errorf("JSONL parse error: %w", err)
+		slog.Error("JSONL parsing failed",
+			"tool_name", toolName,
+			"error", err.Error(),
+			"error_type", "parse_error",
+		)
+		return "", fmt.Errorf("JSONL parse error for tool %s: %w", toolName, mcerrors.ErrParseError)
 	}
 
 	// Apply message filters for query_user_messages (only if explicitly requested)
@@ -91,10 +162,20 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 		// Convert back to JSONL for stats generation
 		jsonlData, err := e.dataToJSONL(parsedData)
 		if err != nil {
+			slog.Error("dataToJSONL conversion failed (stats_only)",
+				"tool_name", toolName,
+				"error", err.Error(),
+				"error_type", "parse_error",
+			)
 			return "", err
 		}
 		output, err := GenerateStats(jsonlData)
 		if err != nil {
+			slog.Error("stats generation failed",
+				"tool_name", toolName,
+				"error", err.Error(),
+				"error_type", "execution_error",
+			)
 			return "", err
 		}
 		return output, nil
@@ -102,36 +183,70 @@ func (e *ToolExecutor) ExecuteTool(toolName string, args map[string]interface{})
 		// Convert back to JSONL for stats generation
 		jsonlData, err := e.dataToJSONL(parsedData)
 		if err != nil {
+			slog.Error("dataToJSONL conversion failed (stats_first)",
+				"tool_name", toolName,
+				"error", err.Error(),
+				"error_type", "parse_error",
+			)
 			return "", err
 		}
 		stats, _ := GenerateStats(jsonlData)
 
 		// Adapt response for data portion
-		response, err := adaptResponse(parsedData, args, toolName)
+		response, err := adaptResponse(cfg, parsedData, args, toolName)
 		if err != nil {
+			slog.Error("response adaptation failed (stats_first)",
+				"tool_name", toolName,
+				"error", err.Error(),
+				"error_type", "execution_error",
+			)
 			return "", err
 		}
 
 		// Serialize and prepend stats
 		serialized, err := serializeResponse(response)
 		if err != nil {
+			slog.Error("response serialization failed (stats_first)",
+				"tool_name", toolName,
+				"error", err.Error(),
+				"error_type", "parse_error",
+			)
 			return "", err
 		}
 
 		return stats + "\n---\n" + serialized, nil
 	}
 
-	// Adapt response to hybrid mode (inline or file_ref)
-	response, err := adaptResponse(parsedData, args, toolName)
+	response, err := adaptResponse(cfg, parsedData, args, toolName)
 	if err != nil {
-		return "", fmt.Errorf("response adaptation error: %w", err)
+		slog.Error("response adaptation failed",
+			"tool_name", toolName,
+			"error", err.Error(),
+			"error_type", "execution_error",
+		)
+		return "", fmt.Errorf("response adaptation error for tool %s: %w", toolName, err)
 	}
 
 	// Serialize response (no truncation - rely on hybrid mode)
 	output, err := serializeResponse(response)
 	if err != nil {
+		slog.Error("response serialization failed",
+			"tool_name", toolName,
+			"error", err.Error(),
+			"error_type", "parse_error",
+		)
 		return "", err
 	}
+
+	slog.Debug("tool execution pipeline completed successfully",
+		"tool_name", toolName,
+		"output_length", len(output),
+	)
+
+	// Record successful tool execution metrics
+	elapsed := time.Since(start)
+	RecordToolCall(toolName, scope, "success")
+	RecordToolExecutionDuration(toolName, scope, elapsed)
 
 	return output, nil
 }
@@ -315,7 +430,21 @@ func (e *ToolExecutor) executeMetaCC(cmdArgs []string) (string, error) {
 	cmd.Stderr = &stderr
 
 	// Set current directory for meta-cc
-	cmd.Dir, _ = os.Getwd()
+	dir, err := os.Getwd()
+	if err != nil {
+		slog.Error("failed to get working directory",
+			"error", err.Error(),
+			"error_type", "io_error",
+		)
+		return "", fmt.Errorf("failed to get working directory: %w", mcerrors.ErrFileIO)
+	}
+	cmd.Dir = dir
+
+	slog.Debug("executing meta-cc command",
+		"command", e.metaCCPath,
+		"args", strings.Join(cmdArgs, " "),
+		"working_dir", dir,
+	)
 
 	if err := cmd.Run(); err != nil {
 		// Check if this is an exit error with specific exit code
@@ -325,18 +454,43 @@ func (e *ToolExecutor) executeMetaCC(cmdArgs []string) (string, error) {
 			// Exit code 2 means "no results found" - this is not an error
 			// Return stdout content (may be "[]" or empty string)
 			if exitCode == 2 {
+				slog.Debug("meta-cc returned no results",
+					"exit_code", exitCode,
+					"command", strings.Join(cmdArgs, " "),
+				)
 				return stdout.String(), nil
 			}
+
+			// For other exit codes, log as error
+			stderrMsg := strings.TrimSpace(stderr.String())
+			slog.Error("meta-cc command failed",
+				"exit_code", exitCode,
+				"stderr", stderrMsg,
+				"command", strings.Join(cmdArgs, " "),
+				"error_type", "execution_error",
+			)
+		} else {
+			slog.Error("meta-cc command execution error",
+				"error", err.Error(),
+				"command", strings.Join(cmdArgs, " "),
+				"error_type", classifyError(err),
+			)
 		}
 
 		// For exit code 1 or other errors, return error message
 		stderrMsg := strings.TrimSpace(stderr.String())
 		if stderrMsg == "" {
 			// If stderr is empty, include command details for debugging
-			return "", fmt.Errorf("meta-cc error: command failed with exit code (stderr empty)\nCommand: %s %s", e.metaCCPath, strings.Join(cmdArgs, " "))
+			return "", fmt.Errorf("meta-cc command '%s %s' failed with exit code (stderr empty): %w",
+				e.metaCCPath, strings.Join(cmdArgs, " "), mcerrors.ErrFileIO)
 		}
-		return "", fmt.Errorf("meta-cc error: %s\nCommand: %s %s", stderrMsg, e.metaCCPath, strings.Join(cmdArgs, " "))
+		return "", fmt.Errorf("meta-cc command '%s %s' failed: %s: %w",
+			e.metaCCPath, strings.Join(cmdArgs, " "), stderrMsg, mcerrors.ErrFileIO)
 	}
+
+	slog.Debug("meta-cc command completed",
+		"output_length", len(stdout.String()),
+	)
 
 	return stdout.String(), nil
 }
@@ -347,23 +501,36 @@ func (e *ToolExecutor) parseJSONL(jsonlData string) ([]interface{}, error) {
 
 	// Handle special cases: empty input or "[]" (exit code 2 scenario)
 	if jsonlData == "" || jsonlData == "[]" {
+		slog.Debug("parseJSONL: empty input or no results",
+			"input", jsonlData,
+		)
 		return []interface{}{}, nil
 	}
 
 	lines := strings.Split(jsonlData, "\n")
 	var data []interface{}
 
-	for _, line := range lines {
+	for i, line := range lines {
 		if line == "" {
 			continue
 		}
 
 		var obj interface{}
 		if err := json.Unmarshal([]byte(line), &obj); err != nil {
-			return nil, fmt.Errorf("invalid JSON: %w", err)
+			slog.Error("failed to parse JSONL line",
+				"line_number", i+1,
+				"line_content", line,
+				"error", err.Error(),
+				"error_type", "parse_error",
+			)
+			return nil, fmt.Errorf("invalid JSON on line %d: %w", i+1, mcerrors.ErrParseError)
 		}
 		data = append(data, obj)
 	}
+
+	slog.Debug("parseJSONL completed",
+		"record_count", len(data),
+	)
 
 	return data, nil
 }
@@ -371,9 +538,14 @@ func (e *ToolExecutor) parseJSONL(jsonlData string) ([]interface{}, error) {
 // dataToJSONL converts array of interfaces to JSONL string
 func (e *ToolExecutor) dataToJSONL(data []interface{}) (string, error) {
 	var output strings.Builder
-	for _, record := range data {
+	for i, record := range data {
 		jsonBytes, err := json.Marshal(record)
 		if err != nil {
+			slog.Error("failed to marshal record to JSON",
+				"record_index", i,
+				"error", err.Error(),
+				"error_type", "parse_error",
+			)
 			return "", err
 		}
 		output.Write(jsonBytes)

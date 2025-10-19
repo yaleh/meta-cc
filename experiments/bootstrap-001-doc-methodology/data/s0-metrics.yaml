@@ -1,0 +1,90 @@
+# Baseline State Metrics (s₀)
+# Generated: 2025-10-14
+# Agent: data-analyst v1.0
+
+documentation_state:
+  total_files: 44
+  total_lines: 21184
+  categories: 7
+  directory_depth: 3
+
+feature_coverage:
+  total_features: 54
+  documented_features: 48
+  coverage_ratio: 0.89
+
+value_components:
+  V_completeness:
+    value: 0.89
+    calculation: "48 documented / 54 total features"
+    confidence: high
+
+  V_accessibility:
+    value: 0.17
+    calculation: "1 - (2.5 avg depth / 3 max depth)"
+    confidence: medium
+    notes: "Low due to deep structure, no search"
+
+  V_maintainability:
+    value: 0.64
+    calculation: "(1 - 0.25 duplication) * 0.85 organization"
+    confidence: high
+
+  V_efficiency:
+    value: 0.71
+    calculation: "min(1, 15000 target / 21184 actual)"
+    confidence: medium
+
+value_function:
+  formula: "0.3·V_c + 0.3·V_a + 0.2·V_m + 0.2·V_e"
+  V_s0: 0.588
+  interpretation: "Baseline at 58.8% of target value"
+
+documentation_activity:
+  period: "2025-10-10 to 2025-10-14"
+  total_commits: 85
+  doc_commits: 42
+  doc_commit_ratio: 0.49
+  velocity_per_day: 8.4
+
+access_patterns:
+  most_accessed:
+    - file: "docs/plan.md"
+      accesses: 423
+    - file: "README.md"
+      accesses: 182
+    - file: "docs/principles.md"
+      accesses: 90
+    - file: "CLAUDE.md"
+      accesses: 87
+    - file: "docs/examples-usage.md"
+      accesses: 65
+
+problems_identified:
+  - problem: "Poor Accessibility"
+    severity: high
+    impact_on_value: -0.24
+    evidence: "Deep directory structure, no search"
+
+  - problem: "Documentation Overhead"
+    severity: medium
+    impact_on_value: -0.06
+    evidence: "21,184 lines vs 15,000 target"
+
+  - problem: "Inconsistent Update Frequency"
+    severity: medium
+    evidence: "plan.md: 183 edits vs others: <50"
+
+  - problem: "Limited Automation"
+    severity: medium
+    evidence: "Manual updates, no generation from code"
+
+  - problem: "Unclear Value Metrics"
+    severity: low
+    evidence: "No systematic quality measurement"
+
+improvement_potential:
+  immediate: 0.24  # Fixing accessibility
+  short_term: 0.10  # Reducing overhead, adding automation
+  long_term: 0.08   # Full optimization
+  maximum_v: 0.80   # Target threshold

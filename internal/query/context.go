@@ -6,13 +6,28 @@ import (
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/analyzer"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/parser"
+)
+
+const (
+	// TurnPreviewMaxLength is the maximum length for turn preview text
+	TurnPreviewMaxLength = 100
+
+	// SecondsPerMinute is the conversion factor from seconds to minutes
+	SecondsPerMinute = 60
+
+	// MinSequenceLength is the minimum length of a tool sequence pattern
+	MinSequenceLength = 2
+
+	// MaxSequenceLength is the maximum length of a tool sequence pattern
+	MaxSequenceLength = 5
 )
 
 // BuildContextQuery builds a context query for a specific error signature
 func BuildContextQuery(entries []parser.SessionEntry, errorSignature string, window int) (*ContextQuery, error) {
 	if window < 0 {
-		return nil, fmt.Errorf("window size must be non-negative")
+		return nil, fmt.Errorf("window size must be non-negative for query_context (got: %d): %w", window, mcerrors.ErrInvalidInput)
 	}
 
 	// Build turn index map
@@ -78,8 +93,8 @@ func findErrorOccurrences(entries []parser.SessionEntry, errorSig string, window
 	return occurrences
 }
 
-// buildContextBefore builds context before the error turn
-func buildContextBefore(entries []parser.SessionEntry, errorTurn, window int, turnIndex map[string]int) []TurnPreview {
+// buildContextWindow builds context in specified direction from error turn
+func buildContextWindow(entries []parser.SessionEntry, errorTurn, window int, turnIndex map[string]int, direction string) []TurnPreview {
 	var previews []TurnPreview
 
 	for _, entry := range entries {
@@ -88,7 +103,16 @@ func buildContextBefore(entries []parser.SessionEntry, errorTurn, window int, tu
 		}
 
 		turn := turnIndex[entry.UUID]
-		if turn >= errorTurn || turn < errorTurn-window {
+
+		// Direction-specific filtering
+		var skip bool
+		if direction == "before" {
+			skip = turn >= errorTurn || turn < errorTurn-window
+		} else { // "after"
+			skip = turn <= errorTurn || turn > errorTurn+window
+		}
+
+		if skip {
 			continue
 		}
 
@@ -98,24 +122,14 @@ func buildContextBefore(entries []parser.SessionEntry, errorTurn, window int, tu
 	return previews
 }
 
+// buildContextBefore builds context before the error turn
+func buildContextBefore(entries []parser.SessionEntry, errorTurn, window int, turnIndex map[string]int) []TurnPreview {
+	return buildContextWindow(entries, errorTurn, window, turnIndex, "before")
+}
+
 // buildContextAfter builds context after the error turn
 func buildContextAfter(entries []parser.SessionEntry, errorTurn, window int, turnIndex map[string]int) []TurnPreview {
-	var previews []TurnPreview
-
-	for _, entry := range entries {
-		if !entry.IsMessage() {
-			continue
-		}
-
-		turn := turnIndex[entry.UUID]
-		if turn <= errorTurn || turn > errorTurn+window {
-			continue
-		}
-
-		previews = append(previews, buildTurnPreview(entry, turn))
-	}
-
-	return previews
+	return buildContextWindow(entries, errorTurn, window, turnIndex, "after")
 }
 
 // buildTurnPreview builds a preview of a turn
@@ -140,7 +154,7 @@ func buildTurnPreview(entry parser.SessionEntry, turn int) TurnPreview {
 		case "text":
 			if preview.Preview == "" && block.Text != "" {
 				// Use first 100 chars as preview
-				preview.Preview = truncateText(block.Text, 100)
+				preview.Preview = truncateText(block.Text, TurnPreviewMaxLength)
 			}
 		case "tool_use":
 			if block.ToolUse != nil {

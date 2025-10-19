@@ -1,0 +1,279 @@
+# Iteration 2 Implementation Plan: CHANGELOG Automation
+# Date: 2025-10-16
+# Phase: PLAN
+
+iteration_goal:
+  primary: "Automate CHANGELOG generation from conventional commits"
+  success_criteria:
+    - "CHANGELOG automatically updated during release.sh execution"
+    - "Manual editing step removed (lines 63-77 in release.sh)"
+    - "Format matches existing 'Keep a Changelog' style"
+    - "Zero human intervention for CHANGELOG updates"
+  expected_delta_v: +0.15 to +0.20
+  scope: "Single iteration, focused implementation"
+
+agent_selection:
+
+  assessment:
+    generic_agents_sufficient: true
+    specialization_needed: false
+    rationale: |
+      Task is straightforward script implementation. The coder agent can
+      handle bash script development. No specialized CI/CD or release
+      automation expertise needed beyond basic scripting.
+
+  agents_selected:
+    primary:
+      agent: coder
+      source: generic (A₀)
+      file: experiments/bootstrap-007-cicd-pipeline/agents/coder.md
+      tasks:
+        - "Implement CHANGELOG generation script"
+        - "Parse git log for conventional commits"
+        - "Generate Keep a Changelog format output"
+        - "Integrate script into release.sh"
+      rationale: "Script implementation is core coder capability"
+
+    supporting:
+      - agent: doc-writer
+        source: generic (A₀)
+        file: experiments/bootstrap-007-cicd-pipeline/agents/doc-writer.md
+        tasks:
+          - "Document CHANGELOG automation process"
+          - "Write commit message conventions guide"
+          - "Extract release automation methodology"
+        rationale: "Documentation is core doc-writer capability"
+
+      - agent: data-analyst
+        source: generic (A₀)
+        file: experiments/bootstrap-007-cicd-pipeline/agents/data-analyst.md
+        tasks:
+          - "Analyze commit message patterns"
+          - "Calculate value improvements"
+        rationale: "Pattern analysis and metrics calculation"
+
+  agents_not_used: 12
+  total_agents: 15
+  evolution_decision: "No new agents needed (A₂ = A₁)"
+
+implementation_strategy:
+
+  approach: "Custom bash script with zero dependencies"
+
+  script_design:
+    name: "scripts/generate-changelog-entry.sh"
+    language: bash
+    dependencies: "git, sed, grep (standard Unix tools)"
+
+    inputs:
+      - "VERSION: release version (e.g., v1.0.0)"
+      - "START_TAG: previous release tag (optional)"
+      - "END_TAG: current HEAD or specific commit"
+
+    outputs:
+      - "CHANGELOG entry formatted for Keep a Changelog"
+      - "Grouped by: Added, Changed, Fixed, Improved, etc."
+      - "Includes version header with date"
+
+    parsing_strategy:
+      - "git log --pretty=format:\"%s\" $START_TAG..HEAD"
+      - "Parse conventional commit prefix (feat|fix|docs|refactor|etc.)"
+      - "Map to CHANGELOG categories:"
+      - "  feat → Added"
+      - "  fix → Fixed"
+      - "  docs → Changed (documentation)"
+      - "  refactor → Changed (refactoring)"
+      - "  chore → Changed (maintenance)"
+      - "Fallback: Include unprefixed commits in 'Other' section"
+
+  integration_approach:
+    file: scripts/release.sh
+    modification_lines: 63-77 (15 lines)
+
+    old_flow:
+      - "Prompt user to edit CHANGELOG"
+      - "Wait for Enter key"
+      - "Verify CHANGELOG contains version"
+      - "Warn if not found"
+
+    new_flow:
+      - "Call scripts/generate-changelog-entry.sh $VERSION"
+      - "Insert generated entry at top of CHANGELOG.md"
+      - "Auto-commit CHANGELOG with version updates"
+      - "No manual intervention needed"
+
+    backward_compatibility:
+      - "Keep existing format"
+      - "Preserve [Unreleased] section"
+      - "Maintain version links at bottom"
+
+  testing_strategy:
+    unit_tests:
+      - "Test commit parsing with sample messages"
+      - "Test category mapping (feat → Added, etc.)"
+      - "Test format generation"
+
+    integration_tests:
+      - "Mock release with test commits"
+      - "Verify CHANGELOG format matches existing"
+      - "Ensure no manual prompts"
+
+    manual_verification:
+      - "Compare generated CHANGELOG with hand-written"
+      - "Check format consistency"
+      - "Verify all commits included"
+
+work_breakdown:
+
+  stage_1_script_implementation:
+    agent: coder
+    complexity: MEDIUM
+    estimated_lines: 80-120
+    tasks:
+      - "Parse git log between tags"
+      - "Extract conventional commit prefixes"
+      - "Group commits by category"
+      - "Format as Keep a Changelog markdown"
+      - "Handle edge cases (no prefix, empty sections)"
+    deliverable: "scripts/generate-changelog-entry.sh"
+
+  stage_2_release_integration:
+    agent: coder
+    complexity: LOW
+    estimated_lines: 15-20 (modifications)
+    tasks:
+      - "Replace manual prompt with script call"
+      - "Update git add to include CHANGELOG.md"
+      - "Remove verification check (auto-generated is always valid)"
+      - "Test end-to-end release flow"
+    deliverable: "scripts/release.sh (modified)"
+
+  stage_3_documentation:
+    agent: doc-writer
+    complexity: LOW
+    estimated_lines: 100-200
+    tasks:
+      - "Document commit message conventions"
+      - "Explain CHANGELOG generation process"
+      - "Write troubleshooting guide"
+      - "Extract methodology patterns"
+    deliverables:
+      - "docs/contributing/commit-conventions.md"
+      - "docs/methodology/release-automation.md"
+
+  stage_4_methodology_extraction:
+    agent: doc-writer
+    complexity: MEDIUM
+    estimated_lines: 200-300
+    tasks:
+      - "Extract release automation patterns"
+      - "Document CHANGELOG automation methodology"
+      - "Identify reusable principles"
+      - "Create decision framework"
+    deliverable: "docs/methodology/changelog-automation.md"
+
+  total_estimated_lines: 395-640 (within 500-line phase limit)
+
+risks_and_mitigations:
+
+  risk_1_commit_format_inconsistency:
+    description: "15% commits don't use conventional format"
+    impact: "Some commits may be miscategorized"
+    likelihood: MEDIUM
+    mitigation:
+      - "Include fallback 'Other' section"
+      - "Log unparsed commits for review"
+      - "Don't fail on non-conventional commits"
+    severity_after_mitigation: LOW
+
+  risk_2_format_mismatch:
+    description: "Generated format differs from existing"
+    impact: "CHANGELOG style inconsistency"
+    likelihood: LOW
+    mitigation:
+      - "Use existing CHANGELOG as template"
+      - "Test against multiple historical entries"
+      - "Manual review of first generated entry"
+    severity_after_mitigation: LOW
+
+  risk_3_breaking_release_flow:
+    description: "Script errors could block releases"
+    impact: "Can't create releases"
+    likelihood: MEDIUM
+    mitigation:
+      - "Comprehensive error handling"
+      - "Fallback to manual mode on script failure"
+      - "Test with multiple release scenarios"
+    severity_after_mitigation: LOW
+
+  risk_4_git_history_parsing:
+    description: "Complex git history may be hard to parse"
+    impact: "Incorrect or incomplete CHANGELOG"
+    likelihood: LOW
+    mitigation:
+      - "Use simple git log format"
+      - "Test with merge commits, squashes"
+      - "Provide override mechanism"
+    severity_after_mitigation: LOW
+
+dependencies:
+  code_dependencies: []  # Zero external dependencies
+  tool_dependencies:
+    - git (already required)
+    - bash (already available)
+    - sed/grep (standard Unix tools)
+
+  prerequisite_tasks: []  # No blockers
+
+expected_outcomes:
+
+  code_artifacts:
+    - scripts/generate-changelog-entry.sh (new, 80-120 lines)
+    - scripts/release.sh (modified, -15 lines manual, +10 lines automated)
+
+  documentation_artifacts:
+    - docs/contributing/commit-conventions.md (new, 100-150 lines)
+    - docs/methodology/release-automation.md (new, 200-300 lines)
+
+  data_artifacts:
+    - data/s2-changelog-automation.yaml (configuration details)
+    - data/s2-metrics.json (value calculations)
+
+  value_improvements:
+    V_automation: 0.58 → 0.68 (+0.10)
+    V_speed: 0.50 → 0.70 (+0.20)
+    V_reliability: 0.85 → 0.90 (+0.05)
+    V_instance: 0.649 → 0.734 (+0.085)
+
+  note: |
+    HONEST PROJECTION: V_instance(s₂) = 0.734 is BELOW 0.80 target.
+    This is expected - CHANGELOG automation alone doesn't reach target.
+    Need additional work (smoke tests, coverage) in subsequent iterations.
+
+constraints:
+  code_limit: 500 lines per phase (395-640 estimated, within limit)
+  testing_protocol: "make all" must pass
+  quality_standard: maintain existing test coverage
+  format_preservation: keep existing CHANGELOG.md style
+  backward_compatibility: don't break existing release process
+
+success_metrics:
+  functional:
+    - "release.sh completes without manual prompts"
+    - "CHANGELOG.md updated with new version entry"
+    - "Format matches existing style"
+    - "All commits since last release included"
+
+  value:
+    - "V_automation ≥ 0.68"
+    - "V_speed ≥ 0.70"
+    - "V_reliability ≥ 0.90"
+    - "V_instance ≥ 0.73"
+
+  methodology:
+    - "Release automation patterns documented"
+    - "CHANGELOG automation methodology extracted"
+    - "Reusable for other projects"
+
+plan_complete: true
+ready_for_execution: true

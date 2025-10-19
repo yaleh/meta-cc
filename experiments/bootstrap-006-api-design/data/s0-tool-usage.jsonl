@@ -1,0 +1,16 @@
+{"tool":"mcp__meta-cc__query_tools","calls":105,"category":"heavily_used","rank":1}
+{"tool":"mcp__meta-cc__query_user_messages","calls":97,"category":"heavily_used","rank":2}
+{"tool":"mcp__meta-cc__get_session_stats","calls":48,"category":"frequently_used","rank":3}
+{"tool":"mcp__meta-cc__list_capabilities","calls":45,"category":"frequently_used","rank":4}
+{"tool":"mcp__meta-cc__query_files","calls":36,"category":"moderate_use","rank":5}
+{"tool":"mcp__meta-cc__query_tool_sequences","calls":35,"category":"moderate_use","rank":6}
+{"tool":"mcp__meta-cc__query_successful_prompts","calls":32,"category":"moderate_use","rank":7}
+{"tool":"mcp__meta-cc__get_capability","calls":26,"category":"moderate_use","rank":8}
+{"tool":"mcp__meta-cc__query_conversation","calls":20,"category":"moderate_use","rank":9}
+{"tool":"mcp__meta-cc__query_file_access","calls":10,"category":"low_use","rank":10}
+{"tool":"mcp__meta-cc__query_time_series","calls":6,"category":"low_use","rank":11}
+{"tool":"mcp__meta-cc__query_project_state","calls":4,"category":"low_use","rank":12}
+{"tool":"mcp__meta-cc__query_assistant_messages","calls":3,"category":"low_use","rank":13}
+{"tool":"mcp__meta-cc__cleanup_temp_files","calls":0,"category":"rarely_used","rank":14,"note":"No usage observed"}
+{"tool":"mcp__meta-cc__query_tools_advanced","calls":0,"category":"rarely_used","rank":15,"note":"No usage observed"}
+{"tool":"mcp__meta-cc__query_context","calls":0,"category":"rarely_used","rank":16,"note":"No usage observed"}

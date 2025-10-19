@@ -82,7 +82,7 @@ install_binaries() {
 # Install Claude Code integration files
 install_claude_files() {
     CLAUDE_DIR="${HOME}/.claude"
-    mkdir -p "$CLAUDE_DIR/commands" "$CLAUDE_DIR/agents"
+    mkdir -p "$CLAUDE_DIR/commands" "$CLAUDE_DIR/agents" "$CLAUDE_DIR/skills"
 
     # Check if commands/agents directories exist
     if [ ! -d "commands" ]; then
@@ -95,6 +95,15 @@ install_claude_files() {
     # Copy slash commands and subagents
     cp commands/* "$CLAUDE_DIR/commands/" 2>/dev/null || error_exit "Failed to copy slash commands"
     cp agents/* "$CLAUDE_DIR/agents/" 2>/dev/null || error_exit "Failed to copy subagents"
+
+    # Copy skills if directory exists
+    if [ -d "skills" ]; then
+        cp -r skills/* "$CLAUDE_DIR/skills/" 2>/dev/null || warn "No skills to copy"
+        SKILL_COUNT=$(find "$CLAUDE_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l)
+        if [ "$SKILL_COUNT" -gt 0 ]; then
+            info "Installed $SKILL_COUNT skills"
+        fi
+    fi
 
     info "Claude Code files installed to $CLAUDE_DIR"
 }

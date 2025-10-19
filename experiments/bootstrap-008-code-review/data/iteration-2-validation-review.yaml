@@ -1,0 +1,396 @@
+module: validation
+files_reviewed:
+  - types.go (76 lines)
+  - validator.go (60 lines)
+  - parser.go (158 lines)
+  - naming.go (87 lines)
+  - ordering.go (183 lines)
+  - description.go (53 lines)
+  - reporter.go (176 lines)
+total_lines: 793
+test_coverage: 32.5% # CRITICAL - below 80% target
+issues_found: 14
+
+critical_issues:
+  - VALIDATION-001: parser.go has NO tests (158 lines of complex regex)
+  - VALIDATION-005: isCorrectOrder doesn't validate order at all
+  - VALIDATION-006: getParameterOrder returns random order (Go maps unordered)
+
+issues:
+  - id: VALIDATION-001
+    severity: critical
+    category: testing
+    file: parser.go
+    line: N/A
+    function: all
+    description: No test coverage for parser.go (158 lines of regex parsing)
+    explanation: |
+      parser.go contains complex regex-based parsing logic but has NO test file.
+      Functions ParseTools, parseToolsFromContent, parseProperties, parseRequired,
+      findClosingBrace are completely untested. Regex parsing is inherently fragile.
+    recommendation: |
+      Create parser_test.go with comprehensive tests:
+      - Valid file parsing
+      - File not found error
+      - Malformed input
+      - Edge cases (nested braces, empty properties, etc.)
+    impact: |
+      Accounts for ~20% of module lines. No tests = major contributor to 32.5% coverage.
+      High risk of regressions when modifying parsing logic.
+
+  - id: VALIDATION-002
+    severity: high
+    category: security
+    file: parser.go
+    line: 45
+    function: parseToolsFromContent
+    description: Potential regex injection - unsanitized tool name in string formatting
+    explanation: |
+      Tool name extracted from regex is used unsanitized in fmt.Sprintf.
+      If name contains special characters, could cause unexpected behavior.
+    recommendation: |
+      Validate extracted name before using:
+      if !isValidToolName(name) {
+          continue
+      }
+      func isValidToolName(name string) bool {
+          return regexp.MustCompile(`^[a-z_]+$`).MatchString(name)
+      }
+
+  - id: VALIDATION-003
+    severity: high
+    category: correctness
+    file: parser.go
+    line: 144
+    function: findClosingBrace
+    description: Missing godoc explaining -1 return behavior
+    explanation: |
+      Function is correct but lacks documentation.
+      Returns -1 when no closing brace found, but this isn't documented.
+      Caller does check for -1 (good), but future callers might not.
+    recommendation: |
+      Add godoc:
+      // findClosingBrace finds the index of the first unmatched closing brace.
+      // Returns -1 if no closing brace is found or if braces are balanced.
+      // Handles nested braces correctly by tracking depth.
+
+  - id: VALIDATION-004
+    severity: medium
+    category: maintainability
+    file: validator.go
+    line: 20
+    function: Validate
+    description: Hard-coded validation checks list
+    explanation: |
+      Validation checks are hard-coded in Validate() function.
+      Adding new checks requires modifying Validate(), not extensible.
+    recommendation: |
+      Use registry pattern:
+      var registeredChecks = []struct{
+          name string
+          check func(Tool) Result
+      }{
+          {"naming", ValidateNaming},
+          {"parameter_ordering", ValidateParameterOrdering},
+          {"description", ValidateDescription},
+      }
+      Then iterate over registered checks in Validate().
+
+  - id: VALIDATION-005
+    severity: critical
+    category: correctness
+    file: ordering.go
+    line: 140
+    function: isCorrectOrder
+    description: Function does NOT validate order at all - only checks existence
+    explanation: |
+      isCorrectOrder() only checks if all expected parameters exist in actual,
+      completely ignoring the order. This makes ValidateParameterOrdering useless.
+
+      Example bug: expected=["a","b","c"], actual=["c","a","b"] → returns true (WRONG!)
+
+      The function has TODO comments saying "For MVP, we'll just check..."
+      but this renders the entire ordering validation broken.
+    recommendation: |
+      Fix to actually validate order:
+      1. Build position maps for expected and actual
+      2. Check all expected params exist
+      3. Check if relative order is preserved (param1 before param2 in expected
+         must also be param1 before param2 in actual)
+    impact: |
+      CRITICAL - Parameter ordering validation is completely non-functional.
+      All ordering checks will pass even with incorrect parameter order.
+
+  - id: VALIDATION-006
+    severity: critical
+    category: correctness
+    file: ordering.go
+    line: 130
+    function: getParameterOrder
+    description: Function returns random order because Go maps are unordered
+    explanation: |
+      getParameterOrder iterates over map[string]Property to extract order.
+      Go maps are UNORDERED - iteration order is randomized.
+      This means actual parameter order is random, making validation impossible.
+
+      The function has a comment acknowledging this: "Go maps don't preserve
+      insertion order, so this is a simplification". But this isn't a
+      simplification - it's a complete breakage of the feature.
+    recommendation: |
+      Must parse source code to get actual parameter order, or redesign to
+      use ordered data structure. Cannot use Go maps for order-dependent data.
+    impact: |
+      CRITICAL - Combined with VALIDATION-005, parameter ordering validation
+      is completely broken. Feature does not work at all.
+
+  - id: VALIDATION-007
+    severity: medium
+    category: correctness
+    file: reporter.go
+    line: 38
+    function: printJSON
+    description: Silently ignores JSON encoding errors
+    explanation: |
+      Uses _ to ignore encoder.Encode() error. If encoding fails, produces
+      no output with no error message.
+    recommendation: |
+      Change signature to return error:
+      func (r *Reporter) printJSON(report *Report) error {
+          encoder := json.NewEncoder(r.writer)
+          encoder.SetIndent("", "  ")
+          if err := encoder.Encode(report); err != nil {
+              return fmt.Errorf("failed to encode report: %w", err)
+          }
+          return nil
+      }
+
+  - id: VALIDATION-008
+    severity: medium
+    category: correctness
+    file: reporter.go
+    line: 167
+    function: splitLines
+    description: Function is completely broken - doesn't split lines
+    explanation: |
+      splitLines creates []string{s} and iterates over it.
+      This creates a single-element slice, not split lines.
+
+      Actual: splitLines("a\nb\nc") → ["a\nb\nc"]
+      Expected: splitLines("a\nb\nc") → ["a", "b", "c"]
+    recommendation: |
+      Fix to actually split:
+      func splitLines(s string) []string {
+          if s == "" {
+              return nil
+          }
+          return strings.Split(s, "\n")
+      }
+
+  - id: VALIDATION-009
+    severity: medium
+    category: correctness
+    file: naming.go
+    line: 76
+    function: suggestCorrectName
+    description: Logic error when handling camelCase names
+    explanation: |
+      strings.Split(name, "_")[0] only works for snake_case.
+      For camelCase "getSessionStats", Split returns ["getSessionStats"],
+      so TrimPrefix does nothing → produces "query_getSessionStats" (wrong).
+    recommendation: |
+      Handle both snake_case and camelCase explicitly.
+      Add toSnakeCase helper if needed.
+
+  - id: VALIDATION-010
+    severity: medium
+    category: correctness
+    file: naming.go, description.go
+    line: 10, 11
+    function: ValidateNaming, ValidateDescription
+    description: No validation for empty tool name/description
+    explanation: |
+      Functions don't check if name or description are empty strings.
+      Would produce confusing error messages for empty inputs.
+    recommendation: |
+      Add empty string check:
+      if name == "" {
+          return NewFailResult("<empty>", "naming_empty",
+              "Tool name cannot be empty", nil)
+      }
+
+  - id: VALIDATION-011
+    severity: medium
+    category: maintainability
+    file: parser.go
+    line: 129
+    function: isStandardParameter
+    description: Hard-coded standard parameters list
+    explanation: |
+      Hard-coded list of standard parameters. If MCP server adds new standard
+      parameters in MergeParameters, this list needs manual update.
+    recommendation: |
+      Extract to package-level constant with documentation:
+      var StandardParameters = map[string]bool{
+          "scope": true,
+          // ...
+      }
+
+  - id: VALIDATION-012
+    severity: high
+    category: testing
+    file: reporter.go
+    line: N/A
+    function: all
+    description: No tests for reporter.go (176 lines of formatting logic)
+    explanation: |
+      reporter.go has complex terminal and JSON formatting logic but no visible tests.
+      Output formatting is user-facing and error-prone.
+    recommendation: |
+      Create reporter_test.go with tests for:
+      - JSON output formatting
+      - Terminal output formatting
+      - Quiet mode behavior
+      - Grouping and sorting logic
+
+  - id: VALIDATION-013
+    severity: medium
+    category: correctness
+    file: description.go
+    line: 28
+    function: ValidateDescription
+    description: Regex pattern too strict - doesn't handle whitespace variations
+    explanation: |
+      Pattern requires exact ". Default scope: X." but fails for:
+      - Extra whitespace: "Query.  Default scope: project." (two spaces)
+      - Missing period: "Query. Default scope: project" (no final period)
+      - Case variations: "Query. default scope: project."
+    recommendation: |
+      Use more flexible pattern with \s+ for whitespace:
+      pattern := regexp.MustCompile(`^[A-Z].*\.\s+Default scope:\s+(project|session|none)\.?\s*$`)
+
+  - id: VALIDATION-014
+    severity: medium
+    category: correctness
+    file: parser.go
+    line: 11
+    function: ParseTools
+    description: Missing file path context in parsing errors
+    explanation: |
+      parseToolsFromContent errors are returned without file path context.
+      User can't tell which file failed parsing.
+    recommendation: |
+      Wrap parsing errors with file path:
+      tools, err := parseToolsFromContent(string(content))
+      if err != nil {
+          return nil, fmt.Errorf("failed to parse tools from %q: %w", filePath, err)
+      }
+
+summary:
+  critical_count: 3
+  high_count: 3
+  medium_count: 7
+  low_count: 1
+  by_category:
+    correctness: 8
+    testing: 3
+    security: 1
+    maintainability: 2
+    readability: 0
+    go_idioms: 0
+    performance: 0
+
+test_coverage_analysis:
+  current: 32.5%
+  target: 80%
+  gap: 47.5%
+
+  missing_tests:
+    parser.go: "NO TESTS (158 lines of regex parsing)"
+    reporter.go: "NO TESTS (176 lines of formatting)"
+    validator.go: "likely minimal coverage"
+
+  existing_tests:
+    description_test.go: "3064 bytes ✅"
+    naming_test.go: "1891 bytes ✅"
+    ordering_test.go: "5173 bytes ✅"
+
+  priority:
+    - parser.go: "Regex parsing is fragile, needs comprehensive tests"
+    - reporter.go: "Output formatting failures are user-visible"
+    - ordering.go: "Broken logic (VALIDATION-005/006) would be caught by tests"
+    - validator.go: "Integration tests needed"
+
+patterns_observed:
+  - pattern: broken_core_functionality
+    description: Parameter ordering validation completely non-functional
+    occurrences: 2
+    recommendation: Fix VALIDATION-005 and VALIDATION-006 immediately
+
+  - pattern: test_coverage_gap
+    description: 32.5% vs 80% target, critical files have no tests
+    occurrences: 2
+    recommendation: Create parser_test.go and reporter_test.go
+
+  - pattern: hard_coded_constants
+    description: Standard parameters, validation checks embedded in code
+    occurrences: 2
+    recommendation: Extract to configuration or registries
+
+  - pattern: missing_input_validation
+    description: Empty names/descriptions not validated
+    occurrences: 2
+    recommendation: Add comprehensive input validation
+
+  - pattern: error_handling_inconsistency
+    description: Some functions wrap errors, others ignore or return raw
+    occurrences: 3
+    recommendation: Standardize error handling patterns
+
+positive_observations:
+  - Good type design with Result/Report structures
+  - Clean separation of validation concerns (naming, ordering, description)
+  - Reporter supports both JSON and terminal output
+  - Proper use of error wrapping in most places
+
+comparison_to_other_modules:
+  unique_to_validation:
+    - Broken core functionality (ordering validation doesn't work)
+    - Critical test coverage gap (32.5% vs 80% target)
+    - Regex-heavy parsing without tests
+    - Output formatting complexity
+
+  similar_to_query:
+    - Hard-coded constants (also in query/)
+    - Missing input validation
+    - Error handling inconsistency
+
+recommendations:
+  immediate:
+    - Fix VALIDATION-005 (isCorrectOrder doesn't check order)
+    - Fix VALIDATION-006 (getParameterOrder returns random order)
+    - Create parser_test.go with comprehensive regex tests
+    - Add input validation for empty names/descriptions
+
+  short_term:
+    - Create reporter_test.go for formatting logic
+    - Increase test coverage from 32.5% to 80%+
+    - Fix splitLines function (VALIDATION-008)
+    - Add error handling to printJSON (VALIDATION-007)
+
+  long_term:
+    - Refactor to registry-based validation checks
+    - Redesign parameter ordering to use ordered data structures
+    - Add integration tests for validator
+    - Consider property-based testing for regex parsing
+
+impact_summary: |
+  CRITICAL MODULE: The validation module has fundamental correctness issues
+  that render core features non-functional:
+
+  1. Parameter ordering validation is BROKEN (doesn't check order at all)
+  2. Test coverage is CRITICAL at 32.5% (target 80%)
+  3. parser.go (158 lines) has NO tests despite complex regex logic
+  4. reporter.go (176 lines) has NO tests despite user-facing output
+
+  This module requires immediate attention to fix broken functionality
+  and achieve acceptable test coverage before it can be considered production-ready.

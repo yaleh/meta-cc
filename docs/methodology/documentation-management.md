@@ -228,6 +228,10 @@ verify_doc_health() {
 }
 ```
 
+**Advanced health monitoring**: For data-driven role-based documentation management with automated health checks:
+- See [Role-Based Documentation Architecture](role-based-documentation.md) - Methodology for organizing docs by usage patterns
+- Use `/meta doc-health`, `/meta doc-evolution`, `/meta doc-gaps`, `/meta doc-usage` capabilities
+
 ---
 
 ## Plans Directory: Detailed Implementation Plans

@@ -1,0 +1,367 @@
+# License Compliance Report
+# Generated: 2025-10-17 (Iteration 1)
+# Scanner: go-licenses (Google's Go license checker)
+# Project: github.com/yaleh/meta-cc
+
+scan_metadata:
+  scan_date: "2025-10-17"
+  scanner: go-licenses
+  scanner_version: v1.6.0
+  project: github.com/yaleh/meta-cc
+  project_license: MIT
+  total_dependencies_scanned: 18  # From CSV output
+
+summary:
+  total_licenses: 18
+  compatible_licenses: 18
+  incompatible_licenses: 0
+  unknown_licenses: 0
+  compliance_status: "COMPLIANT"
+
+# License Distribution
+
+license_distribution:
+  MIT:
+    count: 13
+    percentage: 72.2%
+    risk_level: permissive
+    compatible_with_project: yes
+    dependencies:
+      - github.com/itchyny/gojq
+      - github.com/itchyny/timefmt-go
+      - github.com/pelletier/go-toml/v2
+      - github.com/sagikazarmark/locafero
+      - github.com/sourcegraph/conc
+      - github.com/spf13/cast
+      - github.com/spf13/viper
+      - github.com/subosito/gotenv
+      - github.com/yaleh/meta-cc (project itself)
+      - github.com/go-viper/mapstructure/v2
+      - go.yaml.in/yaml/v3
+      - gopkg.in/yaml.v3
+
+  Apache-2.0:
+    count: 2
+    percentage: 11.1%
+    risk_level: permissive
+    compatible_with_project: yes
+    dependencies:
+      - github.com/spf13/afero
+      - github.com/spf13/cobra
+
+  BSD-3-Clause:
+    count: 3
+    percentage: 16.7%
+    risk_level: permissive
+    compatible_with_project: yes
+    dependencies:
+      - github.com/fsnotify/fsnotify
+      - github.com/spf13/pflag
+      - golang.org/x/sys/unix
+      - golang.org/x/text
+
+# License Compatibility Matrix
+
+compatibility_matrix:
+  project_license: MIT
+
+  permissive_licenses_compatible:
+    - MIT (100% compatible)
+    - Apache-2.0 (100% compatible)
+    - BSD-3-Clause (100% compatible)
+    - BSD-2-Clause (100% compatible)
+    - ISC (100% compatible)
+
+  copyleft_licenses_analysis:
+    - GPL-2.0: "NOT PRESENT (would require disclosure)"
+    - GPL-3.0: "NOT PRESENT (would require disclosure)"
+    - LGPL-2.1: "NOT PRESENT (may require disclosure)"
+    - LGPL-3.0: "NOT PRESENT (may require disclosure)"
+    - MPL-2.0: "NOT PRESENT (file-level copyleft, compatible with MIT)"
+
+  proprietary_licenses:
+    - "NONE (all dependencies use OSI-approved open source licenses)"
+
+# Compliance Assessment
+
+compliance_assessment:
+  mit_compliance:
+    requirement: "Must include copyright notice and license text"
+    status: compliant
+    details: "All MIT dependencies include LICENSE files"
+
+  apache_compliance:
+    requirement: "Must include NOTICE file, copyright notice, and license text"
+    status: compliant
+    details: "Apache-2.0 dependencies include LICENSE.txt files"
+
+  bsd_compliance:
+    requirement: "Must include copyright notice and license text"
+    status: compliant
+    details: "BSD dependencies include LICENSE files"
+
+  attribution_requirements:
+    required: yes
+    status: "License texts included in dependencies"
+    recommendation: "Include THIRD_PARTY_LICENSES file in project"
+
+# Risk Analysis
+
+risk_analysis:
+  license_conflict_risk: none
+  # All permissive licenses, no copyleft, no conflicts
+
+  attribution_risk: low
+  # Recommendation: Generate consolidated license attribution file
+
+  compatibility_risk: none
+  # All licenses compatible with MIT project license
+
+  future_risk: low
+  # All dependencies use stable, well-established licenses
+
+# License Policy
+
+license_policy:
+  allowed_licenses:
+    - MIT
+    - Apache-2.0
+    - BSD-2-Clause
+    - BSD-3-Clause
+    - ISC
+    - Unlicense
+    - CC0-1.0
+
+  review_required_licenses:
+    - MPL-2.0  # File-level copyleft, usually compatible
+    - LGPL-2.1  # May require disclosure
+    - LGPL-3.0  # May require disclosure
+
+  prohibited_licenses:
+    - GPL-2.0  # Strong copyleft, requires project disclosure
+    - GPL-3.0  # Strong copyleft, requires project disclosure
+    - AGPL-3.0  # Network copyleft, very restrictive
+    - Proprietary  # Non-open source
+
+  policy_compliance: 100%
+  # All dependencies use allowed licenses
+
+# Recommendations
+
+recommendations:
+  immediate:
+    - action: "Create THIRD_PARTY_LICENSES file"
+      priority: medium
+      effort: "30 minutes"
+      details: "Consolidate all dependency licenses into single attribution file"
+
+    - action: "Add license check to CI/CD"
+      priority: medium
+      effort: "1-2 hours"
+      details: "Automate license compliance checking in CI pipeline"
+
+  future:
+    - action: "Monitor license changes in dependency updates"
+      priority: low
+      effort: "Automated"
+      details: "go-licenses in CI will catch license changes"
+
+    - action: "Review license policy annually"
+      priority: low
+      effort: "1 hour"
+      details: "Ensure policy aligns with project needs"
+
+# Value Function Impact
+
+v_license_assessment:
+  current_v_license: 0.95
+  # Calculation: compatible / total = 18 / 18 = 1.00
+  # But: No consolidated attribution file = -0.05
+  # = 0.95
+
+  after_attribution_file: 1.00
+  # With THIRD_PARTY_LICENSES file generated
+
+  v_license_improvement: +0.45
+  # From baseline 0.50 (unknown) to 0.95 (scanned, compliant)
+
+# Observations for Methodology (Meta Layer)
+
+methodology_observations:
+  license_assessment_patterns:
+    - "go-licenses extracts SPDX identifiers from LICENSE files"
+    - "CSV output provides package, URL, license triple"
+    - "Manual review needed for edge cases (dual-licensed, custom licenses)"
+
+  compliance_decision_framework:
+    - "Permissive licenses (MIT, Apache, BSD) generally safe for any project"
+    - "Copyleft licenses (GPL, LGPL) require disclosure or code release"
+    - "Project license determines acceptable dependency licenses"
+
+  go_specific_insights:
+    - "Go ecosystem predominantly uses permissive licenses"
+    - "Standard library uses BSD-3-Clause (Google copyright)"
+    - "go-licenses works with go.mod to find all dependencies"
+
+  reusable_principles:
+    - "Define license policy early (allowed/review/prohibited)"
+    - "Automate license scanning in CI/CD"
+    - "Generate attribution file for compliance"
+    - "Review license changes on dependency updates"
+
+# Detailed License Inventory
+
+license_inventory:
+  - package: github.com/fsnotify/fsnotify
+    version: v1.9.0
+    license: BSD-3-Clause
+    license_url: https://github.com/fsnotify/fsnotify/blob/v1.9.0/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/go-viper/mapstructure/v2
+    version: v2.4.0
+    license: MIT
+    license_url: https://github.com/go-viper/mapstructure/blob/v2.4.0/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/itchyny/gojq
+    version: v0.12.17
+    license: MIT
+    license_url: https://github.com/itchyny/gojq/blob/v0.12.17/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/itchyny/timefmt-go
+    version: v0.1.6
+    license: MIT
+    license_url: https://github.com/itchyny/timefmt-go/blob/v0.1.6/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/pelletier/go-toml/v2
+    version: v2.2.4
+    license: MIT
+    license_url: https://github.com/pelletier/go-toml/blob/v2.2.4/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/sagikazarmark/locafero
+    version: v0.11.0
+    license: MIT
+    license_url: https://github.com/sagikazarmark/locafero/blob/v0.11.0/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/sourcegraph/conc
+    version: 5f936abd7ae8
+    license: MIT
+    license_url: https://github.com/sourcegraph/conc/blob/5f936abd7ae8/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/spf13/afero
+    version: v1.15.0
+    license: Apache-2.0
+    license_url: https://github.com/spf13/afero/blob/v1.15.0/LICENSE.txt
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/spf13/cast
+    version: v1.10.0
+    license: MIT
+    license_url: https://github.com/spf13/cast/blob/v1.10.0/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/spf13/cobra
+    version: v1.10.1
+    license: Apache-2.0
+    license_url: https://github.com/spf13/cobra/blob/v1.10.1/LICENSE.txt
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/spf13/pflag
+    version: v1.0.10
+    license: BSD-3-Clause
+    license_url: https://github.com/spf13/pflag/blob/v1.0.10/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/spf13/viper
+    version: v1.21.0
+    license: MIT
+    license_url: https://github.com/spf13/viper/blob/v1.21.0/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/subosito/gotenv
+    version: v1.6.0
+    license: MIT
+    license_url: https://github.com/subosito/gotenv/blob/v1.6.0/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: github.com/yaleh/meta-cc
+    version: HEAD
+    license: MIT
+    license_url: https://github.com/yaleh/meta-cc/blob/HEAD/LICENSE
+    compatibility: self
+    attribution_required: no
+
+  - package: go.yaml.in/yaml/v3
+    version: v3.0.4
+    license: MIT
+    license_url: https://github.com/yaml/go-yaml/blob/v3.0.4/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: golang.org/x/sys/unix
+    version: v0.29.0
+    license: BSD-3-Clause
+    license_url: https://cs.opensource.google/go/x/sys/+/v0.29.0:LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: golang.org/x/text
+    version: v0.28.0
+    license: BSD-3-Clause
+    license_url: https://cs.opensource.google/go/x/text/+/v0.28.0:LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+  - package: gopkg.in/yaml.v3
+    version: v3.0.1
+    license: MIT
+    license_url: https://github.com/go-yaml/yaml/blob/v3.0.1/LICENSE
+    compatibility: compatible
+    attribution_required: yes
+
+# Scan Warnings and Notes
+
+scan_warnings:
+  - warning: "golang.org/x/sys/unix contains non-Go code (assembly)"
+    impact: low
+    resolution: "License extracted successfully despite assembly code"
+
+  - warning: "module github.com/yaleh/meta-cc has empty version (defaults to HEAD)"
+    impact: none
+    resolution: "Expected for local development, license URL correct"
+
+# Next Steps
+
+next_steps:
+  immediate:
+    - "Generate THIRD_PARTY_LICENSES file (consolidate all license texts)"
+    - "Add license policy to project documentation"
+
+  follow_up:
+    - "Integrate go-licenses into CI/CD pipeline"
+    - "Setup automated license compliance checks"
+    - "Monitor for license changes on dependency updates"
+
+  methodology_development:
+    - "Document license compliance methodology"
+    - "Create license policy template"
+    - "Build reusable license assessment framework"

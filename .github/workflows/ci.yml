@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for CHANGELOG validation
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -34,6 +36,11 @@ jobs:
 
       - name: Install dependencies
         run: go mod download
+
+      - name: Record test start time
+        id: test_start
+        shell: bash
+        run: echo "TEST_START=$(date +%s)" >> $GITHUB_OUTPUT
 
       - name: Verify plugin manifest is up-to-date
         shell: bash
@@ -79,6 +86,15 @@ jobs:
           echo "✓ Plugin files synced successfully ($DIST_CMD_COUNT command file: unified meta.md)"
           echo "  Note: 13 capability files distributed separately in capabilities-latest.tar.gz"
 
+      - name: Check CHANGELOG updated
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          bash scripts/check-changelog-updated.sh
+
       - name: Run tests
         run: make test
 
@@ -94,12 +110,101 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
+      - name: Check coverage threshold
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        shell: bash
+        run: |
+          echo "Checking test coverage threshold..."
+
+          # Extract total coverage percentage
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+
+          # Define threshold
+          THRESHOLD=80.0
+
+          echo "Current coverage: ${COVERAGE}%"
+          echo "Required threshold: ${THRESHOLD}%"
+
+          # Compare coverage to threshold
+          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+            echo "❌ ERROR: Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+            echo ""
+            echo "Please add tests to increase coverage above ${THRESHOLD}%"
+            echo ""
+            echo "To check coverage locally:"
+            echo "  make test-coverage"
+            echo "  open coverage.html"
+            exit 1
+          else
+            echo "✅ Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
+          fi
+
+      - name: Calculate test duration
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        shell: bash
+        run: |
+          START=${{ steps.test_start.outputs.TEST_START }}
+          END=$(date +%s)
+          DURATION=$((END - START))
+          echo "⏱️  Test suite completed in ${DURATION} seconds"
+          echo "TEST_DURATION=${DURATION}" >> $GITHUB_ENV
+
+      - name: Track test duration metric
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        shell: bash
+        run: |
+          bash scripts/track-metrics.sh test_duration ${{ env.TEST_DURATION }} seconds
+
+      - name: Check performance regression
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22' && github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          # Check test duration regression (20% threshold)
+          bash scripts/check-performance-regression.sh test_duration ${{ env.TEST_DURATION }} 20
+
+      - name: Commit and push metrics
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22' && github.event_name == 'push'
+        shell: bash
+        run: |
+          # Configure git
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          # Check if metrics changed
+          if ! git diff --quiet .ci-metrics/; then
+            git add .ci-metrics/
+            git commit -m "ci: update performance metrics [skip ci]"
+            git push
+          else
+            echo "No metrics changes to commit"
+          fi
+
+  pipeline-tests:
+    name: Pipeline Script Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for CHANGELOG validation
+
+      - name: Install Bats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+
+      - name: Run Bats tests
+        run: |
+          bats tests/scripts/*.bats
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for CHANGELOG validation
 
       - name: Setup Go
         uses: actions/setup-go@v4

@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/itchyny/gojq"
+
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 )
 
 // ApplyJQFilter applies a jq expression to JSONL data
@@ -18,21 +20,21 @@ func ApplyJQFilter(jsonlData string, jqExpr string) (string, error) {
 	// Parse jq expression
 	query, err := gojq.Parse(jqExpr)
 	if err != nil {
-		return "", fmt.Errorf("invalid jq expression: %w", err)
+		return "", fmt.Errorf("invalid jq expression '%s': %w", jqExpr, mcerrors.ErrParseError)
 	}
 
 	// Parse JSONL data
 	lines := strings.Split(strings.TrimSpace(jsonlData), "\n")
 	var data []interface{}
 
-	for _, line := range lines {
+	for lineNum, line := range lines {
 		if line == "" {
 			continue
 		}
 
 		var obj interface{}
 		if err := json.Unmarshal([]byte(line), &obj); err != nil {
-			return "", fmt.Errorf("invalid JSON: %w", err)
+			return "", fmt.Errorf("invalid JSON at line %d: %w", lineNum+1, mcerrors.ErrParseError)
 		}
 		data = append(data, obj)
 	}
@@ -59,7 +61,7 @@ func ApplyJQFilter(jsonlData string, jqExpr string) (string, error) {
 	for _, result := range results {
 		jsonBytes, err := json.Marshal(result)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to marshal jq filter result to JSON: %w", mcerrors.ErrParseError)
 		}
 		output.Write(jsonBytes)
 		output.WriteString("\n")

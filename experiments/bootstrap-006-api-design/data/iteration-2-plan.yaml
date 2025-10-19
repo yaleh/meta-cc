@@ -1,0 +1,387 @@
+# Iteration 2 Plan - API Consistency Improvements
+
+## State Assessment
+
+```yaml
+current_state:
+  V(s₁): 0.74
+  gap_to_target: 0.06
+
+  components:
+    V_usability: 0.74
+    V_consistency: 0.72  # PRIMARY TARGET
+    V_completeness: 0.65
+    V_evolvability: 0.84
+
+  consistency_breakdown:
+    api_design_consistency: 0.93  # Naming, parameters, responses
+    implementation_consistency: 0.72  # Error messages, edge cases, docs
+    combined: 0.72
+
+  weakest_component: V_consistency (0.72)
+```
+
+---
+
+## Observations Summary
+
+From `data/consistency-analysis-iteration-2.md`:
+
+**Strengths** (V = 1.00):
+- Parameter naming: 100% snake_case
+- Response format: 100% hybrid mode
+- Description format: 100% template adherence
+- Standard parameters: 100% via MergeParameters()
+
+**Moderate Issues** (V = 0.85):
+- Naming pattern: 13/14 tools follow `query_*` pattern
+  - Outlier: `get_session_stats` (should be `query_session_stats`)
+
+**Weaknesses** (V = 0.80):
+- Parameter ordering: ~60% consistency (varies across tools)
+- Missing parameters: 2 tools lack `limit` parameter
+
+**Critical Gaps**:
+1. No naming convention guideline documented
+2. No parameter ordering convention documented
+3. No automated consistency checker
+
+---
+
+## Goal Definition
+
+### Primary Objective
+
+**Goal**: Improve V_consistency from 0.72 to 0.85+
+
+**Success Criteria**:
+1. Naming convention guideline documented
+2. Parameter ordering convention documented
+3. Consistency checking methodology created
+4. V_consistency ≥ 0.85
+
+**Expected ΔV**:
+- Current: V(s₁) = 0.74
+- Target V_consistency: 0.85 (from 0.72)
+- ΔV_consistency = (0.85 - 0.72) × 0.30 (weight) = +0.039
+- Expected V(s₂) = 0.74 + 0.039 = 0.779 ≈ 0.78
+
+**Convergence Assessment**:
+- V(s₂) = 0.78 < 0.80 (target)
+- Gap remaining: 0.02
+- **Likely need Iteration 3** (usability or completeness improvements)
+
+---
+
+## Priority Analysis
+
+### Urgency & Impact Assessment
+
+```yaml
+issues:
+  naming_inconsistency:
+    urgency: MEDIUM (breaks pattern, but functional)
+    impact: MEDIUM (user confusion, documentation complexity)
+    addressability: HIGH (design-level, no code changes needed)
+    priority: HIGH
+
+  parameter_ordering:
+    urgency: LOW (cosmetic, non-breaking)
+    impact: LOW (minor usability issue)
+    addressability: MEDIUM (documentation + future enforcement)
+    priority: MEDIUM
+
+  missing_guideline_docs:
+    urgency: HIGH (blocks future consistency)
+    impact: HIGH (prevents future violations)
+    addressability: HIGH (documentation task)
+    priority: CRITICAL
+
+  no_consistency_checker:
+    urgency: MEDIUM (manual validation error-prone)
+    impact: MEDIUM (quality assurance)
+    addressability: MEDIUM (requires methodology design)
+    priority: HIGH
+```
+
+**Ranked Priorities**:
+1. **Critical**: Create naming convention guideline
+2. **Critical**: Create parameter ordering convention
+3. **High**: Create consistency checking methodology
+4. **Medium**: Document deprecation plan for `get_session_stats`
+
+---
+
+## Agent Selection
+
+### Decision Tree Analysis
+
+```yaml
+goal:
+  description: "Design API consistency guidelines and checking methodology"
+  complexity: MODERATE
+  domain: API consistency, naming conventions, parameter design
+
+evaluation:
+  straightforward: NO
+    rationale: "Requires API design expertise, convention design"
+
+  requires_specialization: YES
+    complex_domain_knowledge: YES (API consistency patterns, naming conventions)
+    expected_ΔV: 0.039 (< 0.05 threshold)
+    reusable: YES (API consistency universal concern)
+    generic_agents_insufficient: MAYBE (doc-writer could handle, but less effective)
+
+  existing_agent_capable:
+    api-evolution-planner: PARTIAL (focuses on versioning, not consistency)
+    doc-writer: PARTIAL (can document, lacks API design expertise)
+    data-analyst: NO (analysis done, need guideline design)
+```
+
+### Specialization Decision
+
+**Should Create Specialized Agent?**
+
+**Arguments FOR**:
+- API consistency is distinct domain from API evolution
+- Consistency checking requires specialized expertise
+- Reusable for any API design work
+- Generic doc-writer would produce superficial guidelines
+
+**Arguments AGAINST**:
+- Expected ΔV = 0.039 < 0.05 threshold (below specialization threshold)
+- Could use api-evolution-planner + doc-writer combination
+- Iteration 2 might not justify new agent (prefer agent stability)
+
+**DECISION**: **NO - Use Existing Agents**
+
+**Rationale**:
+1. Expected ΔV (0.039) below specialization threshold (0.05)
+2. api-evolution-planner has adjacent expertise (API design patterns)
+3. doc-writer can handle documentation task
+4. Iteration 2 should demonstrate agent stability (A₂ = A₁)
+5. Can create specialized agent in Iteration 3 if generic approach fails
+
+**Selected Agents**:
+1. **api-evolution-planner**: Design consistency conventions (adjacent expertise)
+2. **doc-writer**: Create iteration documentation
+
+---
+
+## Work Breakdown
+
+### Task 1: Design Naming Convention Guideline
+
+**Agent**: api-evolution-planner
+**Input**:
+- Consistency analysis (data/consistency-analysis-iteration-2.md)
+- Current tool catalog (16 tools)
+- Naming patterns identified (query_*, get_*, list_*, cleanup_*)
+
+**Task**:
+- Design naming convention rules
+- Define prefix categories (query, get, list, cleanup)
+- Create decision tree for naming new tools
+- Document rationale for each prefix
+- Include examples (good vs. bad names)
+
+**Output**: `data/api-naming-convention.md`
+
+**Success Criteria**:
+- Clear rules for each prefix
+- Decision tree for naming new tools
+- Handles edge cases (stats vs. query, utility vs. query)
+- Actionable for future tool additions
+
+---
+
+### Task 2: Design Parameter Ordering Convention
+
+**Agent**: api-evolution-planner
+**Input**:
+- Consistency analysis (parameter ordering section)
+- Current parameter patterns across 16 tools
+- Parameter categories (required, filtering, range, limit)
+
+**Task**:
+- Design parameter ordering rules
+- Categorize parameters (required, filtering, range, output control)
+- Define ordering priority (required → filtering → range → limit)
+- Create examples for each tool type
+- Document rationale
+
+**Output**: `data/api-parameter-convention.md`
+
+**Success Criteria**:
+- Clear ordering rules
+- Category-based ordering system
+- Handles all parameter types
+- Backward compatible (JSON parameter order doesn't matter)
+
+---
+
+### Task 3: Design Consistency Checking Methodology
+
+**Agent**: api-evolution-planner
+**Input**:
+- Naming convention guideline
+- Parameter ordering convention
+- Current tools.go structure
+
+**Task**:
+- Design validation checklist
+- Create consistency testing methodology
+- Define automated checking approach
+- Document manual review process
+- Create quality gates
+
+**Output**: `data/api-consistency-methodology.md`
+
+**Success Criteria**:
+- Comprehensive validation checklist
+- Actionable for manual review
+- Automatable (future implementation)
+- Covers all consistency dimensions
+
+---
+
+### Task 4: Document Iteration 2
+
+**Agent**: doc-writer
+**Input**:
+- Iteration 2 plan (this file)
+- Consistency analysis results
+- Naming convention guideline
+- Parameter convention guideline
+- Consistency methodology
+
+**Task**:
+- Create iteration-2.md following template
+- Document state transition (s₁ → s₂)
+- Calculate V(s₂) with improved consistency
+- Reflection and learnings
+- Convergence check
+
+**Output**: `iteration-2.md`
+
+**Success Criteria**:
+- Complete iteration documentation
+- Honest V(s₂) calculation
+- Convergence check performed
+- Next iteration recommendation
+
+---
+
+## Dependencies
+
+```yaml
+task_graph:
+  parallel:
+    - Task 1 (Naming Convention)
+    - Task 2 (Parameter Convention)
+
+  sequential:
+    - Task 3 (Consistency Methodology) depends on [Task 1, Task 2]
+    - Task 4 (Iteration Report) depends on [Task 1, Task 2, Task 3]
+```
+
+**Execution Strategy**: Parallel tasks 1-2, then sequential 3-4
+
+---
+
+## Risks & Mitigations
+
+### Risk 1: Generic Agents Insufficient
+
+**Risk**: api-evolution-planner lacks consistency expertise
+**Probability**: MEDIUM
+**Impact**: HIGH (poor guideline quality)
+
+**Mitigation**:
+- Provide detailed context in task description
+- Reference industry standards (RESTful API, MCP patterns)
+- If output quality low, create specialized agent in Iteration 3
+
+### Risk 2: ΔV Lower Than Expected
+
+**Risk**: Consistency improvements don't reach 0.85
+**Probability**: LOW
+**Impact**: MEDIUM (need Iteration 3)
+
+**Mitigation**:
+- Conservative ΔV estimation (0.039)
+- Honest value calculation in reflection
+- Plan for Iteration 3 if needed
+
+### Risk 3: Agent Set Evolution Pressure
+
+**Risk**: Community expects agent creation every iteration
+**Probability**: LOW
+**Impact**: LOW (methodology clarification)
+
+**Mitigation**:
+- Document rationale for agent stability (A₂ = A₁)
+- Emphasize ΔV threshold (< 0.05)
+- Demonstrate that generic agents can handle moderate complexity
+
+---
+
+## Expected Outcomes
+
+### Deliverables
+
+1. `data/api-naming-convention.md` (~2,000 words)
+2. `data/api-parameter-convention.md` (~2,000 words)
+3. `data/api-consistency-methodology.md` (~2,500 words)
+4. `iteration-2.md` (comprehensive report)
+
+### State Transition
+
+```yaml
+s₁ → s₂:
+  V_consistency: 0.72 → 0.85
+  V(s): 0.74 → 0.78
+  gap_to_target: 0.06 → 0.02
+
+  improvements:
+    - Naming convention documented
+    - Parameter ordering convention documented
+    - Consistency checking methodology created
+    - Foundation for future automation
+```
+
+### Convergence Projection
+
+```yaml
+iteration_2:
+  status: NOT_CONVERGED (expected)
+  V(s₂): 0.78
+  gap: 0.02
+
+iteration_3_projection:
+  focus: V_usability (0.74 → 0.85) OR V_completeness (0.65 → 0.75)
+  expected_V(s₃): 0.81-0.83
+  convergence: LIKELY
+```
+
+---
+
+## Plan Approval
+
+```yaml
+plan_status: APPROVED
+rationale:
+  - Focused on single objective (consistency)
+  - Achievable in single iteration
+  - Measurable success criteria
+  - Data-driven priority
+  - Agent selection justified (use existing, no specialization)
+  - Honest ΔV projection (0.039)
+
+ready_for_execution: YES
+```
+
+---
+
+**Plan Created**: 2025-10-15
+**Next Phase**: EXECUTE (invoke api-evolution-planner for Tasks 1-3)

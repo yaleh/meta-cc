@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/yaleh/meta-cc/internal/config"
 )
 
 // TestAdaptInlineResponse tests inline mode formatting for small results
@@ -16,7 +18,8 @@ func TestAdaptInlineResponse(t *testing.T) {
 
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	cfg, _ := config.Load()
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -56,7 +59,8 @@ func TestAdaptFileRefResponse(t *testing.T) {
 
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	cfg, _ := config.Load()
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -108,7 +112,8 @@ func TestNoTruncationInlineMode(t *testing.T) {
 
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	cfg, _ := config.Load()
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -178,7 +183,8 @@ func TestNoTruncationFileRefMode(t *testing.T) {
 
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	cfg, _ := config.Load()
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -226,7 +232,8 @@ func TestAdaptOutputModeOverride(t *testing.T) {
 		"output_mode": "file_ref",
 	}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	cfg, _ := config.Load()
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -260,7 +267,8 @@ func TestBackwardCompatibility(t *testing.T) {
 		"output_mode": "legacy",
 	}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	cfg, _ := config.Load()
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -360,7 +368,8 @@ func TestEmptyDataHandling(t *testing.T) {
 
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	cfg, _ := config.Load()
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -393,7 +402,8 @@ func TestStatsOnlyWithHybridMode(t *testing.T) {
 
 	// Note: stats_only is handled in executor.go before adaptResponse,
 	// so we just verify adaptResponse doesn't break with empty params
-	response, err := adaptResponse(data, params, "query_tools")
+	cfg, _ := config.Load()
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -414,7 +424,8 @@ func TestFileCleanupOnError(t *testing.T) {
 		"output_mode": "file_ref",
 	}
 
-	_, err := adaptResponse(data, params, "query_tools")
+	cfg, _ := config.Load()
+	_, err := adaptResponse(cfg, data, params, "query_tools")
 	if err == nil {
 		t.Errorf("expected error with invalid data")
 	}
@@ -440,7 +451,8 @@ func TestConfigurableThreshold(t *testing.T) {
 		"inline_threshold_bytes": 4096,
 	}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	cfg, _ := config.Load()
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -481,7 +493,8 @@ func TestEnvironmentThreshold(t *testing.T) {
 
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(data, params, "query_tools")
+	cfg, _ := config.Load()
+	response, err := adaptResponse(cfg, data, params, "query_tools")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -522,7 +535,8 @@ func BenchmarkAdaptResponseFileRef(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		response, err := adaptResponse(data, params, "query_tools")
+		cfg, _ := config.Load()
+		response, err := adaptResponse(cfg, data, params, "query_tools")
 		if err != nil {
 			b.Fatalf("adaptResponse failed: %v", err)
 		}

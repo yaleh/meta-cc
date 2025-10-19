@@ -1,0 +1,268 @@
+# Iteration 2: Issue Catalog
+# Modules: query/ (14 issues), validation/ (14 issues)
+# Total: 28 issues (3 critical, 4 high, 14 medium, 3 low)
+
+iteration: 2
+date: 2025-10-17
+modules: [query, validation]
+total_issues: 28
+
+summary:
+  by_severity:
+    critical: 3
+    high: 4
+    medium: 14
+    low: 3
+  by_category:
+    correctness: 12
+    maintainability: 6
+    readability: 2
+    go_idioms: 1
+    security: 1
+    performance: 2
+    testing: 4
+  by_module:
+    query: 14
+    validation: 14
+
+critical_issues:
+  - id: VALIDATION-001
+    severity: critical
+    category: testing
+    module: validation
+    file: parser.go
+    description: parser.go (158 lines) has NO tests - complex regex parsing untested
+    impact: High risk of regressions, accounts for ~20% of module, major contributor to 32.5% coverage gap
+
+  - id: VALIDATION-005
+    severity: critical
+    category: correctness
+    module: validation
+    file: ordering.go
+    description: isCorrectOrder doesn't validate order at all - only checks existence
+    impact: Parameter ordering validation completely non-functional, feature is broken
+
+  - id: VALIDATION-006
+    severity: critical
+    category: correctness
+    module: validation
+    file: ordering.go
+    description: getParameterOrder returns random order because Go maps are unordered
+    impact: Combined with VALIDATION-005, ordering validation is completely broken
+
+high_issues:
+  - id: QUERY-005
+    severity: high
+    category: performance
+    module: query
+    file: sequences.go
+    description: O(n*m) nested iteration in calculateSequenceTimeSpan
+    impact: Severe performance degradation for large sessions (1000 occurrences × 5000 toolCalls = 5M iterations)
+
+  - id: QUERY-007
+    severity: high
+    category: correctness
+    module: query
+    file: file_access.go
+    description: Missing entries parameter validation (nil check)
+    impact: Calling buildTurnIndex(nil) would panic
+
+  - id: QUERY-013
+    severity: high
+    category: testing
+    module: query
+    file: all
+    description: Missing test coverage for edge cases (empty entries, nil inputs, invalid timestamps)
+    impact: Edge cases untested, potential bugs in production
+
+  - id: VALIDATION-012
+    severity: high
+    category: testing
+    module: validation
+    file: reporter.go
+    description: reporter.go (176 lines) has NO tests - complex formatting logic untested
+    impact: Output formatting failures would be user-visible, no regression protection
+
+medium_issues:
+  - id: QUERY-001
+    severity: high
+    category: correctness
+    module: query
+    description: Variable shadowing in turn assignment
+
+  - id: QUERY-002
+    severity: medium
+    category: correctness
+    module: query
+    description: parseTimestamp returns 0 on error (ambiguous with valid 0)
+
+  - id: QUERY-003
+    severity: medium
+    category: readability
+    module: query
+    description: Magic number 100 for preview length
+
+  - id: QUERY-004
+    severity: medium
+    category: maintainability
+    module: query
+    description: Hard-coded file parameter names
+
+  - id: QUERY-006
+    severity: medium
+    category: maintainability
+    module: query
+    description: Code duplication between buildContextBefore and buildContextAfter
+
+  - id: QUERY-008
+    severity: medium
+    category: performance
+    module: query
+    description: Inefficient pattern string building (should use strings.Builder)
+
+  - id: QUERY-009
+    severity: medium
+    category: correctness
+    module: query
+    description: Fragile basename extraction using custom lastSlash (should use filepath.Base)
+
+  - id: QUERY-010
+    severity: medium
+    category: maintainability
+    module: query
+    description: Hard-coded tool names in switch statement
+
+  - id: QUERY-012
+    severity: medium
+    category: readability
+    module: query
+    description: Missing godoc comments on private helpers
+
+  - id: VALIDATION-002
+    severity: high
+    category: security
+    module: validation
+    description: Regex injection risk - unsanitized tool name in string formatting
+
+  - id: VALIDATION-003
+    severity: high
+    category: correctness
+    module: validation
+    description: findClosingBrace lacks godoc explaining -1 return behavior
+
+  - id: VALIDATION-004
+    severity: medium
+    category: maintainability
+    module: validation
+    description: Hard-coded validation checks in Validate() function
+
+  - id: VALIDATION-007
+    severity: medium
+    category: correctness
+    module: validation
+    description: Silent error ignoring in printJSON
+
+  - id: VALIDATION-008
+    severity: medium
+    category: correctness
+    module: validation
+    description: splitLines function is completely broken - doesn't split lines
+
+  - id: VALIDATION-009
+    severity: medium
+    category: correctness
+    module: validation
+    description: suggestCorrectName logic error with camelCase names
+
+  - id: VALIDATION-010
+    severity: medium
+    category: correctness
+    module: validation
+    description: No validation for empty tool name/description
+
+  - id: VALIDATION-011
+    severity: medium
+    category: maintainability
+    module: validation
+    description: Hard-coded standard parameters list
+
+  - id: VALIDATION-013
+    severity: medium
+    category: correctness
+    module: validation
+    description: Regex pattern too strict in ValidateDescription (doesn't handle whitespace variations)
+
+  - id: VALIDATION-014
+    severity: medium
+    category: correctness
+    module: validation
+    description: Missing file path context in parsing errors
+
+low_issues:
+  - id: QUERY-011
+    severity: low
+    category: go_idioms
+    module: query
+    description: Exported mutable global BuiltinTools map (breaks encapsulation)
+
+  - id: QUERY-014
+    severity: low
+    category: correctness
+    module: query
+    description: Potential integer overflow on 32-bit systems (time span calculation)
+
+  - id: (no low issues in validation/)
+    severity: low
+    category: N/A
+    module: validation
+    description: N/A
+
+cross_cutting_patterns:
+  - pattern: o_n_m_iterations
+    occurrences: 1
+    locations: [QUERY-005]
+    cumulative: 4
+    note: "Fourth occurrence of O(n*m) pattern (also in ANALYZER-016, ANALYZER-018)"
+
+  - pattern: hard_coded_constants
+    occurrences: 4
+    locations: [QUERY-004, QUERY-010, VALIDATION-004, VALIDATION-011]
+    cumulative: 10
+    note: "Tool names, parameters, validation checks embedded in code"
+
+  - pattern: missing_godoc
+    occurrences: 10+
+    locations: [QUERY-012, VALIDATION-003]
+    cumulative: 30+
+    note: "Private helpers lack documentation across all modules"
+
+  - pattern: test_coverage_gap
+    occurrences: 1
+    locations: [validation/ at 32.5%]
+    cumulative: 1
+    note: "CRITICAL - parser.go and reporter.go have NO tests"
+
+  - pattern: broken_core_functionality
+    occurrences: 2
+    locations: [VALIDATION-005, VALIDATION-006]
+    cumulative: 2
+    note: "NEW PATTERN - Feature doesn't work at all (ordering validation)"
+
+recommendations:
+  immediate:
+    - "Fix VALIDATION-005 and VALIDATION-006 (broken ordering validation)"
+    - "Create parser_test.go for validation/ module"
+    - "Fix O(n*m) iteration in QUERY-005"
+    - "Add nil check in QUERY-007"
+
+  short_term:
+    - "Increase validation/ test coverage from 32.5% to 80%+"
+    - "Create reporter_test.go"
+    - "Extract all hard-coded constants to named constants or registries"
+    - "Add godoc comments to private helpers"
+
+  long_term:
+    - "Implement automation strategies (golangci-lint, gosec, pre-commit hooks)"
+    - "Use review checklist for remaining modules"
+    - "Conduct transfer test to validate methodology reusability"
+    - "Measure review time improvement with methodology"

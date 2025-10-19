@@ -1,0 +1,156 @@
+# Agent Applicability Assessment
+# Iteration: 0 (Baseline)
+# Date: 2025-10-17
+
+inherited_agents:
+  from: "Bootstrap-003 Error Recovery"
+  total: 3
+  agents:
+    - name: data-analyst
+      domain: "General data analysis"
+      observability_applicability:
+        rating: "High (⭐⭐⭐)"
+        applicable_tasks:
+          - "Analyze existing log patterns (if any)"
+          - "Calculate baseline observability metrics"
+          - "Identify high-frequency error patterns needing logging"
+          - "Compute value function components (V_coverage, V_actionability, etc.)"
+          - "Statistical analysis of instrumentation coverage"
+        adaptation_needed: "Minimal - generic analysis skills apply directly"
+        assessment: "Directly useful for observability baseline and metrics calculation"
+
+    - name: doc-writer
+      domain: "General documentation"
+      observability_applicability:
+        rating: "High (⭐⭐⭐)"
+        applicable_tasks:
+          - "Document iteration reports (iteration-N.md)"
+          - "Write logging standards documentation"
+          - "Document metrics definitions"
+          - "Create dashboard specifications"
+          - "Write alerting rule documentation"
+        adaptation_needed: "Minimal - documentation skills apply directly"
+        assessment: "Essential for documenting observability standards and methodology"
+
+    - name: coder
+      domain: "General code implementation"
+      observability_applicability:
+        rating: "Medium (⭐⭐)"
+        applicable_tasks:
+          - "Implement structured logging (log/slog)"
+          - "Add metrics instrumentation (Prometheus)"
+          - "Implement distributed tracing (OpenTelemetry)"
+          - "Write configuration files"
+        adaptation_needed: "Moderate - needs observability library guidance"
+        limitations:
+          - "No specialized logging pattern knowledge"
+          - "No metrics design expertise (RED, USE, Four Golden Signals)"
+          - "No tracing architecture knowledge"
+        assessment: "Can implement code but may need specialized agent for design decisions"
+
+specialization_needs_identified:
+  likely_specialized_agents:
+    - name: log-analyzer
+      justification: "Systematic log pattern analysis requires domain expertise"
+      capabilities_needed:
+        - "Parse and classify log statements"
+        - "Identify logging patterns (structured vs unstructured)"
+        - "Recommend log levels (DEBUG, INFO, WARN, ERROR)"
+        - "Design logging standards and conventions"
+      when_needed: "Iteration 1 (when analyzing existing logs and designing logging framework)"
+      inherited_agent_insufficient: "data-analyst lacks logging domain knowledge"
+
+    - name: metric-designer
+      justification: "Metrics selection requires specialized frameworks (RED, USE, Four Golden Signals)"
+      capabilities_needed:
+        - "Apply RED method (Rate, Errors, Duration)"
+        - "Apply USE method (Utilization, Saturation, Errors)"
+        - "Design Four Golden Signals (Latency, Traffic, Errors, Saturation)"
+        - "Define metric dimensions and labels"
+        - "Recommend dashboard layouts"
+      when_needed: "Iteration 2-3 (when designing metrics instrumentation)"
+      inherited_agent_insufficient: "coder can implement but cannot design metrics strategy"
+
+    - name: trace-architect
+      justification: "Distributed tracing design requires specialized knowledge"
+      capabilities_needed:
+        - "Design trace context propagation"
+        - "Define span hierarchies (parent, child spans)"
+        - "Recommend trace sampling strategies"
+        - "Design trace baggage (context enrichment)"
+      when_needed: "Iteration 3-4 (when implementing distributed tracing)"
+      inherited_agent_insufficient: "coder can implement but cannot design tracing architecture"
+
+  potentially_needed:
+    - name: dashboard-builder
+      when: "If dashboard design becomes complex (Iteration 4-5)"
+      decision: "Monitor need - may be handled by metric-designer + doc-writer"
+
+    - name: alert-definer
+      when: "If alerting rules require deep expertise (Iteration 5-6)"
+      decision: "Monitor need - may be handled by metric-designer + doc-writer"
+
+agent_reuse_strategy:
+  iteration_1:
+    focus: "Structured logging framework design"
+    likely_agents:
+      - data-analyst: "Analyze existing logs (if any)"
+      - NEW log-analyzer: "Design logging standards" (likely needed)
+      - coder: "Implement log/slog"
+      - doc-writer: "Document logging standards"
+
+  iteration_2:
+    focus: "RED metrics instrumentation"
+    likely_agents:
+      - NEW metric-designer: "Design RED metrics" (likely needed)
+      - coder: "Implement Prometheus metrics"
+      - doc-writer: "Document metrics"
+
+  iteration_3:
+    focus: "Distributed tracing"
+    likely_agents:
+      - NEW trace-architect: "Design tracing strategy" (likely needed)
+      - coder: "Implement OpenTelemetry"
+      - doc-writer: "Document tracing"
+
+inherited_agent_strengths:
+  - "Generic agents provide solid foundation (analysis, documentation, implementation)"
+  - "data-analyst excellent for metrics calculation and baseline assessment"
+  - "doc-writer essential for all documentation needs"
+  - "coder capable of implementing instrumentation code"
+
+inherited_agent_limitations:
+  - "Lack specialized observability domain knowledge"
+  - "Cannot design logging standards (need log-analyzer)"
+  - "Cannot design metrics frameworks (need metric-designer)"
+  - "Cannot design tracing architecture (need trace-architect)"
+
+evolution_likelihood:
+  high_confidence:
+    - log-analyzer: "90% confident will be needed in Iteration 1"
+    - metric-designer: "90% confident will be needed in Iteration 2"
+
+  medium_confidence:
+    - trace-architect: "70% confident will be needed in Iteration 3"
+
+  low_confidence:
+    - dashboard-builder: "30% - may be handled by existing agents"
+    - alert-definer: "30% - may be handled by existing agents"
+
+---
+
+# Assessment Summary
+
+**Inherited Agents**: 3 generic agents from Bootstrap-003
+- data-analyst: High applicability (⭐⭐⭐)
+- doc-writer: High applicability (⭐⭐⭐)
+- coder: Medium applicability (⭐⭐)
+
+**Specialization Needs**: Likely need 2-3 specialized agents
+- log-analyzer (Iteration 1) - High confidence
+- metric-designer (Iteration 2) - High confidence
+- trace-architect (Iteration 3) - Medium confidence
+
+**Strategy**: Start with inherited agents, create specialized agents as domain expertise gaps become clear
+
+**Note**: Bootstrap-003 specialized agents (error-classifier, recovery-advisor, root-cause-analyzer) are NOT inherited because they're error-recovery specific, not observability-specific.

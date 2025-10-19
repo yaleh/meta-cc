@@ -1,0 +1,609 @@
+---
+# Gap Analysis - Cross-Cutting Concerns Standardization
+# Bootstrap-013 Iteration 0
+# Generated: 2025-10-17
+# Based on: Pattern inventory and baseline metrics (V_instance=0.23)
+
+# ============================================================================
+# INSTANCE LAYER GAPS (Concrete Standardization Needs)
+# ============================================================================
+
+instance_gaps:
+  logging_gaps:
+    priority: "CRITICAL"
+    current_state:
+      V_consistency: 0.05
+      coverage: "0.7% (1 statement in 14K lines)"
+      standard: "None"
+
+    missing_capabilities:
+      - capability: "Logging infrastructure"
+        description: "No logging framework or library in use"
+        impact: "Cannot debug production issues"
+
+      - capability: "Log levels"
+        description: "No DEBUG, INFO, WARN, ERROR level definitions"
+        impact: "Cannot filter logs by severity"
+
+      - capability: "Structured logging"
+        description: "No key-value or JSON logging"
+        impact: "Cannot parse or query logs programmatically"
+
+      - capability: "Context propagation"
+        description: "No request IDs, trace IDs, or operation context"
+        impact: "Cannot correlate logs across operations"
+
+      - capability: "Logging patterns"
+        description: "No standard patterns for common scenarios"
+        impact: "Inconsistent logging when added"
+
+    standardization_needs:
+      - need: "Select logging library"
+        options:
+          - "log/slog (Go 1.21+ stdlib, recommended)"
+          - "zerolog (high performance)"
+          - "zap (Uber's structured logger)"
+        recommendation: "log/slog for stdlib compatibility"
+
+      - need: "Define log levels and usage"
+        details:
+          - "DEBUG: Detailed debugging information"
+          - "INFO: General informational messages"
+          - "WARN: Warning messages"
+          - "ERROR: Error messages"
+          - "Use consistent level selection criteria"
+
+      - need: "Create logger interface"
+        details:
+          - "Abstraction over concrete implementation"
+          - "Allows swapping libraries if needed"
+          - "Easier testing (mock logger)"
+
+      - need: "Define logging patterns"
+        patterns_needed:
+          - "Function entry/exit logging"
+          - "Error logging with context"
+          - "Operation start/completion logging"
+          - "External call logging (DB, API, etc.)"
+
+      - need: "Add logging to key operations"
+        target_modules:
+          - "internal/parser/ (JSONL parsing operations)"
+          - "internal/query/ (Query execution)"
+          - "cmd/mcp-server/ (MCP server operations)"
+          - "internal/analyzer/ (Analysis operations)"
+
+    target_state:
+      V_consistency: 0.80
+      coverage: "80%+ of modules with appropriate logging"
+      standard: "log/slog with defined patterns"
+
+    estimated_effort: "3-4 iterations"
+
+  error_handling_gaps:
+    priority: "MEDIUM"
+    current_state:
+      V_consistency: 0.70
+      coverage: "47% with wrapping, 95% style consistency"
+      standard: "Implicit (fmt.Errorf + %w)"
+
+    missing_capabilities:
+      - capability: "Error taxonomy"
+        description: "No categorization of error types"
+        impact: "Cannot handle errors systematically"
+
+      - capability: "Error recovery patterns"
+        description: "No documented recovery strategies"
+        impact: "Inconsistent error recovery"
+
+      - capability: "Error categorization"
+        description: "No temporary/permanent/retryable classification"
+        impact: "Cannot implement retry logic systematically"
+
+      - capability: "Standard error types"
+        description: "Limited custom error types (only CLI errors)"
+        impact: "Cannot enforce error handling policies"
+
+    standardization_needs:
+      - need: "Create error taxonomy"
+        categories:
+          - "Input validation errors"
+          - "File system errors"
+          - "Parse errors"
+          - "Query errors"
+          - "Internal errors"
+
+      - need: "Define error types"
+        details:
+          - "Temporary errors (retryable)"
+          - "Permanent errors (non-retryable)"
+          - "Validation errors (user-fixable)"
+          - "Internal errors (system issues)"
+
+      - need: "Document recovery patterns"
+        patterns_needed:
+          - "Retry with backoff"
+          - "Fallback to default"
+          - "Graceful degradation"
+          - "Fail fast"
+
+      - need: "Standardize error wrapping"
+        details:
+          - "When to wrap vs create new"
+          - "Context to include in wrapping"
+          - "Error message formatting"
+
+    target_state:
+      V_consistency: 0.85
+      coverage: "80%+ with taxonomy, 90%+ with wrapping"
+      standard: "Error taxonomy + fmt.Errorf patterns"
+
+    estimated_effort: "2-3 iterations"
+
+  configuration_gaps:
+    priority: "HIGH"
+    current_state:
+      V_consistency: 0.40
+      coverage: "29 files with config, 28% validated"
+      standard: "None (mix of env vars and flags)"
+
+    missing_capabilities:
+      - capability: "Centralized config management"
+        description: "No single config struct or package"
+        impact: "Config scattered across codebase"
+
+      - capability: "Config validation"
+        description: "Inconsistent validation (50% of env vars)"
+        impact: "Runtime errors from invalid config"
+
+      - capability: "Config defaults"
+        description: "Scattered defaults (40% have defaults)"
+        impact: "Unclear what defaults are"
+
+      - capability: "Config documentation"
+        description: "No structured config documentation"
+        impact: "Users don't know available options"
+
+      - capability: "Config file support"
+        description: "No YAML/JSON config file loading"
+        impact: "All config via env vars or flags (limited)"
+
+    standardization_needs:
+      - need: "Create config package"
+        details:
+          - "Define Config struct with all options"
+          - "Centralize config loading (env, flags, files)"
+          - "Single source of truth for configuration"
+
+      - need: "Implement validation layer"
+        validation_types:
+          - "Required vs optional fields"
+          - "Type validation (string, int, bool)"
+          - "Range validation (min/max values)"
+          - "Format validation (paths, URLs, etc.)"
+
+      - need: "Define all defaults"
+        details:
+          - "Centralize default values in config struct"
+          - "Document rationale for each default"
+          - "Make defaults discoverable"
+
+      - need: "Create config documentation"
+        documentation_needs:
+          - "List all config options"
+          - "Describe each option's purpose"
+          - "Show example values"
+          - "Document env var names and flag names"
+
+      - need: "Extract hardcoded values"
+        locations:
+          - "inline_threshold: 8192 → config.InlineThreshold"
+          - "session_path_base: ~/.claude/projects → config.SessionPathBase"
+          - "Various magic numbers → named constants in config"
+
+    target_state:
+      V_consistency: 0.80
+      coverage: "80%+ of config centralized, 100% validated"
+      standard: "Config package with validation"
+
+    estimated_effort: "2-3 iterations"
+
+  documentation_gaps:
+    priority: "MEDIUM"
+    current_state:
+      V_documentation: 0.05
+      coverage: "1 pattern documented (out of 12)"
+      standard: "None"
+
+    missing_capabilities:
+      - capability: "Pattern library"
+        description: "No documented pattern catalog"
+        impact: "Developers don't know patterns exist"
+
+      - capability: "Usage guides"
+        description: "No pattern usage examples"
+        impact: "Developers don't know how to use patterns"
+
+      - capability: "Rationale documentation"
+        description: "No explanation of why patterns chosen"
+        impact: "Developers don't understand decisions"
+
+      - capability: "Anti-pattern documentation"
+        description: "No list of what to avoid"
+        impact: "Developers repeat mistakes"
+
+    standardization_needs:
+      - need: "Create pattern library document"
+        contents:
+          - "All logging patterns with examples"
+          - "All error handling patterns with examples"
+          - "All config patterns with examples"
+
+      - need: "Write usage guides"
+        guides_needed:
+          - "How to add logging to new code"
+          - "How to handle errors properly"
+          - "How to add new config options"
+
+      - need: "Document rationale"
+        for_each_pattern:
+          - "Why this pattern was chosen"
+          - "Benefits of using this pattern"
+          - "Trade-offs and limitations"
+
+      - need: "Document anti-patterns"
+        anti_patterns_to_document:
+          - "Using fmt.Printf for production logging"
+          - "Swallowing errors (ignoring err)"
+          - "Hardcoding config values"
+          - "No error context"
+
+    target_state:
+      V_documentation: 0.85
+      coverage: "100% of patterns documented"
+      standard: "Pattern library + usage guides"
+
+    estimated_effort: "Throughout iterations (continuous)"
+
+  enforcement_gaps:
+    priority: "HIGH"
+    current_state:
+      V_enforcement: 0.10
+      automated_checks: 0
+      standard: "None (only gofmt + go vet)"
+
+    missing_capabilities:
+      - capability: "Custom linters"
+        description: "No pattern-specific linters"
+        impact: "Cannot enforce patterns automatically"
+
+      - capability: "Go/analysis rules"
+        description: "No go/analysis analyzers written"
+        impact: "Cannot integrate with golangci-lint"
+
+      - capability: "Pre-commit hooks"
+        description: "No hooks enforcing patterns"
+        impact: "Patterns violated before review"
+
+      - capability: "CI/CD integration"
+        description: "No automated enforcement in pipeline"
+        impact: "Patterns not enforced consistently"
+
+    standardization_needs:
+      - need: "Create custom linters"
+        linters_needed:
+          - name: "logging-checker"
+            checks:
+              - "Detect fmt.Printf/Println in production code"
+              - "Ensure log.Debug/Info/Warn/Error used correctly"
+              - "Verify log context includes operation name"
+
+          - name: "error-checker"
+            checks:
+              - "Detect unwrapped errors (missing %w)"
+              - "Ensure error messages follow format"
+              - "Verify error taxonomy types used"
+
+          - name: "config-checker"
+            checks:
+              - "Detect direct os.Getenv calls outside config package"
+              - "Ensure config validation present"
+              - "Detect hardcoded magic numbers"
+
+      - need: "Implement go/analysis analyzers"
+        details:
+          - "Use go/analysis framework"
+          - "Write AST-based pattern detection"
+          - "Integrate with golangci-lint"
+
+      - need: "Set up pre-commit hooks"
+        hooks_needed:
+          - "Run custom linters before commit"
+          - "Block commits with pattern violations"
+          - "Provide helpful error messages"
+
+      - need: "Integrate into CI/CD"
+        integration_points:
+          - "Run linters in CI pipeline"
+          - "Fail builds on violations"
+          - "Report violations in PR reviews"
+
+    target_state:
+      V_enforcement: 0.80
+      automated_checks: "80%+ of patterns enforced"
+      standard: "Custom linters + CI/CD integration"
+
+    estimated_effort: "3-4 iterations"
+
+# ============================================================================
+# META LAYER GAPS (Methodology Development Needs)
+# ============================================================================
+
+meta_gaps:
+  methodology_gaps:
+    priority: "HIGH"
+    current_state:
+      V_completeness: 0.00
+      V_effectiveness: 0.00
+      V_reusability: 0.00
+      status: "No methodology exists"
+
+    missing_components:
+      - component: "Pattern extraction framework"
+        description: "Systematic approach to discovering patterns in codebase"
+        sub_components:
+          - "Grep-based pattern discovery"
+          - "AST-based pattern analysis"
+          - "Statistical pattern analysis"
+          - "Pattern categorization framework"
+          - "Consistency measurement approach"
+
+      - component: "Convention definition process"
+        description: "How to select and define standard conventions"
+        sub_components:
+          - "Selection criteria (best practice, consistency, simplicity)"
+          - "Evaluation framework for alternatives"
+          - "Documentation structure for conventions"
+          - "Rationale capture approach"
+
+      - component: "Linter generation strategy"
+        description: "Systematic approach to creating custom linters"
+        sub_components:
+          - "go/analysis framework usage patterns"
+          - "AST pattern matching techniques"
+          - "Linter design patterns"
+          - "Integration strategy (golangci-lint, pre-commit, CI/CD)"
+
+      - component: "Template creation approach"
+        description: "How to create reusable code generation templates"
+        sub_components:
+          - "Template design patterns"
+          - "Code generation techniques"
+          - "Usage documentation structure"
+          - "Template testing approach"
+
+      - component: "Migration planning methodology"
+        description: "Safe, incremental migration from ad-hoc to systematic"
+        sub_components:
+          - "Impact analysis techniques"
+          - "Dependency ordering strategies"
+          - "Risk assessment framework"
+          - "Rollback planning approach"
+          - "Incremental migration patterns"
+
+    development_approach:
+      method: "Observe-Codify-Automate (OCA) framework"
+      phases:
+        - phase: "Observe (Iterations 0-2)"
+          focus: "Pattern extraction and analysis"
+          methodology_extraction: "How we discover and categorize patterns"
+
+        - phase: "Codify (Iterations 3-4)"
+          focus: "Convention definition and linter implementation"
+          methodology_extraction: "How we select standards and enforce them"
+
+        - phase: "Automate (Iterations 5-6)"
+          focus: "Template creation and migration"
+          methodology_extraction: "How we automate pattern application"
+
+    target_state:
+      V_completeness: 0.85
+      V_effectiveness: 0.80
+      V_reusability: 0.80
+      status: "Complete methodology documented and validated"
+
+    estimated_effort: "Throughout all iterations (observational)"
+
+# ============================================================================
+# AGENT NEEDS ASSESSMENT
+# ============================================================================
+
+agent_needs:
+  current_agents:
+    - name: "data-analyst"
+      specialization: "Low (Generic)"
+      applicable: "Yes - for pattern metrics and statistics"
+      sufficient_for: "Baseline analysis, metrics calculation"
+      insufficient_for: "Deep AST analysis, pattern extraction expertise"
+
+    - name: "doc-writer"
+      specialization: "Low (Generic)"
+      applicable: "Yes - for documentation creation"
+      sufficient_for: "Iteration reports, basic documentation"
+      insufficient_for: "Pattern library design, specialized documentation"
+
+    - name: "coder"
+      specialization: "Low (Generic)"
+      applicable: "Yes - for code implementation"
+      sufficient_for: "Simple scripts, basic tools"
+      insufficient_for: "Custom linter generation, AST manipulation"
+
+  likely_specialized_agents:
+    - name: "pattern-extractor"
+      needed_iteration: 1
+      specialization: "Pattern discovery and analysis"
+      capabilities:
+        - "AST-based pattern extraction"
+        - "Go code parsing and analysis"
+        - "Pattern categorization"
+        - "Consistency measurement"
+      justification: "Generic data-analyst lacks go/ast expertise for deep pattern analysis"
+      estimated_value_impact: "+0.10-0.15 on V_instance"
+
+    - name: "convention-definer"
+      needed_iteration: 2
+      specialization: "Standard definition and documentation"
+      capabilities:
+        - "Best practice research"
+        - "Convention selection criteria"
+        - "Standard documentation"
+        - "Rationale capture"
+      justification: "Need expert judgment for selecting optimal patterns"
+      estimated_value_impact: "+0.10 on V_instance"
+
+    - name: "linter-generator"
+      needed_iteration: 3
+      specialization: "Custom linter creation"
+      capabilities:
+        - "go/analysis framework expertise"
+        - "AST rule writing"
+        - "golangci-lint integration"
+        - "Linter testing"
+      justification: "Generic coder lacks go/analysis expertise for custom analyzers"
+      estimated_value_impact: "+0.20 on V_enforcement"
+
+    - name: "template-creator"
+      needed_iteration: 4
+      specialization: "Code generation template design"
+      capabilities:
+        - "text/template expertise"
+        - "Code generation patterns"
+        - "Template documentation"
+        - "Usage guide creation"
+      justification: "Need systematic approach to reusable templates"
+      estimated_value_impact: "+0.15 on V_maintainability"
+
+    - name: "migration-planner"
+      needed_iteration: 5
+      specialization: "Safe migration strategy"
+      capabilities:
+        - "Impact analysis"
+        - "Dependency analysis"
+        - "Risk assessment"
+        - "Incremental migration sequencing"
+      justification: "Need expertise in safe, large-scale code migration"
+      estimated_value_impact: "+0.10-0.15 on V_consistency"
+
+  agent_creation_triggers:
+    - trigger: "Generic agents struggle with AST analysis"
+      creates: "pattern-extractor"
+      evidence_needed: "Failed or inefficient pattern extraction attempt"
+
+    - trigger: "Need expert judgment for convention selection"
+      creates: "convention-definer"
+      evidence_needed: "Multiple viable alternatives, unclear selection criteria"
+
+    - trigger: "Generic coder cannot write go/analysis linters"
+      creates: "linter-generator"
+      evidence_needed: "Attempted linter creation, insufficient expertise"
+
+    - trigger: "Template design patterns needed"
+      creates: "template-creator"
+      evidence_needed: "Multiple templates needed, no systematic approach"
+
+    - trigger: "Migration complexity exceeds generic capabilities"
+      creates: "migration-planner"
+      evidence_needed: "Complex dependencies, risk of breaking changes"
+
+# ============================================================================
+# ITERATION ROADMAP (PRELIMINARY)
+# ============================================================================
+
+preliminary_roadmap:
+  note: "Actual path will be data-driven, this is a guide only"
+
+  iterations:
+    - iteration: 1
+      focus: "Pattern extraction for logging"
+      likely_work:
+        - "Deep AST analysis of logging opportunities"
+        - "Identify all locations that should have logging"
+        - "Categorize logging needs (debug, info, error)"
+      likely_agent_evolution: "Create pattern-extractor if AST analysis needed"
+      expected_delta_V: "+0.05-0.10"
+
+    - iteration: 2
+      focus: "Define logging conventions and extract error/config patterns"
+      likely_work:
+        - "Select logging library (log/slog recommended)"
+        - "Define logging patterns"
+        - "Extract error handling and config patterns"
+      likely_agent_evolution: "Create convention-definer if needed for standard selection"
+      expected_delta_V: "+0.10-0.15"
+
+    - iteration: 3
+      focus: "Implement custom linters for pattern enforcement"
+      likely_work:
+        - "Create logging-checker linter"
+        - "Create error-checker linter"
+        - "Create config-checker linter"
+      likely_agent_evolution: "Create linter-generator for go/analysis expertise"
+      expected_delta_V: "+0.15-0.20 (mainly V_enforcement)"
+
+    - iteration: 4
+      focus: "Create code generation templates"
+      likely_work:
+        - "Logger initialization template"
+        - "Error type template"
+        - "Config struct template"
+      likely_agent_evolution: "Create template-creator if systematic approach needed"
+      expected_delta_V: "+0.10-0.15 (mainly V_maintainability)"
+
+    - iteration: 5
+      focus: "Migrate internal/ modules to standardized patterns"
+      likely_work:
+        - "Migrate internal/parser/"
+        - "Migrate internal/analyzer/"
+        - "Migrate internal/query/"
+      likely_agent_evolution: "Create migration-planner if complexity high"
+      expected_delta_V: "+0.15-0.20"
+
+    - iteration: 6
+      focus: "Migrate cmd/ modules and finalize documentation"
+      likely_work:
+        - "Migrate cmd/ directory"
+        - "Complete pattern library"
+        - "Transfer test methodology"
+      likely_agent_evolution: "Unlikely - should have all needed agents"
+      expected_delta_V: "+0.10-0.15"
+
+    - iteration: 7
+      focus: "Convergence validation and methodology transfer test"
+      likely_work:
+        - "Validate V_instance >= 0.80"
+        - "Validate V_meta >= 0.80"
+        - "Test methodology on different codebase"
+      expected_delta_V: "+0.00-0.05 (refinement)"
+
+  convergence_estimate:
+    iterations: "5-7"
+    confidence: "Medium (based on complexity)"
+    caveats:
+      - "Actual path data-driven, not predetermined"
+      - "Agent creation based on need, not schedule"
+      - "Convergence when both layers satisfied, not iteration count"
+
+# ============================================================================
+# METADATA
+# ============================================================================
+
+metadata:
+  experiment: "bootstrap-013-cross-cutting-concerns"
+  iteration: 0
+  date: "2025-10-17"
+  generated_by: "M.reflect capability (observing M.observe + data-analyst work)"
+  based_on:
+    - "s0-pattern-inventory.yaml"
+    - "s0-metrics.json"
+  confidence: "High for instance gaps, Medium for agent needs"
+  next_iteration_focus: "Pattern extraction for logging (highest priority gap)"

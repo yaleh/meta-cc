@@ -1,0 +1,60 @@
+docs
+├── DOCUMENTATION_MAP.md
+├── architecture
+│   ├── adr
+│   │   ├── ADR-001-two-layer-architecture.md
+│   │   ├── ADR-002-plugin-directory-structure.md
+│   │   ├── ADR-003-mcp-server-integration.md
+│   │   ├── ADR-004-hybrid-output-mode.md
+│   │   ├── ADR-005-scope-parameter-standardization.md
+│   │   ├── README.md
+│   │   └── template.md
+│   └── proposals
+│       ├── meta-cognition-proposal.md
+│       └── plans
+├── archive
+│   ├── mcp-output-modes.md
+│   ├── mcp-project-scope.md
+│   ├── mcp-tools-reference.md
+│   ├── mcp-usage.md
+│   ├── migration-phase14.md
+│   ├── optimization-complete.md
+│   ├── optimization-summary.md
+│   └── proposals
+│       ├── proposal_1.md
+│       └── proposal_2.md
+├── core
+│   ├── plan.md
+│   └── principles.md
+├── guides
+│   ├── capabilities.md
+│   ├── git-hooks.md
+│   ├── integration.md
+│   ├── mcp.md
+│   ├── plugin-development.md
+│   ├── release-process.md
+│   └── troubleshooting.md
+├── methodology
+│   ├── README.md
+│   ├── agent-training-experiment
+│   ├── bootstrapped-software-engineering.md
+│   ├── documentation-management.md
+│   ├── empirical-methodology-development.md
+│   ├── role-based-documentation.md
+│   └── value-space-optimization.md
+├── reference
+│   ├── cli.md
+│   ├── features.md
+│   ├── jsonl.md
+│   ├── repository-structure.md
+│   └── unified-meta-command.md
+├── screenshots
+│   └── README.md
+└── tutorials
+    ├── cli-composability.md
+    ├── cookbook.md
+    ├── examples.md
+    ├── github-setup.md
+    └── installation.md
+
+13 directories, 44 files

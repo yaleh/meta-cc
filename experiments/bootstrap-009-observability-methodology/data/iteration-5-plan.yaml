@@ -1,0 +1,255 @@
+# Iteration 5 Plan
+# Phase: PLAN (M₄.plan)
+# Date: 2025-10-17
+
+iteration_goal:
+  primary: "Complete USE metrics implementation to achieve instance-layer convergence"
+
+  success_criteria:
+    - "8 remaining USE metrics implemented (Utilization: 2, Saturation: 4, Errors: 2)"
+    - "All metrics registered with Prometheus and instrumented"
+    - "Cardinality controlled (< 1500 series, allow 50% growth from iteration 4)"
+    - "Build passes, tests pass, no regressions"
+    - "V_instance(s₅) ≥ 0.80 (CONVERGENCE THRESHOLD)"
+    - "V_meta(s₅) ≥ 0.65 (81% of target, strong progress)"
+
+  expected_value_increase:
+    V_instance: "+0.03 (0.79 → 0.82, CONVERGENCE)"
+    V_meta: "+0.07 (0.58 → 0.65, 81% of target)"
+
+use_metrics_specification:
+  utilization_metrics:
+    cpu_utilization:
+      metric_name: "mcp_server_cpu_utilization_percent"
+      type: "Gauge"
+      labels: []
+      unit: "Percent (0-100%)"
+      collection_method: "Read /proc/{pid}/stat every 10s"
+      calculation: "(cpu_delta / wall_delta) * 100"
+      instrumentation_point: "Resource monitoring goroutine (metrics.go)"
+      cardinality: 1
+
+    file_descriptors:
+      metric_name: "mcp_server_file_descriptors_open"
+      type: "Gauge"
+      labels: []
+      unit: "Count"
+      collection_method: "Count files in /proc/{pid}/fd/"
+      instrumentation_point: "Resource monitoring goroutine (metrics.go)"
+      cardinality: 1
+
+  saturation_metrics:
+    request_queue:
+      metric_name: "mcp_server_request_queue_depth"
+      type: "Gauge"
+      labels: []
+      unit: "Count"
+      collection_method: "Atomic counter (increment on arrival, decrement on start)"
+      instrumentation_point: "server.go (handleRequest, handleToolsCall)"
+      cardinality: 1
+
+    concurrent_requests:
+      metric_name: "mcp_server_concurrent_requests"
+      type: "Gauge"
+      labels: []
+      unit: "Count"
+      collection_method: "Atomic counter (increment on start, decrement on completion)"
+      instrumentation_point: "server.go (handleRequest, handleToolsCall)"
+      cardinality: 1
+
+    memory_pressure:
+      metric_name: "mcp_server_memory_pressure_events_total"
+      type: "Counter"
+      labels: []
+      unit: "Count"
+      collection_method: "Track GC rate, increment if rate > 10 GC/sec"
+      calculation: "if (NumGC_delta / 10s) > 10 then increment"
+      instrumentation_point: "Resource monitoring goroutine (metrics.go)"
+      cardinality: 1
+
+    channel_saturation:
+      metric_name: "mcp_server_channel_buffer_fill_percent"
+      type: "GaugeVec"
+      labels: ["channel_name"]
+      unit: "Percent (0-100%)"
+      collection_method: "len(ch) / cap(ch) * 100 for buffered channels"
+      instrumentation_point: "Resource monitoring goroutine (if buffered channels exist)"
+      cardinality: 3
+      note: "May be N/A if no buffered channels (check codebase)"
+
+  error_metrics:
+    resource_errors:
+      metric_name: "mcp_server_resource_errors_total"
+      type: "CounterVec"
+      labels: ["resource_type"]
+      unit: "Count"
+      collection_method: "Classify errors (ENOMEM, EMFILE, goroutine creation failures)"
+      instrumentation_point: "Error handling in server.go, executor.go"
+      cardinality: 4
+      label_values: ["memory", "file_descriptors", "goroutines", "other"]
+
+    timeout_errors:
+      metric_name: "mcp_server_timeout_errors_total"
+      type: "CounterVec"
+      labels: ["context_type"]
+      unit: "Count"
+      collection_method: "Increment on context.DeadlineExceeded"
+      instrumentation_point: "Error handling in server.go, executor.go"
+      cardinality: 3
+      label_values: ["request", "tool_execution", "other"]
+
+total_cardinality_estimate:
+  new_metrics: 8
+  new_series:
+    cpu_utilization: 1
+    file_descriptors: 1
+    request_queue: 1
+    concurrent_requests: 1
+    memory_pressure: 1
+    channel_saturation: 3
+    resource_errors: 4
+    timeout_errors: 3
+  total_new_series: 16
+  iteration_4_series: 1027
+  iteration_5_estimate: 1043
+  target: 1500
+  margin: 457
+  status: "ACCEPTABLE (69.5% of target, 30.5% margin)"
+
+agent_selection:
+  decision: "USE coder agent (generic)"
+
+  rationale:
+    - "USE pattern documented (use-metrics-pattern.md provides implementation templates)"
+    - "Prometheus integration exists (metrics.go, 158 lines)"
+    - "Instrumentation framework working (39 RED instrumentation points)"
+    - "Collection methods well-known (runtime APIs, /proc, atomic counters)"
+    - "coder agent successfully implemented RED metrics in iteration 4 (V_instance = 0.79)"
+    - "No specialized domain knowledge required beyond standard observability practices"
+
+  specialization_assessment:
+    create_observability_specialist: false
+    justification:
+      - "Generic coder sufficient (proven in iteration 4)"
+      - "USE pattern is straightforward extension of RED pattern"
+      - "Expected ΔV = +0.03 (modest, does not justify specialization)"
+      - "Reusability of specialist would be limited to observability tasks"
+    decision: "DEFER specialization, use generic coder"
+
+work_breakdown:
+  task_1_add_use_utilization_metrics:
+    agent: "coder"
+    file: "cmd/mcp-server/metrics.go"
+    description: "Add CPU utilization and file descriptor metrics"
+    estimated_time: "45 minutes"
+    subtasks:
+      - "Define cpuUtilizationPercent gauge"
+      - "Define fileDescriptorsOpen gauge"
+      - "Implement GetCPUUtilization() helper (read /proc/{pid}/stat)"
+      - "Implement GetFileDescriptorCount() helper (count /proc/{pid}/fd/)"
+      - "Update UpdateResourceMetrics() to collect CPU and FD metrics"
+      - "Register metrics in init()"
+
+  task_2_add_use_saturation_metrics:
+    agent: "coder"
+    file: "cmd/mcp-server/metrics.go, server.go"
+    description: "Add request queue, concurrency, memory pressure, channel saturation metrics"
+    estimated_time: "60 minutes"
+    subtasks:
+      - "Define requestQueueDepth gauge"
+      - "Define concurrentRequests gauge"
+      - "Define memoryPressureEvents counter"
+      - "Define channelBufferFill gauge vec (if buffered channels exist)"
+      - "Add atomic.Int32 counters (requestQueue, concurrentReqs)"
+      - "Implement RecordRequestQueueChange() helper"
+      - "Implement RecordConcurrentRequestChange() helper"
+      - "Update UpdateResourceMetrics() to track GC pressure (NumGC delta)"
+      - "Instrument server.go handleRequest() with queue/concurrency tracking"
+      - "Register metrics in init()"
+
+  task_3_add_use_error_metrics:
+    agent: "coder"
+    file: "cmd/mcp-server/metrics.go, server.go, executor.go"
+    description: "Add resource error and timeout error metrics"
+    estimated_time: "30 minutes"
+    subtasks:
+      - "Define resourceErrors counter vec (resource_type label)"
+      - "Define timeoutErrors counter vec (context_type label)"
+      - "Implement RecordResourceError() helper"
+      - "Implement RecordTimeoutError() helper"
+      - "Update error handling in server.go to classify resource/timeout errors"
+      - "Update error handling in executor.go to classify resource/timeout errors"
+      - "Register metrics in init()"
+
+  task_4_test_and_validate:
+    agent: "coder"
+    description: "Build, test, verify cardinality"
+    estimated_time: "15 minutes"
+    subtasks:
+      - "Run go build ./cmd/mcp-server/"
+      - "Run go test ./cmd/mcp-server/..."
+      - "Verify no regressions"
+      - "Check cardinality estimate (< 1500 series)"
+
+  task_5_calculate_value_functions:
+    agent: "data-analyst"
+    description: "Calculate V_instance(s₅), V_meta(s₅), check convergence"
+    estimated_time: "20 minutes"
+    inputs:
+      - "iteration-5-observations.yaml"
+      - "USE metrics implementation (metrics.go, server.go)"
+      - "Build and test results"
+    outputs:
+      - "data/iteration-5-metrics.json"
+    subtasks:
+      - "Calculate V_coverage (metrics coverage)"
+      - "Calculate V_actionability (monitoring capabilities)"
+      - "Calculate V_performance (overhead impact)"
+      - "Calculate V_consistency (naming conventions)"
+      - "Compute V_instance(s₅) = weighted average"
+      - "Calculate V_completeness (patterns validated)"
+      - "Calculate V_effectiveness (methodology validation)"
+      - "Calculate V_reusability (pattern transferability)"
+      - "Compute V_meta(s₅) = weighted average"
+      - "Check convergence criteria (V_instance ≥ 0.80, M₅ = M₄, A₅ = A₄)"
+
+  total_estimated_time: "3 hours 10 minutes"
+
+execution_sequence:
+  sequence_type: "SEQUENTIAL"
+  dependencies:
+    - "Task 1 → Task 2 (saturation metrics may reference utilization helpers)"
+    - "Task 2 → Task 3 (error metrics instrument same files)"
+    - "Task 3 → Task 4 (must implement before testing)"
+    - "Task 4 → Task 5 (must validate implementation before calculating metrics)"
+
+risks:
+  risk_1_channel_saturation_na:
+    description: "MCP server may not use buffered channels"
+    mitigation: "Check codebase, omit metric if N/A (reduce cardinality by 3)"
+    impact: "Low (metric is nice-to-have, not critical)"
+
+  risk_2_proc_access:
+    description: "/proc/{pid}/stat or /proc/{pid}/fd/ may not be accessible"
+    mitigation: "Add error handling, log warning if inaccessible, set metric to 0"
+    impact: "Medium (affects CPU and FD metrics on non-Linux systems)"
+
+  risk_3_cardinality_overage:
+    description: "Cardinality may exceed 1500 series"
+    mitigation: "Reduce channel_saturation labels if needed, simplify resource_type taxonomy"
+    impact: "Low (current estimate 1043, 30% margin)"
+
+constraints:
+  code_quality:
+    - "Follow Prometheus naming conventions (100% adherence)"
+    - "Use atomic operations for concurrency-safe counters"
+    - "Add error handling for /proc access failures"
+    - "Maintain existing tests (no regressions)"
+
+  performance:
+    - "Resource monitoring overhead < 2% (same as iteration 4)"
+    - "Atomic operations ensure minimal lock contention"
+
+  testing:
+    - "All existing tests must pass"
+    - "Build must succeed with no warnings"

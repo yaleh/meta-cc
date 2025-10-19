@@ -1,0 +1,151 @@
+# M₀ Capabilities Inventory
+# Generated: 2025-10-15
+# Experiment: bootstrap-006-api-design
+
+meta_agent_version: M₀
+architecture: modular (separate capability files, not monolithic)
+capability_count: 5
+
+discovery_method:
+  approach: union_search
+  search_scope: experiments/bootstrap-*
+  search_command: 'find experiments/bootstrap-* -type f -path "*/meta-agents/*.md"'
+  primary_source: experiments/bootstrap-003-error-recovery
+  rationale: bootstrap-003 has modular architecture validated in bootstrap-001
+
+capabilities:
+  - name: observe
+    file: meta-agents/observe.md
+    version: 0.0
+    source_experiment: bootstrap-003-error-recovery
+    original_domain: Error Recovery
+    adapted_domain: API Design
+    purpose: API data collection, usage pattern analysis, gap identification
+    key_functions:
+      - collect(API_Data)
+      - recognize(Patterns)
+      - identify(Gaps)
+    adaptations:
+      - Replaced error-specific data sources with API schemas, usage patterns, user feedback
+      - Updated pattern recognition for naming conventions, parameter patterns, response formats
+      - Modified gap identification for usability, consistency, completeness, evolvability
+    integration:
+      provides_to: [plan]
+      receives_from: [reflect]
+
+  - name: plan
+    file: meta-agents/plan.md
+    version: 0.0
+    source_experiment: bootstrap-003-error-recovery
+    original_domain: Error Recovery
+    adapted_domain: API Design
+    purpose: API improvement prioritization, agent selection
+    key_functions:
+      - assess(State)
+      - prioritize(Observations)
+      - select_agents(Goal)
+    value_function: "V(S) = 0.3·V_usability + 0.3·V_consistency + 0.2·V_completeness + 0.2·V_evolvability"
+    adaptations:
+      - Changed value function components from detection/diagnosis/recovery/prevention to usability/consistency/completeness/evolvability
+      - Updated prioritization criteria for API design issues
+      - Modified agent specialization triggers for API-specific agents
+    integration:
+      receives_from: [observe]
+      provides_to: [execute]
+      informs: [evolve]
+
+  - name: execute
+    file: meta-agents/execute.md
+    version: 0.0
+    source_experiment: bootstrap-003-error-recovery
+    original_domain: Error Recovery
+    adapted_domain: API Design
+    purpose: Agent coordination, API analysis execution
+    key_functions:
+      - prepare(Context)
+      - coordinate(Agents)
+      - collect(Results)
+    adaptations:
+      - Updated data sources from error history to API schemas and usage patterns
+      - Modified agent coordination patterns for API analysis agents
+      - Changed output collection for API analysis artifacts
+    integration:
+      receives_from: [plan]
+      provides_to: [reflect]
+      coordinates_with: [evolve]
+
+  - name: reflect
+    file: meta-agents/reflect.md
+    version: 0.0
+    source_experiment: bootstrap-003-error-recovery
+    original_domain: Error Recovery
+    adapted_domain: API Design
+    purpose: API quality evaluation, value calculation, gap assessment
+    key_functions:
+      - calculate_value(State)
+      - evaluate_quality(Outputs)
+      - check_convergence()
+    value_components:
+      - V_usability: API ease of use and clarity
+      - V_consistency: Naming and pattern uniformity
+      - V_completeness: Feature coverage and edge cases
+      - V_evolvability: Versioning and migration support
+    adaptations:
+      - Changed value calculation from error metrics to API quality metrics
+      - Updated gap identification for API design concerns
+      - Modified quality assessment for API deliverables
+    integration:
+      receives_from: [execute]
+      provides_to: [observe, plan]
+      informs: [evolve]
+
+  - name: evolve
+    file: meta-agents/evolve.md
+    version: 0.0
+    source_experiment: bootstrap-003-error-recovery
+    original_domain: Error Recovery
+    adapted_domain: API Design
+    purpose: Agent specialization triggers, capability evolution
+    key_functions:
+      - create_agent(Need)
+      - add_capability(Need)
+      - evolution_decision(Need, System)
+    agent_templates:
+      - api-consistency-checker: Consistency analysis specialist
+      - parameter-designer: Parameter pattern specialist
+      - usability-analyzer: User experience analysis specialist
+      - api-evolution-planner: Versioning and migration specialist
+    adaptations:
+      - Replaced error domain agent templates with API design agents
+      - Updated specialization criteria for API design needs
+      - Modified meta-evolution triggers for API-specific capabilities
+    integration:
+      triggered_by: [plan, reflect]
+      provides_to: [execute, all_capabilities]
+
+capability_relationships:
+  observe_plan_execute_reflect_cycle: Standard iteration flow
+  evolve_triggers: Activated when specialization needed
+  modular_updates: Each capability can evolve independently
+
+evolution_history:
+  M₀_creation:
+    date: 2025-10-15
+    method: Union search + domain adaptation
+    source_count: 1 experiment (bootstrap-003)
+    additional_checks: 2 experiments (bootstrap-001, bootstrap-002)
+    unique_capabilities_found: 5 (all from bootstrap-003)
+    adaptations_performed: 5 files adapted for API design
+
+  expected_stability:
+    likelihood_of_M_evolution: Low
+    rationale: "M₀ capabilities are generic enough for API design"
+    potential_new_capabilities:
+      - api_compatibility_validation: If breaking change detection needed
+      - user_impact_assessment: If usage impact analysis needed
+
+notes:
+  - All capabilities read from files before use (no caching)
+  - Modular architecture allows independent capability evolution
+  - Discovery-driven approach maximizes reusability from prior experiments
+  - API domain adaptation maintains structural patterns from error recovery

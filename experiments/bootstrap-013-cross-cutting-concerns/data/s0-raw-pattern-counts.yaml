@@ -1,0 +1,191 @@
+---
+# Raw Pattern Analysis - Iteration 0
+# Date: 2025-10-17
+# Scope: ~14,000 lines Go code (internal/ + cmd/ + pkg/)
+
+codebase_metrics:
+  total_lines:
+    internal: 5883
+    cmd: 6876
+    pkg: 1213
+    total: 13972
+
+  test_lines_excluded: true
+  scope: "internal/, cmd/, pkg/ directories"
+
+logging_patterns:
+  fmt_printf_println:
+    count: 1
+    files: 1
+    location: "/home/yale/work/meta-cc/internal/output/error.go"
+    usage: "Error output to stderr"
+
+  log_package:
+    count: 0
+    files: 0
+    usage: "None found"
+
+  slog_package:
+    count: 0
+    files: 0
+    usage: "None found (Go 1.21+ structured logging)"
+
+  summary:
+    total_logging_statements: 1
+    consistency: "No standardized logging - only 1 fmt.Fprintf for error output"
+    observation: "Virtually no logging in production code"
+
+error_handling_patterns:
+  if_err_nil_checks:
+    count: 484
+    files: 108
+    files_with_pattern:
+      - pkg/output/stream_test.go: 4
+      - pkg/output/projection.go: 2
+      - pkg/output/estimator_test.go: 5
+      - pkg/output/tsv_test.go: 12
+      - pkg/output/chunker.go: 4
+      - cmd/mcp-server/capabilities.go: 27
+      - cmd/mcp-server/executor.go: 12
+      # ... and 101 more files
+    observation: "Ubiquitous error checking throughout codebase"
+
+  fmt_errorf:
+    count: 243
+    files: 51
+    sample_patterns:
+      - "return fmt.Errorf(\"failed to %s: %w\", operation, err)"
+      - "return fmt.Errorf(\"unsupported format: %s\", format)"
+      - "return nil, fmt.Errorf(\"chunk size must be > 0\")"
+    wrapping_style: "Consistent use of %w for error wrapping (Go 1.13+)"
+    context_preservation: "Good context addition with descriptive messages"
+
+  errors_wrap:
+    count: 0
+    files: 0
+    observation: "No use of pkg/errors, using native fmt.Errorf with %w"
+
+  custom_error_types:
+    found: true
+    example:
+      file: "internal/output/error.go"
+      types:
+        - ErrorCode: "string alias for error codes"
+        - ErrorOutput: "structured error output with code/message"
+      codes:
+        - ErrInvalidArgument
+        - ErrSessionNotFound
+        - ErrParseError
+        - ErrFilterError
+        - ErrNoResults
+        - ErrInternalError
+    observation: "Centralized error code definition for CLI outputs"
+
+  summary:
+    error_checking_coverage: "~100% (484 checks across 108 files)"
+    wrapping_consistency: "High - uses fmt.Errorf with %w verb consistently"
+    context_quality: "Good - descriptive error messages with operation context"
+    custom_types: "Minimal - only for CLI error output formatting"
+
+configuration_patterns:
+  os_getenv:
+    count: 14
+    files: 8
+    files_with_pattern:
+      - cmd/root.go: 1
+      - cmd/mcp-server/capabilities.go: 3
+      - cmd/mcp-server/response_adapter.go: 2
+      - cmd/mcp-server/executor_test.go: 2
+      - cmd/mcp-server/output_mode.go: 1
+      - cmd/mcp-server/capabilities_test.go: 1
+      - internal/locator/locator.go: 2
+      - internal/locator/env.go: 2
+    sample_usage:
+      - "sessionID := os.Getenv(\"CC_SESSION_ID\")"
+      - "projectHash := os.Getenv(\"CC_PROJECT_HASH\")"
+      - "capabilitySource := os.Getenv(\"META_CC_CAPABILITY_SOURCES\")"
+      - "inlineThreshold := os.Getenv(\"META_CC_INLINE_THRESHOLD\")"
+    validation: "Mixed - some env vars checked, some not"
+    defaults: "Present in some cases (e.g., inline threshold defaults to 8192)"
+
+  cobra_viper_flags:
+    count: 58
+    files: 21
+    usage: "Cobra for CLI commands, flag package for command-line flags"
+    scope: "cmd/ directory - CLI command definitions"
+    observation: "Extensive use of cobra for CLI structure"
+
+  config_files:
+    found: false
+    observation: "No config file parsing detected (no viper config loading)"
+
+  hardcoded_values:
+    observed: true
+    examples:
+      - "8192 bytes (inline threshold default)"
+      - "File paths (~/.claude/projects/...)"
+      - "Error codes (constants in error.go)"
+    concern: "Some magic numbers present"
+
+  summary:
+    env_var_usage: "Limited - mainly for session/project identification and MCP config"
+    cli_flags: "Extensive - cobra-based CLI with many flags"
+    config_validation: "Partial - some env vars validated, some assumed present"
+    centralization: "Low - env vars accessed directly throughout code"
+    defaults: "Inconsistent - some defaults provided, some missing"
+
+additional_concerns_discovered:
+  resource_cleanup:
+    defer_usage: "Present but not cataloged in this baseline"
+    observation: "Would need AST analysis for complete inventory"
+
+  concurrency:
+    sync_usage: "Likely present but not analyzed"
+    channel_usage: "Likely present but not analyzed"
+    observation: "Would need dedicated analysis pass"
+
+  testing_patterns:
+    test_files_count: "Many (excluded from line counts)"
+    observation: "Testing patterns not analyzed in baseline"
+
+pattern_consistency_assessment:
+  logging:
+    consistency_score: 0.05
+    rationale: "Virtually no logging - 1 statement across 14K lines"
+    standard_exists: false
+
+  error_handling:
+    consistency_score: 0.70
+    rationale: "Consistent fmt.Errorf with %w, but no standard error types or categories"
+    standard_exists: "Implicit - fmt.Errorf + %w is de facto standard"
+    variations:
+      - "Direct return of errors"
+      - "Wrapped errors with context"
+      - "Custom error types (minimal)"
+
+  configuration:
+    consistency_score: 0.40
+    rationale: "Mix of env vars and flags, no centralized config management"
+    standard_exists: false
+    variations:
+      - "Direct os.Getenv calls"
+      - "Cobra flags"
+      - "Hardcoded defaults scattered"
+
+overall_baseline_assessment:
+  pattern_maturity: "Low to Medium"
+  observations:
+    - "Error handling is most mature (70% consistent)"
+    - "Logging is virtually absent (5% - essentially none)"
+    - "Configuration is ad-hoc (40% - mixed approaches)"
+  improvement_opportunity: "Significant - especially for logging and config standardization"
+  estimated_baseline_V_instance: "~0.30-0.35 (weighted average)"
+
+files_analyzed:
+  source_files_go: "~140+ files"
+  analysis_method: "grep pattern matching + manual file inspection"
+  representative_samples_read: 3
+  deep_dive_files:
+    - internal/output/error.go
+    - internal/locator/env.go
+    - cmd/mcp-server/executor.go

@@ -1,0 +1,21 @@
+W1017 03:21:26.507661 1385219 library.go:101] "golang.org/x/sys/unix" contains non-Go code that can't be inspected for further dependencies:
+/home/yale/go/pkg/mod/golang.org/x/sys@v0.29.0/unix/asm_linux_amd64.s
+W1017 03:21:28.732134 1385219 library.go:276] module github.com/yaleh/meta-cc has empty version, defaults to HEAD. The license URL may be incorrect. Please verify!
+github.com/fsnotify/fsnotify,https://github.com/fsnotify/fsnotify/blob/v1.9.0/LICENSE,BSD-3-Clause
+github.com/go-viper/mapstructure/v2,https://github.com/go-viper/mapstructure/blob/v2.4.0/LICENSE,MIT
+github.com/itchyny/gojq,https://github.com/itchyny/gojq/blob/v0.12.17/LICENSE,MIT
+github.com/itchyny/timefmt-go,https://github.com/itchyny/timefmt-go/blob/v0.1.6/LICENSE,MIT
+github.com/pelletier/go-toml/v2,https://github.com/pelletier/go-toml/blob/v2.2.4/LICENSE,MIT
+github.com/sagikazarmark/locafero,https://github.com/sagikazarmark/locafero/blob/v0.11.0/LICENSE,MIT
+github.com/sourcegraph/conc,https://github.com/sourcegraph/conc/blob/5f936abd7ae8/LICENSE,MIT
+github.com/spf13/afero,https://github.com/spf13/afero/blob/v1.15.0/LICENSE.txt,Apache-2.0
+github.com/spf13/cast,https://github.com/spf13/cast/blob/v1.10.0/LICENSE,MIT
+github.com/spf13/cobra,https://github.com/spf13/cobra/blob/v1.10.1/LICENSE.txt,Apache-2.0
+github.com/spf13/pflag,https://github.com/spf13/pflag/blob/v1.0.10/LICENSE,BSD-3-Clause
+github.com/spf13/viper,https://github.com/spf13/viper/blob/v1.21.0/LICENSE,MIT
+github.com/subosito/gotenv,https://github.com/subosito/gotenv/blob/v1.6.0/LICENSE,MIT
+github.com/yaleh/meta-cc,https://github.com/yaleh/meta-cc/blob/HEAD/LICENSE,MIT
+go.yaml.in/yaml/v3,https://github.com/yaml/go-yaml/blob/v3.0.4/LICENSE,MIT
+golang.org/x/sys/unix,https://cs.opensource.google/go/x/sys/+/v0.29.0:LICENSE,BSD-3-Clause
+golang.org/x/text,https://cs.opensource.google/go/x/text/+/v0.28.0:LICENSE,BSD-3-Clause
+gopkg.in/yaml.v3,https://github.com/go-yaml/yaml/blob/v3.0.1/LICENSE,MIT

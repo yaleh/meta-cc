@@ -1,0 +1,368 @@
+---
+# Pattern Inventory - Cross-Cutting Concerns
+# Bootstrap-013 Iteration 0 Baseline
+# Generated: 2025-10-17
+# Analyzer: data-analyst (inherited from Bootstrap-003)
+# Scope: meta-cc codebase (~14K lines Go code)
+
+# ============================================================================
+# LOGGING PATTERNS
+# ============================================================================
+
+logging_patterns:
+  identified_patterns:
+    - pattern_id: "LP001"
+      name: "fmt.Fprintf to stderr"
+      description: "Using fmt.Fprintf(os.Stderr, ...) for error output"
+      occurrences: 1
+      files:
+        - path: "internal/output/error.go"
+          lines: [51, 59, 61, 66, 87, 91, 94]
+          context: "Error output formatting for CLI"
+      consistency: "Isolated use case"
+      standard: false
+
+    - pattern_id: "LP002"
+      name: "No logging"
+      description: "Code with no logging statements"
+      occurrences: 99.99
+      files: "~140 files"
+      observation: "Production code has virtually no logging"
+      consistency: "Default state"
+      standard: false
+
+  pattern_categories:
+    production_logging: 0
+    debug_logging: 0
+    error_output: 1  # fmt.Fprintf to stderr
+    structured_logging: 0
+    unstructured_logging: 1
+
+  consistency_metrics:
+    total_modules: 140  # approximate
+    modules_with_logging: 1
+    modules_without_logging: 139
+    consistency_ratio: 0.007  # 0.7%
+    standard_exists: false
+    primary_issue: "No standardized logging approach exists"
+
+  observations:
+    - "No use of log package (stdlib)"
+    - "No use of log/slog package (Go 1.21+ structured logging)"
+    - "No third-party logging (zerolog, zap, logrus)"
+    - "Error output uses fmt.Fprintf to stderr (ad-hoc)"
+    - "No log levels defined or used"
+    - "No logging context (request IDs, trace IDs, etc.)"
+
+  standardization_needs:
+    priority: "HIGH"
+    reasons:
+      - "Debugging and troubleshooting requires logging"
+      - "MCP server needs operational logging"
+      - "CLI tool needs diagnostic output"
+    recommended_approach:
+      - "Adopt log/slog for structured logging (Go 1.21+)"
+      - "Define log levels (DEBUG, INFO, WARN, ERROR)"
+      - "Add context propagation (operation, module, etc.)"
+
+# ============================================================================
+# ERROR HANDLING PATTERNS
+# ============================================================================
+
+error_handling_patterns:
+  identified_patterns:
+    - pattern_id: "EH001"
+      name: "fmt.Errorf with %w wrapping"
+      description: "Error wrapping with context using fmt.Errorf and %w verb"
+      occurrences: 243
+      files: 51
+      sample_files:
+        - path: "pkg/output/chunker.go"
+          examples:
+            - "return fmt.Errorf(\"failed to marshal JSONL: %w\", err)"
+            - "return fmt.Errorf(\"failed to write chunk file: %w\", err)"
+        - path: "internal/locator/env.go"
+          examples:
+            - "return \"\", fmt.Errorf(\"failed to get home directory: %w\", err)"
+            - "return \"\", fmt.Errorf(\"failed to access session file: %w\", err)"
+        - path: "cmd/mcp-server/executor.go"
+          examples:
+            - "return \"\", fmt.Errorf(\"jq filter error: %w\", err)"
+            - "return \"\", fmt.Errorf(\"JSONL parse error: %w\", err)"
+      consistency: "Very high"
+      standard: "De facto standard"
+
+    - pattern_id: "EH002"
+      name: "fmt.Errorf without wrapping"
+      description: "Creating new errors with context but no wrapping"
+      occurrences: "Estimated ~50-100"
+      sample_files:
+        - path: "pkg/output/chunker.go"
+          examples:
+            - "return nil, fmt.Errorf(\"chunk size must be > 0\")"
+            - "return fmt.Errorf(\"unsupported format: %s\", format)"
+      consistency: "High"
+      use_case: "Validation errors, terminal errors"
+
+    - pattern_id: "EH003"
+      name: "if err != nil checks"
+      description: "Standard Go error checking pattern"
+      occurrences: 484
+      files: 108
+      consistency: "Ubiquitous"
+      standard: "Go idiom"
+
+    - pattern_id: "EH004"
+      name: "Custom error types"
+      description: "Structured error types with codes"
+      occurrences: 1
+      files:
+        - path: "internal/output/error.go"
+          types:
+            - "ErrorCode (string alias)"
+            - "ErrorOutput struct"
+          error_codes:
+            - "ErrInvalidArgument"
+            - "ErrSessionNotFound"
+            - "ErrParseError"
+            - "ErrFilterError"
+            - "ErrNoResults"
+            - "ErrInternalError"
+      consistency: "Centralized for CLI"
+      use_case: "User-facing error reporting"
+
+    - pattern_id: "EH005"
+      name: "Direct error return"
+      description: "Returning error without wrapping or additional context"
+      occurrences: "Estimated ~100-150"
+      observation: "Common in simple cases where context is obvious"
+      consistency: "Medium"
+
+  pattern_categories:
+    error_wrapping: 243  # fmt.Errorf with %w
+    error_creation: "~100"  # fmt.Errorf without %w
+    error_checking: 484  # if err != nil
+    custom_types: 1  # ErrorOutput
+    error_return: "~150"  # direct returns
+
+  consistency_metrics:
+    total_error_sites: 484
+    sites_with_wrapping: 243
+    wrapping_ratio: 0.50  # 50%
+    wrapping_style_consistency: 0.95  # 95% use fmt.Errorf + %w
+    context_quality: 0.70  # 70% have descriptive context
+    standard_exists: "Implicit"
+    primary_pattern: "fmt.Errorf with %w for wrapping"
+
+  observations:
+    - "No use of pkg/errors library (uses native fmt.Errorf)"
+    - "Consistent use of %w verb for error wrapping (Go 1.13+)"
+    - "Good practice: descriptive error messages with operation context"
+    - "Custom error types limited to CLI output formatting"
+    - "No error taxonomy or categorization system"
+    - "No error recovery strategies documented"
+    - "No standard error handling patterns for common scenarios"
+
+  standardization_needs:
+    priority: "MEDIUM"
+    reasons:
+      - "Current approach is fairly consistent (70%)"
+      - "Could benefit from error taxonomy"
+      - "Recovery patterns undocumented"
+    recommended_improvements:
+      - "Define standard error types for common scenarios"
+      - "Document error handling patterns"
+      - "Create error recovery guidelines"
+      - "Add error categorization (temporary, permanent, retry-able)"
+
+# ============================================================================
+# CONFIGURATION PATTERNS
+# ============================================================================
+
+configuration_patterns:
+  identified_patterns:
+    - pattern_id: "CF001"
+      name: "os.Getenv for environment variables"
+      description: "Direct os.Getenv calls for configuration"
+      occurrences: 14
+      files: 8
+      sample_files:
+        - path: "internal/locator/env.go"
+          examples:
+            - "sessionID := os.Getenv(\"CC_SESSION_ID\")"
+            - "projectHash := os.Getenv(\"CC_PROJECT_HASH\")"
+          validation: "Checked for empty, returns error"
+        - path: "cmd/mcp-server/capabilities.go"
+          examples:
+            - "capabilitySource := os.Getenv(\"META_CC_CAPABILITY_SOURCES\")"
+          validation: "Has default value"
+          default: "yaleh/meta-cc@main/commands"
+        - path: "cmd/mcp-server/output_mode.go"
+          examples:
+            - "inlineThreshold := os.Getenv(\"META_CC_INLINE_THRESHOLD\")"
+          validation: "Parsed with strconv, has default"
+          default: "8192"
+      consistency: "Low - mixed validation approaches"
+
+    - pattern_id: "CF002"
+      name: "Cobra CLI flags"
+      description: "Command-line flags using cobra framework"
+      occurrences: 58
+      files: 21
+      scope: "cmd/ directory"
+      examples:
+        - "--project (string)"
+        - "--session-only (bool)"
+        - "--output (string)"
+        - "--limit (int)"
+        - "--pattern (string)"
+      consistency: "High within CLI commands"
+      standard: "Cobra framework conventions"
+
+    - pattern_id: "CF003"
+      name: "Hardcoded configuration values"
+      description: "Configuration values embedded in code"
+      occurrences: "Many"
+      examples:
+        - value: "8192"
+          context: "Inline threshold default bytes"
+          files: ["cmd/mcp-server/output_mode.go"]
+        - value: "~/.claude/projects/"
+          context: "Session file path base"
+          files: ["internal/locator/env.go"]
+        - value: "Error codes (constants)"
+          context: "CLI error reporting"
+          files: ["internal/output/error.go"]
+      consistency: "Low - scattered throughout code"
+      issue: "Magic numbers and hardcoded paths"
+
+    - pattern_id: "CF004"
+      name: "No config file support"
+      description: "No configuration file loading (YAML, JSON, etc.)"
+      occurrences: 0
+      observation: "All config via env vars or CLI flags"
+      standard: false
+
+  pattern_categories:
+    environment_variables: 14
+    cli_flags: 58
+    config_files: 0
+    hardcoded_values: "Many"
+    dynamic_config: 0
+
+  consistency_metrics:
+    total_config_points: "~80+ (14 env vars + 58 flags + hardcoded values)"
+    centralized_config: 0
+    validated_config: 8  # ~50% of env vars validated
+    config_with_defaults: 6  # ~40% have defaults
+    consistency_ratio: 0.40  # 40%
+    standard_exists: false
+    primary_issues:
+      - "No centralized config management"
+      - "Inconsistent validation"
+      - "Scattered defaults"
+      - "Hardcoded values throughout"
+
+  observations:
+    - "Configuration split between env vars and CLI flags"
+    - "No config file support (YAML, TOML, etc.)"
+    - "Env var validation is inconsistent"
+    - "Some env vars have defaults, some don't"
+    - "Hardcoded values scattered (magic numbers, paths)"
+    - "No config documentation structure"
+    - "No config validation framework"
+
+  standardization_needs:
+    priority: "HIGH"
+    reasons:
+      - "Config management is ad-hoc"
+      - "Validation is inconsistent"
+      - "No centralized defaults"
+      - "Difficult to document and maintain"
+    recommended_improvements:
+      - "Create centralized config struct"
+      - "Implement config validation layer"
+      - "Define standard default values"
+      - "Document all configuration options"
+      - "Consider config file support (optional)"
+
+# ============================================================================
+# PATTERN CONSISTENCY SUMMARY
+# ============================================================================
+
+consistency_summary:
+  logging:
+    score: 0.05
+    status: "CRITICAL - No standard"
+    files_with_standard: 0
+    total_files: 140
+    percentage: "0.7%"
+    primary_issue: "No logging infrastructure"
+
+  error_handling:
+    score: 0.70
+    status: "GOOD - Implicit standard exists"
+    files_with_standard: 51  # files using fmt.Errorf + %w
+    total_files: 108  # files with error handling
+    percentage: "47% (of error-handling files use standard wrapping)"
+    primary_issue: "No error taxonomy or categorization"
+
+  configuration:
+    score: 0.40
+    status: "POOR - Ad-hoc approaches"
+    files_with_standard: 0
+    total_files: 29  # 8 env + 21 cli
+    percentage: "0%"
+    primary_issue: "No centralized config management"
+
+  overall:
+    weighted_score: 0.33  # 0.4*0.05 + 0.3*0.70 + 0.2*0.40 + 0.1*0.05
+    status: "BASELINE ESTABLISHED"
+    interpretation: "Significant standardization opportunity"
+
+# ============================================================================
+# IMPROVEMENT OPPORTUNITIES
+# ============================================================================
+
+improvement_opportunities:
+  high_priority:
+    - concern: "Logging"
+      current_state: "No logging infrastructure (0.7% coverage)"
+      target_state: "Structured logging with log/slog, 80% coverage"
+      estimated_impact: "+0.75 on V_consistency"
+
+    - concern: "Configuration"
+      current_state: "Ad-hoc env vars and flags (40% consistent)"
+      target_state: "Centralized config management, 80% consistent"
+      estimated_impact: "+0.40 on V_consistency"
+
+  medium_priority:
+    - concern: "Error handling"
+      current_state: "Good wrapping (70%), no taxonomy"
+      target_state: "Error taxonomy, recovery patterns, 80% coverage"
+      estimated_impact: "+0.10 on V_consistency"
+
+  quick_wins:
+    - "Create logging interface and standard logger"
+    - "Define config struct with validation"
+    - "Document error handling patterns"
+    - "Extract hardcoded values to constants"
+
+# ============================================================================
+# METADATA
+# ============================================================================
+
+metadata:
+  experiment: "bootstrap-013-cross-cutting-concerns"
+  iteration: 0
+  date: "2025-10-17"
+  analyzer: "data-analyst (Generic agent from Bootstrap-003)"
+  analysis_method: "grep pattern matching + manual code inspection"
+  files_analyzed: "~140 Go source files"
+  lines_analyzed: 13972
+  confidence: "High"
+  notes:
+    - "Error handling patterns are most mature"
+    - "Logging is virtually absent"
+    - "Configuration is scattered and inconsistent"
+    - "Significant standardization opportunity exists"

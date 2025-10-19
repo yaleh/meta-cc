@@ -1,0 +1,111 @@
+{
+  "experiment": "bootstrap-002-test-strategy",
+  "patterns_count": 15,
+  "patterns": [
+    {
+      "name": "CLI Command (for MCP tools)",
+      "source_file": "iteration-5.md",
+      "source_line": 116,
+      "pattern_number": 7,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "CLI Command Test Pattern",
+      "source_file": "iteration-3.md",
+      "source_line": 373,
+      "pattern_number": 6,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "CLI Integration Test Pattern",
+      "source_file": "iteration-3.md",
+      "source_line": 374,
+      "pattern_number": 7,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Dependency Injection (file system mocking)",
+      "source_file": "iteration-5.md",
+      "source_line": 115,
+      "pattern_number": 6,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Error Path",
+      "source_file": "iteration-5.md",
+      "source_line": 190,
+      "pattern_number": 4,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Error Path (JSON-RPC error validation)",
+      "source_file": "iteration-5.md",
+      "source_line": 114,
+      "pattern_number": 4,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Error Path (malformed input)",
+      "source_file": "iteration-5.md",
+      "source_line": 152,
+      "pattern_number": 4,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "From Iteration 2 (dependency injection)",
+      "source_file": "iteration-4.md",
+      "source_line": 58,
+      "pattern_number": 6,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Global Flag Test Pattern",
+      "source_file": "iteration-3.md",
+      "source_line": 375,
+      "pattern_number": 8,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Table-Driven (JSONL format variations)",
+      "source_file": "iteration-5.md",
+      "source_line": 151,
+      "pattern_number": 2,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Table-Driven (complex query scenarios)",
+      "source_file": "iteration-5.md",
+      "source_line": 189,
+      "pattern_number": 2,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Table-Driven (with httptest.NewServer())",
+      "source_file": "iteration-5.md",
+      "source_line": 113,
+      "pattern_number": 2,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Test Helper (JSONL reader fixture)",
+      "source_file": "iteration-5.md",
+      "source_line": 153,
+      "pattern_number": 5,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Test Helper (session data fixture builder)",
+      "source_file": "iteration-5.md",
+      "source_line": 191,
+      "pattern_number": 5,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Unit Test",
+      "source_file": "iteration-5.md",
+      "source_line": 150,
+      "pattern_number": 1,
+      "context": "iteration_mention"
+    }
+  ]
+}

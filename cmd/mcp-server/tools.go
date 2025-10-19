@@ -59,270 +59,208 @@ func MergeParameters(specific map[string]Property) map[string]Property {
 	return result
 }
 
+// buildToolSchema creates a ToolSchema with merged parameters
+func buildToolSchema(properties map[string]Property, required ...string) ToolSchema {
+	schema := ToolSchema{
+		Type:       "object",
+		Properties: MergeParameters(properties),
+	}
+	if len(required) > 0 {
+		schema.Required = required
+	}
+	return schema
+}
+
+// buildTool creates a Tool with the given name, description, and schema
+func buildTool(name, description string, properties map[string]Property, required ...string) Tool {
+	return Tool{
+		Name:        name,
+		Description: description,
+		InputSchema: buildToolSchema(properties, required...),
+	}
+}
+
 func getToolDefinitions() []Tool {
 	return []Tool{
-		{
-			Name:        "get_session_stats",
-			Description: "Get session statistics. Default scope: session.",
-			InputSchema: ToolSchema{
-				Type:       "object",
-				Properties: MergeParameters(map[string]Property{}),
+		buildTool("get_session_stats", "Get session statistics. Default scope: session.", map[string]Property{}),
+		buildTool("query_tools", "Query tool calls with filters. Default scope: project.", map[string]Property{
+			// Tier 2: Filtering
+			"tool": {
+				Type:        "string",
+				Description: "Filter by tool name",
 			},
-		},
-		{
-			Name:        "query_tools",
-			Description: "Query tool calls with filters. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"limit": {
-						Type:        "number",
-						Description: "Max results (no limit by default, rely on hybrid output mode)",
-					},
-					"tool": {
-						Type:        "string",
-						Description: "Filter by tool name",
-					},
-					"status": {
-						Type:        "string",
-						Description: "Filter by status (error/success)",
-					},
-				}),
+			"status": {
+				Type:        "string",
+				Description: "Filter by status (error/success)",
 			},
-		},
-		{
-			Name:        "query_user_messages",
-			Description: "Search user messages with regex. May contain large outputs. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"pattern": {
-						Type:        "string",
-						Description: "Regex pattern to match (required)",
-					},
-					"limit": {
-						Type:        "number",
-						Description: "Max results (no limit by default, rely on hybrid output mode)",
-					},
-					"max_message_length": {
-						Type:        "number",
-						Description: "Max chars per message content (default: 0 = no truncation, rely on hybrid mode for large results)",
-					},
-					"content_summary": {
-						Type:        "boolean",
-						Description: "Return only turn/timestamp/preview (100 chars), skip full content. Use hybrid mode instead for better information preservation.",
-					},
-				}),
-				Required: []string{"pattern"},
+			// Tier 4: Output Control
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
 			},
-		},
-		{
-			Name:        "query_context",
-			Description: "Query error context. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"error_signature": {
-						Type:        "string",
-						Description: "Error pattern ID (required)",
-					},
-					"window": {
-						Type:        "number",
-						Description: "Context window size (default: 3)",
-					},
-				}),
-				Required: []string{"error_signature"},
+		}),
+		buildTool("query_user_messages", "Search user messages with regex. May contain large outputs. Default scope: project.", map[string]Property{
+			// Tier 1: Required
+			"pattern": {
+				Type:        "string",
+				Description: "Regex pattern to match (required)",
 			},
-		},
-		{
-			Name:        "query_tool_sequences",
-			Description: "Query workflow patterns. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"pattern": {
-						Type:        "string",
-						Description: "Sequence pattern to match",
-					},
-					"min_occurrences": {
-						Type:        "number",
-						Description: "Min occurrences (default: 3)",
-					},
-					"include_builtin_tools": {
-						Type:        "boolean",
-						Description: "Include built-in tools (Bash, Read, Edit, etc.). Default: false (cleaner workflow patterns, 35x faster)",
-					},
-				}),
+			// Tier 3: Range
+			"max_message_length": {
+				Type:        "number",
+				Description: "Max chars per message content (default: 0 = no truncation, rely on hybrid mode for large results)",
 			},
-		},
-		{
-			Name:        "query_file_access",
-			Description: "Query file operation history. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"file": {
-						Type:        "string",
-						Description: "File path (required)",
-					},
-				}),
-				Required: []string{"file"},
+			// Tier 4: Output Control
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
 			},
-		},
-		{
-			Name:        "query_project_state",
-			Description: "Query project state evolution. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type:       "object",
-				Properties: MergeParameters(map[string]Property{}),
+			"content_summary": {
+				Type:        "boolean",
+				Description: "Return only turn/timestamp/preview (100 chars), skip full content. Use hybrid mode instead for better information preservation.",
 			},
-		},
-		{
-			Name:        "query_successful_prompts",
-			Description: "Query successful prompt patterns. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"limit": {
-						Type:        "number",
-						Description: "Max results (no limit by default, rely on hybrid output mode)",
-					},
-					"min_quality_score": {
-						Type:        "number",
-						Description: "Min quality score (default: 0.8)",
-					},
-				}),
+		}, "pattern"),
+		buildTool("query_context", "Query error context. Default scope: project.", map[string]Property{
+			"error_signature": {
+				Type:        "string",
+				Description: "Error pattern ID (required)",
 			},
-		},
-		{
-			Name:        "query_tools_advanced",
-			Description: "Query tools with SQL-like filters. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"where": {
-						Type:        "string",
-						Description: "SQL-like filter expression (required)",
-					},
-					"limit": {
-						Type:        "number",
-						Description: "Max results (no limit by default, rely on hybrid output mode)",
-					},
-				}),
-				Required: []string{"where"},
+			"window": {
+				Type:        "number",
+				Description: "Context window size (default: 3)",
 			},
-		},
-		{
-			Name:        "query_time_series",
-			Description: "Analyze metrics over time. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"interval": {
-						Type:        "string",
-						Description: "Time interval (hour/day/week, default: hour)",
-					},
-					"metric": {
-						Type:        "string",
-						Description: "Metric to analyze (default: tool-calls)",
-					},
-					"where": {
-						Type:        "string",
-						Description: "Optional filter expression",
-					},
-				}),
+		}, "error_signature"),
+		buildTool("query_tool_sequences", "Query workflow patterns. Default scope: project.", map[string]Property{
+			// Tier 2: Filtering
+			"pattern": {
+				Type:        "string",
+				Description: "Sequence pattern to match",
 			},
-		},
-		{
-			Name:        "query_assistant_messages",
-			Description: "Query assistant messages with pattern matching and filtering. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"pattern": {
-						Type:        "string",
-						Description: "Regex pattern to match text content",
-					},
-					"min_tools": {
-						Type:        "number",
-						Description: "Minimum tool use count",
-					},
-					"max_tools": {
-						Type:        "number",
-						Description: "Maximum tool use count",
-					},
-					"min_tokens_output": {
-						Type:        "number",
-						Description: "Minimum output tokens",
-					},
-					"min_length": {
-						Type:        "number",
-						Description: "Minimum text length",
-					},
-					"max_length": {
-						Type:        "number",
-						Description: "Maximum text length",
-					},
-					"limit": {
-						Type:        "number",
-						Description: "Max results (no limit by default, rely on hybrid output mode)",
-					},
-				}),
+			"include_builtin_tools": {
+				Type:        "boolean",
+				Description: "Include built-in tools (Bash, Read, Edit, etc.). Default: false (cleaner workflow patterns, 35x faster)",
 			},
-		},
-		{
-			Name:        "query_conversation",
-			Description: "Query conversation turns (user+assistant pairs). Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"start_turn": {
-						Type:        "number",
-						Description: "Starting turn sequence",
-					},
-					"end_turn": {
-						Type:        "number",
-						Description: "Ending turn sequence",
-					},
-					"pattern": {
-						Type:        "string",
-						Description: "Regex pattern (user or assistant content)",
-					},
-					"pattern_target": {
-						Type:        "string",
-						Description: "Pattern target: user, assistant, any (default: any)",
-					},
-					"min_duration": {
-						Type:        "number",
-						Description: "Minimum response duration (ms)",
-					},
-					"max_duration": {
-						Type:        "number",
-						Description: "Maximum response duration (ms)",
-					},
-					"limit": {
-						Type:        "number",
-						Description: "Max results (no limit by default, rely on hybrid output mode)",
-					},
-				}),
+			// Tier 3: Range
+			"min_occurrences": {
+				Type:        "number",
+				Description: "Min occurrences (default: 3)",
 			},
-		},
-		{
-			Name:        "query_files",
-			Description: "File operation stats (returns array). Use jq_filter for filtering. Default scope: project.",
-			InputSchema: ToolSchema{
-				Type: "object",
-				Properties: MergeParameters(map[string]Property{
-					"threshold": {
-						Type:        "number",
-						Description: "Minimum access count to report (default: 5)",
-					},
-					// Note: Output is JSONL array (one file object per line)
-					// Fields: file, total_accesses, read_count, edit_count, write_count, time_span_minutes, first_access, last_access
-					// Example jq_filter: "select(.file | test(\"\\.go$\")) | select(.total_accesses > 10)"
-				}),
+		}),
+		buildTool("query_file_access", "Query file operation history. Default scope: project.", map[string]Property{
+			"file": {
+				Type:        "string",
+				Description: "File path (required)",
 			},
-		},
+		}, "file"),
+		buildTool("query_project_state", "Query project state evolution. Default scope: project.", map[string]Property{}),
+		buildTool("query_successful_prompts", "Query successful prompt patterns. Default scope: project.", map[string]Property{
+			// Tier 3: Range
+			"min_quality_score": {
+				Type:        "number",
+				Description: "Min quality score (default: 0.8)",
+			},
+			// Tier 4: Output Control
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}),
+		buildTool("query_tools_advanced", "Query tools with SQL-like filters. Default scope: project.", map[string]Property{
+			"where": {
+				Type:        "string",
+				Description: "SQL-like filter expression (required)",
+			},
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}, "where"),
+		buildTool("query_time_series", "Analyze metrics over time. Default scope: project.", map[string]Property{
+			"interval": {
+				Type:        "string",
+				Description: "Time interval (hour/day/week, default: hour)",
+			},
+			"metric": {
+				Type:        "string",
+				Description: "Metric to analyze (default: tool-calls)",
+			},
+			"where": {
+				Type:        "string",
+				Description: "Optional filter expression",
+			},
+		}),
+		buildTool("query_assistant_messages", "Query assistant messages with pattern matching and filtering. Default scope: project.", map[string]Property{
+			"pattern": {
+				Type:        "string",
+				Description: "Regex pattern to match text content",
+			},
+			"min_tools": {
+				Type:        "number",
+				Description: "Minimum tool use count",
+			},
+			"max_tools": {
+				Type:        "number",
+				Description: "Maximum tool use count",
+			},
+			"min_tokens_output": {
+				Type:        "number",
+				Description: "Minimum output tokens",
+			},
+			"min_length": {
+				Type:        "number",
+				Description: "Minimum text length",
+			},
+			"max_length": {
+				Type:        "number",
+				Description: "Maximum text length",
+			},
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}),
+		buildTool("query_conversation", "Query conversation turns (user+assistant pairs). Default scope: project.", map[string]Property{
+			// Tier 2: Filtering
+			"pattern": {
+				Type:        "string",
+				Description: "Regex pattern (user or assistant content)",
+			},
+			"pattern_target": {
+				Type:        "string",
+				Description: "Pattern target: user, assistant, any (default: any)",
+			},
+			// Tier 3: Range (turn ranges, then duration ranges)
+			"start_turn": {
+				Type:        "number",
+				Description: "Starting turn sequence",
+			},
+			"end_turn": {
+				Type:        "number",
+				Description: "Ending turn sequence",
+			},
+			"min_duration": {
+				Type:        "number",
+				Description: "Minimum response duration (ms)",
+			},
+			"max_duration": {
+				Type:        "number",
+				Description: "Maximum response duration (ms)",
+			},
+			// Tier 4: Output Control
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}),
+		buildTool("query_files", "File operation stats (returns array). Use jq_filter for filtering. Default scope: project.", map[string]Property{
+			"threshold": {
+				Type:        "number",
+				Description: "Minimum access count to report (default: 5)",
+			},
+			// Note: Output is JSONL array (one file object per line)
+			// Fields: file, total_accesses, read_count, edit_count, write_count, time_span_minutes, first_access, last_access
+			// Example jq_filter: "select(.file | test(\"\\.go$\")) | select(.total_accesses > 10)"
+		}),
 		{
 			Name:        "cleanup_temp_files",
 			Description: "Remove old temporary MCP files. Default scope: none.",

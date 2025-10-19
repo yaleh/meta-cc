@@ -1,0 +1,101 @@
+# Bootstrap-007 Iteration 1: Quality Gate Configuration
+# Date: 2025-10-16
+
+quality_gates:
+  coverage_threshold:
+    name: "Coverage Threshold Enforcement"
+    threshold: 80.0
+    unit: "percent"
+    enforcement: "fail_if_below"
+    scope: "overall"
+    implemented: true  # ✓ Implemented in Iteration 1
+    location: ".github/workflows/ci.yml:97-124"
+    trigger: "ubuntu-latest + go 1.22 only"
+    method: "Parse coverage.out with go tool cover"
+
+  lint_blocking:
+    name: "Lint Violation Blocking"
+    tool: "golangci-lint"
+    enforcement: "fail_on_violations"
+    scope: "all_code"
+    implemented: true  # Already enforced via separate lint job
+    location: ".github/workflows/ci.yml:126-138"
+    trigger: "All commits and PRs"
+    notes: "Uses golangci/golangci-lint-action@v3 with latest version"
+    exit_behavior: "Action fails on violations (default behavior)"
+
+  changelog_validation:
+    name: "CHANGELOG Update Validation"
+    format: "keep_a_changelog"
+    enforcement: "warn_on_missing"
+    scope: "pull_requests"
+    exceptions:
+      - "docs_only_changes"
+      - "test_only_changes"
+      - "pr_title_has_skip_changelog"
+    implemented: true  # ✓ Implemented in Iteration 1
+    location: ".github/workflows/ci.yml:82-89"
+    script: "scripts/check-changelog-updated.sh"
+    trigger: "pull_request events only"
+    current_behavior: "warn_only"  # Not a hard failure yet
+
+current_coverage: 71.7
+coverage_gap: 8.3  # Need to reach 80%
+coverage_status: "below_threshold"
+
+implementation_plan:
+  step_1:
+    name: "Add coverage threshold check"
+    file: ".github/workflows/ci.yml"
+    location: "test job, after upload coverage step"
+    action: "Add step to parse coverage.out and fail if < 80%"
+
+  step_2:
+    name: "Verify lint blocking"
+    file: ".github/workflows/ci.yml"
+    location: "lint job"
+    action: "Confirm golangci-lint exits 1 on violations (default behavior)"
+
+  step_3:
+    name: "Add CHANGELOG validation"
+    file: ".github/workflows/ci.yml"
+    location: "test job or new job"
+    action: "Check if CHANGELOG.md updated on PRs (with exceptions)"
+    notes: "Skip for docs-only or test-only changes"
+
+validation_approach:
+  coverage:
+    method: "Parse coverage.out file"
+    tool: "go tool cover -func=coverage.out"
+    threshold_check: "Extract total percentage, compare to 80%"
+    exit_code: "1 if below threshold, 0 if above"
+
+  lint:
+    method: "golangci-lint-action default behavior"
+    notes: "Already fails on violations (exit 1)"
+    verification: "Confirm via CI logs"
+
+  changelog:
+    method: "Git diff analysis"
+    tool: "bash script"
+    logic: |
+      if PR changes code files AND not docs-only:
+        check if CHANGELOG.md modified
+        fail if not modified
+      else:
+        skip check
+
+expected_outcomes:
+  coverage_gate:
+    - "CI fails if coverage drops below 80%"
+    - "Clear error message indicating threshold violation"
+    - "Shows actual vs expected coverage"
+
+  lint_gate:
+    - "CI fails if lint violations exist"
+    - "Already enforced, just verify"
+
+  changelog_gate:
+    - "CI warns if CHANGELOG not updated on code changes"
+    - "Allows bypass for docs-only changes"
+    - "Clear instructions on how to update CHANGELOG"

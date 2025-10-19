@@ -1,0 +1,392 @@
+package example
+
+import (
+	"errors"
+	"fmt"
+	"log/slog"
+)
+
+// ============================================================================
+// SECTION 1: Sentinel Errors
+// ============================================================================
+
+// Define package-level sentinel errors for expected error conditions
+// Use when callers need to distinguish error types programmatically
+
+var (
+	// Common error conditions
+	ErrNotFound      = errors.New("resource not found")
+	ErrInvalidInput  = errors.New("invalid input")
+	ErrAlreadyExists = errors.New("resource already exists")
+	ErrUnauthorized  = errors.New("unauthorized access")
+	ErrTimeout       = errors.New("operation timed out")
+
+	// Domain-specific errors
+	ErrSessionNotFound = errors.New("session file not found")
+	ErrParseError      = errors.New("parse error")
+	ErrNoResults       = errors.New("no results found")
+)
+
+// ============================================================================
+// SECTION 2: Custom Error Types
+// ============================================================================
+
+// ValidationError represents a validation error with structured data
+// Use custom types when you need to attach metadata to errors
+type ValidationError struct {
+	Field   string      // Field that failed validation
+	Value   interface{} // Value that was invalid
+	Message string      // Human-readable validation message
+}
+
+func (e *ValidationError) Error() string {
+	return fmt.Sprintf("validation failed for field %s: %s (got: %v)",
+		e.Field, e.Message, e.Value)
+}
+
+// NewValidationError creates a new validation error
+func NewValidationError(field string, value interface{}, message string) error {
+	return &ValidationError{
+		Field:   field,
+		Value:   value,
+		Message: message,
+	}
+}
+
+// ParseError represents a parse error with line/column information
+type ParseError struct {
+	Line    int    // Line number where error occurred
+	Column  int    // Column number where error occurred
+	Message string // Error description
+	Err     error  // Underlying error (wrapped)
+}
+
+func (e *ParseError) Error() string {
+	if e.Err != nil {
+		return fmt.Sprintf("parse error at line %d, column %d: %s: %v",
+			e.Line, e.Column, e.Message, e.Err)
+	}
+	return fmt.Sprintf("parse error at line %d, column %d: %s",
+		e.Line, e.Column, e.Message)
+}
+
+func (e *ParseError) Unwrap() error {
+	return e.Err
+}
+
+// ============================================================================
+// SECTION 3: Error Wrapping Patterns
+// ============================================================================
+
+// Example: Basic error wrapping with context
+func ProcessFile(path string) error {
+	data, err := readFile(path)
+	if err != nil {
+		// ✓ Good: Wrap with context using %w
+		return fmt.Errorf("failed to process file %s: %w", path, err)
+	}
+
+	if err := validateData(data); err != nil {
+		// ✓ Good: Add layer context
+		return fmt.Errorf("validation failed for file %s: %w", path, err)
+	}
+
+	return nil
+}
+
+// Example: Multi-level wrapping
+func readFile(path string) ([]byte, error) {
+	// Simulate low-level operation
+	data, err := simulatedRead(path)
+	if err != nil {
+		// Layer 1: Low-level context
+		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
+	}
+	return data, nil
+}
+
+func validateData(data []byte) error {
+	if len(data) == 0 {
+		// Return sentinel error for expected condition
+		return ErrInvalidInput
+	}
+	return nil
+}
+
+// Example: Checking wrapped errors
+func HandleError(err error) {
+	// Check for sentinel errors
+	if errors.Is(err, ErrNotFound) {
+		// Handle not found case
+		slog.Warn("resource not found", "error", err)
+		return
+	}
+
+	// Check for custom error types
+	var valErr *ValidationError
+	if errors.As(err, &valErr) {
+		// Handle validation error specially
+		slog.Error("validation failed",
+			"field", valErr.Field,
+			"value", valErr.Value,
+			"message", valErr.Message)
+		return
+	}
+
+	// Generic error handling
+	slog.Error("operation failed", "error", err)
+}
+
+// ============================================================================
+// SECTION 4: Error Recovery and Retry
+// ============================================================================
+
+// RetryableOperation demonstrates retry logic for transient errors
+func RetryableOperation(maxAttempts int) error {
+	var lastErr error
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		err := riskyOperation()
+		if err == nil {
+			return nil // Success
+		}
+
+		lastErr = err
+
+		// Don't retry permanent errors
+		if !isTransientError(err) {
+			return fmt.Errorf("permanent error, aborting: %w", err)
+		}
+
+		// Exponential backoff (1s, 2s, 4s, ...)
+		if attempt < maxAttempts-1 {
+			slog.Warn("operation failed, retrying",
+				"attempt", attempt+1,
+				"max_attempts", maxAttempts,
+				"error", err)
+			// time.Sleep(time.Duration(1<<attempt) * time.Second)
+		}
+	}
+
+	return fmt.Errorf("operation failed after %d attempts: %w",
+		maxAttempts, lastErr)
+}
+
+// isTransientError checks if an error is transient (worth retrying)
+func isTransientError(err error) bool {
+	// Network timeouts, connection errors, server errors
+	if errors.Is(err, ErrTimeout) {
+		return true
+	}
+
+	// Check error message for transient patterns
+	errMsg := err.Error()
+	transientPatterns := []string{
+		"timeout",
+		"connection refused",
+		"network is unreachable",
+		"status 5", // 5xx server errors
+	}
+
+	for _, pattern := range transientPatterns {
+		if contains(errMsg, pattern) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ============================================================================
+// SECTION 5: Error Logging Strategy
+// ============================================================================
+
+// ❌ ANTI-PATTERN: Log-and-throw (DO NOT DO THIS)
+func badHelperFunction() error {
+	if err := riskyOperation(); err != nil {
+		slog.Error("operation failed", "error", err) // Logged here
+		return err                                   // And will be logged again by caller!
+	}
+	return nil
+}
+
+// ✓ CORRECT PATTERN: Just wrap and return
+func goodHelperFunction() error {
+	if err := riskyOperation(); err != nil {
+		// Just wrap with context, let caller decide to log
+		return fmt.Errorf("helper operation failed: %w", err)
+	}
+	return nil
+}
+
+// ✓ CORRECT PATTERN: Log at top level
+func topLevelHandler() error {
+	if err := goodHelperFunction(); err != nil {
+		// Log ONCE at the top level
+		slog.Error("request failed",
+			"error", err.Error(),
+			"error_type", classifyError(err))
+		return err
+	}
+	return nil
+}
+
+// classifyError categorizes errors for structured logging
+func classifyError(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	// Check sentinel errors first
+	if errors.Is(err, ErrNotFound) {
+		return "not_found"
+	}
+	if errors.Is(err, ErrInvalidInput) {
+		return "validation_error"
+	}
+	if errors.Is(err, ErrTimeout) {
+		return "timeout_error"
+	}
+
+	// Check custom error types
+	var valErr *ValidationError
+	if errors.As(err, &valErr) {
+		return "validation_error"
+	}
+
+	var parseErr *ParseError
+	if errors.As(err, &parseErr) {
+		return "parse_error"
+	}
+
+	// Check error message for patterns
+	errMsg := err.Error()
+	patterns := map[string]string{
+		"parse":          "parse_error",
+		"unmarshal":      "parse_error",
+		"validation":     "validation_error",
+		"invalid":        "validation_error",
+		"no such file":   "io_error",
+		"permission":     "io_error",
+		"network":        "network_error",
+		"connection":     "network_error",
+		"timeout":        "timeout_error",
+		"unauthorized":   "auth_error",
+		"authentication": "auth_error",
+	}
+
+	for pattern, errType := range patterns {
+		if contains(errMsg, pattern) {
+			return errType
+		}
+	}
+
+	return "general_error"
+}
+
+// ============================================================================
+// SECTION 6: Error Testing Examples
+// ============================================================================
+
+// Example test functions (would be in _test.go file)
+
+/*
+func TestErrorWrapping(t *testing.T) {
+	err := ProcessFile("/nonexistent/path")
+
+	// Test error was returned
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+
+	// Test error contains context
+	if !strings.Contains(err.Error(), "/nonexistent/path") {
+		t.Errorf("error should contain file path: %v", err)
+	}
+
+	// Test error wrapping
+	if !strings.Contains(err.Error(), "failed to process file") {
+		t.Errorf("error should contain operation context: %v", err)
+	}
+}
+
+func TestSentinelErrors(t *testing.T) {
+	err := validateData([]byte{})
+
+	// Use errors.Is for sentinel error checking
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Errorf("expected ErrInvalidInput, got: %v", err)
+	}
+}
+
+func TestCustomErrorTypes(t *testing.T) {
+	err := NewValidationError("age", -1, "must be non-negative")
+
+	// Use errors.As for custom error type checking
+	var valErr *ValidationError
+	if !errors.As(err, &valErr) {
+		t.Fatal("expected ValidationError")
+	}
+
+	if valErr.Field != "age" {
+		t.Errorf("expected field 'age', got '%s'", valErr.Field)
+	}
+
+	if valErr.Value != -1 {
+		t.Errorf("expected value -1, got %v", valErr.Value)
+	}
+}
+
+func TestErrorClassification(t *testing.T) {
+	tests := []struct {
+		err      error
+		expected string
+	}{
+		{ErrNotFound, "not_found"},
+		{ErrInvalidInput, "validation_error"},
+		{ErrTimeout, "timeout_error"},
+		{NewValidationError("field", "value", "msg"), "validation_error"},
+		{fmt.Errorf("parse error: invalid JSON"), "parse_error"},
+		{fmt.Errorf("network timeout"), "timeout_error"},
+	}
+
+	for _, tt := range tests {
+		result := classifyError(tt.err)
+		if result != tt.expected {
+			t.Errorf("classifyError(%v) = %s, want %s",
+				tt.err, result, tt.expected)
+		}
+	}
+}
+
+func TestRetryLogic(t *testing.T) {
+	// Test successful retry
+	err := RetryableOperation(3)
+	// Assert based on mock riskyOperation behavior
+
+	// Test permanent error (no retry)
+	// ... test setup ...
+
+	// Test retry exhaustion
+	// ... test setup ...
+}
+*/
+
+// ============================================================================
+// Helper Functions (Simulated)
+// ============================================================================
+
+func simulatedRead(path string) ([]byte, error) {
+	// Simulated for example purposes
+	return nil, fmt.Errorf("simulated read error")
+}
+
+func riskyOperation() error {
+	// Simulated for example purposes
+	return nil
+}
+
+func contains(s, substr string) bool {
+	// Simulated for example purposes
+	return false
+}

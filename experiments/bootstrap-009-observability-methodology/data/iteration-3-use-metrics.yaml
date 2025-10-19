@@ -1,0 +1,638 @@
+# USE Metrics Methodology Application
+# Iteration: 3
+# Date: 2025-10-17
+# Methodology: USE (Utilization, Saturation, Errors)
+# Source: Brendan Gregg (Systems Performance)
+# Domain: Resource monitoring (CPU, memory, I/O)
+
+methodology_overview:
+  name: "USE Metrics"
+  full_name: "Utilization, Saturation, Errors"
+  source: "Brendan Gregg, 'Systems Performance' (2013)"
+  use_case: "Monitor system resource health and capacity planning"
+  applicability: "MEDIUM for MCP server (complements RED metrics)"
+
+  three_resource_metrics:
+    utilization:
+      description: "Average time the resource is busy servicing work"
+      why: "Indicates how close to capacity the resource is"
+      metric_type: "Gauge (percentage 0-100%)"
+      example: "CPU utilization: 45% → 45% of CPU time is busy"
+
+    saturation:
+      description: "Degree to which the resource has queued work it cannot service"
+      why: "Indicates resource exhaustion and capacity limits"
+      metric_type: "Gauge (queue depth) or Counter (saturation events)"
+      example: "Request queue depth: 15 requests waiting"
+
+    errors:
+      description: "Count of error events for the resource"
+      why: "Indicates resource failures and degradation"
+      metric_type: "Counter"
+      example: "Memory allocation failures: 3 OOM events"
+
+  resource_types:
+    - CPU
+    - Memory (RAM)
+    - Network I/O
+    - Disk I/O
+    - File descriptors
+    - Goroutines (Go-specific)
+
+  relationship_to_red:
+    note: "USE complements RED - RED monitors request flow, USE monitors resource health"
+    combined: "RED + USE = comprehensive service + system observability"
+
+# Application to MCP Server
+
+mcp_server_resources:
+  critical_resources:
+    - CPU: "Query execution, JSONL parsing, jq filtering"
+    - Memory: "Session data loading, JSONL parsing, result buffering"
+    - Goroutines: "Concurrent request handling"
+    - File_descriptors: "Session file reads, capability package downloads"
+
+  less_critical_resources:
+    - Network_IO: "Limited (stdio-based, capability downloads only)"
+    - Disk_IO: "Session file reads (typically cached by OS)"
+
+  resource_limits:
+    CPU: "Unbounded (limited by host)"
+    Memory: "Unbounded (limited by host, typical usage < 100MB)"
+    Goroutines: "Unbounded (Go runtime manages)"
+    File_descriptors: "OS ulimit (typically 1024-65536)"
+
+# Utilization Metrics
+
+utilization_metrics:
+  cpu_utilization:
+    name: "mcp_server_cpu_utilization_percent"
+    type: "Gauge"
+    description: "CPU utilization of MCP server process (0-100%)"
+    labels: []
+    unit: "percent"
+
+    collection_method:
+      approach: "Sample /proc/{pid}/stat (Linux) or runtime.ReadMemStats() (Go)"
+      interval: "10 seconds (background goroutine)"
+      calculation: |
+        cpu_percent = (cpu_time_delta / wall_time_delta) * 100
+        where cpu_time_delta = (utime + stime)_now - (utime + stime)_prev
+
+    collection_points:
+      - location: "cmd/mcp-server/main.go::main()"
+        when: "Background goroutine, collect every 10s"
+        code: |
+          go func() {
+            ticker := time.NewTicker(10 * time.Second)
+            for range ticker.C {
+              cpuPercent := getCPUUtilization()
+              cpuUtilization.Set(cpuPercent)
+            }
+          }()
+
+    prometheus_queries:
+      current_cpu:
+        query: "mcp_server_cpu_utilization_percent"
+        description: "Current CPU utilization"
+
+      avg_cpu_1h:
+        query: "avg_over_time(mcp_server_cpu_utilization_percent[1h])"
+        description: "Average CPU utilization over 1 hour"
+
+      max_cpu_24h:
+        query: "max_over_time(mcp_server_cpu_utilization_percent[24h])"
+        description: "Peak CPU utilization in last 24 hours"
+
+    alerting:
+      - alert: "HighCPUUtilization"
+        condition: "mcp_server_cpu_utilization_percent > 80"
+        severity: "warning"
+        description: "CPU utilization > 80% (approaching capacity)"
+        for: "5m"
+
+      - alert: "CPUUtilizationSpike"
+        condition: "mcp_server_cpu_utilization_percent > 90"
+        severity: "critical"
+        description: "CPU utilization > 90% (at capacity)"
+        for: "2m"
+
+  memory_utilization:
+    name: "mcp_server_memory_utilization_bytes"
+    type: "Gauge"
+    description: "Memory utilization of MCP server process"
+    labels:
+      - name: "type"
+        values: ["heap", "stack", "total"]
+        cardinality: 3
+    unit: "bytes"
+
+    collection_method:
+      approach: "runtime.ReadMemStats() (Go standard library)"
+      interval: "10 seconds (background goroutine)"
+      fields:
+        heap: "runtime.MemStats.HeapAlloc (heap bytes allocated)"
+        stack: "runtime.MemStats.StackInuse (stack bytes in use)"
+        total: "runtime.MemStats.Sys (total bytes from OS)"
+
+    collection_points:
+      - location: "cmd/mcp-server/main.go::main()"
+        when: "Background goroutine, collect every 10s"
+        code: |
+          go func() {
+            ticker := time.NewTicker(10 * time.Second)
+            for range ticker.C {
+              var m runtime.MemStats
+              runtime.ReadMemStats(&m)
+              memoryUtilization.WithLabelValues("heap").Set(float64(m.HeapAlloc))
+              memoryUtilization.WithLabelValues("stack").Set(float64(m.StackInuse))
+              memoryUtilization.WithLabelValues("total").Set(float64(m.Sys))
+            }
+          }()
+
+    prometheus_queries:
+      heap_memory_mb:
+        query: "mcp_server_memory_utilization_bytes{type='heap'} / 1024 / 1024"
+        description: "Heap memory usage in MB"
+
+      memory_trend_24h:
+        query: "rate(mcp_server_memory_utilization_bytes{type='heap'}[24h])"
+        description: "Memory growth rate (bytes/sec) over 24h"
+
+    alerting:
+      - alert: "HighMemoryUtilization"
+        condition: "mcp_server_memory_utilization_bytes{type='heap'} > 500 * 1024 * 1024"
+        severity: "warning"
+        description: "Heap memory > 500MB (unusually high for MCP server)"
+        for: "5m"
+
+      - alert: "MemoryLeak"
+        condition: "rate(mcp_server_memory_utilization_bytes{type='heap'}[1h]) > 1024 * 1024"
+        severity: "critical"
+        description: "Heap memory growing > 1MB/sec over 1 hour (possible memory leak)"
+        for: "10m"
+
+  goroutines_active:
+    name: "mcp_server_goroutines_active"
+    type: "Gauge"
+    description: "Number of active goroutines"
+    labels: []
+    unit: "count"
+
+    collection_method:
+      approach: "runtime.NumGoroutine() (Go standard library)"
+      interval: "10 seconds (background goroutine)"
+
+    collection_points:
+      - location: "cmd/mcp-server/main.go::main()"
+        when: "Background goroutine, collect every 10s"
+        code: |
+          go func() {
+            ticker := time.NewTicker(10 * time.Second)
+            for range ticker.C {
+              goroutinesActive.Set(float64(runtime.NumGoroutine()))
+            }
+          }()
+
+    prometheus_queries:
+      current_goroutines:
+        query: "mcp_server_goroutines_active"
+        description: "Current number of active goroutines"
+
+      goroutine_growth:
+        query: "rate(mcp_server_goroutines_active[1h])"
+        description: "Goroutine growth rate (goroutines/sec)"
+
+    alerting:
+      - alert: "GoroutineLeak"
+        condition: "mcp_server_goroutines_active > 1000"
+        severity: "warning"
+        description: "More than 1000 active goroutines (possible goroutine leak)"
+        for: "5m"
+
+      - alert: "GoroutineGrowth"
+        condition: "rate(mcp_server_goroutines_active[10m]) > 1"
+        severity: "warning"
+        description: "Goroutines growing > 1/sec over 10 minutes (leak suspected)"
+        for: "10m"
+
+  file_descriptors_open:
+    name: "mcp_server_file_descriptors_open"
+    type: "Gauge"
+    description: "Number of open file descriptors"
+    labels: []
+    unit: "count"
+
+    collection_method:
+      approach: "Count files in /proc/{pid}/fd/ (Linux) or lsof (macOS)"
+      interval: "10 seconds (background goroutine)"
+
+    collection_points:
+      - location: "cmd/mcp-server/main.go::main()"
+        when: "Background goroutine, collect every 10s"
+        code: |
+          go func() {
+            ticker := time.NewTicker(10 * time.Second)
+            for range ticker.C {
+              fdCount := getOpenFileDescriptors()
+              fileDescriptorsOpen.Set(float64(fdCount))
+            }
+          }()
+
+    prometheus_queries:
+      current_fds:
+        query: "mcp_server_file_descriptors_open"
+        description: "Current number of open file descriptors"
+
+      fd_utilization_percent:
+        query: "mcp_server_file_descriptors_open / {ulimit} * 100"
+        description: "File descriptor utilization (% of ulimit)"
+
+    alerting:
+      - alert: "HighFileDescriptorUsage"
+        condition: "mcp_server_file_descriptors_open / 1024 > 0.8"
+        severity: "warning"
+        description: "File descriptor usage > 80% of ulimit (assuming ulimit=1024)"
+        for: "5m"
+
+  utilization_visualization:
+    dashboard: "USE - Utilization"
+    panels:
+      - title: "CPU Utilization (%)"
+        query: "mcp_server_cpu_utilization_percent"
+        type: "Graph (time series)"
+        unit: "%"
+        threshold: "Yellow > 60%, Red > 80%"
+
+      - title: "Memory Utilization (Heap)"
+        query: "mcp_server_memory_utilization_bytes{type='heap'} / 1024 / 1024"
+        type: "Graph (time series)"
+        unit: "MB"
+        threshold: "Yellow > 200MB, Red > 500MB"
+
+      - title: "Goroutines Active"
+        query: "mcp_server_goroutines_active"
+        type: "Graph (time series)"
+        unit: "count"
+        threshold: "Yellow > 100, Red > 1000"
+
+      - title: "File Descriptors Open"
+        query: "mcp_server_file_descriptors_open"
+        type: "Graph (time series)"
+        unit: "count"
+
+# Saturation Metrics
+
+saturation_metrics:
+  request_queue_depth:
+    name: "mcp_server_request_queue_depth"
+    type: "Gauge"
+    description: "Number of requests waiting to be processed (queued)"
+    labels: []
+    unit: "count"
+
+    collection_method:
+      approach: "Track pending requests in server handler"
+      implementation: |
+        var requestQueue atomic.Int32
+
+        func handleRequest(req Request) {
+          requestQueue.Inc()
+          requestQueueDepth.Set(float64(requestQueue.Load()))
+          defer func() {
+            requestQueue.Dec()
+            requestQueueDepth.Set(float64(requestQueue.Load()))
+          }()
+          // ... process request ...
+        }
+
+    prometheus_queries:
+      current_queue:
+        query: "mcp_server_request_queue_depth"
+        description: "Current request queue depth"
+
+      max_queue_24h:
+        query: "max_over_time(mcp_server_request_queue_depth[24h])"
+        description: "Peak queue depth in last 24 hours"
+
+    alerting:
+      - alert: "RequestQueueSaturated"
+        condition: "mcp_server_request_queue_depth > 10"
+        severity: "warning"
+        description: "Request queue depth > 10 (service saturated)"
+        for: "2m"
+
+      - alert: "RequestQueueCritical"
+        condition: "mcp_server_request_queue_depth > 50"
+        severity: "critical"
+        description: "Request queue depth > 50 (severe saturation)"
+        for: "1m"
+
+  concurrent_requests:
+    name: "mcp_server_concurrent_requests"
+    type: "Gauge"
+    description: "Number of requests currently being processed"
+    labels: []
+    unit: "count"
+
+    collection_method:
+      approach: "Increment on request start, decrement on completion"
+      implementation: |
+        var concurrentReqs atomic.Int32
+
+        func handleRequest(req Request) {
+          concurrentReqs.Inc()
+          concurrentRequests.Set(float64(concurrentReqs.Load()))
+          defer func() {
+            concurrentReqs.Dec()
+            concurrentRequests.Set(float64(concurrentReqs.Load()))
+          }()
+          // ... process request ...
+        }
+
+    prometheus_queries:
+      current_concurrent:
+        query: "mcp_server_concurrent_requests"
+        description: "Current concurrent requests"
+
+      avg_concurrent_1h:
+        query: "avg_over_time(mcp_server_concurrent_requests[1h])"
+        description: "Average concurrency over 1 hour"
+
+    alerting:
+      - alert: "HighConcurrency"
+        condition: "mcp_server_concurrent_requests > 50"
+        severity: "warning"
+        description: "Concurrent requests > 50 (high load)"
+        for: "5m"
+
+  memory_pressure_events:
+    name: "mcp_server_memory_pressure_events_total"
+    type: "Counter"
+    description: "Number of GC pressure events (frequent GC cycles indicating memory pressure)"
+    labels: []
+    unit: "count"
+
+    collection_method:
+      approach: "Track runtime.MemStats.NumGC increases, flag pressure if GC rate > 10/sec"
+      interval: "10 seconds (background goroutine)"
+      implementation: |
+        var prevNumGC uint32
+        go func() {
+          ticker := time.NewTicker(10 * time.Second)
+          for range ticker.C {
+            var m runtime.MemStats
+            runtime.ReadMemStats(&m)
+            gcDelta := m.NumGC - prevNumGC
+            prevNumGC = m.NumGC
+            gcRate := float64(gcDelta) / 10.0  // GC/sec
+            if gcRate > 10.0 {
+              memoryPressureEvents.Inc()
+            }
+          }
+        }()
+
+    prometheus_queries:
+      gc_pressure_rate:
+        query: "rate(mcp_server_memory_pressure_events_total[5m])"
+        description: "GC pressure events per second"
+
+    alerting:
+      - alert: "MemoryPressure"
+        condition: "rate(mcp_server_memory_pressure_events_total[5m]) > 0.1"
+        severity: "warning"
+        description: "Frequent GC pressure events (memory pressure detected)"
+        for: "5m"
+
+  saturation_visualization:
+    dashboard: "USE - Saturation"
+    panels:
+      - title: "Request Queue Depth"
+        query: "mcp_server_request_queue_depth"
+        type: "Graph (time series)"
+        unit: "requests"
+        threshold: "Yellow > 5, Red > 10"
+
+      - title: "Concurrent Requests"
+        query: "mcp_server_concurrent_requests"
+        type: "Graph (time series)"
+        unit: "requests"
+        threshold: "Yellow > 20, Red > 50"
+
+      - title: "GC Pressure Events"
+        query: "rate(mcp_server_memory_pressure_events_total[5m])"
+        type: "Graph (time series)"
+        unit: "events/sec"
+
+# Resource Error Metrics
+
+resource_error_metrics:
+  resource_errors_total:
+    name: "mcp_server_resource_errors_total"
+    type: "Counter"
+    description: "Resource-related errors (OOM, file descriptor exhaustion, etc.)"
+    labels:
+      - name: "resource_type"
+        values: ["memory", "file_descriptors", "cpu", "goroutines"]
+        cardinality: 4
+    unit: "count"
+
+    collection_points:
+      - location: "Error handling paths"
+        when: "On resource allocation failures"
+        examples:
+          - "OOM: When heap allocation fails"
+          - "FD exhaustion: When os.Open() returns 'too many open files'"
+          - "Goroutine panic: When goroutine creation fails"
+
+    prometheus_queries:
+      oom_events:
+        query: "mcp_server_resource_errors_total{resource_type='memory'}"
+        description: "Total OOM events"
+
+      fd_exhaustion_events:
+        query: "mcp_server_resource_errors_total{resource_type='file_descriptors'}"
+        description: "Total file descriptor exhaustion events"
+
+    alerting:
+      - alert: "ResourceError"
+        condition: "rate(mcp_server_resource_errors_total[5m]) > 0.01"
+        severity: "critical"
+        description: "Resource errors detected (OOM, FD exhaustion, etc.)"
+        for: "1m"
+
+  error_visualization:
+    dashboard: "USE - Resource Errors"
+    panels:
+      - title: "Resource Errors by Type"
+        query: "sum(rate(mcp_server_resource_errors_total[5m])) by (resource_type)"
+        type: "Bar chart"
+        unit: "errors/sec"
+
+      - title: "OOM Events (24h)"
+        query: "increase(mcp_server_resource_errors_total{resource_type='memory'}[24h])"
+        type: "Single stat"
+        unit: "count"
+
+# USE Dashboard
+
+use_dashboard:
+  name: "MCP Server - USE Overview"
+  description: "Unified USE dashboard for resource health monitoring"
+
+  layout:
+    row_1_utilization:
+      - panel: "CPU Utilization (%)"
+        query: "mcp_server_cpu_utilization_percent"
+        visualization: "Gauge"
+        unit: "%"
+        threshold: "Green < 60%, Yellow 60-80%, Red > 80%"
+
+      - panel: "Memory Utilization (Heap)"
+        query: "mcp_server_memory_utilization_bytes{type='heap'} / 1024 / 1024"
+        visualization: "Gauge"
+        unit: "MB"
+        threshold: "Green < 200MB, Yellow 200-500MB, Red > 500MB"
+
+      - panel: "Goroutines Active"
+        query: "mcp_server_goroutines_active"
+        visualization: "Gauge"
+        unit: "count"
+        threshold: "Green < 50, Yellow 50-1000, Red > 1000"
+
+      - panel: "File Descriptors Open"
+        query: "mcp_server_file_descriptors_open"
+        visualization: "Gauge"
+        unit: "count"
+
+    row_2_utilization_trends:
+      - panel: "CPU Utilization Over Time"
+        query: "mcp_server_cpu_utilization_percent"
+        visualization: "Graph (time series)"
+        unit: "%"
+
+      - panel: "Memory Utilization Over Time"
+        query: "mcp_server_memory_utilization_bytes{type='heap'} / 1024 / 1024"
+        visualization: "Graph (time series)"
+        unit: "MB"
+
+    row_3_saturation:
+      - panel: "Request Queue Depth"
+        query: "mcp_server_request_queue_depth"
+        visualization: "Graph (time series)"
+        unit: "requests"
+        threshold: "Yellow > 5, Red > 10"
+
+      - panel: "Concurrent Requests"
+        query: "mcp_server_concurrent_requests"
+        visualization: "Graph (time series)"
+        unit: "requests"
+        threshold: "Yellow > 20, Red > 50"
+
+      - panel: "GC Pressure Events"
+        query: "rate(mcp_server_memory_pressure_events_total[5m])"
+        visualization: "Graph (time series)"
+        unit: "events/sec"
+
+    row_4_resource_errors:
+      - panel: "Resource Errors by Type"
+        query: "sum(rate(mcp_server_resource_errors_total[5m])) by (resource_type)"
+        visualization: "Bar chart"
+        unit: "errors/sec"
+
+      - panel: "Resource Error Rate"
+        query: "sum(rate(mcp_server_resource_errors_total[5m]))"
+        visualization: "Graph (time series)"
+        unit: "errors/sec"
+
+# Transferability
+
+transferability:
+  applicability: "Any service (resource monitoring is universal)"
+  examples:
+    - "Web servers (CPU, memory, network I/O)"
+    - "Database servers (CPU, memory, disk I/O, locks)"
+    - "Message queue consumers (CPU, memory, queue depth)"
+    - "Background workers (CPU, memory, job queue)"
+    - "Microservices (CPU, memory, goroutines/threads)"
+
+  adaptation_guide:
+    step_1: "Identify critical resources (CPU, memory, I/O, etc.)"
+    step_2: "For each resource, define USE metrics:"
+    utilization:
+      question: "How busy is this resource?"
+      metric: "Gauge (percentage or absolute usage)"
+    saturation:
+      question: "Is this resource queuing work?"
+      metric: "Gauge (queue depth) or Counter (saturation events)"
+    errors:
+      question: "Is this resource failing?"
+      metric: "Counter (error events)"
+    step_3: "Implement collection (background goroutines for sampling)"
+    step_4: "Create USE dashboard in Grafana"
+    step_5: "Configure alerting rules (capacity planning)"
+
+  universal_pattern:
+    cpu:
+      utilization: "{service}_cpu_utilization_percent"
+      saturation: "{service}_cpu_saturation_percent (Linux: /proc/loadavg)"
+      errors: "{service}_cpu_errors_total (rare)"
+
+    memory:
+      utilization: "{service}_memory_utilization_bytes"
+      saturation: "{service}_memory_saturation_events_total (paging, swapping)"
+      errors: "{service}_memory_errors_total (OOM events)"
+
+    disk:
+      utilization: "{service}_disk_utilization_percent"
+      saturation: "{service}_disk_queue_depth"
+      errors: "{service}_disk_errors_total (I/O errors)"
+
+    network:
+      utilization: "{service}_network_utilization_bytes_per_sec"
+      saturation: "{service}_network_queue_depth"
+      errors: "{service}_network_errors_total (packet loss, timeouts)"
+
+# RED vs USE Comparison
+
+red_vs_use:
+  red:
+    focus: "Request flow (user perspective)"
+    metrics: "Rate, Errors, Duration"
+    use_case: "Service health monitoring"
+    alerting: "SLO violations (error rate, latency)"
+
+  use:
+    focus: "Resource health (system perspective)"
+    metrics: "Utilization, Saturation, Errors"
+    use_case: "Capacity planning, resource optimization"
+    alerting: "Resource exhaustion, capacity limits"
+
+  combined_value:
+    scenario_1:
+      symptom: "High error rate (RED)"
+      diagnosis: "High CPU utilization (USE) → root cause: performance bottleneck"
+
+    scenario_2:
+      symptom: "High latency (RED)"
+      diagnosis: "High request queue depth (USE) → root cause: saturation"
+
+    scenario_3:
+      symptom: "Memory OOM errors (USE)"
+      diagnosis: "Correlate with tool execution (RED) → root cause: specific tool memory leak"
+
+  recommendation: "Implement both RED and USE for comprehensive observability"
+
+# Summary
+
+summary:
+  methodology: "USE (Utilization, Saturation, Errors)"
+  applicability_to_mcp_server: "Medium - complements RED for resource monitoring"
+  metrics_count: 10 (CPU, memory, goroutines, FDs, queue depth, concurrent requests, GC pressure, resource errors)
+  total_series: ~13
+  cardinality_control: "Very low - mostly no labels (except memory type, resource_type)"
+  dashboard: "USE Overview (4 rows: Utilization gauges, Utilization trends, Saturation, Resource errors)"
+  alerting_rules: 12
+  transferability: "Universal - applicable to any service"
+  implementation_priority: "MEDIUM - important for capacity planning, less urgent than RED"
+  next_steps: "Implement in Iteration 5 (after RED in Iteration 4)"

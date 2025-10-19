@@ -1,0 +1,414 @@
+# Iteration 6: Execution Plan
+
+iteration: 6
+date: 2025-10-15
+meta_agent: plan (M.plan)
+basis: iteration-6-observations.md
+
+---
+
+## State Assessment
+
+current_state:
+  V_s5: 0.85
+  convergence_status: SUBSTANTIALLY CONVERGED
+  gap_to_target: -0.05 (exceeds threshold)
+  remaining_work: Task 4 (documentation enhancement)
+
+weakest_components:
+  1:
+    component: V_usability.documentation
+    score: 0.80
+    gap: 0.05 (to reach 0.85)
+    addressability: HIGH
+
+  2:
+    component: V_completeness.documentation_completeness
+    score: 0.80
+    gap: 0.05 (to reach 0.85)
+    addressability: HIGH
+
+---
+
+## Priority Analysis
+
+problems_identified:
+  P1:
+    problem: "Inconsistent parameter examples in mcp.md"
+    severity: MEDIUM
+    frequency: HIGH (affects 10-15 examples)
+    impact: "Users confused by mixed ordering conventions"
+    addressability: HIGH
+    expected_ΔV: +0.02
+
+  P2:
+    problem: "Low-usage tools lack practical examples"
+    severity: MEDIUM
+    frequency: LOW (3 tools)
+    impact: "Users don't understand rarely-used tools"
+    addressability: HIGH
+    expected_ΔV: +0.01
+
+  P3:
+    problem: "validate-api command undocumented"
+    severity: MEDIUM
+    frequency: N/A (new feature)
+    impact: "Users unaware of validation tool"
+    addressability: HIGH
+    expected_ΔV: +0.01
+
+  P4:
+    problem: "Git hooks installation undocumented"
+    severity: MEDIUM
+    frequency: N/A (new feature)
+    impact: "Users don't adopt pre-commit hook"
+    addressability: HIGH
+    expected_ΔV: +0.01
+
+prioritization_rationale: |
+  All 4 problems addressed by Task 4. Priority order:
+  P1 > P2 > P3 > P4 (consistency > coverage > tooling docs)
+
+---
+
+## Iteration Goal
+
+primary_objective: "Complete Task 4: Documentation Enhancement"
+
+success_criteria:
+  criterion_1: "All parameter examples use tier-based ordering"
+  criterion_2: "3+ practical examples for low-usage tools"
+  criterion_3: "validate-api command fully documented in CLI reference"
+  criterion_4: "Git hooks guide created with installation instructions"
+  criterion_5: "All documentation internally consistent (no broken links)"
+
+expected_ΔV:
+  V_usability: 0.81 → 0.83 (+0.02)
+  V_completeness: 0.73 → 0.76 (+0.03)
+  V_consistency: 0.97 → 0.97 (0.00)
+  V_evolvability: 0.87 → 0.88 (+0.01)
+  total: +0.01 to +0.02
+
+V_s6_projection: 0.86 - 0.87
+
+constraints:
+  focused: Single task (Task 4 only)
+  achievable: 2-3 hours (within iteration budget)
+  measurable: Clear deliverables (3 files updated/created)
+
+---
+
+## Agent Selection
+
+decision_tree_evaluation:
+  task: "Documentation enhancement"
+
+  step_1_straightforward:
+    question: "Is this straightforward work?"
+    answer: YES
+    rationale: "Clear specification (task3-documentation-updates-spec.md), find-and-replace + examples"
+
+  step_2_generic_sufficient:
+    question: "Can generic agents handle this?"
+    answer: YES
+    rationale: "doc-writer agent designed for documentation tasks"
+
+  step_3_specialization_needed:
+    question: "Does this require specialization?"
+    answer: NO
+    rationale:
+      - complex_domain_knowledge: NO (documentation update, not analysis)
+      - expected_ΔV: +0.02 (< 0.05 threshold)
+      - reusable: YES (documentation skills general)
+      - generic_agents_sufficient: YES (doc-writer effective)
+      - implementation_vs_design: Implementation work (favors generic agents)
+
+  decision: USE_EXISTING(doc-writer)
+
+agents_selected:
+  - agent: doc-writer
+    tasks:
+      - Update docs/guides/mcp.md (parameter ordering + examples)
+      - Update docs/reference/cli.md (validate-api command)
+      - Create docs/guides/git-hooks.md (installation + usage)
+    inputs:
+      - data/task3-documentation-updates-spec.md
+      - docs/guides/mcp.md (current version)
+      - docs/reference/cli.md (current version)
+      - scripts/pre-commit.sample (reference)
+      - scripts/install-consistency-hooks.sh (reference)
+    outputs:
+      - docs/guides/mcp.md (UPDATED)
+      - docs/reference/cli.md (UPDATED)
+      - docs/guides/git-hooks.md (NEW)
+    rationale: "Generic doc-writer agent sufficient for documentation updates per specification"
+
+agent_evolution:
+  A_6: A_5 (no new agents)
+  rationale: "Generic doc-writer effective for Task 4, ΔV < 0.05 threshold"
+  justification: "Fifth consecutive iteration with agent stability (A₁ = A₂ = A₃ = A₄ = A₅ = A₆)"
+
+meta_agent_evolution:
+  M_6: M_5 (no new capabilities)
+  rationale: "Existing capabilities (observe, plan, execute, reflect, evolve) sufficient"
+  justification: "Sixth consecutive iteration with meta-agent stability (M₀ = M₁ = M₂ = M₃ = M₄ = M₅ = M₆)"
+
+---
+
+## Work Breakdown
+
+task_4_documentation_enhancement:
+
+  subtask_1:
+    name: "Update mcp.md with tier-based examples"
+    agent: doc-writer
+    priority: P0
+    effort: 1.0 hours
+    inputs:
+      - data/task3-documentation-updates-spec.md (lines 18-123)
+      - docs/guides/mcp.md (current)
+    outputs:
+      - docs/guides/mcp.md (UPDATED)
+    requirements:
+      - Add "Parameter Ordering Convention" section
+      - Update 10-15 examples to tier-based ordering
+      - Add 3 practical examples (query_context, cleanup_temp_files, query_tools_advanced)
+    verification:
+      - All parameter examples follow tier-based ordering
+      - New section explains tier system
+      - 3+ practical examples added
+    expected_ΔV: +0.02
+
+  subtask_2:
+    name: "Document validate-api command in cli.md"
+    agent: doc-writer
+    priority: P1
+    effort: 0.5 hours
+    inputs:
+      - data/task3-documentation-updates-spec.md (lines 126-225)
+      - docs/reference/cli.md (current)
+      - cmd/validate-api/main.go (reference)
+    outputs:
+      - docs/reference/cli.md (UPDATED)
+    requirements:
+      - Add "meta-cc validate-api" section
+      - Document options, exit codes, checks performed
+      - Provide example usage and output
+    verification:
+      - validate-api command fully documented
+      - Examples clear and actionable
+      - Integration guidance included
+    expected_ΔV: +0.01
+
+  subtask_3:
+    name: "Create git-hooks.md guide"
+    agent: doc-writer
+    priority: P1
+    effort: 0.5 hours
+    inputs:
+      - data/task3-documentation-updates-spec.md (lines 228-410)
+      - scripts/pre-commit.sample (reference)
+      - scripts/install-consistency-hooks.sh (reference)
+    outputs:
+      - docs/guides/git-hooks.md (NEW)
+    requirements:
+      - Installation guide (automatic + manual)
+      - Hook behavior explanation
+      - Troubleshooting section
+      - Advanced configuration
+    verification:
+      - Complete installation instructions
+      - Clear examples (passing + failing)
+      - Troubleshooting covers common issues
+    expected_ΔV: +0.01
+
+  subtask_4:
+    name: "Verify documentation consistency"
+    agent: doc-writer
+    priority: P2
+    effort: 0.5 hours
+    inputs:
+      - Updated documentation files
+    outputs:
+      - Verification report
+    requirements:
+      - All internal links valid
+      - No broken references
+      - Consistent formatting
+    verification:
+      - grep-based link checking
+      - Markdown lint passing
+    expected_ΔV: 0.00 (quality assurance)
+
+total_effort: 2.5 hours
+
+---
+
+## Execution Strategy
+
+execution_pattern: SEQUENTIAL
+
+sequence:
+  1:
+    subtask: subtask_1
+    rationale: "Primary impact, largest scope"
+
+  2:
+    subtask: subtask_2
+    rationale: "Documents new feature (validate-api)"
+
+  3:
+    subtask: subtask_3
+    rationale: "Documents automation (git hooks)"
+
+  4:
+    subtask: subtask_4
+    rationale: "Quality assurance, depends on 1-3"
+
+dependencies:
+  subtask_4: [subtask_1, subtask_2, subtask_3]
+
+parallelization_opportunity: NO
+  rationale: "Single agent (doc-writer), sequential tasks"
+
+---
+
+## Risk Assessment
+
+risks:
+  risk_1:
+    risk: "mcp.md file large (~5000 lines), updates error-prone"
+    probability: MEDIUM
+    impact: MEDIUM
+    mitigation: "Use Read tool to verify current state, Edit tool for precise updates"
+
+  risk_2:
+    risk: "Specification incomplete, ambiguities arise"
+    probability: LOW
+    impact: LOW
+    mitigation: "task3-documentation-updates-spec.md detailed, fallback to consistent patterns"
+
+  risk_3:
+    risk: "Token budget exceeded before completion"
+    probability: LOW
+    impact: MEDIUM
+    mitigation: "Task 4 scoped to 2-3 hours, prioritize subtasks 1-3"
+
+overall_risk: LOW
+
+---
+
+## Convergence Projection
+
+scenario_all_complete:
+  assumption: "All 4 subtasks completed successfully"
+
+  V_usability:
+    current: 0.81
+    projected: 0.83
+    delta: +0.02
+    rationale: "Documentation examples clear and consistent"
+
+  V_completeness:
+    current: 0.73
+    projected: 0.76
+    delta: +0.03
+    rationale: "validate-api + git hooks documented, coverage improved"
+
+  V_consistency:
+    current: 0.97
+    projected: 0.97
+    delta: 0.00
+    rationale: "Already operational, documentation doesn't affect"
+
+  V_evolvability:
+    current: 0.87
+    projected: 0.88
+    delta: +0.01
+    rationale: "Better docs enable easier evolution"
+
+  V_s6:
+    calculation: 0.3(0.83) + 0.3(0.97) + 0.2(0.76) + 0.2(0.88)
+    value: 0.249 + 0.291 + 0.152 + 0.176 = 0.868
+    rounded: 0.87
+
+  gap_to_target: -0.07 (substantially exceeds threshold by 0.07)
+
+  convergence_criteria:
+    meta_stable: YES (M₆ = M₅)
+    agent_stable: YES (A₆ = A₅, 5 consecutive iterations)
+    value_threshold: YES (V(s₆) = 0.87 ≥ 0.80)
+    objectives_complete: YES (all 4 tasks complete)
+    diminishing_returns: YES (ΔV = +0.02, < 0.05)
+
+  status: FINAL CONVERGENCE (5/5 criteria met)
+
+scenario_partial_complete:
+  assumption: "Subtasks 1-3 complete, subtask 4 skipped"
+
+  V_s6: 0.86 - 0.87
+  status: STILL CONVERGED (4/5 criteria met, diminishing returns acceptable)
+
+---
+
+## Methodology Extraction Plan
+
+pattern_6_extraction:
+
+  pattern_name: "Example-Driven Documentation"
+
+  observables:
+    - Example structure (problem → solution → code)
+    - Selection criteria (which tools need examples)
+    - Coverage heuristics (low-usage tools prioritized)
+    - Progressive complexity approach (simple → complex)
+    - Annotation strategy (explain why, not just what)
+
+  extraction_method:
+    1: "Read task3-documentation-updates-spec.md (identify planned approach)"
+    2: "Observe doc-writer's implementation (actual choices made)"
+    3: "Compare specification vs. implementation (decision criteria)"
+    4: "Analyze example patterns (structure, coverage, clarity)"
+    5: "Document methodology pattern (context, problem, solution, evidence)"
+
+  integration_with_existing:
+    - Pattern 1: Tier-based categorization guides example structure
+    - Pattern 2: Safe refactoring examples show backward compatibility
+    - Pattern 4: Validation tool examples demonstrate automation
+    - Pattern 5: Git hooks examples show quality gates
+
+  expected_outcome:
+    - Pattern 6 fully extracted and codified
+    - API-DESIGN-METHODOLOGY.md complete (all 6 patterns)
+    - Universal applicability validated
+
+---
+
+## Success Metrics
+
+completion_criteria:
+  - All 4 subtasks completed: [subtask_1, subtask_2, subtask_3, subtask_4]
+  - 3 files updated/created: [mcp.md, cli.md, git-hooks.md]
+  - Pattern 6 extracted and documented
+  - V(s₆) ≥ 0.86 (substantially exceeds threshold)
+
+quality_criteria:
+  - All parameter examples use tier-based ordering (consistency)
+  - 3+ practical examples for low-usage tools (coverage)
+  - validate-api command fully documented (completeness)
+  - Git hooks guide complete (usability)
+  - No broken links or references (quality)
+
+convergence_criteria:
+  - M₆ = M₅ (meta-agent stable)
+  - A₆ = A₅ (agent set stable, 5 consecutive iterations)
+  - V(s₆) ≥ 0.80 (value threshold met)
+  - All objectives complete (4/4 tasks)
+  - ΔV < 0.05 (diminishing returns)
+
+expected_status: FINAL CONVERGENCE (5/5 criteria met)
+
+---
+
+plan_status: COMPLETE
+next_phase: EXECUTE (invoke doc-writer agent for Task 4)

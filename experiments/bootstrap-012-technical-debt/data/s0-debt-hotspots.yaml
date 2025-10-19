@@ -1,0 +1,196 @@
+# Technical Debt Hotspots - Iteration 0
+# Date: 2025-10-17
+# Identified high-debt areas in meta-cc codebase
+
+hotspots:
+  - name: "cmd/mcp-server/executor.go"
+    severity: critical
+    debt_indicators:
+      - type: "complexity"
+        metric: "buildCommand function"
+        value: 51
+        threshold: 15
+        delta: +36
+      - type: "complexity"
+        metric: "ExecuteTool function"
+        value: 20
+        threshold: 15
+        delta: +5
+    impact: "High complexity in core MCP command building logic"
+    risk: "Hard to maintain, error-prone, difficult to extend"
+    priority: 1
+    estimated_debt: "8 hours remediation"
+
+  - name: "internal/mcp/tools_project.go"
+    severity: high
+    debt_indicators:
+      - type: "complexity"
+        metric: "BuildProjectLevelCommandArgs function"
+        value: 30
+        threshold: 15
+        delta: +15
+    impact: "Complex argument building for project-level tools"
+    risk: "Hard to modify, brittle"
+    priority: 2
+    estimated_debt: "4 hours remediation"
+
+  - name: "internal/mcp/session_tools.go"
+    severity: high
+    debt_indicators:
+      - type: "complexity"
+        metric: "BuildCommandArgs function"
+        value: 28
+        threshold: 15
+        delta: +13
+    impact: "Complex argument building for session tools"
+    risk: "Parallel to tools_project.go suggests duplication risk"
+    priority: 3
+    estimated_debt: "4 hours remediation"
+
+  - name: "cmd/query_tools.go"
+    severity: high
+    debt_indicators:
+      - type: "complexity"
+        metric: "runQueryTools function"
+        value: 27
+        threshold: 15
+        delta: +12
+      - type: "complexity"
+        metric: "applyToolFilters function"
+        value: 18
+        threshold: 15
+        delta: +3
+    impact: "Complex query logic with filtering"
+    risk: "Multiple responsibilities, hard to test"
+    priority: 4
+    estimated_debt: "5 hours remediation"
+
+  - name: "internal/filter/parser.go"
+    severity: moderate
+    debt_indicators:
+      - type: "complexity"
+        metric: "parsePrimary function"
+        value: 26
+        threshold: 15
+        delta: +11
+      - type: "duplication"
+        metric: "parseOr/parseAnd similarity"
+        value: "50+ tokens duplicated"
+      - type: "complexity"
+        metric: "parseValue function"
+        value: 11
+        threshold: 10
+        delta: +1
+    impact: "Parser complexity with minor duplication"
+    risk: "Parser patterns often intentionally similar"
+    priority: 5
+    estimated_debt: "2 hours remediation"
+
+  - name: "cmd/query_successful_prompts.go"
+    severity: moderate
+    debt_indicators:
+      - type: "complexity"
+        metric: "analyzePromptOutcome function"
+        value: 25
+        threshold: 15
+        delta: +10
+    impact: "Complex analysis logic"
+    risk: "Business logic complexity"
+    priority: 6
+    estimated_debt: "3 hours remediation"
+
+  - name: "cmd/query_conversation.go"
+    severity: moderate
+    debt_indicators:
+      - type: "complexity"
+        metric: "buildConversationTurns function"
+        value: 25
+        threshold: 15
+        delta: +10
+      - type: "complexity"
+        metric: "runQueryConversation function"
+        value: 16
+        threshold: 15
+        delta: +1
+    impact: "Conversation processing complexity"
+    risk: "Data transformation logic"
+    priority: 7
+    estimated_debt: "4 hours remediation"
+
+  - name: "internal/mcp/builder.go"
+    severity: moderate
+    debt_indicators:
+      - type: "complexity"
+        metric: "BuildToolCommand function"
+        value: 22
+        threshold: 15
+        delta: +7
+    impact: "Tool command building complexity"
+    risk: "Part of MCP command family, potential for consolidation"
+    priority: 8
+    estimated_debt: "3 hours remediation"
+
+  - name: "cmd (general)"
+    severity: moderate
+    debt_indicators:
+      - type: "coverage"
+        metric: "overall module coverage"
+        value: 57.9
+        threshold: 80.0
+        delta: -22.1
+    impact: "Low test coverage in CLI commands"
+    risk: "Regressions in user-facing commands"
+    priority: 9
+    estimated_debt: "10 hours test creation"
+
+  - name: "internal/validation"
+    severity: moderate
+    debt_indicators:
+      - type: "test_failure"
+        metric: "TestParseTools_ValidFile"
+        value: "FAIL"
+      - type: "static_analysis"
+        metric: "ST1005 error string capitalization"
+        location: "internal/locator/args.go:21:14"
+    impact: "Failing test indicates validation issues"
+    risk: "Validation module unreliable"
+    priority: 10
+    estimated_debt: "2 hours investigation + fix"
+
+summary:
+  total_hotspots: 10
+  critical: 1
+  high: 4
+  moderate: 5
+  total_estimated_debt: "45 hours"
+
+  by_type:
+    complexity: 8
+    coverage: 1
+    duplication: 1
+    test_failure: 1
+    static_analysis: 1
+
+  primary_debt_area: "MCP server command building (executor.go, tools_project.go, session_tools.go, builder.go)"
+  secondary_debt_area: "Query command complexity (query_tools.go, query_successful_prompts.go, query_conversation.go)"
+
+  architectural_patterns:
+    - "MCP command builders share similar complex argument processing - potential for abstraction"
+    - "Query commands have similar filtering/processing patterns - potential for consolidation"
+    - "Parser expression handling has intentional similarity (not necessarily debt)"
+
+recommendations:
+  immediate:
+    - "Fix failing test in internal/validation"
+    - "Refactor executor.go buildCommand (complexity 51 → target <15)"
+    - "Fix error string capitalization in locator/args.go"
+
+  short_term:
+    - "Extract common patterns from MCP builders (3 files with similar logic)"
+    - "Increase test coverage in cmd package (57.9% → 80%)"
+    - "Refactor query command complexity (3 files)"
+
+  long_term:
+    - "Consider command builder abstraction layer"
+    - "Establish complexity budget (max 15 per function)"
+    - "Add pre-commit complexity checks"

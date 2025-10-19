@@ -1,0 +1,348 @@
+# Iteration 3: PLAN Phase Output
+# Meta-Agent: M.plan
+# Generated: 2025-10-17
+# Focus: Automation implementation strategy
+
+iteration_metadata:
+  iteration: 3
+  phase: plan
+  focus: automation_implementation
+  timestamp: 2025-10-17
+
+# State Assessment
+
+current_state_analysis:
+  V_instance: 0.92
+  V_meta: 0.79
+
+  value_components:
+    instance:
+      V_security: 0.95  # EXCELLENT
+      V_freshness: 0.84  # GOOD
+      V_stability: 0.95  # EXCELLENT
+      V_license: 0.95   # EXCELLENT
+      overall: 0.92     # CONVERGED ✅
+
+    meta:
+      V_completeness: 1.00  # EXCELLENT ✅
+      V_effectiveness: 0.65  # BELOW TARGET ⚠️ (BOTTLENECK)
+      V_reusability: 0.88   # EXCELLENT ✅
+      overall: 0.79         # APPROACHING (99% of 0.80)
+
+  weakest_component: V_effectiveness
+  gap_to_target: +0.01 (meta layer)
+
+  critical_finding: |
+    Only V_effectiveness prevents convergence.
+    Automation implementation resolves this bottleneck.
+
+# Prioritization
+
+priority_queue:
+  1_implement_automation:
+    urgency: CRITICAL
+    impact: HIGH (resolves V_effectiveness gap)
+    addressability: HIGH (pattern fully documented)
+    expected_ΔV: +0.22 (V_effectiveness: 0.65 → 0.87)
+    rank: 1
+
+  2_instance_polish:
+    urgency: LOW
+    impact: LOW (instance layer already converged)
+    addressability: HIGH
+    expected_ΔV: +0.00 (no impact on convergence)
+    rank: 2
+
+  3_agent_evolution:
+    urgency: NONE
+    impact: NONE
+    addressability: N/A
+    expected_ΔV: N/A
+    rank: N/A
+    rationale: "Existing agents sufficient"
+
+focus_selection: "Implement automation (rank 1)"
+
+# Iteration Goal
+
+iteration_goal:
+  primary: "Implement CI/CD automation to achieve full convergence"
+
+  specific_objectives:
+    1_github_actions_workflow:
+      - "Create .github/workflows/dependency-health.yml"
+      - "Implement security-scan job (govulncheck)"
+      - "Implement license-compliance job (go-licenses)"
+      - "Implement dependency-freshness job (go list -m -u all)"
+
+    2_automation_scripts:
+      - "Create scripts/check-deps.sh (local validation)"
+      - "Create scripts/update-deps.sh (interactive updates)"
+      - "Create scripts/generate-licenses.sh (THIRD_PARTY_LICENSES)"
+
+    3_documentation:
+      - "Create docs/dependency-health.md (usage guide)"
+      - "Update README.md (automation badge, usage)"
+
+  success_criteria:
+    measurable:
+      - "CI workflow runs successfully"
+      - "Scripts execute without errors"
+      - "Documentation complete and clear"
+      - "V_effectiveness ≥ 0.80"
+      - "V_meta ≥ 0.80 (CONVERGENCE)"
+
+    specific:
+      - "GitHub Actions workflow with 3 jobs"
+      - "3 bash scripts in scripts/"
+      - "1 documentation file in docs/"
+
+    achievable:
+      - "Automation pattern fully documented"
+      - "Clear implementation path"
+      - "Coder agent capable of implementation"
+
+  expected_outcomes:
+    V_effectiveness_improvement:
+      before: 0.65
+      after: 0.87
+      delta: +0.22
+
+    V_meta_improvement:
+      before: 0.79
+      after: 0.85
+      delta: +0.06
+
+    convergence_status:
+      before: NOT_CONVERGED
+      after: CONVERGED ✅
+
+  constraints:
+    focused: "Single primary objective (automation)"
+    achievable: "Completable in single iteration"
+    measurable: "Clear metrics (V_effectiveness, V_meta)"
+
+# Agent Selection
+
+agent_selection:
+  decision_tree_evaluation:
+    requires_specialization: false
+    rationale: "Straightforward implementation task"
+    recommendation: "Use generic agents"
+
+  agents_selected:
+    coder:
+      tasks:
+        - "Implement GitHub Actions workflow"
+        - "Create automation bash scripts"
+        - "Ensure scripts are executable and functional"
+      rationale: "Generic coder sufficient for well-defined implementation"
+      input_sources:
+        - data/iteration-2-automation-pattern.yaml
+        - iteration-2.md (methodology)
+      expected_outputs:
+        - .github/workflows/dependency-health.yml
+        - scripts/check-deps.sh
+        - scripts/update-deps.sh
+        - scripts/generate-licenses.sh
+
+    doc-writer:
+      tasks:
+        - "Create docs/dependency-health.md"
+        - "Update README.md with automation usage"
+      rationale: "Generic doc-writer sufficient for documentation"
+      input_sources:
+        - data/iteration-2-automation-pattern.yaml
+        - implemented workflows and scripts
+      expected_outputs:
+        - docs/dependency-health.md
+        - README.md (updated)
+
+  agents_not_used:
+    data-analyst:
+      reason: "No data analysis needed (implementation only)"
+    vulnerability-scanner:
+      reason: "No security assessment needed (implementation only)"
+
+  agent_evolution:
+    new_agents_created: 0
+    rationale: "Existing agents sufficient for implementation work"
+    A_3: "A_2 (same 4 agents)"
+
+# Work Breakdown
+
+work_breakdown:
+  task_1_github_actions_workflow:
+    description: "Create CI/CD workflow for dependency health"
+    agent: coder
+    dependencies: []
+    inputs:
+      - data/iteration-2-automation-pattern.yaml (workflow template)
+    outputs:
+      - .github/workflows/dependency-health.yml
+    acceptance_criteria:
+      - "3 jobs defined (security-scan, license-compliance, dependency-freshness)"
+      - "Triggers: push, pull_request, schedule (weekly)"
+      - "Uses Go 1.24.x"
+      - "Installs govulncheck, go-licenses"
+      - "Fails on HIGH severity vulnerabilities"
+      - "Fails on prohibited licenses"
+
+  task_2_check_deps_script:
+    description: "Create local validation script"
+    agent: coder
+    dependencies: []
+    inputs:
+      - data/iteration-2-automation-pattern.yaml (script requirements)
+    outputs:
+      - scripts/check-deps.sh
+    acceptance_criteria:
+      - "Runs govulncheck ./..."
+      - "Runs go-licenses csv ./..."
+      - "Runs go list -m -u all"
+      - "Outputs summary report"
+      - "Executable (chmod +x)"
+
+  task_3_update_deps_script:
+    description: "Create interactive update script"
+    agent: coder
+    dependencies: []
+    inputs:
+      - data/iteration-2-automation-pattern.yaml
+      - data/iteration-2-testing-pattern.yaml (testing procedure)
+    outputs:
+      - scripts/update-deps.sh
+    acceptance_criteria:
+      - "Lists outdated dependencies"
+      - "Prompts for update confirmation"
+      - "Runs tests before/after update"
+      - "Compares test results (baseline)"
+      - "Supports rollback on failure"
+      - "Executable (chmod +x)"
+
+  task_4_generate_licenses_script:
+    description: "Create THIRD_PARTY_LICENSES generator"
+    agent: coder
+    dependencies: []
+    inputs:
+      - data/iteration-2-automation-pattern.yaml
+    outputs:
+      - scripts/generate-licenses.sh
+    acceptance_criteria:
+      - "Runs go-licenses save ./... --save_path=licenses/"
+      - "Aggregates license texts"
+      - "Creates THIRD_PARTY_LICENSES file"
+      - "Executable (chmod +x)"
+
+  task_5_documentation:
+    description: "Document automation usage"
+    agent: doc-writer
+    dependencies: [task_1, task_2, task_3, task_4]
+    inputs:
+      - .github/workflows/dependency-health.yml
+      - scripts/*.sh
+    outputs:
+      - docs/dependency-health.md
+      - README.md (updated)
+    acceptance_criteria:
+      - "Explains CI/CD workflow"
+      - "Documents script usage"
+      - "Provides examples"
+      - "Links to automation pattern"
+
+task_dependencies:
+  graph: |
+    task_1 ─┐
+    task_2  │
+    task_3  ├─> task_5 (documentation depends on implementation)
+    task_4 ─┘
+
+  execution_order:
+    parallel: [task_1, task_2, task_3, task_4]
+    sequential: [task_5]
+
+# Risks and Mitigations
+
+risks:
+  risk_1_github_actions_syntax:
+    description: "YAML syntax errors in workflow"
+    likelihood: LOW
+    impact: LOW
+    mitigation: "Use documented workflow template, validate YAML"
+
+  risk_2_script_errors:
+    description: "Bash scripts fail to execute"
+    likelihood: LOW
+    impact: MEDIUM
+    mitigation: "Test scripts manually before committing"
+
+  risk_3_permission_issues:
+    description: "Scripts not executable"
+    likelihood: MEDIUM
+    impact: LOW
+    mitigation: "chmod +x scripts/*.sh, document in instructions"
+
+  risk_4_tool_installation:
+    description: "govulncheck or go-licenses installation fails in CI"
+    likelihood: LOW
+    impact: MEDIUM
+    mitigation: "Pin tool versions, use go install with @latest"
+
+# Expected Value Impact
+
+value_projection:
+  before_implementation:
+    V_instance: 0.92
+    V_meta: 0.79
+    converged: false
+
+  after_implementation:
+    V_instance: 0.92  # (unchanged, already converged)
+    V_meta: 0.85      # (improved from 0.79)
+    converged: true ✅
+
+  component_changes:
+    V_completeness: 1.00 → 1.00 (no change)
+    V_effectiveness: 0.65 → 0.87 (+0.22) ✅
+    V_reusability: 0.88 → 0.88 (no change)
+
+  convergence_prediction:
+    status: CONVERGED
+    confidence: HIGH
+    rationale: "0.85 > 0.80 threshold (exceeded by 6%)"
+
+# Integration with Next Phase
+
+provides_to_execute:
+  iteration_goal:
+    primary: "Implement CI/CD automation"
+    success_criteria: "V_effectiveness ≥ 0.80, V_meta ≥ 0.80"
+
+  agent_selections:
+    - agent: coder
+      tasks: ["workflow", "scripts"]
+    - agent: doc-writer
+      tasks: ["documentation"]
+
+  work_sequence:
+    phase_1_parallel:
+      - task_1_github_actions_workflow
+      - task_2_check_deps_script
+      - task_3_update_deps_script
+      - task_4_generate_licenses_script
+    phase_2_sequential:
+      - task_5_documentation
+
+# Summary
+
+plan_summary:
+  goal: "Implement automation to achieve convergence"
+  agents: [coder, doc-writer]
+  tasks: 5
+  expected_ΔV_meta: +0.06
+  convergence_likelihood: HIGH
+  rationale: |
+    Automation implementation directly resolves V_effectiveness bottleneck.
+    Pattern fully documented, clear implementation path.
+    Existing agents sufficient (no evolution needed).
+    High confidence in achieving convergence this iteration.

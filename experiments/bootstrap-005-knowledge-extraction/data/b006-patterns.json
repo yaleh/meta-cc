@@ -1,0 +1,135 @@
+{
+  "experiment": "bootstrap-006-api-design",
+  "patterns_count": 15,
+  "patterns": [
+    {
+      "name": "Audit-First Refactoring",
+      "source_file": "results.md",
+      "source_line": 594,
+      "context": "Need to refactor multiple targets (tools, parameters, schemas) for consistency.",
+      "problem": null,
+      "solution": "Systematic audit process before making changes: 1. List all targets to audit 2. Define compliance criteria 3. Assess each target (compliant vs. non-compliant) 4. Categorize and prioritize 5. Execute changes on non-compliant targets only 6. Verify compliant targets (no changes)",
+      "example": null,
+      "evidence": "",
+      "reusability": "\u2705 Universal to any refactoring effort (not API-specific)"
+    },
+    {
+      "name": "Automated Consistency Validation",
+      "source_file": "results.md",
+      "source_line": 616,
+      "context": "Need to enforce API conventions at scale without manual checks.",
+      "problem": null,
+      "solution": "Build validation tool with deterministic rules: - **Parser**: Extract API definitions (regex for MVP, AST for production) - **Validators**: Implement deterministic checks (naming, ordering, description) - **Reporter**: Format results (terminal for humans, JSON for CI) - **CLI Integration**: Standard flags (--file, --fast, --quiet, --json)",
+      "example": null,
+      "evidence": "",
+      "reusability": "\u2705 Universal to any API with documented conventions"
+    },
+    {
+      "name": "Automated Quality Gates",
+      "source_file": "results.md",
+      "source_line": 661,
+      "context": "Need to prevent violations from entering repository.",
+      "problem": null,
+      "solution": "Pre-commit hook pattern: 1. **Detection**: Check if relevant files changed (git diff) 2. **Validation**: Run validation tool (--fast mode) 3. **Decision**: Allow commit (pass) or block (fail) 4. **Feedback**: Clear messages with bypass option",
+      "example": null,
+      "evidence": "",
+      "reusability": "\u2705 Universal to any pre-commit quality check"
+    },
+    {
+      "name": "Deterministic Parameter Categorization",
+      "source_file": "results.md",
+      "source_line": 550,
+      "context": "When designing or refactoring API parameters, categorization decisions must be consistent and unambiguous.",
+      "problem": null,
+      "solution": "Use 5-tier decision tree system: - **Tier 1**: Required parameters (can't execute without) - **Tier 2**: Filtering parameters (affect WHAT is returned) - **Tier 3**: Range parameters (define bounds/thresholds) - **Tier 4**: Output control parameters (affect HOW MUCH is returned) - **Tier 5**: Standard parameters (cross-cutting concerns, framework-applied)",
+      "example": null,
+      "evidence": "",
+      "reusability": "\u2705 Universal to all query-based APIs (REST, GraphQL, CLI)"
+    },
+    {
+      "name": "Example-Driven Documentation",
+      "source_file": "results.md",
+      "source_line": 701,
+      "context": "Need to teach API conventions effectively through documentation.",
+      "problem": null,
+      "solution": "Provide practical, example-driven documentation: 1. **Explain conventions first** (rationale before examples) 2. **Enhance low-usage tools** (prioritize confused users) 3. **Structure examples consistently** (problem \u2192 solution \u2192 outcome) 4. **Add progressive complexity** (basic \u2192 advanced) 5. **Document automation tools** (installation \u2192 troubleshooting \u2192 CI/CD)",
+      "example": null,
+      "evidence": "",
+      "reusability": "\u2705 Universal to any technical documentation"
+    },
+    {
+      "name": "Safe API Refactoring via JSON Property",
+      "source_file": "results.md",
+      "source_line": 571,
+      "context": "Need to improve API schema readability without breaking existing clients.",
+      "problem": null,
+      "solution": "Leverage JSON specification guarantee that object properties are unordered. Parameter order in schema definition is documentation only.",
+      "example": null,
+      "evidence": "",
+      "reusability": "\u2705 Universal to all JSON-based APIs"
+    },
+    {
+      "name": "Audit-First (95% portable) - truly universal refactoring principle",
+      "source_file": "iteration-8.md",
+      "source_line": 1088,
+      "pattern_number": 3,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Automated Consistency Validation (fully extracted from Task 2)",
+      "source_file": "iteration-5.md",
+      "source_line": 1334,
+      "pattern_number": 4,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Automated Quality Gates (fully extracted from Task 3)",
+      "source_file": "iteration-5.md",
+      "source_line": 1335,
+      "pattern_number": 5,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Automated Validation (85% portable) - architecture pattern highly portable",
+      "source_file": "iteration-8.md",
+      "source_line": 1091,
+      "pattern_number": 4,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Example-Driven Docs (90% portable) - documentation principle universal",
+      "source_file": "iteration-8.md",
+      "source_line": 1090,
+      "pattern_number": 6,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Example-Driven Documentation (deferred, Task 4 not completed)",
+      "source_file": "iteration-5.md",
+      "source_line": 1336,
+      "pattern_number": 6,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Quality Gates (95% portable) - pre-commit hook pattern universal",
+      "source_file": "iteration-8.md",
+      "source_line": 1089,
+      "pattern_number": 5,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Theoretical 85% \u2192 Actual 60% (implicit vs explicit parameters)",
+      "source_file": "iteration-8.md",
+      "source_line": 1075,
+      "pattern_number": 1,
+      "context": "iteration_mention"
+    },
+    {
+      "name": "Theoretical 90% \u2192 Actual 70% (YAML vs JSON constraints)",
+      "source_file": "iteration-8.md",
+      "source_line": 1076,
+      "pattern_number": 2,
+      "context": "iteration_mention"
+    }
+  ]
+}

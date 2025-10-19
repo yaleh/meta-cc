@@ -1,0 +1,83 @@
+2025-10-14 docs: add meta-agent prompt file guidance to bootstrap experiment
+2025-10-14 docs: clarify agent execution protocol and remove token constraints
+2025-10-14 feat(docs): add iteration execution prompts for bootstrap-001-doc-methodology experiment
+2025-10-14 feat(docs): add initial README and plan for Meta-Agent bootstrapping experiment
+2025-10-14 docs: update documentation architecture with value space optimization framework
+2025-10-13 feat(docs): add comprehensive meta-methodology framework and bootstrapped SE theory
+2025-10-13 feat(docs): add role-based documentation architecture and maintenance capabilities
+2025-10-13 docs: update Phase 16 completion status after Stage 16.7 validation
+2025-10-13 docs: validate session-scoped capabilities cache implementation
+2025-10-13 docs: update documentation status and refactor MCP server
+2025-10-12 chore: bump plugin version to 0.28.0
+2025-10-12 Merge branch 'docs/restructure-directories' into develop
+2025-10-12 feat: add meta-project-bootstrap command with full documentation
+2025-10-12 docs: reflect updated /meta capabilities and rename doc links
+2025-10-12 docs: mark link & sync checkers completed, add structure validator task
+2025-10-12 docs: update methodology to reflect new documentation structure
+2025-10-12 docs: fix remaining broken links in ADRs and plan.md
+2025-10-12 docs: update DOCUMENTATION_MAP.md with complete restructuring summary
+2025-10-12 docs: fix all internal documentation links (Phase 4)
+2025-10-12 docs: restructure plans directory with descriptive names (Phase 3)
+2025-10-12 docs: add project TODO.md with documentation link checker task
+2025-10-12 docs: move architecture directories and fix remaining link
+2025-10-12 docs: reorganize documentation into unified directory structure (Phase 1+2)
+2025-10-12 docs: reorganize documentation into methodology/ directory
+2025-10-12 docs: add Plans directory guide and update documentation methodology
+2025-10-12 docs: add comprehensive documentation methodology guide
+2025-10-12 docs: streamline documentation structure and remove redundancy
+2025-10-12 docs: simplify CLAUDE.md and reorganize documentation (54% reduction)
+2025-10-12 docs: add git hooks reference to release process
+2025-10-12 feat: add git hook for automatic plugin version bumping
+2025-10-12 chore: bump plugin version to 0.26.9
+2025-10-12 feat: add plugin-only version bump workflow
+2025-10-12 chore: improve version management and release process
+2025-10-12 Merge develop into main for documentation simplification release
+2025-10-12 Merge docs/optimize-documentation-debt into develop
+2025-10-12 docs: drastically simplify README.md (85% reduction)
+2025-10-12 Merge develop into main for documentation optimization release
+2025-10-12 Merge docs/optimize-documentation-debt into develop
+2025-10-12 docs: add documentation optimization completion report
+2025-10-12 docs: enhance navigation and simplify plan.md
+2025-10-12 docs: simplify integration-guide.md (65% reduction: 1152→403 lines)
+2025-10-12 docs: fix cross-references after MCP consolidation
+2025-10-12 docs: optimize documentation structure (Phase 23) - 72.6% MCP doc reduction
+2025-10-12 chore: release v0.26.6
+2025-10-12 Merge develop into main for v0.26.6 release
+2025-10-12 Merge fix/mcp-capability-and-session-errors into develop
+2025-10-12 docs: update CHANGELOG and troubleshooting guide
+2025-10-12 fix(mcp): resolve package source and session-only parsing errors
+2025-10-12 feat: add automated plugin manifest sync mechanism
+2025-10-12 fix(plugin): use file list format for commands and agents
+2025-10-11 fix(plugin): add trailing slashes to commands and agents paths
+2025-10-11 feat(plugin): expose commands and agents directories in plugin manifest
+2025-10-11 fix(plugin): update plugin.json version to v0.26.2
+2025-10-11 fix(plugin): update marketplace.json to v0.26.2
+2025-10-11 fix(ci): update plugin file verification to expect only meta.md
+2025-10-11 fix(plugin): only package unified meta.md in plugin, not all 13 capabilities
+2025-10-11 fix(plugin): update marketplace.json version and auto-update in releases
+2025-10-11 fix(lint): remove unused cleanupExpiredCache function
+2025-10-11 Merge branch 'develop'
+2025-10-11 feat: switch default capability source to package URL (Stage 22.11)
+2025-10-11 fix(mcp): handle URLs correctly in capability source parsing
+2025-10-11 fix(ci): use dist/ directory for plugin files in release workflow
+2025-10-11 feat: implement capability package distribution system (Phase 22.8-22.10)
+2025-10-11 fix: support CRLF line endings in capability frontmatter parsing
+2025-10-11 fix(test): use platform-aware path separator in test data
+2025-10-11 fix: use os.PathListSeparator in parseCapabilitySources for Windows
+2025-10-11 fix(test): use os.PathListSeparator for Windows compatibility
+2025-10-11 fix: resolve CI lint error and update plugin sync verification
+2025-10-11 refactor: implement three-layer directory architecture for capabilities
+2025-10-11 feat: add help mode for empty or help-like intents in meta.md
+2025-10-11 refactor: restructure meta.md to use top-down flow without main() wrapper
+2025-10-11 feat: add explicit reporting of matching results and execution plan to meta.md
+2025-10-11 refactor: deep simplification of meta.md (356→100 lines, -72%)
+2025-10-11 refactor: simplify meta.md by 37% (566→356 lines)
+2025-10-11 feat: Phase 22 - Unified Meta Command & Multi-Source Capability Discovery
+2025-10-11 feat: add Phase 22 plan for unified meta command and multi-source capability discovery
+2025-10-11 docs: update changelog for v0.24.0 release
+2025-10-11 test(cmd): verify JSONL output format for query errors
+2025-10-11 fix: clean up test validation debt by removing false-positive bug references
+2025-10-11 chore: update Go dependencies to resolve technical debt
+2025-10-10 Merge develop into main
+2025-10-10 Merge feature/slash-commands-enhancement into develop
+2025-10-10 docs: add Architecture Decision Records (ADRs) system
