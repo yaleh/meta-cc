@@ -333,13 +333,19 @@ else
     test_result "Skills directory exists" "fail" "skills/ directory not found"
 fi
 
-# Test 3.6: plugin.json skills array
-if [ -f ".claude-plugin/plugin.json" ]; then
-    SKILL_COUNT=$(jq '.skills | length' .claude-plugin/plugin.json 2>/dev/null || echo 0)
-    if [ "$SKILL_COUNT" -eq 15 ]; then
-        test_result "plugin.json declares 15 skills" "pass"
+# Test 3.6: marketplace.json contains meta-cc-skills plugin
+# (Skills moved to separate plugin in v0.30.0)
+if [ -f ".claude-plugin/marketplace.json" ]; then
+    SKILLS_PLUGIN_EXISTS=$(jq '.plugins[] | select(.name=="meta-cc-skills")' .claude-plugin/marketplace.json 2>/dev/null)
+    if [ -n "$SKILLS_PLUGIN_EXISTS" ]; then
+        SKILLS_COUNT=$(jq '.plugins[] | select(.name=="meta-cc-skills") | .skills | length' .claude-plugin/marketplace.json 2>/dev/null || echo 0)
+        if [ "$SKILLS_COUNT" -eq 15 ]; then
+            test_result "marketplace.json declares meta-cc-skills plugin with 15 skills" "pass"
+        else
+            test_result "marketplace.json declares meta-cc-skills plugin" "fail" "Expected 15 skills in meta-cc-skills plugin, found $SKILLS_COUNT"
+        fi
     else
-        test_result "plugin.json declares 15 skills" "fail" "Expected 15 skills in manifest, found $SKILL_COUNT"
+        test_result "marketplace.json declares meta-cc-skills plugin" "fail" "meta-cc-skills plugin not found in marketplace.json"
     fi
 fi
 
