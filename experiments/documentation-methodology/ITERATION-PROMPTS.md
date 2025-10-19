@@ -249,7 +249,7 @@ Low baseline values expected and acceptable. This iteration establishes measurem
    - Save findings to `data/current-state-analysis.md`
 
 2. **Identify documentation gaps**:
-   - Review meta-cc-skills plugin: What installation instructions are needed?
+   - Review meta-cc plugin: What installation instructions are needed?
    - Review BAIME framework: What usage guidance is missing?
    - Analyze user journey: What questions would new users have?
    - Save gap analysis to `data/documentation-gaps.md`

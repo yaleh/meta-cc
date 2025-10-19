@@ -24,27 +24,25 @@ meta-cc helps you understand and improve your Claude Code workflows through:
 
 ## Quick Install
 
-### 1. Install Plugins
+### 1. Install Plugin
 
-**Core Plugin** (required for basic meta-cc functionality):
 ```bash
 /plugin marketplace add yaleh/meta-cc
 /plugin install meta-cc
 ```
 
-**Skills Plugin** (optional, for BAIME and 15 validated methodologies):
-```bash
-/plugin marketplace add yaleh/meta-cc-skills
-/plugin install meta-cc-skills
-```
-
-The skills plugin provides systematic methodologies including:
-- **BAIME** (Bootstrapped AI Methodology Engineering) - Framework for developing methodologies
-- **Testing Strategy** - TDD, coverage-driven gap closure (3.1x speedup)
-- **CI/CD Optimization** - Quality gates, release automation (2.5-3.5x speedup)
-- **Error Recovery** - 13-category taxonomy, diagnostic workflows
-- **Documentation Management** - Templates, patterns, automation tools
-- And 11 more validated skills
+The meta-cc plugin includes everything you need:
+- **Unified /meta command** - Natural language interface for session analysis
+- **5 Specialized Agents** - Project planning, iteration management, knowledge extraction
+- **13 Capabilities** - Error analysis, quality scanning, workflow optimization
+- **16 MCP Tools** - Autonomous session data queries
+- **16 Validated Methodology Skills**:
+  - **BAIME** (Bootstrapped AI Methodology Engineering) - Framework for developing methodologies
+  - **Testing Strategy** - TDD, coverage-driven gap closure (3.1x speedup)
+  - **CI/CD Optimization** - Quality gates, release automation (2.5-3.5x speedup)
+  - **Error Recovery** - 13-category taxonomy, diagnostic workflows
+  - **Documentation Management** - Templates, patterns, automation tools
+  - And 11 more validated skills
 
 **Try BAIME**: Just tell Claude _"Use BAIME to build [domain] capability and complete [tasks]"_ - Claude handles everything automatically. See [BAIME Usage Guide](docs/tutorials/baime-usage.md#try-baime-in-3-steps) for examples and the 3-level trial workflow.
 

@@ -40,7 +40,7 @@ Use BAIME to build [domain] capabilities (meta objectives) and complete these ta
 **What you say**:
 ```
 Use BAIME to build documentation capabilities (meta objectives) and complete these tasks (instance objectives):
-- Update README.md to explain how to install meta-cc-skills plugin
+- Update README.md to explain how to install meta-cc plugin
 - Provide comprehensive BAIME usage documentation
 ```
 
