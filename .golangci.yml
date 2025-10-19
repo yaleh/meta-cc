@@ -17,7 +17,6 @@ linters:
     - goconst
     - gocognit
     - gocyclo
-    - fieldalignment
 
 linters-settings:
   errcheck:
@@ -33,8 +32,11 @@ linters-settings:
     min-complexity: 30  # Allow complex test setup functions
   gocyclo:
     min-complexity: 20  # Allow moderately complex functions
-  fieldalignment:
-    suggest-new: true
+  govet:
+    enable:
+      - fieldalignment
+    fieldalignment:
+      suggest-new: true
 
 issues:
   exclude-rules:
