@@ -24,12 +24,29 @@ meta-cc helps you understand and improve your Claude Code workflows through:
 
 ## Quick Install
 
-### 1. Install Plugin
+### 1. Install Plugins
 
+**Core Plugin** (required for basic meta-cc functionality):
 ```bash
 /plugin marketplace add yaleh/meta-cc
 /plugin install meta-cc
 ```
+
+**Skills Plugin** (optional, for BAIME and 15 validated methodologies):
+```bash
+/plugin marketplace add yaleh/meta-cc-skills
+/plugin install meta-cc-skills
+```
+
+The skills plugin provides systematic methodologies including:
+- **BAIME** (Bootstrapped AI Methodology Engineering) - Framework for developing methodologies
+- **Testing Strategy** - TDD, coverage-driven gap closure (3.1x speedup)
+- **CI/CD Optimization** - Quality gates, release automation (2.5-3.5x speedup)
+- **Error Recovery** - 13-category taxonomy, diagnostic workflows
+- **Documentation Management** - Templates, patterns, automation tools
+- And 11 more validated skills
+
+See [BAIME Usage Guide](docs/tutorials/baime-usage.md) for details.
 
 ### 2. Install Binaries
 
@@ -177,7 +194,7 @@ See [CLI Reference](docs/reference/cli.md) for complete command list and [CLI Co
 - 🎯 **Natural language interface** - `/meta` command with semantic matching
 - 🔍 **16 MCP query tools** - Autonomous session data analysis
 - 🎓 **Interactive coaching** - `@meta-coach` subagent
-- 📚 **15 Validated Skills** - Reusable methodologies for testing, CI/CD, error recovery, and more
+- 📚 **16 Validated Skills** - Reusable methodologies for testing, CI/CD, error recovery, documentation, and more
 - 🤖 **5 Specialized Agents** - Project planning, stage execution, iteration management
 - 📊 **Advanced analytics** - SQL-like queries, aggregation, time series
 - 📁 **File operation tracking** - Identify hotspots and churn
@@ -186,7 +203,7 @@ See [CLI Reference](docs/reference/cli.md) for complete command list and [CLI Co
 - 🔧 **Extensible** - Create custom capabilities with markdown
 - 🧩 **Unix-friendly** - JSONL streaming, clean I/O, composable pipelines
 
-### Skills (15 Validated Methodologies)
+### Skills (16 Validated Methodologies)
 
 meta-cc includes proven methodologies for systematic software development:
 
@@ -200,6 +217,7 @@ meta-cc includes proven methodologies for systematic software development:
 - **Cross-Cutting Concerns** - Error handling, logging, configuration (60-75% faster diagnosis)
 - **Observability** - Logs, metrics, traces, structured logging (23-46x speedup)
 - **API Design** - 6 validated patterns, parameter categorization (82.5% transferable)
+- **Documentation Management** - 5 templates, 3 patterns, automation tools (93% transferable, 3-5x faster creation)
 - **Methodology Bootstrapping** - BAIME framework (10-50x speedup, 100% success rate)
 - **Agent Prompt Evolution** - Agent specialization tracking (5x performance gap detection)
 - **Baseline Quality Assessment** - Rapid convergence enablement (40-50% iteration reduction)
