@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/filter"
 	internalOutput "github.com/yaleh/meta-cc/internal/output"
 	"github.com/yaleh/meta-cc/internal/parser"
@@ -129,7 +130,7 @@ func runStatsAggregate(cmd *cobra.Command, args []string) error {
 	case "tsv":
 		outputStr, err = output.FormatTSV(results)
 	default:
-		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
+		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv): %w", outputFormat, mcerrors.ErrInvalidInput)
 	}
 
 	if err != nil {

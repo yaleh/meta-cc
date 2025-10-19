@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yaleh/meta-cc/internal/analyzer"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/pkg/output"
 )
 
@@ -61,7 +62,7 @@ func runAnalyzeFileChurn(cmd *cobra.Command, args []string) error {
 	case outputFormatTSV:
 		outputStr, formatErr = output.FormatTSV(files)
 	default:
-		return fmt.Errorf("unsupported output format: %s (supported: %s, %s)", outputFormat, outputFormatJSONL, outputFormatTSV)
+		return fmt.Errorf("unsupported output format: %s (supported: %s, %s): %w", outputFormat, outputFormatJSONL, outputFormatTSV, mcerrors.ErrInvalidInput)
 	}
 
 	if formatErr != nil {

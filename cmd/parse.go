@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yaleh/meta-cc/internal/analyzer"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/filter"
 	internalOutput "github.com/yaleh/meta-cc/internal/output"
 	"github.com/yaleh/meta-cc/internal/parser"
@@ -65,7 +66,7 @@ func runParseExtract(cmd *cobra.Command, args []string) error {
 
 	if !validTypes[extractType] {
 		return internalOutput.OutputError(
-			fmt.Errorf("invalid type '%s': must be one of: turns, tools, errors", extractType),
+			fmt.Errorf("invalid type '%s': must be one of: turns, tools, errors: %w", extractType, mcerrors.ErrInvalidInput),
 			internalOutput.ErrInvalidArgument,
 			outputFormat,
 		)
