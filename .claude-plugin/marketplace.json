@@ -9,7 +9,10 @@
   "plugins": [
     {
       "name": "meta-cc",
-      "source": "./",
+      "source": {
+        "source": "github",
+        "repo": "yaleh/meta-cc"
+      },
       "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides unified /meta command with natural language intent matching, 5 specialized agents, 13 capabilities, and 16 MCP tools. Lightweight and fast.",
       "version": "0.30.1",
       "author": {
@@ -30,7 +33,7 @@
     },
     {
       "name": "meta-cc-skills",
-      "source": "./",
+      "source": "./.claude",
       "description": "Software development methodology skills - 15 validated patterns for testing, CI/CD, error recovery, refactoring, and more. Based on BAIME methodology with proven 10-50x speedup.",
       "version": "0.29.1",
       "author": {
@@ -50,21 +53,21 @@
       ],
       "strict": false,
       "skills": [
-        "./.claude/skills/testing-strategy",
-        "./.claude/skills/ci-cd-optimization",
-        "./.claude/skills/error-recovery",
-        "./.claude/skills/dependency-health",
-        "./.claude/skills/knowledge-transfer",
-        "./.claude/skills/technical-debt-management",
-        "./.claude/skills/code-refactoring",
-        "./.claude/skills/cross-cutting-concerns",
-        "./.claude/skills/observability-instrumentation",
-        "./.claude/skills/api-design",
-        "./.claude/skills/methodology-bootstrapping",
-        "./.claude/skills/agent-prompt-evolution",
-        "./.claude/skills/baseline-quality-assessment",
-        "./.claude/skills/rapid-convergence",
-        "./.claude/skills/retrospective-validation"
+        "./skills/testing-strategy",
+        "./skills/ci-cd-optimization",
+        "./skills/error-recovery",
+        "./skills/dependency-health",
+        "./skills/knowledge-transfer",
+        "./skills/technical-debt-management",
+        "./skills/code-refactoring",
+        "./skills/cross-cutting-concerns",
+        "./skills/observability-instrumentation",
+        "./skills/api-design",
+        "./skills/methodology-bootstrapping",
+        "./skills/agent-prompt-evolution",
+        "./skills/baseline-quality-assessment",
+        "./skills/rapid-convergence",
+        "./skills/retrospective-validation"
       ]
     }
   ]
