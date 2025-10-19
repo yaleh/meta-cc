@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Maintenance: release v0.30.0
+- Maintenance: remove marketplace.json backup file
+
+### Fixed
+
+- update smoke tests for separate meta-cc-skills plugin
+
+## [0.30.0] - 2025-10-19
+
+
+### Changed
+
 - Maintenance: remove marketplace.json backup file
 
 ## [Unreleased]
