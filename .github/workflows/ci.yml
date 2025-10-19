@@ -98,6 +98,10 @@ jobs:
       - name: Run tests
         run: make test
 
+      - name: Generate coverage report
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        run: make test-coverage
+
       - name: Run linter
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
         run: make lint

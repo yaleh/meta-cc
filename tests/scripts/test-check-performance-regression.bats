@@ -152,9 +152,10 @@ create_metric_file() {
     create_metric_file "default_threshold" "100 100 100 100 100 100 100 100 100 100"
 
     # Without threshold (should use default 20%)
-    run bash check-performance-regression.sh default_threshold 125
+    # Current value 115 = 15% regression, which is < 20% threshold
+    run bash check-performance-regression.sh default_threshold 115
 
-    [ "$status" -eq 0 ]  # 25% > 20%, but this is within bounds for testing
+    [ "$status" -eq 0 ]  # 15% < 20%, within acceptable range
     # Output should mention threshold
     [[ "$output" =~ "Threshold:" ]]
 }

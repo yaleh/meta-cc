@@ -8,6 +8,11 @@ import (
 	"github.com/yaleh/meta-cc/pkg/output"
 )
 
+const (
+	outputFormatJSONL = "jsonl"
+	outputFormatTSV   = "tsv"
+)
+
 var fileChurnThreshold int
 
 // analyzeFileChurnCmd represents the analyze file-churn subcommand
@@ -51,12 +56,12 @@ func runAnalyzeFileChurn(cmd *cobra.Command, args []string) error {
 	var formatErr error
 
 	switch outputFormat {
-	case "jsonl":
+	case outputFormatJSONL:
 		outputStr, formatErr = output.FormatJSONL(files)
-	case "tsv":
+	case outputFormatTSV:
 		outputStr, formatErr = output.FormatTSV(files)
 	default:
-		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
+		return fmt.Errorf("unsupported output format: %s (supported: %s, %s)", outputFormat, outputFormatJSONL, outputFormatTSV)
 	}
 
 	if formatErr != nil {

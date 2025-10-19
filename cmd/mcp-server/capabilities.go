@@ -50,15 +50,13 @@ type CapabilitySource struct {
 
 // CapabilityMetadata represents metadata extracted from capability frontmatter
 type CapabilityMetadata struct {
+	Keywords    []string `yaml:"-"` // Parsed from comma-separated string
 	Name        string   `yaml:"name"`
 	Description string   `yaml:"description"`
-	Keywords    []string `yaml:"-"` // Parsed from comma-separated string
 	Category    string   `yaml:"category"`
 	Source      string   `json:"source"`    // Source identifier for debugging
 	FilePath    string   `json:"file_path"` // Relative path within source
-
-	// Internal field for parsing keywords from YAML
-	KeywordsRaw string `yaml:"keywords"`
+	KeywordsRaw string   `yaml:"keywords"`  // Internal field for parsing keywords from YAML
 }
 
 // CapabilityIndex maps capability names to their metadata
@@ -336,7 +334,11 @@ func loadLocalCapabilities(path string) ([]CapabilityMetadata, error) {
 		}
 
 		// Set file path relative to source directory
-		relPath, _ := filepath.Rel(path, filePath)
+		relPath, err := filepath.Rel(path, filePath)
+		if err != nil {
+			// If relative path fails, use absolute path
+			relPath = filePath
+		}
 		metadata.FilePath = relPath
 
 		capabilities = append(capabilities, metadata)

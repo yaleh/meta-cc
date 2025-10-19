@@ -10,15 +10,18 @@ import (
 
 func TestAnalyzeIdleCommand_Integration(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("failed to get home dir: %v", err)
+	}
 	projectHash := "-home-yale-work-test-analyze-idle-integration"
-	sessionID := "test-session-analyze-idle-integration"
+	testSessionID := "test-session-analyze-idle-integration"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	sessionFile := filepath.Join(sessionDir, testSessionID+".jsonl")
 
 	// Create fixture with idle periods (10+ minute gaps)
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/test.txt"}}]}}
@@ -31,7 +34,7 @@ func TestAnalyzeIdleCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
+	os.Setenv("CC_SESSION_ID", testSessionID)
 	os.Setenv("CC_PROJECT_HASH", projectHash)
 	defer os.Unsetenv("CC_SESSION_ID")
 	defer os.Unsetenv("CC_PROJECT_HASH")
@@ -41,7 +44,7 @@ func TestAnalyzeIdleCommand_Integration(t *testing.T) {
 	rootCmd.SetErr(&buf)
 	rootCmd.SetArgs([]string{"analyze", "idle-periods", "--session-only", "--output", "jsonl", "--threshold", "5"})
 
-	err := rootCmd.Execute()
+	err = rootCmd.Execute()
 	if err != nil {
 		t.Fatalf("Command execution failed: %v", err)
 	}
@@ -57,15 +60,18 @@ func TestAnalyzeIdleCommand_Integration(t *testing.T) {
 
 func TestAnalyzeIdleCommand_WithThreshold(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("failed to get home dir: %v", err)
+	}
 	projectHash := "-home-yale-work-test-analyze-idle-threshold"
-	sessionID := "test-session-analyze-idle-threshold"
+	testSessionID := "test-session-analyze-idle-threshold"
 
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	sessionFile := filepath.Join(sessionDir, testSessionID+".jsonl")
 
 	// Create fixture with varying gap sizes
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/test.txt"}}]}}
@@ -79,7 +85,7 @@ func TestAnalyzeIdleCommand_WithThreshold(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
+	os.Setenv("CC_SESSION_ID", testSessionID)
 	os.Setenv("CC_PROJECT_HASH", projectHash)
 	defer os.Unsetenv("CC_SESSION_ID")
 	defer os.Unsetenv("CC_PROJECT_HASH")
@@ -94,7 +100,7 @@ func TestAnalyzeIdleCommand_WithThreshold(t *testing.T) {
 	rootCmd.SetErr(&buf)
 	rootCmd.SetArgs([]string{"analyze", "idle-periods", "--session-only", "--output", "jsonl", "--threshold", "10"})
 
-	err := rootCmd.Execute()
+	err = rootCmd.Execute()
 	if err != nil {
 		t.Fatalf("Command execution failed: %v", err)
 	}

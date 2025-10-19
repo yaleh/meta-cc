@@ -78,13 +78,17 @@ func TestAnalyzeFileChurnCommand_MatchesSequencesFormat(t *testing.T) {
 	rootCmd.SetOut(&fileChurnBuf)
 	rootCmd.SetErr(&fileChurnBuf)
 	rootCmd.SetArgs([]string{"analyze", "file-churn", "--project", "/home/yale/work/meta-cc", "--threshold", "1", "--output", "jsonl"})
-	_ = rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		t.Logf("file-churn command error: %v", err)
+	}
 
 	// Run sequences
 	rootCmd.SetOut(&sequencesBuf)
 	rootCmd.SetErr(&sequencesBuf)
 	rootCmd.SetArgs([]string{"analyze", "sequences", "--project", "/home/yale/work/meta-cc", "--min-occurrences", "2", "--output", "jsonl"})
-	_ = rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		t.Logf("sequences command error: %v", err)
+	}
 
 	fileChurnOutput := strings.TrimSpace(fileChurnBuf.String())
 	sequencesOutput := strings.TrimSpace(sequencesBuf.String())
