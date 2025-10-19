@@ -96,6 +96,17 @@ func extractToolCallsWithTurns(entries []parser.SessionEntry, turnIndex map[stri
 	return result
 }
 
+// buildSequencePattern builds a SequencePattern from occurrences
+func buildSequencePattern(pattern string, occurrences []types.SequenceOccurrence, entries []parser.SessionEntry, toolCalls []toolCallWithTurn) types.SequencePattern {
+	timeSpan := calculateSequenceTimeSpan(occurrences, entries, toolCalls)
+	return types.SequencePattern{
+		Pattern:     pattern,
+		Count:       len(occurrences),
+		Occurrences: occurrences,
+		TimeSpanMin: timeSpan,
+	}
+}
+
 // findSpecificPattern finds occurrences of a specific pattern
 func findSpecificPattern(toolCalls []toolCallWithTurn, pattern string, entries []parser.SessionEntry) types.SequencePattern {
 	// Parse pattern (format: "Tool1 → Tool2 → Tool3")
@@ -119,15 +130,7 @@ func findSpecificPattern(toolCalls []toolCallWithTurn, pattern string, entries [
 		}
 	}
 
-	// Calculate time span
-	timeSpan := calculateSequenceTimeSpan(occurrences, entries, toolCalls)
-
-	return types.SequencePattern{
-		Pattern:     pattern,
-		Count:       len(occurrences),
-		Occurrences: occurrences,
-		TimeSpanMin: timeSpan,
-	}
+	return buildSequencePattern(pattern, occurrences, entries, toolCalls)
 }
 
 // findAllSequences finds all repeated sequences of length 2-5
@@ -160,13 +163,7 @@ func findAllSequences(toolCalls []toolCallWithTurn, minOccurrences int, entries 
 	var result []types.SequencePattern
 	for pattern, occurrences := range sequenceMap {
 		if len(occurrences) >= minOccurrences {
-			timeSpan := calculateSequenceTimeSpan(occurrences, entries, toolCalls)
-			result = append(result, types.SequencePattern{
-				Pattern:     pattern,
-				Count:       len(occurrences),
-				Occurrences: occurrences,
-				TimeSpanMin: timeSpan,
-			})
+			result = append(result, buildSequencePattern(pattern, occurrences, entries, toolCalls))
 		}
 	}
 
