@@ -18,9 +18,7 @@
     "analytics",
     "optimization",
     "mcp",
-    "subagents",
-    "skills",
-    "methodologies"
+    "subagents"
   ],
   "commands": [
     "./.claude/commands/meta.md"
@@ -31,22 +29,5 @@
     "./.claude/agents/knowledge-extractor.md",
     "./.claude/agents/project-planner.md",
     "./.claude/agents/stage-executor.md"
-  ],
-  "skills": [
-    "./.claude/skills/testing-strategy/SKILL.md",
-    "./.claude/skills/ci-cd-optimization/SKILL.md",
-    "./.claude/skills/error-recovery/SKILL.md",
-    "./.claude/skills/dependency-health/SKILL.md",
-    "./.claude/skills/knowledge-transfer/SKILL.md",
-    "./.claude/skills/technical-debt-management/SKILL.md",
-    "./.claude/skills/code-refactoring/SKILL.md",
-    "./.claude/skills/cross-cutting-concerns/SKILL.md",
-    "./.claude/skills/observability-instrumentation/SKILL.md",
-    "./.claude/skills/api-design/SKILL.md",
-    "./.claude/skills/methodology-bootstrapping/SKILL.md",
-    "./.claude/skills/agent-prompt-evolution/SKILL.md",
-    "./.claude/skills/baseline-quality-assessment/SKILL.md",
-    "./.claude/skills/rapid-convergence/SKILL.md",
-    "./.claude/skills/retrospective-validation/SKILL.md"
   ]
 }

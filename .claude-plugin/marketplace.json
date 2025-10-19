@@ -13,7 +13,7 @@
         "source": "github",
         "repo": "yaleh/meta-cc"
       },
-      "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides unified /meta command with natural language intent matching, 15 validated skills, 5 specialized agents, 13 capabilities, and 16 MCP tools. Features package distribution for >10x faster loading.",
+      "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides unified /meta command with natural language intent matching, 5 specialized agents, 13 capabilities, and 16 MCP tools. Lightweight and fast.",
       "version": "0.29.1",
       "author": {
         "name": "Yale Huang",
@@ -29,6 +29,48 @@
         "metacognition",
         "analytics",
         "optimization"
+      ]
+    },
+    {
+      "name": "meta-cc-skills",
+      "source": {
+        "source": "github",
+        "repo": "yaleh/meta-cc"
+      },
+      "description": "Software development methodology skills - 15 validated patterns for testing, CI/CD, error recovery, refactoring, and more. Based on BAIME methodology with proven 10-50x speedup.",
+      "version": "0.29.1",
+      "author": {
+        "name": "Yale Huang",
+        "email": "yaleh@ieee.org",
+        "url": "https://github.com/yaleh"
+      },
+      "license": "MIT",
+      "homepage": "https://github.com/yaleh/meta-cc",
+      "keywords": [
+        "methodologies",
+        "testing-strategy",
+        "ci-cd",
+        "error-recovery",
+        "refactoring",
+        "technical-debt"
+      ],
+      "strict": false,
+      "skills": [
+        "./.claude/skills/testing-strategy",
+        "./.claude/skills/ci-cd-optimization",
+        "./.claude/skills/error-recovery",
+        "./.claude/skills/dependency-health",
+        "./.claude/skills/knowledge-transfer",
+        "./.claude/skills/technical-debt-management",
+        "./.claude/skills/code-refactoring",
+        "./.claude/skills/cross-cutting-concerns",
+        "./.claude/skills/observability-instrumentation",
+        "./.claude/skills/api-design",
+        "./.claude/skills/methodology-bootstrapping",
+        "./.claude/skills/agent-prompt-evolution",
+        "./.claude/skills/baseline-quality-assessment",
+        "./.claude/skills/rapid-convergence",
+        "./.claude/skills/retrospective-validation"
       ]
     }
   ]
