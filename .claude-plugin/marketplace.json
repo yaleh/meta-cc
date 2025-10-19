@@ -9,10 +9,7 @@
   "plugins": [
     {
       "name": "meta-cc",
-      "source": {
-        "source": "github",
-        "repo": "yaleh/meta-cc"
-      },
+      "source": "./",
       "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides unified /meta command with natural language intent matching, 5 specialized agents, 13 capabilities, and 16 MCP tools. Lightweight and fast.",
       "version": "0.30.0",
       "author": {
@@ -33,10 +30,7 @@
     },
     {
       "name": "meta-cc-skills",
-      "source": {
-        "source": "github",
-        "repo": "yaleh/meta-cc"
-      },
+      "source": "./",
       "description": "Software development methodology skills - 15 validated patterns for testing, CI/CD, error recovery, refactoring, and more. Based on BAIME methodology with proven 10-50x speedup.",
       "version": "0.29.1",
       "author": {
