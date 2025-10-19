@@ -79,8 +79,8 @@ func findErrorOccurrences(entries []parser.SessionEntry, errorSig string, window
 	return occurrences
 }
 
-// buildContextBefore builds context before the error turn
-func buildContextBefore(entries []parser.SessionEntry, errorTurn, window int, turnIndex map[string]int) []TurnPreview {
+// buildContextWindow builds context in specified direction from error turn
+func buildContextWindow(entries []parser.SessionEntry, errorTurn, window int, turnIndex map[string]int, direction string) []TurnPreview {
 	var previews []TurnPreview
 
 	for _, entry := range entries {
@@ -89,7 +89,16 @@ func buildContextBefore(entries []parser.SessionEntry, errorTurn, window int, tu
 		}
 
 		turn := turnIndex[entry.UUID]
-		if turn >= errorTurn || turn < errorTurn-window {
+
+		// Direction-specific filtering
+		var skip bool
+		if direction == "before" {
+			skip = turn >= errorTurn || turn < errorTurn-window
+		} else { // "after"
+			skip = turn <= errorTurn || turn > errorTurn+window
+		}
+
+		if skip {
 			continue
 		}
 
@@ -99,24 +108,14 @@ func buildContextBefore(entries []parser.SessionEntry, errorTurn, window int, tu
 	return previews
 }
 
+// buildContextBefore builds context before the error turn
+func buildContextBefore(entries []parser.SessionEntry, errorTurn, window int, turnIndex map[string]int) []TurnPreview {
+	return buildContextWindow(entries, errorTurn, window, turnIndex, "before")
+}
+
 // buildContextAfter builds context after the error turn
 func buildContextAfter(entries []parser.SessionEntry, errorTurn, window int, turnIndex map[string]int) []TurnPreview {
-	var previews []TurnPreview
-
-	for _, entry := range entries {
-		if !entry.IsMessage() {
-			continue
-		}
-
-		turn := turnIndex[entry.UUID]
-		if turn <= errorTurn || turn > errorTurn+window {
-			continue
-		}
-
-		previews = append(previews, buildTurnPreview(entry, turn))
-	}
-
-	return previews
+	return buildContextWindow(entries, errorTurn, window, turnIndex, "after")
 }
 
 // buildTurnPreview builds a preview of a turn
