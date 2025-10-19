@@ -143,6 +143,55 @@ Example:
 
 ---
 
+### knowledge-extractor
+
+**When to use**: After experiment converges, to extract and transform knowledge into reusable artifacts
+
+**What it does**:
+- Extracts patterns, principles, templates from converged BAIME experiment
+- Transforms experiment artifacts into production-ready Claude Code skills
+- Creates knowledge base entries (patterns/*.md, principles/*.md)
+- Validates output quality with structured criteria (V_instance ≥ 0.85)
+- Achieves 195x speedup (2 min vs 390 min manual extraction)
+- Produces distributable, reusable artifacts for the community
+
+**How to invoke**:
+```
+Use the Task tool with subagent_type="knowledge-extractor"
+
+Example:
+"Extract knowledge from Bootstrap-004 refactoring experiment and create code-refactoring skill using knowledge-extractor"
+```
+
+**Benefits**:
+- ✅ Systematic knowledge preservation (vs ad-hoc documentation)
+- ✅ Reusable Claude Code skills (ready for distribution)
+- ✅ Quality validation (95% content equivalence to hand-crafted)
+- ✅ Fast extraction (2-5 min, 195x speedup)
+- ✅ Knowledge base population (patterns, principles, templates)
+- ✅ Automated artifact generation (43% workflow automation with 4 tools)
+
+**Lifecycle position**: Post-Convergence phase
+```
+Experiment Design → iteration-prompt-designer → ITERATION-PROMPTS.md
+       ↓
+Iterate → iteration-executor (x N) → iteration-0..N.md
+       ↓
+Converge → Create results.md
+       ↓
+Extract → knowledge-extractor → .claude/skills/ + knowledge/
+       ↓
+Distribute → Claude Code users
+```
+
+**Validated performance** (Bootstrap-005):
+- Speedup: 195x (390 min → 2 min)
+- Quality: V_instance = 0.87, 95% content equivalence
+- Reliability: 100% success across 3 experiments
+- Automation: 43% of workflow (6/14 steps)
+
+---
+
 ## Core Framework
 
 ### The OCA Cycle
