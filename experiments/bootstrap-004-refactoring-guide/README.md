@@ -1,237 +1,303 @@
-# Experiment: Meta-Agent Bootstrapping for Refactoring Guide
+# Bootstrap-004: Refactoring Guide
 
-**Experiment ID**: bootstrap-004-refactoring-guide
-**Date**: 2025-10-14
-**Status**: ⏳ READY TO START
-**Framework**: Bootstrapped Software Engineering + Value Space Optimization
-**Priority**: MEDIUM (Code maintainability and quality improvement)
-
----
-
-## Overview
-
-This experiment demonstrates Meta-Agent/Agent bootstrapping for developing a systematic code refactoring identification and execution methodology. It focuses on improving code quality, reducing technical debt, and maintaining system health.
-
-**Key Objective**: Develop comprehensive refactoring methodology that identifies code smells, plans safe refactoring steps, and improves maintainability.
+**Status**: 🔄 IN PROGRESS - Iteration 1 Complete
+**Started**: 2025-10-18
+**Last Updated**: 2025-10-19
+**Methodology**: BAIME v2.0 (Bootstrapped AI Methodology Engineering)
 
 ---
 
-## Experiment Objectives (Two-Layer Architecture)
+## Quick Links
 
-### Meta-Objective (Meta-Agent Layer)
-
-**Goal**: Develop refactoring methodology through iterative observation, codification, and automation of agent refactoring patterns.
-
-**Deliverables**:
-- Refactoring methodology extracted from observed patterns
-- Code smell detection heuristics
-- Safe refactoring procedures with safety checks
-- Refactoring impact analysis techniques
-- Reusable refactoring three-tuple (M, A, methodology artifacts)
-
-**Success Criteria**:
-- V_meta(s) ≥ 0.80 (methodology quality threshold)
-- Methodology completeness ≥ 0.80
-- Methodology effectiveness ≥ 0.60 (measured speedup/quality improvement)
-- Methodology reusability ≥ 0.70 (transferable to other codebases)
-- Meta-agent stable (M_n = M_{n-1})
-- Agent set stable (A_n = A_{n-1})
-
-**Meta Value Function**:
-```
-V_meta(s) = 0.4·V_methodology_completeness(s) +
-            0.3·V_methodology_effectiveness(s) +
-            0.3·V_methodology_reusability(s)
-
-Target: V_meta(s_n) ≥ 0.80
-```
-
-**Rubrics**:
-- **Completeness**: 0.0-0.3 (Basic notes), 0.3-0.6 (Structured procedures), 0.6-0.8 (Comprehensive), 0.8-1.0 (Fully codified with examples/edge cases)
-- **Effectiveness**: 0.0-0.3 (Marginal <2x), 0.3-0.6 (Moderate 2-5x), 0.6-0.8 (Significant 5-10x), 0.8-1.0 (Transformative >10x)
-- **Reusability**: 0.0-0.3 (Domain-specific), 0.3-0.6 (Partially portable), 0.6-0.8 (Largely portable), 0.8-1.0 (Highly portable)
-
-### Instance Objective (Agent Layer)
-
-**Goal**: Execute concrete code refactoring for meta-cc high-churn files.
-
-**Concrete Scope**:
-- **Target Files**:
-  - cmd/mcp-server/tools.go (115 accesses)
-  - cmd/mcp-server/capabilities.go (102 accesses)
-  - cmd/root.go (99 accesses)
-  - cmd/mcp.go (97 accesses)
-
-- **Specific Tasks**:
-  1. Reduce cyclomatic complexity ≥15 functions (gocyclo analysis)
-  2. Extract duplicated code (dupl -threshold 15 results)
-  3. Implement refactoring safety checker (pre-refactor validation)
-  4. Create impact analyzer (dependency analysis)
-  5. Document refactoring procedures
-
-**Success Criteria**:
-- Cyclomatic complexity reduced by ≥30% in target functions
-- Code duplication reduced by ≥40%
-- All refactorings pass safety checks (test coverage maintained/improved)
-- V_instance(s) ≥ 0.80
-- Refactoring impact documented for each change
-
-**Expected Agent Work**:
-Agents execute concrete refactorings (function extraction, complexity reduction, duplication removal). Meta-agent observes patterns and codifies them into refactoring methodology.
+- [Detailed Plan](plan.md) - Complete experiment design
+- [Iteration Prompts](ITERATION-PROMPTS.md) - Execution templates
+- [Iteration Logs](iterations/) - Execution history
 
 ---
 
-## Task Definition
+## Experiment Overview
 
-**Task T**: Develop systematic refactoring identification and execution methodology for meta-cc
+### Two-Layer Architecture
 
-**Value Function**:
+#### Meta-Objective (Meta-Agent Layer)
+Develop **systematic code refactoring methodology** through observation of agent refactoring patterns.
+
+**Goal**: Create reusable refactoring methodology that can be applied to any codebase.
+
+#### Instance Objective (Agent Layer)
+Refactor `internal/query/` package to improve code quality.
+
+**Target**: ~500 lines across query engine modules
+**Scope**: Reduce cyclomatic complexity by 30%, improve test coverage to 85%
+**Deliverables**: Refactored code, improved module structure, enhanced tests
+
+---
+
+## Value Functions
+
+### Instance Value Function (Refactoring Quality)
+
 ```
-V(s) = 0.3·V_code_quality(s) +    # Code quality metrics
-       0.3·V_maintainability(s) + # Ease of maintenance
-       0.2·V_safety(s) +          # Refactoring safety
-       0.2·V_effort(s)            # Refactoring efficiency
-
-Target: V(sₙ) ≥ 0.80
+V_instance(s) = 0.3·V_code_quality +     # Quality metrics
+                0.3·V_maintainability +  # Maintenance ease
+                0.2·V_safety +           # Refactoring safety
+                0.2·V_effort             # Efficiency
 ```
 
-**Initial State Analysis**:
-- High-edit files: tools.go (115 accesses), capabilities.go (102), plan.md (423 accesses, 183 edits)
-- Edit operations: 2,476 total - indicates frequent code changes
-- Some files may have accumulated technical debt
+**Components**:
 
-**Expected Agent Evolution**:
-- **code-smell-detector**: Identify code quality issues
-- **refactoring-planner**: Plan refactoring steps
-- **safety-checker**: Verify refactoring safety
-- **impact-analyzer**: Analyze change impact
+1. **V_code_quality** (0.0-1.0): Code quality improvement
+   - Cyclomatic complexity reduction (target: 30%)
+   - Code duplication elimination
+   - Static analysis issue resolution
+   - Naming and structure clarity
+
+2. **V_maintainability** (0.0-1.0): Maintenance ease
+   - Test coverage improvement (target: 85%)
+   - Module cohesion and coupling
+   - Documentation quality
+   - Code organization
+
+3. **V_safety** (0.0-1.0): Refactoring safety
+   - All tests pass after refactoring
+   - No behavior changes (verified)
+   - Incremental, reversible steps
+   - Version control discipline
+
+4. **V_effort** (0.0-1.0): Efficiency
+   - Time per refactoring unit
+   - Automated vs manual work ratio
+   - Rework needed (lower is better)
+
+### Meta Value Function (Methodology Quality)
+
+```
+V_meta(s) = 0.4·V_methodology_completeness +   # Methodology documentation
+            0.3·V_methodology_effectiveness +  # Efficiency improvement
+            0.3·V_methodology_reusability      # Transferability
+```
+
+**Components**:
+
+1. **V_methodology_completeness** (0.0-1.0): Documentation quality
+   - Process steps documented
+   - Decision criteria defined
+   - Examples and edge cases covered
+   - Rationale explained
+
+2. **V_methodology_effectiveness** (0.0-1.0): Practical impact
+   - Efficiency gain vs ad-hoc (target: 5-10x speedup)
+   - Quality improvement (code metrics)
+   - Error reduction
+
+3. **V_methodology_reusability** (0.0-1.0): Transferability
+   - Cross-language applicability (target: 80%)
+   - Domain independence
+   - Minimal adaptation needed
 
 ---
 
 ## Convergence Criteria
 
-Experiment concludes when **ALL** criteria met:
+The experiment converges when **ALL** conditions are met:
 
-### Meta-Layer Convergence:
-1. **Meta-Agent Stable**: M_n = M_{n-1} (no new capabilities needed)
-2. **Agent Set Stable**: A_n = A_{n-1} (no new specialized agents)
-3. **Methodology Quality**: V_meta(s_n) ≥ 0.80
-4. **Methodology Complete**: All refactoring patterns extracted and codified
+```
+CONVERGED iff:
+  V_instance(s_N) ≥ 0.80 ∧               # Refactoring quality达标
+  V_meta(s_N) ≥ 0.80 ∧                   # Methodology成熟
+  M_N == M_{N-1} ∧                       # Meta-Agent stable
+  A_N == A_{N-1} ∧                       # Agent set stable
+  ΔV_instance < 0.02 (for 2+ iterations) ∧  # Instance value stable
+  ΔV_meta < 0.02 (for 2+ iterations)     # Meta value stable
+```
 
-### Instance-Layer Convergence:
-5. **Instance Quality**: V_instance(s_n) ≥ 0.80
-6. **Refactoring Tasks Complete**: All target files refactored successfully
-7. **Diminishing Returns**: ΔV < 0.05 (minimal improvement per iteration)
-
-### Success Indicators:
-- Code quality metrics improved by ≥30%
-- Code duplication reduced by ≥40%
-- Technical debt reduced and prioritized
-- Safe refactoring procedures validated (100% test pass rate)
-- Refactoring methodology transferable to other projects
-- All refactorings documented with impact analysis
-
-**Current Status**: NOT CONVERGED - Experiment not started
+**Expected Iterations**: 5-7 (based on medium complexity domain)
 
 ---
 
 ## Data Sources
 
-**High-Edit Files** (refactoring candidates):
-- docs/plan.md (183 edits, 423 accesses)
-- cmd/mcp-server/tools.go (115 accesses)
-- cmd/mcp-server/capabilities.go (102 accesses)
-- cmd/root.go (99 accesses)
-- cmd/mcp.go (97 accesses)
+### Primary Data
+- **High-edit files**: `plan.md` (183 edits), `tools.go` (115 accesses)
+- **Code complexity**: `gocyclo`, `dupl` metrics
+- **Static analysis**: `staticcheck`, `go vet` output
+- **Test coverage**: Current coverage baseline
 
-**Code Metrics** (to collect):
+### Meta-CC Queries
 ```bash
-# Cyclomatic complexity
-gocyclo -over 15 .
+# File access patterns (refactoring candidates)
+meta-cc query-files --threshold 20
 
-# Code duplication
-dupl -threshold 15 .
+# Error-prone edits (need refactoring)
+meta-cc query-tools --status error --tool Edit
 
-# Static analysis
-staticcheck ./...
-go vet ./...
+# High-change areas (technical debt)
+meta-cc query-conversation --pattern "fix|bug|issue|problem"
 ```
 
 ---
 
-## Files Structure
+## Expected Agents
 
-- `README.md` - This file
-- `plan.md` - Complete experiment design  
-- `ITERATION-PROMPTS.md` - Iteration execution guide
-- `meta-agents/meta-agent-m0.md` - Initial Meta-Agent
-- `agents/` - Agent specifications
-- `data/` - Refactoring metrics and analysis
+Based on completed experiments and refactoring domain analysis:
 
----
-
-## Getting Started
-
-### Pre-Experiment Setup
-
-1. Read [plan.md](plan.md) for complete framework
-2. Read [ITERATION-PROMPTS.md](ITERATION-PROMPTS.md) for execution guide
-3. Understand two-layer architecture requirements
-
-### Iteration 0: Baseline Establishment
-
-**Objective**: Calculate V_instance(s₀) and V_meta(s₀) for both layers
-
-**Tasks**:
-
-**A. Instance-Layer Baseline (V_instance(s₀))**:
-```bash
-# 1. Code Quality (V_code_quality)
-gocyclo -over 15 .
-staticcheck ./...
-go vet ./...
-# Score: Count of violations → normalize to [0,1]
-
-# 2. Maintainability (V_maintainability)
-dupl -threshold 15 .
-# Count lines of code in target files
-# Score: Duplication ratio, file length, complexity
-
-# 3. Safety (V_safety)
-make test-coverage
-# Score: Current test coverage percentage
-
-# 4. Effort (V_effort)
-# Estimate refactoring effort based on metrics
-# Score: Complexity of required refactoring work
-
-# Calculate: V_instance(s₀) = 0.3·V_code_quality + 0.3·V_maintainability + 0.2·V_safety + 0.2·V_effort
-```
-
-**B. Meta-Layer Baseline (V_meta(s₀))**:
-```yaml
-V_meta(s₀):
-  completeness: 0.00  # No methodology exists yet
-  effectiveness: 0.00 # No methodology to measure
-  reusability: 0.00   # No methodology to evaluate
-  V_meta(s₀): 0.00    # Baseline before methodology development
-```
-
-**C. Initial Setup**:
-- Create `meta-agents/` directory with M₀ capabilities (observe, plan, execute, reflect, evolve)
-- Create `agents/` directory for agent specifications
-- Create `data/` directory for metrics tracking
-- Document baseline metrics in `data/s0-baseline.yaml`
-
-### Iteration 1+: Execute and Evolve
-
-4. Agents execute concrete refactoring tasks (function extraction, complexity reduction, etc.)
-5. Meta-agent observes agent work patterns
-6. Meta-agent codifies patterns into methodology
-7. Track V_instance(s) and V_meta(s) trajectories
-8. Iterate until convergence (both layers meet criteria)
+- **code-smell-detector**: Identify code quality issues
+- **refactoring-planner**: Plan safe refactoring steps
+- **safety-checker**: Verify refactoring safety (tests pass, no behavior change)
+- **impact-analyzer**: Analyze change impact and risks
+- *Additional agents may emerge during execution*
 
 ---
 
-**Status**: NOT STARTED
-**Created**: 2025-10-14
+## BAIME Framework Application
+
+### Observe-Codify-Automate (OCA) Cycle
+
+**Iteration Structure**:
+1. **Observe**: Execute refactoring, collect patterns
+2. **Codify**: Document successful patterns as methodology
+3. **Automate**: Create tools/scripts for repeated patterns
+
+### Dual Value Tracking
+
+- **V_instance**: Measures concrete refactoring quality (code improvements)
+- **V_meta**: Measures methodology development quality (reusable knowledge)
+
+Both must converge to ≥0.80 for experiment success.
+
+### Context Allocation (30/40/20/10)
+
+- **30% Pattern Observation**: Execute refactoring, identify patterns
+- **40% Methodology Codification**: Document systematic approach
+- **20% Automation**: Create refactoring tools and scripts
+- **10% Validation**: Multi-context testing (different codebases)
+
+---
+
+## Current Status
+
+### Iteration 0: Baseline Establishment ✅ COMPLETE
+
+**Completed**: 2025-10-19
+
+**Accomplished**:
+1. ✅ Analyzed `internal/query/` package complexity
+2. ✅ Established baseline metrics (cyclomatic complexity, test coverage, code duplication)
+3. ✅ Identified refactoring targets (5 prioritized targets)
+4. ✅ Calculated initial V_instance(s₀) = 0.46 and V_meta(s₀) = 0.06
+5. ✅ Documented comprehensive baseline state
+
+**Key Findings**:
+- **Test Coverage**: 92.2% (already exceeds 85% target)
+- **Cyclomatic Complexity**: Only 1 production function >10 (complexity 11)
+- **Code Duplication**: 32 clone groups (3 in production code, 29 in tests)
+- **Static Analysis**: Clean (only version warning)
+- **Challenge**: Codebase is already high quality, must focus on duplication/complexity/clarity
+
+**Value Functions**:
+- **V_instance(s₀) = 0.46** - Moderate baseline (high maintainability, low code quality component due to no reductions yet)
+- **V_meta(s₀) = 0.06** - Minimal methodology (expected at start)
+
+**Next**: Iteration 1 - Initial refactoring + pattern observation
+
+### Iteration 1: Initial Refactoring + Pattern Observation ✅ COMPLETE
+
+**Completed**: 2025-10-19
+**Duration**: ~90 minutes (60 min refactoring + 30 min documentation)
+
+**Accomplished**:
+1. ✅ Eliminated `buildContextBefore` / `buildContextAfter` duplication (18 lines saved)
+2. ✅ Simplified `calculateSequenceTimeSpan` complexity (11 → 10)
+3. ✅ Pattern observations documented (4 universal patterns identified)
+4. ✅ Methodology draft v1 created (25% completeness)
+5. ✅ Achieved 1.4x efficiency gain vs. baseline estimate
+
+**Value Functions**:
+- **V_instance(s₁) = 0.54** (improved from 0.46, +17%)
+- **V_meta(s₁) = 0.37** (improved from 0.06, +517%)
+
+**Key Metrics**:
+- Functions >10 complexity: 5 → 4 (-20%)
+- Production clone groups: 3 → 2 (-33%)
+- Test pass rate: 100% (maintained)
+- Coverage: 92.0% (stable)
+
+**Next**: Iteration 2 - Methodology codification + more refactoring
+
+### Iteration 2: Methodology Codification + More Refactoring
+
+**Status**: 🔜 READY TO START
+
+**Planned Targets**:
+1. Extract Sequence Pattern Builder (sequences.go duplication)
+2. Extract Magic Number Constants
+3. (Optional) Improve naming clarity
+
+**Expected Outcomes**:
+- Methodology completeness: 40% → 60-65%
+- Code smell catalog: 2 → 5 smells
+- Refactoring techniques: 2 → 5-7 techniques
+- V_instance(s₂) ≈ 0.65-0.70
+- V_meta(s₂) ≈ 0.55-0.60
+
+---
+
+## Experiment Timeline
+
+| Iteration | Focus | Expected Duration |
+|-----------|-------|-------------------|
+| 0 | Baseline establishment | 2-3 hours |
+| 1 | Initial refactoring + pattern observation | 3-4 hours |
+| 2 | Methodology codification + automation | 3-4 hours |
+| 3+ | Refinement until convergence | 2-3 hours each |
+
+**Total Estimated**: 15-20 hours (5-7 iterations)
+
+---
+
+## Success Criteria
+
+### Instance Layer Success (V_instance ≥ 0.80)
+- ✅ Cyclomatic complexity reduced by 30%
+- ✅ Test coverage ≥ 85%
+- ✅ Code duplication eliminated
+- ✅ All tests pass
+- ✅ Static analysis issues resolved
+
+### Meta Layer Success (V_meta ≥ 0.80)
+- ✅ Complete refactoring methodology documented
+- ✅ 5-10x efficiency gain demonstrated
+- ✅ 80%+ cross-language transferability
+- ✅ Automation tools created
+- ✅ Multi-context validation completed
+
+---
+
+## Why This Experiment?
+
+1. **Code maintainability is long-term critical**: Technical debt accumulates without systematic refactoring
+2. **Refactoring requires careful planning**: Unsafe refactoring introduces bugs
+3. **High-frequency edits indicate refactoring needs**: Data-driven target selection
+4. **Methodology applicable to any codebase**: 80%+ reusability expected
+
+---
+
+## References
+
+**Completed BAIME Experiments**:
+- [Bootstrap-002: Test Strategy](../bootstrap-002-test-strategy/) - 6 iterations, V_instance=0.80, V_meta=0.80
+- [Bootstrap-003: Error Recovery](../bootstrap-003-error-recovery/) - 3 iterations, V_instance=0.83, V_meta=0.85
+
+**Methodology Documents**:
+- [BAIME Framework](../../docs/methodology/bootstrapped-software-engineering.md)
+- [OCA Cycle](../../docs/methodology/empirical-methodology-development.md)
+- [Value Functions](../../docs/methodology/value-space-optimization.md)
+
+**Experiment Overview**:
+- [EXPERIMENTS-OVERVIEW.md](../EXPERIMENTS-OVERVIEW.md)
+
+---
+
+**Document Version**: 1.0
+**Created**: 2025-10-18
+**Last Updated**: 2025-10-18
