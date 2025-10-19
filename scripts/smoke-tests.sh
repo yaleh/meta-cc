@@ -298,31 +298,24 @@ else
     test_result "Skills directory exists" "fail" "skills/ directory not found"
 fi
 
-# Test 3.5: marketplace.json contains meta-cc-skills plugin
-# (Skills moved to separate plugin in v0.30.0, updated to 16 skills in v0.31.0)
-if [ -f ".claude-plugin/marketplace.json" ]; then
-    SKILLS_PLUGIN_EXISTS=$(jq '.plugins[] | select(.name=="meta-cc-skills")' .claude-plugin/marketplace.json 2>/dev/null)
-    if [ -n "$SKILLS_PLUGIN_EXISTS" ]; then
-        SKILLS_COUNT=$(jq '.plugins[] | select(.name=="meta-cc-skills") | .skills | length' .claude-plugin/marketplace.json 2>/dev/null || echo 0)
-        if [ "$SKILLS_COUNT" -eq 16 ]; then
-            test_result "marketplace.json declares meta-cc-skills plugin with 16 skills" "pass"
-        else
-            test_result "marketplace.json declares meta-cc-skills plugin" "fail" "Expected 16 skills in meta-cc-skills plugin, found $SKILLS_COUNT"
-        fi
-    else
-        test_result "marketplace.json declares meta-cc-skills plugin" "fail" "meta-cc-skills plugin not found in marketplace.json"
-    fi
-fi
-
-# Test 3.6: marketplace.json contains meta-cc plugin with agents
+# Test 3.5: marketplace.json contains unified meta-cc plugin
+# (Merged meta-cc-skills into meta-cc in v0.32.0)
 if [ -f ".claude-plugin/marketplace.json" ]; then
     META_CC_PLUGIN_EXISTS=$(jq '.plugins[] | select(.name=="meta-cc")' .claude-plugin/marketplace.json 2>/dev/null)
     if [ -n "$META_CC_PLUGIN_EXISTS" ]; then
         AGENT_COUNT=$(jq '.plugins[] | select(.name=="meta-cc") | .agents | length' .claude-plugin/marketplace.json 2>/dev/null || echo 0)
+        SKILLS_COUNT=$(jq '.plugins[] | select(.name=="meta-cc") | .skills | length' .claude-plugin/marketplace.json 2>/dev/null || echo 0)
+
         if [ "$AGENT_COUNT" -eq 5 ]; then
             test_result "marketplace.json declares meta-cc plugin with 5 agents" "pass"
         else
             test_result "marketplace.json declares meta-cc plugin with agents" "fail" "Expected 5 agents in meta-cc plugin, found $AGENT_COUNT"
+        fi
+
+        if [ "$SKILLS_COUNT" -eq 16 ]; then
+            test_result "marketplace.json declares meta-cc plugin with 16 skills" "pass"
+        else
+            test_result "marketplace.json declares meta-cc plugin with skills" "fail" "Expected 16 skills in meta-cc plugin, found $SKILLS_COUNT"
         fi
     else
         test_result "marketplace.json declares meta-cc plugin" "fail" "meta-cc plugin not found in marketplace.json"

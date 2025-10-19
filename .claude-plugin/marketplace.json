@@ -10,8 +10,8 @@
     {
       "name": "meta-cc",
       "source": "./.claude",
-      "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides unified /meta command with natural language intent matching, 5 specialized agents, 13 capabilities, and 16 MCP tools. Lightweight and fast.",
-      "version": "0.31.0",
+      "description": "Meta-Cognition tool for Claude Code with unified /meta command, 5 specialized agents, 13 capabilities, 16 MCP tools, and 16 validated methodology skills (testing, CI/CD, error recovery, documentation, refactoring, and more). Based on BAIME with proven 10-50x speedup.",
+      "version": "0.32.0",
       "author": {
         "name": "Yale Huang",
         "email": "yaleh@ieee.org",
@@ -25,8 +25,15 @@
         "productivity",
         "metacognition",
         "analytics",
-        "optimization"
+        "optimization",
+        "methodologies",
+        "testing-strategy",
+        "ci-cd",
+        "error-recovery",
+        "refactoring",
+        "technical-debt"
       ],
+      "strict": false,
       "commands": [
         "./commands/meta.md"
       ],
@@ -36,29 +43,7 @@
         "./agents/knowledge-extractor.md",
         "./agents/project-planner.md",
         "./agents/stage-executor.md"
-      ]
-    },
-    {
-      "name": "meta-cc-skills",
-      "source": "./.claude",
-      "description": "Software development methodology skills - 16 validated patterns for testing, CI/CD, error recovery, documentation, refactoring, and more. Based on BAIME methodology with proven 10-50x speedup.",
-      "version": "0.31.0",
-      "author": {
-        "name": "Yale Huang",
-        "email": "yaleh@ieee.org",
-        "url": "https://github.com/yaleh"
-      },
-      "license": "MIT",
-      "homepage": "https://github.com/yaleh/meta-cc",
-      "keywords": [
-        "methodologies",
-        "testing-strategy",
-        "ci-cd",
-        "error-recovery",
-        "refactoring",
-        "technical-debt"
       ],
-      "strict": false,
       "skills": [
         "./skills/agent-prompt-evolution",
         "./skills/api-design",
