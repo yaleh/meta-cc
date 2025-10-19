@@ -1,5 +1,17 @@
 package validation
 
+const (
+	// Status constants
+	StatusPass = "PASS"
+	StatusFail = "FAIL"
+	StatusWarn = "WARN"
+
+	// Severity constants
+	SeverityError   = "ERROR"
+	SeverityWarning = "WARNING"
+	SeverityInfo    = "INFO"
+)
+
 // Tool represents a parsed MCP tool definition
 type Tool struct {
 	Name        string
@@ -22,23 +34,23 @@ type Property struct {
 
 // Result represents a validation result for a specific check
 type Result struct {
+	Details  map[string]interface{} `json:"details,omitempty"`
 	Tool     string                 `json:"tool"`
 	Check    string                 `json:"check"`
 	Status   string                 `json:"status"` // "PASS", "FAIL", "WARN"
 	Message  string                 `json:"message"`
 	Severity string                 `json:"severity"` // "ERROR", "WARNING", "INFO"
-	Details  map[string]interface{} `json:"details,omitempty"`
 }
 
 // Report aggregates all validation results
 type Report struct {
+	Results    []Result `json:"results"`
+	Summary    string   `json:"summary"`
 	TotalTools int      `json:"total_tools"`
 	ChecksRun  int      `json:"checks_run"`
 	Passed     int      `json:"passed"`
 	Failed     int      `json:"failed"`
 	Warnings   int      `json:"warnings"`
-	Results    []Result `json:"results"`
-	Summary    string   `json:"summary"`
 }
 
 // NewPassResult creates a passing result
@@ -46,8 +58,8 @@ func NewPassResult(tool, check string) Result {
 	return Result{
 		Tool:     tool,
 		Check:    check,
-		Status:   "PASS",
-		Severity: "INFO",
+		Status:   StatusPass,
+		Severity: SeverityInfo,
 	}
 }
 
@@ -56,9 +68,9 @@ func NewFailResult(tool, check, message string, details map[string]interface{}) 
 	return Result{
 		Tool:     tool,
 		Check:    check,
-		Status:   "FAIL",
+		Status:   StatusFail,
 		Message:  message,
-		Severity: "ERROR",
+		Severity: SeverityError,
 		Details:  details,
 	}
 }
@@ -68,8 +80,8 @@ func NewWarnResult(tool, check, message string) Result {
 	return Result{
 		Tool:     tool,
 		Check:    check,
-		Status:   "WARN",
+		Status:   StatusWarn,
 		Message:  message,
-		Severity: "WARNING",
+		Severity: SeverityWarning,
 	}
 }

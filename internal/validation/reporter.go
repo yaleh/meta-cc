@@ -69,7 +69,7 @@ func (r *Reporter) printTerminal(report *Report) {
 	for toolName, results := range toolResults {
 		hasFailures := false
 		for _, result := range results {
-			if result.Status == "FAIL" || result.Status == "WARN" {
+			if result.Status == StatusFail || result.Status == StatusWarn {
 				hasFailures = true
 				break
 			}
@@ -77,9 +77,9 @@ func (r *Reporter) printTerminal(report *Report) {
 
 		if hasFailures {
 			for _, result := range results {
-				if result.Status == "FAIL" {
+				if result.Status == StatusFail {
 					r.printFailure(result)
-				} else if result.Status == "WARN" {
+				} else if result.Status == StatusWarn {
 					r.printWarning(result)
 				}
 			}

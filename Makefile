@@ -41,7 +41,7 @@ test-all:
 	@echo "Running all tests (including slow E2E tests ~30s)..."
 	$(GOTEST) -v ./...
 
-test-coverage:
+test-coverage: build
 	@echo "Running tests with coverage (including E2E tests)..."
 	$(GOTEST) -v -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
