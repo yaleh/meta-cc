@@ -177,12 +177,36 @@ See [CLI Reference](docs/reference/cli.md) for complete command list and [CLI Co
 - 🎯 **Natural language interface** - `/meta` command with semantic matching
 - 🔍 **16 MCP query tools** - Autonomous session data analysis
 - 🎓 **Interactive coaching** - `@meta-coach` subagent
+- 📚 **15 Validated Skills** - Reusable methodologies for testing, CI/CD, error recovery, and more
+- 🤖 **5 Specialized Agents** - Project planning, stage execution, iteration management
 - 📊 **Advanced analytics** - SQL-like queries, aggregation, time series
 - 📁 **File operation tracking** - Identify hotspots and churn
 - 🔄 **Workflow pattern detection** - Find repeated sequences
 - 🚀 **Zero dependencies** - Single binary deployment
 - 🔧 **Extensible** - Create custom capabilities with markdown
 - 🧩 **Unix-friendly** - JSONL streaming, clean I/O, composable pipelines
+
+### Skills (15 Validated Methodologies)
+
+meta-cc includes proven methodologies for systematic software development:
+
+- **Testing Strategy** - TDD, coverage-driven gap closure, CLI testing (3.1x speedup, 89% transferable)
+- **CI/CD Optimization** - Quality gates, release automation, smoke testing (2.5-3.5x speedup)
+- **Error Recovery** - 13-category taxonomy, diagnostic workflows (95.4% error coverage)
+- **Dependency Health** - Security-first, batch remediation (6x speedup)
+- **Knowledge Transfer** - Progressive learning paths, onboarding (3-8x ramp-up reduction)
+- **Technical Debt Management** - SQALE methodology, prioritization (4.5x speedup)
+- **Code Refactoring** - Test-driven refactoring, complexity reduction (28% complexity reduction)
+- **Cross-Cutting Concerns** - Error handling, logging, configuration (60-75% faster diagnosis)
+- **Observability** - Logs, metrics, traces, structured logging (23-46x speedup)
+- **API Design** - 6 validated patterns, parameter categorization (82.5% transferable)
+- **Methodology Bootstrapping** - BAIME framework (10-50x speedup, 100% success rate)
+- **Agent Prompt Evolution** - Agent specialization tracking (5x performance gap detection)
+- **Baseline Quality Assessment** - Rapid convergence enablement (40-50% iteration reduction)
+- **Rapid Convergence** - 3-4 iteration methodology development (40-60% time reduction)
+- **Retrospective Validation** - Historical data validation (40-60% time reduction, 60-80% cost reduction)
+
+**Usage**: Skills are automatically available after installation. Claude Code will suggest relevant skills based on your tasks.
 
 See [Feature Overview](docs/reference/features.md) for detailed documentation.
 

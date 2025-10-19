@@ -321,6 +321,55 @@ if [ -f ".claude-plugin/plugin.json" ]; then
     done
 fi
 
+# Test 3.5: Skills structure verification
+if [ -d "skills" ]; then
+    SKILL_COUNT=$(find skills -name "SKILL.md" 2>/dev/null | wc -l)
+    if [ "$SKILL_COUNT" -eq 15 ]; then
+        test_result "Skills structure: found 15 skills" "pass"
+    else
+        test_result "Skills structure: found 15 skills" "fail" "Expected 15 skills, found $SKILL_COUNT"
+    fi
+else
+    test_result "Skills directory exists" "fail" "skills/ directory not found"
+fi
+
+# Test 3.6: plugin.json skills array
+if [ -f ".claude-plugin/plugin.json" ]; then
+    SKILL_COUNT=$(jq '.skills | length' .claude-plugin/plugin.json 2>/dev/null || echo 0)
+    if [ "$SKILL_COUNT" -eq 15 ]; then
+        test_result "plugin.json declares 15 skills" "pass"
+    else
+        test_result "plugin.json declares 15 skills" "fail" "Expected 15 skills in manifest, found $SKILL_COUNT"
+    fi
+fi
+
+# Test 3.7: All agents in manifest
+if [ -f ".claude-plugin/plugin.json" ]; then
+    AGENT_COUNT=$(jq '.agents | length' .claude-plugin/plugin.json 2>/dev/null || echo 0)
+    if [ "$AGENT_COUNT" -eq 5 ]; then
+        test_result "plugin.json declares 5 agents" "pass"
+    else
+        test_result "plugin.json declares 5 agents" "fail" "Expected 5 agents in manifest, found $AGENT_COUNT"
+    fi
+fi
+
+# Test 3.8: Verify specific agents exist
+EXPECTED_AGENTS=(
+    "agents/iteration-executor.md"
+    "agents/iteration-prompt-designer.md"
+    "agents/knowledge-extractor.md"
+    "agents/project-planner.md"
+    "agents/stage-executor.md"
+)
+
+for agent in "${EXPECTED_AGENTS[@]}"; do
+    if [ -f "$agent" ]; then
+        test_result "Agent exists: $agent" "pass"
+    else
+        test_result "Agent exists: $agent" "fail" "Expected agent file missing"
+    fi
+done
+
 echo ""
 
 # ==================================================================

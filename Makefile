@@ -93,19 +93,22 @@ cross-compile:
 
 sync-plugin-files:
 	@echo "Preparing plugin files for release packaging..."
-	@mkdir -p $(DIST_DIR)/commands $(DIST_DIR)/agents
+	@mkdir -p $(DIST_DIR)/commands $(DIST_DIR)/agents $(DIST_DIR)/skills
 	@echo "  Copying entry point from .claude/commands/..."
 	@cp .claude/commands/meta.md $(DIST_DIR)/commands/
-	@echo "  Copying capabilities from $(CAPABILITIES_DIR)/commands/..."
-	@cp $(CAPABILITIES_DIR)/commands/*.md $(DIST_DIR)/commands/ 2>/dev/null || true
 	@echo "  Copying agents from .claude/agents/..."
 	@cp .claude/agents/*.md $(DIST_DIR)/agents/ 2>/dev/null || true
-	@echo "  Copying agents from $(CAPABILITIES_DIR)/agents/..."
-	@cp $(CAPABILITIES_DIR)/agents/*.md $(DIST_DIR)/agents/ 2>/dev/null || true
+	@echo "  Copying skills from .claude/skills/..."
+	@if [ -d ".claude/skills" ]; then \
+		cp -r .claude/skills/* $(DIST_DIR)/skills/; \
+		SKILL_COUNT=$$(find $(DIST_DIR)/skills -name "SKILL.md" 2>/dev/null | wc -l); \
+		echo "    ✓ Copied $$SKILL_COUNT skills"; \
+	fi
 	@echo "✓ Plugin files synced to $(DIST_DIR)/"
 	@CMD_COUNT=$$(find $(DIST_DIR)/commands -name "*.md" 2>/dev/null | wc -l); \
 	AGENT_COUNT=$$(find $(DIST_DIR)/agents -name "*.md" 2>/dev/null | wc -l); \
-	echo "✓ Total: $$CMD_COUNT command files, $$AGENT_COUNT agent files"
+	SKILL_COUNT=$$(find $(DIST_DIR)/skills -name "SKILL.md" 2>/dev/null | wc -l); \
+	echo "✓ Total: $$CMD_COUNT commands, $$AGENT_COUNT agents, $$SKILL_COUNT skills"
 
 dev: build
 	@echo "Development build complete"

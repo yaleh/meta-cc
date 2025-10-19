@@ -13,8 +13,8 @@
         "source": "github",
         "repo": "yaleh/meta-cc"
       },
-      "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides unified /meta command with natural language intent matching, 13 capabilities, 3 subagents, and 16 MCP tools. Features package distribution for >10x faster loading.",
-      "version": "0.28.8",
+      "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides unified /meta command with natural language intent matching, 15 validated skills, 5 specialized agents, 13 capabilities, and 16 MCP tools. Features package distribution for >10x faster loading.",
+      "version": "0.29.0",
       "author": {
         "name": "Yale Huang",
         "email": "yaleh@ieee.org",

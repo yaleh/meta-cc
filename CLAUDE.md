@@ -48,6 +48,12 @@ A: No, by default queries return all results (hybrid mode handles large data). O
 **Q: How do I update plugin version?**
 A: Install git hooks (`./scripts/install-hooks.sh`) for automatic bumping, or use `./scripts/bump-plugin-version.sh [patch|minor|major]`. See [docs/guides/git-hooks.md](docs/guides/git-hooks.md).
 
+**Q: What are skills and how do they relate to capabilities?**
+A: Skills are reusable methodologies packaged with the plugin (15 skills, ~1.5MB). Capabilities are lightweight content files for the `/meta` command. Skills provide full workflow templates; capabilities provide focused command content.
+
+**Q: How do I use skills?**
+A: Skills are automatically available after plugin installation. Claude Code will suggest relevant skills based on your tasks. See skill descriptions in README.md.
+
 ---
 
 ## Project Overview
