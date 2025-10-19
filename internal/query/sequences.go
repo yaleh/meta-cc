@@ -217,13 +217,8 @@ func findTimestampForTurn(entries []parser.SessionEntry, toolCalls []toolCallWit
 	return 0
 }
 
-// calculateSequenceTimeSpan calculates time span for sequence occurrences
-func calculateSequenceTimeSpan(occurrences []types.SequenceOccurrence, entries []parser.SessionEntry, toolCalls []toolCallWithTurn) int {
-	if len(occurrences) == 0 {
-		return 0
-	}
-
-	// Collect all relevant timestamps
+// collectOccurrenceTimestamps extracts timestamps from sequence occurrences
+func collectOccurrenceTimestamps(occurrences []types.SequenceOccurrence, entries []parser.SessionEntry, toolCalls []toolCallWithTurn) []int64 {
 	var timestamps []int64
 
 	for _, occ := range occurrences {
@@ -238,6 +233,18 @@ func calculateSequenceTimeSpan(occurrences []types.SequenceOccurrence, entries [
 			timestamps = append(timestamps, endTs)
 		}
 	}
+
+	return timestamps
+}
+
+// calculateSequenceTimeSpan calculates time span for sequence occurrences
+func calculateSequenceTimeSpan(occurrences []types.SequenceOccurrence, entries []parser.SessionEntry, toolCalls []toolCallWithTurn) int {
+	if len(occurrences) == 0 {
+		return 0
+	}
+
+	// Collect all relevant timestamps
+	timestamps := collectOccurrenceTimestamps(occurrences, entries, toolCalls)
 
 	if len(timestamps) == 0 {
 		return 0
