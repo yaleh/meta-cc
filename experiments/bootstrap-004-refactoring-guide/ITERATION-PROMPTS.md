@@ -1,1579 +1,1775 @@
 # Bootstrap-004: Refactoring Guide - Iteration Prompts
 
-**Created**: 2025-10-18
-**Purpose**: Executable prompts for each iteration following BAIME v2.0 framework
+**Experiment**: Develop systematic code refactoring methodology through observation of agent refactoring patterns
+
+**Domain**: Code Refactoring Methodology
+
+**Meta-Objective**: Create transferable refactoring methodology applicable across codebases and languages
+
+**Instance Objective**: Refactor `internal/query/` package (~500 lines) to improve code quality, reduce cyclomatic complexity by 30%, achieve 85% test coverage
 
 ---
 
-## How to Use This Document
+## Table of Contents
 
-Each iteration has a **complete, self-contained prompt** that can be executed independently by Claude Code. The prompt includes:
+1. [Architecture Overview](#architecture-overview)
+2. [Value Functions](#value-functions)
+3. [Iteration 0: Baseline Establishment](#iteration-0-baseline-establishment)
+4. [Iteration N: Subsequent Iterations](#iteration-n-subsequent-iterations)
+5. [Knowledge Organization](#knowledge-organization)
+6. [Results Analysis Template](#results-analysis-template)
+7. [Execution Guidance](#execution-guidance)
 
-1. **Context**: What has been accomplished so far
-2. **Objectives**: Clear goals for this iteration
-3. **Tasks**: Step-by-step execution checklist
-4. **Value Assessment**: How to calculate V_instance and V_meta
-5. **Outputs**: What artifacts to create
+---
 
-**Execution Protocol**:
-1. Read the prompt for the current iteration
-2. Execute all tasks systematically
-3. Calculate value functions honestly
-4. Document findings in `iterations/iteration-N.md`
-5. Update README.md with current status
-6. Assess convergence before proceeding
+## Architecture Overview
+
+### Meta-Agent System (Modular Capabilities)
+
+Create separate capability files in `experiments/bootstrap-004-refactoring-guide/capabilities/`:
+
+**Lifecycle Capabilities**:
+- `collect-refactoring-data.md`: Extract code metrics, complexity data, test coverage, smell patterns
+- `analyze-refactoring-gaps.md`: Identify quality gaps, refactoring opportunities, risk assessment
+- `plan-refactoring-strategy.md`: Design safe refactoring sequences, incremental steps, rollback plans
+- `execute-refactoring.md`: Apply refactoring transformations, maintain test discipline
+- `evaluate-refactoring-quality.md`: Calculate dual-layer value functions, assess methodology quality
+- `check-convergence.md`: Validate methodology convergence against thresholds
+- `evolve-refactoring-system.md`: Evidence-based agent/capability evolution
+
+### Agent System (Specialized Executors)
+
+Create agent files in `experiments/bootstrap-004-refactoring-guide/agents/`:
+
+**Refactoring Agents**:
+- `code-smell-detector.md`: Identify refactoring targets using static analysis
+- `complexity-analyzer.md`: Measure cyclomatic complexity, identify hotspots
+- `refactoring-planner.md`: Plan safe, incremental refactoring sequences
+- `safety-checker.md`: Verify behavior preservation, test discipline
+- `impact-analyzer.md`: Assess change impact, dependency analysis
+- `test-maintainer.md`: Ensure test coverage and quality during refactoring
+
+**Note**: Start with generic meta-agent in Iteration 0. Only create specialized agents when evidence demonstrates need (>5x performance gap or systematic capability deficiency).
+
+### Modular Organization Principle
+
+- **One file per component**: Each capability/agent in separate file
+- **Clear interfaces**: Document inputs, outputs, preconditions
+- **Independent evolution**: Track changes per component
+- **Reusability**: Design for cross-project transferability
+
+---
+
+## Value Functions
+
+### Instance Value Function: Refactoring Quality
+
+**Dual-Layer Evaluation**: Instance layer measures task-specific quality. Meta layer assesses methodology quality. Both must meet thresholds for convergence.
+
+```
+V_instance(s) = 0.3·V_code_quality + 0.3·V_maintainability + 0.2·V_safety + 0.2·V_effort
+```
+
+#### V_code_quality (0.3 weight)
+
+**Definition**: Code quality improvement achieved through refactoring
+
+**Components**:
+- Cyclomatic complexity reduction: (baseline - current) / baseline × target_weight
+  - Target: 30% reduction
+  - Measurement: `gocyclo -over 10 internal/query/`
+- Code duplication elimination: duplicated_blocks_removed / total_duplicated_blocks
+  - Measurement: `dupl -threshold 50 internal/query/`
+- Static analysis improvements: warnings_fixed / total_warnings
+  - Measurement: `staticcheck ./internal/query/...`, `go vet ./internal/query/...`
+
+**Scoring Rubric**:
+- **1.0**: ≥30% complexity reduction, zero duplication, zero static warnings
+- **0.8**: 20-29% complexity reduction, <5% duplication, <3 warnings
+- **0.6**: 10-19% complexity reduction, <10% duplication, <10 warnings
+- **0.4**: 5-9% complexity reduction, <20% duplication, <20 warnings
+- **0.2**: 1-4% complexity reduction, some progress on duplication/warnings
+- **0.0**: No measurable improvement
+
+**Evidence Requirements**:
+- Before/after complexity reports with specific metrics
+- Duplication analysis showing removed blocks
+- Static analysis output showing warning reduction
+- Concrete numbers for all measurements
+
+#### V_maintainability (0.3 weight)
+
+**Definition**: Long-term code maintainability and understandability
+
+**Components**:
+- Test coverage: current_coverage / target_coverage (85%)
+  - Measurement: `go test -cover ./internal/query/...`
+- Module cohesion: functions_properly_organized / total_functions
+  - Assessment: Single responsibility, clear boundaries, logical grouping
+- Documentation quality: documented_functions / public_functions
+  - Requirement: All public APIs with GoDoc comments explaining purpose, params, returns
+
+**Scoring Rubric**:
+- **1.0**: ≥85% coverage, perfect cohesion, complete documentation
+- **0.8**: 75-84% coverage, good cohesion, >90% documentation
+- **0.6**: 65-74% coverage, acceptable cohesion, >75% documentation
+- **0.4**: 55-64% coverage, some cohesion issues, >50% documentation
+- **0.2**: 45-54% coverage, poor cohesion, <50% documentation
+- **0.0**: <45% coverage or significant maintainability issues
+
+**Evidence Requirements**:
+- Coverage report with line-by-line breakdown
+- Module structure analysis showing organization
+- Documentation coverage scan
+- Specific examples of cohesion improvements
+
+#### V_safety (0.2 weight)
+
+**Definition**: Refactoring safety and behavior preservation
+
+**Components**:
+- Test pass rate: passing_tests / total_tests (must be 100%)
+- Behavior preservation: refactoring_steps_verified / total_steps
+  - Every step must maintain all tests passing
+- Incremental discipline: commits_with_passing_tests / total_commits
+  - Every commit should be safe to deploy
+- Rollback capability: git_discipline_score (clean history, revertible changes)
+
+**Scoring Rubric**:
+- **1.0**: 100% tests pass, all steps verified, perfect git discipline
+- **0.8**: 100% tests pass, >95% steps verified, good git discipline
+- **0.6**: 100% tests pass, >90% steps verified, acceptable git discipline
+- **0.4**: 98-99% tests pass, some verification gaps
+- **0.2**: 95-97% tests pass, significant verification gaps
+- **0.0**: <95% tests pass or broken tests after refactoring
+
+**Evidence Requirements**:
+- Test execution logs showing 100% pass rate
+- Git commit history demonstrating incremental safety
+- Documentation of verification process per step
+- Evidence of rollback capability (clean git history)
+
+#### V_effort (0.2 weight)
+
+**Definition**: Refactoring efficiency and time investment
+
+**Components**:
+- Time efficiency: baseline_time / actual_time (target: 5-10x speedup)
+  - Baseline: Ad-hoc refactoring estimate
+  - Actual: Measured time with methodology
+- Automation utilization: automated_checks / total_checks
+  - Leverage tooling for detection and verification
+- Rework minimization: clean_refactorings / total_refactorings
+  - Minimize steps requiring rollback or rework
+
+**Scoring Rubric**:
+- **1.0**: ≥10x speedup, >90% automation, minimal rework
+- **0.8**: 7-9x speedup, 75-90% automation, <10% rework
+- **0.6**: 5-6x speedup, 60-75% automation, <20% rework
+- **0.4**: 3-4x speedup, 40-60% automation, <30% rework
+- **0.2**: 2x speedup, <40% automation, significant rework
+- **0.0**: No speedup or methodology slower than ad-hoc
+
+**Evidence Requirements**:
+- Time tracking data comparing methodology vs baseline estimate
+- List of automated tools used and coverage
+- Count of rollbacks or rework steps with justification
+- Concrete metrics for all efficiency claims
+
+**Instance Value Calculation Protocol**:
+1. Collect quantitative evidence for each component
+2. Calculate component scores using rubrics
+3. Weight and sum: V_instance = Σ(weight_i × score_i)
+4. Document evidence trail for all scores
+5. Challenge optimistic scores with disconfirming evidence
+
+**Convergence Threshold**: V_instance ≥ 0.75 (sustained for 2 iterations)
+
+---
+
+### Meta Value Function: Methodology Quality
+
+```
+V_meta(s) = 0.4·V_completeness + 0.3·V_effectiveness + 0.3·V_reusability
+```
+
+#### V_completeness (0.4 weight)
+
+**Definition**: Coverage of refactoring methodology lifecycle
+
+**Assessment Rubric**:
+
+**Detection Phase** (0.25):
+- **Exceptional (1.0)**: Comprehensive smell taxonomy (8+ categories), automated detection tooling, prioritization framework, validated patterns
+- **Strong (0.75)**: Good taxonomy (5-7 categories), semi-automated detection, basic prioritization
+- **Acceptable (0.5)**: Basic taxonomy (3-4 categories), manual detection, ad-hoc prioritization
+- **Weak (0.25)**: Minimal taxonomy (1-2 categories), inconsistent detection
+- **Missing (0.0)**: No systematic detection approach
+
+**Planning Phase** (0.25):
+- **Exceptional (1.0)**: Comprehensive refactoring patterns (10+ types), safety protocols, incremental sequencing, rollback strategies, validated plans
+- **Strong (0.75)**: Good patterns (6-9 types), safety guidelines, basic sequencing
+- **Acceptable (0.5)**: Basic patterns (3-5 types), some safety consideration
+- **Weak (0.25)**: Minimal patterns (1-2 types), limited safety planning
+- **Missing (0.0)**: No systematic planning approach
+
+**Execution Phase** (0.25):
+- **Exceptional (1.0)**: Detailed transformation recipes, TDD integration, continuous verification, git discipline protocols, automation support
+- **Strong (0.75)**: Good transformation guidance, test requirements, verification steps
+- **Acceptable (0.5)**: Basic transformation steps, some test coverage
+- **Weak (0.25)**: Minimal guidance, inconsistent testing
+- **Missing (0.0)**: No systematic execution approach
+
+**Verification Phase** (0.25):
+- **Exceptional (1.0)**: Multi-layer validation (tests, metrics, behavior), automated regression detection, quality gates, rollback triggers
+- **Strong (0.75)**: Good validation coverage, some automation, clear criteria
+- **Acceptable (0.5)**: Basic validation, manual checks, informal criteria
+- **Weak (0.25)**: Minimal validation, inconsistent checks
+- **Missing (0.0)**: No systematic verification approach
+
+**Evidence Requirements**:
+- Document each phase with concrete artifacts
+- Provide examples demonstrating methodology application
+- Show progression across iterations
+- Enumerate gaps explicitly
+
+**Convergence Threshold**: V_completeness ≥ 0.60
+
+---
+
+#### V_effectiveness (0.3 weight)
+
+**Definition**: Demonstrated methodology impact on refactoring outcomes
+
+**Assessment Rubric**:
+
+**Quality Improvement** (0.33):
+- **Exceptional (1.0)**: Consistent quality gains (≥3 examples), quantified improvements, before/after metrics
+- **Strong (0.75)**: Good quality gains (2 examples), measurable improvements
+- **Acceptable (0.5)**: Some quality gains (1 example), qualitative improvements
+- **Weak (0.25)**: Unclear quality impact
+- **Missing (0.0)**: No demonstrated quality improvement
+
+**Safety Record** (0.33):
+- **Exceptional (1.0)**: Zero breaking changes, 100% test pass rate, clean rollback capability, documented verification
+- **Strong (0.75)**: Minimal issues (<5% incidents), strong test discipline
+- **Acceptable (0.5)**: Some issues (5-10% incidents), acceptable test coverage
+- **Weak (0.25)**: Frequent issues (>10% incidents), poor test discipline
+- **Missing (0.0)**: No safety tracking or major breakages
+
+**Efficiency Gains** (0.33):
+- **Exceptional (1.0)**: ≥10x speedup demonstrated, high automation, minimal rework
+- **Strong (0.75)**: 5-9x speedup, good automation
+- **Acceptable (0.5)**: 3-4x speedup, some automation
+- **Weak (0.25)**: <3x speedup, minimal automation
+- **Missing (0.0)**: No efficiency improvement
+
+**Evidence Requirements**:
+- Quantitative metrics for all effectiveness claims
+- Concrete examples with before/after comparisons
+- Time tracking data or effort estimates
+- Safety incident log (if any)
+
+**Convergence Threshold**: V_effectiveness ≥ 0.60
+
+---
+
+#### V_reusability (0.3 weight)
+
+**Definition**: Methodology transferability across contexts
+
+**Assessment Rubric**:
+
+**Language Independence** (0.33):
+- **Exceptional (1.0)**: Principles apply to 5+ languages (Go, Python, JavaScript, Rust, Java), language-agnostic patterns documented
+- **Strong (0.75)**: Principles apply to 3-4 languages, mostly transferable
+- **Acceptable (0.5)**: Principles apply to 2 languages, some language-specific adaptations needed
+- **Weak (0.25)**: Mostly language-specific, limited transferability
+- **Missing (0.0)**: Completely language-specific
+
+**Codebase Generality** (0.33):
+- **Exceptional (1.0)**: Patterns apply to diverse codebases (CLI, library, web service, embedded), codebase-agnostic principles
+- **Strong (0.75)**: Patterns apply to 2-3 codebase types, good generality
+- **Acceptable (0.5)**: Patterns apply to 1-2 codebase types, some adaptations needed
+- **Weak (0.25)**: Mostly specific to one codebase type
+- **Missing (0.0)**: Completely codebase-specific
+
+**Abstraction Quality** (0.33):
+- **Exceptional (1.0)**: Universal principles extracted, minimal context-specific details, clear adaptation guidelines
+- **Strong (0.75)**: Good principles, some context-specific elements, basic adaptation guidance
+- **Acceptable (0.5)**: Mixed principles and specifics, limited adaptation guidance
+- **Weak (0.25)**: Mostly context-specific, unclear principles
+- **Missing (0.0)**: No abstraction, purely instance-specific
+
+**Evidence Requirements**:
+- Explicit analysis of transferability dimensions
+- Examples showing application to different contexts
+- Clear separation of universal principles vs. context-specific details
+- Adaptation guidelines for different scenarios
+
+**Convergence Threshold**: V_reusability ≥ 0.60
+
+---
+
+### Meta Value Calculation Protocol
+
+1. **Independent Assessment**: Evaluate each component using rubrics WITHOUT reference to instance scores
+2. **Evidence Grounding**: Support every score with concrete artifacts and examples
+3. **Gap Enumeration**: Explicitly list missing elements or weaknesses
+4. **Challenge High Scores**: Seek disconfirming evidence for scores ≥0.8
+5. **Avoid Common Biases**:
+   - Pattern existence ≠ high completeness (need coverage depth)
+   - Single success ≠ high effectiveness (need consistent results)
+   - Theoretical applicability ≠ high reusability (need demonstrated transfer)
+
+**Convergence Threshold**: V_meta ≥ 0.70 (sustained for 2 iterations)
 
 ---
 
 ## Iteration 0: Baseline Establishment
 
-### Context
+**Context**: First iteration to establish baseline measurements and initial system state
 
-**Experiment**: Bootstrap-004: Refactoring Guide
-**Status**: Starting iteration 0 (baseline)
-**Methodology**: BAIME v2.0
+**Expected Baseline**: V_instance ≈ 0.15-0.25, V_meta ≈ 0.10-0.20 (low baseline is normal and acceptable)
 
-**Goal**: Establish baseline metrics for `internal/query/` package and calculate initial value functions.
-
-### Objectives
-
-1. Analyze `internal/query/` package complexity and quality
-2. Establish baseline metrics (complexity, coverage, duplication, static analysis)
-3. Identify and prioritize refactoring targets
-4. Calculate V_instance(s₀) and V_meta(s₀)
-5. Document baseline state comprehensively
-
-### Tasks
-
-#### Task 1: Code Complexity Analysis
-
-Run complexity analysis tools on `internal/query/` package:
-
-```bash
-# Cyclomatic complexity (functions with complexity >10)
-gocyclo -over 10 internal/query/
-
-# Detailed complexity for all functions
-gocyclo internal/query/ > data/complexity-baseline.txt
-
-# Code duplication (threshold: 15 tokens)
-dupl -threshold 15 internal/query/ > data/duplication-baseline.txt
-
-# Static analysis issues
-staticcheck ./internal/query/... > data/staticcheck-baseline.txt 2>&1 || true
-go vet ./internal/query/... > data/vet-baseline.txt 2>&1 || true
-```
-
-**Document**:
-- Total functions analyzed
-- Functions with complexity >10 (count and list)
-- Average cyclomatic complexity
-- Duplication percentage
-- Static analysis issue count by severity
-
-#### Task 2: Test Coverage Analysis
-
-Measure current test coverage:
-
-```bash
-# Generate coverage report
-go test -coverprofile=data/coverage-baseline.out ./internal/query/...
-
-# Coverage summary
-go tool cover -func=data/coverage-baseline.out > data/coverage-baseline-summary.txt
-
-# Overall coverage percentage
-go tool cover -func=data/coverage-baseline.out | grep total
-```
-
-**Document**:
-- Overall test coverage percentage
-- Per-file coverage breakdown
-- Functions without tests
-- Critical paths without coverage
-
-#### Task 3: Module Structure Analysis
-
-Analyze module cohesion and coupling:
-
-```bash
-# List all files in internal/query/
-ls -lh internal/query/
-
-# Count lines of code
-find internal/query/ -name "*.go" -exec wc -l {} + | sort -n
-
-# Analyze imports (coupling)
-grep -r "import" internal/query/ > data/imports-baseline.txt
-```
-
-**Document**:
-- File count and sizes
-- Total lines of code
-- Import patterns (high coupling indicators)
-- Module organization assessment
-
-#### Task 4: Code Smell Identification
-
-Identify code smells systematically:
-
-**Manual inspection for**:
-- Long functions (>50 lines)
-- Large parameter lists (>5 parameters)
-- Deep nesting (>3 levels)
-- Magic numbers/strings
-- Unclear naming
-- Missing error handling
-- Lack of comments on complex logic
-
-**Document**:
-- Code smell catalog (type, location, severity)
-- Prioritized list of smells (high → low impact)
-
-#### Task 5: Refactoring Target Prioritization
-
-Create prioritized refactoring target list:
-
-**Criteria**:
-- High complexity + low test coverage → highest priority
-- High duplication → medium-high priority
-- Static analysis issues → medium priority
-- Naming clarity issues → low-medium priority
-
-**Output**: Prioritized list with estimated effort and impact
-
-#### Task 6: Calculate Baseline Value Functions
-
-##### V_instance(s₀) Calculation
-
-**V_code_quality(s₀)**:
-```
-complexity_reduction = 0.0 (baseline)
-duplication_reduction = 0.0 (baseline)
-static_analysis_improvement = 0.0 (baseline)
-naming_clarity = [subjective assessment 0.0-1.0]
-
-V_code_quality(s₀) = 0.4×0.0 + 0.3×0.0 + 0.2×0.0 + 0.1×naming_clarity
-                   = 0.1×naming_clarity
-```
-
-**V_maintainability(s₀)**:
-```
-test_coverage = current_coverage / 0.85
-module_cohesion = [assessment based on coupling analysis 0.0-1.0]
-documentation_quality = [documented_funcs / total_funcs] × clarity_factor
-code_organization = [subjective assessment 0.0-1.0]
-
-V_maintainability(s₀) = 0.4×test_coverage + 0.3×module_cohesion +
-                        0.2×documentation_quality + 0.1×code_organization
-```
-
-**V_safety(s₀)**:
-```
-test_pass_rate = 1.0 (all tests currently pass)
-behavior_preservation = 1.0 (baseline, no changes yet)
-incremental_discipline = N/A (no refactoring yet)
-
-V_safety(s₀) = 1.0 (perfect safety at baseline)
-```
-
-**V_effort(s₀)**:
-```
-V_effort(s₀) = 0.0 (no refactoring completed yet)
-```
-
-**V_instance(s₀)**:
-```
-V_instance(s₀) = 0.3×V_code_quality(s₀) + 0.3×V_maintainability(s₀) +
-                 0.2×V_safety(s₀) + 0.2×V_effort(s₀)
-```
-
-**Expected**: V_instance(s₀) ≈ 0.35-0.45
-
-##### V_meta(s₀) Calculation
-
-**V_methodology_completeness(s₀)**:
-```
-Checklist completion: 0/15 items
-V_methodology_completeness(s₀) ≈ 0.10-0.20 (basic observational notes only)
-```
-
-**V_methodology_effectiveness(s₀)**:
-```
-No methodology yet → V_methodology_effectiveness(s₀) = 0.0
-```
-
-**V_methodology_reusability(s₀)**:
-```
-Nothing to reuse yet → V_methodology_reusability(s₀) = 0.0
-```
-
-**V_meta(s₀)**:
-```
-V_meta(s₀) = 0.4×V_completeness(s₀) + 0.3×V_effectiveness(s₀) +
-             0.3×V_reusability(s₀)
-           ≈ 0.4×0.15 + 0.3×0.0 + 0.3×0.0
-           ≈ 0.06-0.08
-```
-
-**Expected**: V_meta(s₀) ≈ 0.15-0.25 (including initial documentation setup)
-
-#### Task 7: Document Baseline State
-
-Create `iterations/iteration-0.md` with:
-
-**Section 1: Baseline Metrics Summary**
-- Cyclomatic complexity statistics
-- Code duplication analysis
-- Static analysis results
-- Test coverage report
-- Module structure assessment
-
-**Section 2: Code Smell Catalog**
-- Complete list of identified smells
-- Severity and priority ratings
-- Estimated fix effort
-
-**Section 3: Refactoring Target List**
-- Prioritized targets (high → low)
-- Rationale for prioritization
-- Estimated effort and impact
-
-**Section 4: Value Function Calculations**
-- V_instance(s₀) with component breakdown
-- V_meta(s₀) with component breakdown
-- Methodology notes
-
-**Section 5: Next Iteration Planning**
-- Selected refactoring target for Iteration 1
-- Expected approach
-- Success criteria
-
-### Outputs
-
-**Files to Create**:
-- `data/complexity-baseline.txt`
-- `data/duplication-baseline.txt`
-- `data/staticcheck-baseline.txt`
-- `data/vet-baseline.txt`
-- `data/coverage-baseline.out`
-- `data/coverage-baseline-summary.txt`
-- `data/imports-baseline.txt`
-- `iterations/iteration-0.md` (comprehensive baseline report)
-
-**Update**:
-- `README.md` (status → "Iteration 0 Complete")
-
-### Success Criteria
-
-- ✅ All baseline metrics collected and documented
-- ✅ Refactoring targets identified and prioritized
-- ✅ V_instance(s₀) and V_meta(s₀) calculated with rationale
-- ✅ Clear plan for Iteration 1
-- ✅ Baseline state fully documented in iteration-0.md
+**Important**: This iteration focuses on honest measurement and data collection, NOT on achieving high scores. Low initial values are expected and indicate accurate assessment.
 
 ---
 
-## Iteration 1: Initial Refactoring + Pattern Observation
+### System Setup
 
-### Context
+**Create Modular Architecture**:
 
-**Previous Iteration**: Iteration 0 (baseline established)
-**Baseline Values**:
-- V_instance(s₀) = [value from Iteration 0]
-- V_meta(s₀) = [value from Iteration 0]
+1. **Create capability files** in `experiments/bootstrap-004-refactoring-guide/capabilities/`:
+   - `collect-refactoring-data.md`: Data collection procedures
+   - `evaluate-refactoring-quality.md`: Value function calculation
+   - (Add others as needed, avoid premature specialization)
 
-**Refactoring Target**: [Highest priority target from Iteration 0]
+2. **Create initial agent file** in `experiments/bootstrap-004-refactoring-guide/agents/`:
+   - `meta-agent.md`: Generic refactoring meta-agent
+   - (Do NOT create specialized agents yet - wait for evidence of need)
 
-### Objectives
+3. **Create data directory**: `experiments/bootstrap-004-refactoring-guide/data/iteration-0/`
 
-1. Execute first refactoring (highest priority target)
-2. Observe and document refactoring patterns
-3. Begin methodology codification
-4. Improve V_instance and V_meta
+4. **Create knowledge directory**: `experiments/bootstrap-004-refactoring-guide/knowledge/`
 
-**BAIME Phase**: Observe (70%), Codify (20%), Automate (10%)
-
-### Tasks
-
-#### Task 1: Refactoring Planning
-
-**Select Target**: [File/function from prioritized list]
-
-**Plan Refactoring Steps**:
-1. Identify specific code smells to address
-2. Choose refactoring techniques (extract method, rename, simplify, etc.)
-3. Plan incremental steps (small, safe transformations)
-4. Define safety checkpoints (tests to run)
-
-**Document Plan** in `artifacts/refactoring-plan-1.md`:
-- Target description
-- Code smells identified
-- Refactoring techniques chosen
-- Step-by-step plan
-- Safety verification plan
-
-#### Task 2: Pre-Refactoring Test Creation
-
-**Apply TDD Principles** (from Bootstrap-002):
-- Write tests for current behavior (if missing)
-- Ensure 100% test pass rate before refactoring
-- Create behavior preservation tests
-
-```bash
-# Run tests before refactoring
-go test -v ./internal/query/... > data/tests-before-refactoring-1.txt
-```
-
-#### Task 3: Execute Refactoring Incrementally
-
-**For each refactoring step**:
-1. Make small change
-2. Run tests immediately
-3. Commit if tests pass (use git)
-4. Document what was done
-
-**Example Workflow**:
-```bash
-# Step 1: Extract method
-# [Make code changes]
-go test ./internal/query/...
-git add -p
-git commit -m "refactor: extract validateInput method"
-
-# Step 2: Rename for clarity
-# [Make code changes]
-go test ./internal/query/...
-git add -p
-git commit -m "refactor: rename ambiguous variable names"
-```
-
-**Safety Protocol**:
-- If any test fails → rollback immediately
-- If behavior changes → investigate and fix
-- Never proceed with failing tests
-
-#### Task 4: Post-Refactoring Verification
-
-After refactoring complete:
-
-```bash
-# Run full test suite
-go test -v ./internal/query/... > data/tests-after-refactoring-1.txt
-
-# Measure new metrics
-gocyclo internal/query/ > data/complexity-iteration-1.txt
-dupl -threshold 15 internal/query/ > data/duplication-iteration-1.txt
-go test -coverprofile=data/coverage-iteration-1.out ./internal/query/...
-go tool cover -func=data/coverage-iteration-1.out > data/coverage-iteration-1-summary.txt
-
-# Compare with baseline
-diff data/complexity-baseline.txt data/complexity-iteration-1.txt
-```
-
-#### Task 5: Pattern Observation (BAIME Observe Phase)
-
-**Document Observed Patterns**:
-
-**What worked well?**
-- Specific refactoring techniques that were effective
-- Incremental steps that felt safe
-- Test strategies that caught issues early
-
-**What was challenging?**
-- Difficult refactoring scenarios
-- Unexpected behavior preservation issues
-- Test gaps discovered
-
-**Reusable patterns identified**:
-- Common code smells → refactoring technique mappings
-- Safety verification steps
-- Incremental transformation sequences
-
-**Document** in `artifacts/pattern-observations-1.md`
-
-#### Task 6: Begin Methodology Codification (BAIME Codify Phase)
-
-Create initial methodology draft:
-
-**`artifacts/methodology-draft-v1.md`**:
-
-```markdown
-# Refactoring Methodology (Draft v1)
-
-## Process Steps
-
-1. **Identify**: [How to find refactoring targets]
-2. **Plan**: [How to plan safe refactorings]
-3. **Test**: [Test creation before refactoring]
-4. **Execute**: [Incremental refactoring steps]
-5. **Verify**: [Safety verification procedures]
-
-## Code Smell Catalog
-
-[Document smells encountered and how to fix them]
-
-## Refactoring Techniques
-
-[Document techniques used with examples]
-
-## Safety Checklist
-
-- [ ] All tests pass before starting
-- [ ] Incremental commits after each step
-- [ ] Tests run after each change
-- [ ] Behavior preservation verified
-- [ ] ...
-```
-
-#### Task 7: Calculate Iteration 1 Value Functions
-
-##### V_instance(s₁) Calculation
-
-**V_code_quality(s₁)**:
-```
-complexity_reduction = (baseline_complexity - current_complexity) / baseline_complexity
-duplication_reduction = (baseline_duplication - current_duplication) / baseline_duplication
-static_analysis_improvement = (baseline_issues - current_issues) / baseline_issues
-naming_clarity = [updated subjective assessment]
-
-V_code_quality(s₁) = 0.4×complexity_reduction + 0.3×duplication_reduction +
-                     0.2×static_analysis_improvement + 0.1×naming_clarity
-```
-
-**V_maintainability(s₁)**:
-```
-test_coverage = new_coverage / 0.85
-module_cohesion = [updated assessment]
-documentation_quality = [updated assessment]
-code_organization = [updated assessment]
-
-V_maintainability(s₁) = 0.4×test_coverage + 0.3×module_cohesion +
-                        0.2×documentation_quality + 0.1×code_organization
-```
-
-**V_safety(s₁)**:
-```
-test_pass_rate = passing_tests / total_tests (should be 1.0)
-behavior_preservation = [assessment based on verification]
-incremental_discipline = [assessment of refactoring process]
-
-V_safety(s₁) = 0.5×test_pass_rate + 0.3×behavior_preservation +
-               0.2×incremental_discipline
-```
-
-**V_effort(s₁)**:
-```
-actual_time = [time spent on refactoring]
-expected_time = [estimated ad-hoc time for same work]
-
-V_effort(s₁) = 1.0 - (actual_time / expected_time)
-```
-
-**V_instance(s₁)**:
-```
-V_instance(s₁) = 0.3×V_code_quality(s₁) + 0.3×V_maintainability(s₁) +
-                 0.2×V_safety(s₁) + 0.2×V_effort(s₁)
-```
-
-**Expected**: V_instance(s₁) ≈ 0.50-0.55
-
-##### V_meta(s₁) Calculation
-
-**V_methodology_completeness(s₁)**:
-```
-Checklist completion: [count items documented] / 15
-Process steps documented: Yes (partial)
-Examples provided: Few
-
-V_methodology_completeness(s₁) ≈ 0.30-0.40 (structured process emerging)
-```
-
-**V_methodology_effectiveness(s₁)**:
-```
-Too early to measure efficiency gain accurately
-Estimated based on time comparison
-
-V_methodology_effectiveness(s₁) ≈ 0.20-0.30
-```
-
-**V_methodology_reusability(s₁)**:
-```
-Universal patterns identified: [percentage estimation]
-
-V_methodology_reusability(s₁) ≈ 0.40-0.50 (some transferable patterns)
-```
-
-**V_meta(s₁)**:
-```
-V_meta(s₁) = 0.4×V_completeness(s₁) + 0.3×V_effectiveness(s₁) +
-             0.3×V_reusability(s₁)
-```
-
-**Expected**: V_meta(s₁) ≈ 0.35-0.45
-
-#### Task 8: Document Iteration 1 Results
-
-Create `iterations/iteration-1.md` with:
-
-**Section 1: Refactoring Summary**
-- Target description
-- Refactoring steps executed
-- Metrics before/after comparison
-- Challenges encountered
-
-**Section 2: Pattern Observations**
-- Successful patterns
-- Challenging scenarios
-- Reusable insights
-
-**Section 3: Methodology Draft**
-- Initial process steps
-- Code smell catalog (partial)
-- Safety checklist
-
-**Section 4: Value Function Calculations**
-- V_instance(s₁) with components and rationale
-- V_meta(s₁) with components and rationale
-- Comparison with s₀
-
-**Section 5: Next Iteration Planning**
-- Targets for Iteration 2
-- Expected improvements
-- Methodology refinement areas
-
-### Outputs
-
-**Files to Create**:
-- `artifacts/refactoring-plan-1.md`
-- `artifacts/pattern-observations-1.md`
-- `artifacts/methodology-draft-v1.md`
-- `data/tests-before-refactoring-1.txt`
-- `data/tests-after-refactoring-1.txt`
-- `data/complexity-iteration-1.txt`
-- `data/duplication-iteration-1.txt`
-- `data/coverage-iteration-1.out`
-- `data/coverage-iteration-1-summary.txt`
-- `iterations/iteration-1.md`
-
-**Code Changes**:
-- Refactored target file(s) in `internal/query/`
-- New/updated tests
-
-**Update**:
-- `README.md` (status → "Iteration 1 Complete")
-
-### Success Criteria
-
-- ✅ At least 1 significant refactoring completed
-- ✅ All tests pass (100% pass rate)
-- ✅ Metrics improved (complexity, coverage, or duplication)
-- ✅ Patterns observed and documented
-- ✅ Methodology draft created
-- ✅ V_instance(s₁) > V_instance(s₀)
-- ✅ V_meta(s₁) > V_meta(s₀)
+**Agent Specialization Principle**: Start with generic meta-agent. Only create specialized agents when retrospective evidence shows:
+- Performance gap >5x between ideal and generic agent
+- Systematic capability deficiency across multiple iterations
+- Clear specialization benefits that justify overhead
 
 ---
 
-## Iteration 2: Methodology Codification + More Refactoring
-
-### Context
-
-**Previous Iterations**:
-- Iteration 0: Baseline (V_instance = [s₀], V_meta = [s₀])
-- Iteration 1: Initial refactoring (V_instance = [s₁], V_meta = [s₁])
-
-**Patterns Identified**: [Summary from Iteration 1]
-
 ### Objectives
 
-1. Continue refactoring (2-3 more targets)
-2. Codify emerging patterns into comprehensive methodology
-3. Create decision frameworks and catalogs
-4. Identify automation opportunities
-
-**BAIME Phase**: Observe (30%), Codify (50%), Automate (20%)
-
-### Tasks
-
-#### Task 1: Execute Additional Refactorings
-
-**Select 2-3 Targets**: [From prioritized list]
-
-**For each target**:
-1. Plan refactoring (use emerging methodology)
-2. Create/verify tests
-3. Execute incrementally
-4. Verify safety
-5. Document patterns
-
-**Apply learnings from Iteration 1**:
-- Use successful patterns
-- Avoid previous pitfalls
-- Refine safety procedures
-
-#### Task 2: Identify Common Patterns
-
-**Cross-Refactoring Analysis**:
-- What patterns appear across multiple refactorings?
-- Which code smells recur?
-- Which refactoring techniques are most effective?
-
-**Pattern Categories**:
-1. **Code Smell Patterns**: Common issues and detection
-2. **Refactoring Technique Patterns**: Effective transformations
-3. **Safety Verification Patterns**: Reliable testing approaches
-4. **Incremental Step Patterns**: Safe transformation sequences
-
-#### Task 3: Create Refactoring Decision Framework
-
-**`artifacts/refactoring-decision-tree.md`**:
-
-```markdown
-# Refactoring Decision Framework
-
-## When to Refactor?
-
-- Cyclomatic complexity > 10 → High priority
-- Code duplication > 15 tokens → Medium priority
-- Test coverage < 70% → Medium priority
-- Naming unclear → Low priority
-
-## Which Technique to Use?
-
-### For High Complexity
-- If too many responsibilities → Extract Method/Class
-- If deep nesting → Guard Clauses, Early Returns
-- If long parameter list → Introduce Parameter Object
-
-### For Code Duplication
-- If exact duplication → Extract Method
-- If similar but not identical → Parameterize Method
-- If across files → Extract to Shared Module
-
-### For Poor Naming
-- If ambiguous → Rename Variable/Function
-- If too generic → Add specificity
-- If misleading → Rename to reflect actual behavior
-
-[Add more decision trees based on observations]
-```
-
-#### Task 4: Create Comprehensive Code Smell Catalog
-
-**`artifacts/code-smell-catalog.md`**:
-
-```markdown
-# Code Smell Catalog
-
-## Category: Complexity
-
-### Long Function
-**Detection**: Function > 50 lines
-**Impact**: High - hard to understand and test
-**Refactoring**: Extract Method
-**Example**: [Provide example from internal/query/]
-
-### Deep Nesting
-**Detection**: Nesting > 3 levels
-**Impact**: High - hard to follow logic
-**Refactoring**: Guard Clauses, Extract Method
-**Example**: [...]
-
-[Document all smells encountered, with examples]
-```
-
-#### Task 5: Refine Methodology Documentation
-
-**Update `artifacts/methodology-draft-v2.md`**:
-
-**Additions**:
-- Complete process steps with decision criteria
-- Comprehensive code smell catalog
-- Refactoring technique guide with examples
-- Safety verification checklist (detailed)
-- Risk assessment framework
-
-**Structure**:
-```markdown
-# Refactoring Methodology (v2)
-
-## 1. Identification Phase
-### 1.1 Code Smell Detection
-[Detailed process with tools and criteria]
-
-### 1.2 Prioritization Framework
-[Decision tree for prioritizing targets]
-
-## 2. Planning Phase
-### 2.1 Refactoring Technique Selection
-[Decision framework based on smell type]
-
-### 2.2 Incremental Step Planning
-[How to break down into safe steps]
-
-### 2.3 Risk Assessment
-[How to assess and mitigate risks]
-
-## 3. Testing Phase
-### 3.1 Pre-Refactoring Test Creation
-[TDD principles application]
-
-### 3.2 Behavior Preservation Tests
-[How to verify no behavior changes]
-
-## 4. Execution Phase
-### 4.1 Incremental Transformation
-[Step-by-step execution protocol]
-
-### 4.2 Safety Checkpoints
-[When and how to verify safety]
-
-## 5. Verification Phase
-### 5.1 Test Verification
-[All tests must pass]
-
-### 5.2 Metrics Verification
-[Confirm improvements in metrics]
-
-### 5.3 Behavior Preservation Verification
-[Manual and automated checks]
-
-## Appendices
-### A. Code Smell Catalog
-### B. Refactoring Technique Reference
-### C. Safety Checklist
-### D. Common Pitfalls and Solutions
-```
-
-#### Task 6: Identify Automation Opportunities
-
-**Analysis**:
-- Which steps are repetitive and automatable?
-- Which checks should be automated?
-- What tools would improve efficiency?
-
-**Automation Plan** (`artifacts/automation-plan.md`):
-1. **Code Smell Detector**: Script to detect common smells
-2. **Refactoring Safety Checker**: Pre/post refactoring verification
-3. **Complexity Reporter**: Automated complexity analysis
-4. **Test Coverage Enforcer**: Ensure coverage thresholds
-
-#### Task 7: Calculate Iteration 2 Value Functions
-
-##### V_instance(s₂) Calculation
-
-**Updated Metrics**:
-- Complexity reduction: [calculate from data]
-- Duplication reduction: [calculate from data]
-- Static analysis improvement: [calculate from data]
-- Test coverage: [calculate from data]
-
-**V_instance(s₂)**: [Full calculation with components]
-
-**Expected**: V_instance(s₂) ≈ 0.60-0.65
-
-##### V_meta(s₂) Calculation
-
-**V_methodology_completeness(s₂)**:
-```
-Checklist completion: [count] / 15 items
-Process steps: Comprehensive
-Decision criteria: Defined
-Examples: Provided
-
-V_methodology_completeness(s₂) ≈ 0.55-0.65 (comprehensive documentation)
-```
-
-**V_methodology_effectiveness(s₂)**:
-```
-Efficiency gain: [measure based on time comparisons]
-Quality improvement: [measure based on metrics]
-
-V_methodology_effectiveness(s₂) ≈ 0.50-0.60
-```
-
-**V_methodology_reusability(s₂)**:
-```
-Universal patterns: [percentage]
-Language-agnostic components: [assessment]
-
-V_methodology_reusability(s₂) ≈ 0.60-0.70
-```
-
-**V_meta(s₂)**: [Full calculation]
-
-**Expected**: V_meta(s₂) ≈ 0.55-0.65
-
-#### Task 8: Document Iteration 2 Results
-
-Create `iterations/iteration-2.md` with all sections as in Iteration 1, plus:
-
-**Section 6: Cross-Refactoring Analysis**
-- Common patterns identified
-- Decision framework rationale
-- Automation opportunities
-
-### Outputs
-
-**Files to Create**:
-- `artifacts/methodology-draft-v2.md` (updated)
-- `artifacts/refactoring-decision-tree.md`
-- `artifacts/code-smell-catalog.md`
-- `artifacts/automation-plan.md`
-- `iterations/iteration-2.md`
-- [Data files for each refactoring]
-
-**Code Changes**:
-- 2-3 additional refactored modules
-
-**Update**:
-- `README.md` (status → "Iteration 2 Complete")
-
-### Success Criteria
-
-- ✅ 2-3 additional refactorings completed
-- ✅ Common patterns identified and documented
-- ✅ Decision framework created
-- ✅ Code smell catalog comprehensive
-- ✅ Methodology v2 significantly improved
-- ✅ V_instance(s₂) > V_instance(s₁)
-- ✅ V_meta(s₂) > V_meta(s₁)
-- ✅ V_meta(s₂) ≥ 0.60
+Execute these steps sequentially:
+
+#### Step 1: Collect Baseline Code Metrics
+
+**Goal**: Establish quantitative baseline for `internal/query/` package
+
+**Tasks**:
+1. **Cyclomatic Complexity**:
+   ```bash
+   gocyclo -over 1 internal/query/ > data/iteration-0/complexity-baseline.txt
+   gocyclo -avg internal/query/ >> data/iteration-0/complexity-baseline.txt
+   ```
+   - Document: Total functions, average complexity, functions >10 complexity
+
+2. **Code Duplication**:
+   ```bash
+   dupl -threshold 15 internal/query/ > data/iteration-0/duplication-baseline.txt
+   ```
+   - Document: Number of duplicate blocks, total duplicated lines
+
+3. **Static Analysis**:
+   ```bash
+   staticcheck ./internal/query/... > data/iteration-0/staticcheck-baseline.txt 2>&1
+   go vet ./internal/query/... > data/iteration-0/govet-baseline.txt 2>&1
+   ```
+   - Document: Warning counts by category
+
+4. **Test Coverage**:
+   ```bash
+   go test -cover ./internal/query/... > data/iteration-0/coverage-baseline.txt
+   go test -coverprofile=data/iteration-0/coverage.out ./internal/query/...
+   go tool cover -func=data/iteration-0/coverage.out >> data/iteration-0/coverage-baseline.txt
+   ```
+   - Document: Overall percentage, per-file coverage, uncovered functions
+
+5. **File Statistics**:
+   ```bash
+   find internal/query/ -name "*.go" -exec wc -l {} + > data/iteration-0/file-stats.txt
+   ```
+   - Document: Total lines, files count, distribution
+
+**Save Results**: `data/iteration-0/baseline-metrics.md` with summary analysis
 
 ---
 
-## Iteration 3: Automation Introduction
-
-### Context
-
-**Previous Iterations**:
-- Iteration 0: Baseline
-- Iteration 1: Initial refactoring, patterns observed
-- Iteration 2: Methodology codification, 2-3 more refactorings
-
-**Current State**:
-- V_instance(s₂) = [value]
-- V_meta(s₂) = [value]
-- Methodology v2 documented
-- Automation plan created
-
-### Objectives
-
-1. Create automation tools for repeated refactoring patterns
-2. Complete remaining refactorings in `internal/query/`
-3. Finalize methodology documentation
-4. Plan multi-context validation
-
-**BAIME Phase**: Observe (20%), Codify (30%), Automate (50%)
-
-### Tasks
-
-#### Task 1: Implement Automation Tools
-
-##### Tool 1: Code Smell Detector
-
-**`scripts/detect-code-smells.sh`**:
-
-```bash
-#!/bin/bash
-# Automated code smell detection for Go projects
-
-# Usage: ./scripts/detect-code-smells.sh <package>
-
-PACKAGE=${1:-"./..."}
-
-echo "=== Code Smell Detection Report ==="
-echo
-
-echo "1. Cyclomatic Complexity (>10)"
-gocyclo -over 10 $PACKAGE
-
-echo
-echo "2. Code Duplication (>15 tokens)"
-dupl -threshold 15 $PACKAGE
-
-echo
-echo "3. Static Analysis Issues"
-staticcheck $PACKAGE
-go vet $PACKAGE
-
-echo
-echo "4. Test Coverage"
-go test -cover $PACKAGE
-```
-
-##### Tool 2: Refactoring Safety Checker
-
-**`scripts/refactoring-safety-check.sh`**:
-
-```bash
-#!/bin/bash
-# Pre/post refactoring safety verification
-
-echo "=== Refactoring Safety Check ==="
-
-# Run full test suite
-echo "1. Running tests..."
-if ! go test ./...; then
-    echo "❌ Tests failed - refactoring not safe"
-    exit 1
-fi
-
-# Check test coverage
-echo "2. Checking coverage..."
-COVERAGE=$(go test -cover ./... 2>&1 | grep -oP '\d+\.\d+%' | head -1 | tr -d '%')
-if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-    echo "⚠️  Coverage below 80% ($COVERAGE%)"
-fi
-
-# Run linters
-echo "3. Running linters..."
-staticcheck ./...
-go vet ./...
-
-echo "✅ Safety check complete"
-```
-
-##### Tool 3: Complexity Reporter
-
-**`scripts/complexity-report.sh`**:
-
-```bash
-#!/bin/bash
-# Generate comprehensive complexity report
-
-PACKAGE=${1:-"./internal/query"}
-OUTPUT=${2:-"complexity-report.txt"}
-
-echo "=== Complexity Report ===" > $OUTPUT
-echo "Generated: $(date)" >> $OUTPUT
-echo >> $OUTPUT
-
-echo "Cyclomatic Complexity:" >> $OUTPUT
-gocyclo $PACKAGE >> $OUTPUT
-
-echo >> $OUTPUT
-echo "Summary Statistics:" >> $OUTPUT
-gocyclo $PACKAGE | awk '{sum+=$1; count++} END {print "Average:", sum/count}'
-```
-
-##### Tool 4: Refactoring Progress Tracker
-
-**`scripts/refactoring-progress.sh`**:
-
-```bash
-#!/bin/bash
-# Track refactoring progress against baseline
-
-BASELINE_DIR="data"
-CURRENT_DIR="data"
-
-echo "=== Refactoring Progress ==="
-
-# Complexity improvement
-echo "1. Complexity Reduction:"
-echo "   Baseline: $(grep -c "^" $BASELINE_DIR/complexity-baseline.txt) high-complexity functions"
-echo "   Current: $(gocyclo -over 10 internal/query/ | grep -c "^") high-complexity functions"
-
-# Coverage improvement
-echo "2. Test Coverage:"
-BASELINE_COV=$(grep "total" $BASELINE_DIR/coverage-baseline-summary.txt | awk '{print $NF}')
-CURRENT_COV=$(go tool cover -func=data/coverage-latest.out | grep "total" | awk '{print $NF}')
-echo "   Baseline: $BASELINE_COV"
-echo "   Current: $CURRENT_COV"
-
-# Duplication reduction
-echo "3. Code Duplication:"
-echo "   Baseline: $(grep -c "^" $BASELINE_DIR/duplication-baseline.txt) duplication issues"
-echo "   Current: $(dupl -threshold 15 internal/query/ | grep -c "^") duplication issues"
-```
-
-#### Task 2: Complete Remaining Refactorings
-
-**Using Automation Tools**:
-1. Run `detect-code-smells.sh` to find remaining issues
-2. Plan refactorings for remaining targets
-3. Use `refactoring-safety-check.sh` before and after each refactoring
-4. Track progress with `refactoring-progress.sh`
-
-**Goal**: Complete refactoring of entire `internal/query/` package
-
-#### Task 3: Finalize Methodology Documentation
-
-**Create `artifacts/methodology-final.md`**:
-
-**Complete all sections**:
-- Process steps (all 5 phases fully documented)
-- Decision frameworks (comprehensive)
-- Code smell catalog (complete with examples)
-- Refactoring technique reference (all techniques with examples)
-- Safety checklist (detailed)
-- Automation tools usage guide
-- Common pitfalls and solutions
-- Cross-language adaptation notes
-
-**Quality checklist**:
-- [ ] All 15 completeness checklist items addressed
-- [ ] Examples provided for all techniques
-- [ ] Edge cases documented
-- [ ] Failure modes and solutions described
-- [ ] Tool usage explained
-- [ ] Cross-language notes included
-
-#### Task 4: Plan Multi-Context Validation
-
-**Select Validation Context**: Choose different package (e.g., `internal/parser/`)
-
-**Validation Plan** (`artifacts/validation-plan.md`):
-1. Apply methodology to new context
-2. Measure adaptation effort (% of methodology needing modification)
-3. Track efficiency (time vs ad-hoc estimation)
-4. Document transferability challenges
-5. Refine methodology for universality
-
-#### Task 5: Calculate Iteration 3 Value Functions
-
-##### V_instance(s₃) Calculation
-
-**Metrics**: [Full refactoring completion assessment]
-
-**Expected**: V_instance(s₃) ≈ 0.70-0.75
-
-##### V_meta(s₃) Calculation
-
-**V_methodology_completeness(s₃)**:
-```
-Checklist: 13-15 / 15 items complete
-Documentation: Comprehensive and final
-
-V_methodology_completeness(s₃) ≈ 0.70-0.80
-```
-
-**V_methodology_effectiveness(s₃)**:
-```
-Efficiency gain: Measured with automation (estimate 5x+)
-Quality improvement: Significant
-
-V_methodology_effectiveness(s₃) ≈ 0.65-0.75
-```
-
-**V_methodology_reusability(s₃)**:
-```
-Universal patterns: High percentage
-Validation plan: Ready
-
-V_methodology_reusability(s₃) ≈ 0.70-0.80
-```
-
-**V_meta(s₃)**: [Full calculation]
-
-**Expected**: V_meta(s₃) ≈ 0.70-0.75
-
-#### Task 6: Document Iteration 3 Results
-
-Create `iterations/iteration-3.md` with all sections, plus:
-
-**Section 7: Automation Implementation**
-- Tools created and usage
-- Efficiency improvements measured
-- Automation impact on workflow
-
-**Section 8: Methodology Finalization**
-- Complete documentation overview
-- Completeness checklist verification
-
-### Outputs
-
-**Files to Create**:
-- `scripts/detect-code-smells.sh`
-- `scripts/refactoring-safety-check.sh`
-- `scripts/complexity-report.sh`
-- `scripts/refactoring-progress.sh`
-- `artifacts/methodology-final.md`
-- `artifacts/validation-plan.md`
-- `iterations/iteration-3.md`
-
-**Code Changes**:
-- Complete refactoring of `internal/query/`
-
-**Update**:
-- `README.md` (status → "Iteration 3 Complete, Preparing Validation")
-
-### Success Criteria
-
-- ✅ 4 automation tools implemented and tested
-- ✅ All refactoring targets in `internal/query/` completed
-- ✅ Methodology documentation finalized (15/15 checklist items)
-- ✅ Multi-context validation plan ready
-- ✅ V_instance(s₃) ≥ 0.70
-- ✅ V_meta(s₃) ≥ 0.70
+#### Step 2: Identify Code Smells
+
+**Goal**: Catalog refactoring opportunities using manual inspection
+
+**Tasks**:
+1. Read each file in `internal/query/`:
+   - `query.go`, `engine.go`, `filters.go`, `time_series.go`, etc.
+
+2. Document code smells by category:
+   - **Long Functions**: Functions >50 lines
+   - **High Complexity**: Functions >10 cyclomatic complexity
+   - **Duplicated Logic**: Similar code blocks across files
+   - **Poor Naming**: Unclear variable/function names
+   - **Missing Tests**: Uncovered functions
+   - **God Objects**: Files/structs with too many responsibilities
+   - **Primitive Obsession**: Over-reliance on primitive types
+   - **Feature Envy**: Functions accessing other structs' data excessively
+
+3. Prioritize smells:
+   - High priority: High complexity + low coverage
+   - Medium priority: Duplication + maintainability impact
+   - Low priority: Cosmetic issues
+
+**Save Results**: `data/iteration-0/code-smells.md` with categorized list
 
 ---
 
-## Iteration 4: Multi-Context Validation
+#### Step 3: Attempt Initial Refactoring
 
-### Context
+**Goal**: Refactor 1-2 functions using ad-hoc approach to establish baseline effort
 
-**Previous Iterations**:
-- Iterations 0-3: Methodology developed, `internal/query/` refactored
-- Current: V_instance(s₃) ≈ 0.70-0.75, V_meta(s₃) ≈ 0.70-0.75
-
-**Validation Context**: [Selected package, e.g., `internal/parser/`]
-
-### Objectives
-
-1. Apply methodology to new context (different package)
-2. Measure transferability and adaptation effort
-3. Refine methodology for universality
-4. Assess convergence possibility
-
-**BAIME Phase**: Validation (70%), Refinement (30%)
-
-### Tasks
-
-#### Task 1: Apply Methodology to New Context
-
-**Select Context**: `internal/parser/` (or another appropriate package)
-
-**Full Methodology Application**:
-1. **Identification Phase**: Use code smell detector
-2. **Planning Phase**: Use decision framework
-3. **Testing Phase**: Create behavior tests
-4. **Execution Phase**: Incremental refactoring
-5. **Verification Phase**: Safety checks
+**Tasks**:
+1. Select high-priority smell (e.g., high complexity function)
+2. Write tests if missing (TDD approach)
+3. Apply refactoring (e.g., extract method, simplify conditionals)
+4. Verify tests pass
+5. Measure time taken
 
 **Track**:
-- Which methodology steps transfer directly (0% modification)
-- Which steps need minor adaptation (<20% modification)
-- Which steps need significant adaptation (>20% modification)
-- Time spent vs expected (efficiency measurement)
+- Time spent (minutes)
+- Steps taken
+- Issues encountered
+- Rollbacks needed
 
-#### Task 2: Measure Transferability
+**Save Results**: `data/iteration-0/refactoring-log.md` with detailed notes
 
-**Adaptation Effort Analysis**:
+---
+
+#### Step 4: Calculate Baseline Value Functions
+
+**Goal**: Establish honest baseline V_instance and V_meta scores
+
+**V_instance Calculation**:
+
+1. **V_code_quality**:
+   - Complexity reduction: (baseline - current) / baseline
+   - Duplication elimination: blocks_removed / total_blocks
+   - Static warnings: warnings_fixed / total_warnings
+   - Expected: ~0.05-0.15 (minimal progress)
+
+2. **V_maintainability**:
+   - Test coverage: current / 85% target
+   - Module cohesion: subjective assessment
+   - Documentation: documented / public_functions
+   - Expected: ~0.10-0.25 (partial coverage)
+
+3. **V_safety**:
+   - Test pass rate: passing / total
+   - Behavior preservation: verified_steps / total_steps
+   - Incremental discipline: safe_commits / total_commits
+   - Expected: 0.20-0.40 (basic safety)
+
+4. **V_effort**:
+   - Time efficiency: baseline_estimate / actual_time (likely <1.0)
+   - Automation: minimal at baseline
+   - Rework: likely some rollbacks
+   - Expected: 0.10-0.20 (inefficient)
+
+**Calculate**: V_instance = 0.3·V_code_quality + 0.3·V_maintainability + 0.2·V_safety + 0.2·V_effort
+
+**Expected V_instance**: 0.15-0.25
+
+---
+
+**V_meta Calculation**:
+
+1. **V_completeness**:
+   - Detection: Basic manual inspection (0.25-0.40)
+   - Planning: Ad-hoc, no systematic approach (0.20-0.35)
+   - Execution: Informal steps (0.25-0.40)
+   - Verification: Basic testing (0.30-0.50)
+   - Expected: 0.25-0.40
+
+2. **V_effectiveness**:
+   - Quality improvement: Minimal demonstrable gains (0.20-0.40)
+   - Safety record: Basic test discipline (0.30-0.50)
+   - Efficiency: No speedup yet (0.10-0.30)
+   - Expected: 0.20-0.40
+
+3. **V_reusability**:
+   - Language independence: Unclear at baseline (0.20-0.40)
+   - Codebase generality: Instance-specific (0.20-0.40)
+   - Abstraction quality: No principles extracted (0.10-0.30)
+   - Expected: 0.15-0.35
+
+**Calculate**: V_meta = 0.4·V_completeness + 0.3·V_effectiveness + 0.3·V_reusability
+
+**Expected V_meta**: 0.10-0.20
+
+---
+
+**Save Results**: `data/iteration-0/value-functions.md` with detailed calculations and evidence
+
+**Critical**: Use rubrics rigorously. Low scores are expected and honest. Do NOT inflate scores to appear successful.
+
+---
+
+#### Step 5: Document Initial Problems
+
+**Goal**: Identify gaps and inefficiencies to address in subsequent iterations
+
+**Analyze**:
+1. **Detection Gaps**: What smells were missed? What tools could help?
+2. **Planning Gaps**: Was refactoring sequence optimal? What risks were overlooked?
+3. **Execution Gaps**: What steps were unclear? Where did inefficiency occur?
+4. **Verification Gaps**: What safety checks were missing? What could be automated?
+
+**Document**:
+- Specific problems encountered
+- Hypotheses for improvement (do NOT commit to solutions yet)
+- Data needed to validate hypotheses
+
+**Save Results**: `data/iteration-0/problems-identified.md`
+
+---
+
+### Baseline Iteration Summary
+
+**Deliverables**:
+1. `data/iteration-0/baseline-metrics.md`: Quantitative baseline
+2. `data/iteration-0/code-smells.md`: Identified refactoring targets
+3. `data/iteration-0/refactoring-log.md`: Initial refactoring attempt
+4. `data/iteration-0/value-functions.md`: V_instance and V_meta calculations
+5. `data/iteration-0/problems-identified.md`: Gap analysis
+
+**Expected Outcomes**:
+- V_instance ≈ 0.15-0.25 (low, honest assessment)
+- V_meta ≈ 0.10-0.20 (minimal methodology maturity)
+- Clear problem identification
+- Data-driven foundation for iteration 1
+
+**Do NOT**:
+- Inflate scores to appear successful
+- Design full methodology prematurely
+- Create specialized agents without evidence
+- Plan evolution without retrospective validation
+
+---
+
+## Iteration N: Subsequent Iterations
+
+**Context**: Execute after Iteration 0. Each iteration follows Observe-Codify-Automate-Evaluate (OCA) cycle.
+
+**Important**: This template applies to iterations 1-N. Adapt based on previous iteration state.
+
+---
+
+### Pre-Iteration Setup
+
+**Read Previous Iteration State**:
+
+1. **Load Previous Scores**:
+   - Read `data/iteration-(N-1)/value-functions.md`
+   - Extract V_instance(s_{N-1}), V_meta(s_{N-1})
+   - Note: These are starting points, NOT targets to beat artificially
+
+2. **Load Identified Problems**:
+   - Read `data/iteration-(N-1)/problems-identified.md`
+   - Prioritize problems by impact on value functions
+
+3. **Load System State**:
+   - Review current capabilities in `capabilities/`
+   - Review current agents in `agents/`
+   - Assess what exists vs. what's needed
+
+4. **Create Iteration Directory**:
+   ```bash
+   mkdir -p data/iteration-N/
+   ```
+
+---
+
+### Capability Reading Protocol
+
+**Before Starting Iteration**:
+- Read ALL capability files in `capabilities/` to understand available tools
+- Understand lifecycle coverage and gaps
+
+**Before Using Specific Capability**:
+- Re-read the specific capability file to ensure correct usage
+- Follow capability instructions precisely
+
+**Rationale**: Prevents capability misuse and ensures consistent execution
+
+---
+
+### Phase 1: Observe (Data Collection)
+
+**Goal**: Gather empirical data about refactoring patterns and methodology gaps
+
+**Capability**: Use `capabilities/collect-refactoring-data.md`
+
+---
+
+#### Task 1: Collect Code Metrics
+
+**Execute**:
+1. Run complexity analysis:
+   ```bash
+   gocyclo -over 1 internal/query/ > data/iteration-N/complexity-current.txt
+   gocyclo -avg internal/query/ >> data/iteration-N/complexity-current.txt
+   ```
+
+2. Run duplication analysis:
+   ```bash
+   dupl -threshold 15 internal/query/ > data/iteration-N/duplication-current.txt
+   ```
+
+3. Run static analysis:
+   ```bash
+   staticcheck ./internal/query/... > data/iteration-N/staticcheck-current.txt 2>&1
+   go vet ./internal/query/... > data/iteration-N/govet-current.txt 2>&1
+   ```
+
+4. Run coverage analysis:
+   ```bash
+   go test -cover ./internal/query/... > data/iteration-N/coverage-current.txt
+   go test -coverprofile=data/iteration-N/coverage.out ./internal/query/...
+   go tool cover -func=data/iteration-N/coverage.out >> data/iteration-N/coverage-current.txt
+   ```
+
+**Compare with Baseline**:
+- Calculate deltas for each metric
+- Identify improvements and regressions
+
+**Save**: `data/iteration-N/metrics-comparison.md`
+
+---
+
+#### Task 2: Analyze Refactoring Session
+
+**If refactoring occurred in previous iteration**:
+
+1. **Review Refactoring Log**:
+   - Read `data/iteration-(N-1)/refactoring-log.md`
+   - Extract patterns: common steps, decision points, verification checks
+
+2. **Categorize Refactorings**:
+   - Extract method: Count, success rate, time spent
+   - Simplify conditionals: Count, complexity reduction
+   - Remove duplication: Count, lines saved
+   - Rename: Count, clarity improvement
+   - (Add categories as observed)
+
+3. **Identify Pain Points**:
+   - Steps requiring manual effort
+   - Verification steps that were missed
+   - Time sinks
+   - Uncertainty points
+
+**Save**: `data/iteration-N/refactoring-patterns.md`
+
+---
+
+#### Task 3: Query Meta-CC Data
+
+**Use meta-cc MCP tools** to analyze session patterns:
+
+1. **File Access Patterns**:
+   ```
+   query_file_access(file="internal/query/query.go")
+   ```
+   - Identify frequently edited files
+   - Track read-edit patterns
+
+2. **Error Patterns**:
+   ```
+   query_tools(status="error")
+   ```
+   - Identify tool failures during refactoring
+   - Common error signatures
+
+3. **Tool Sequences**:
+   ```
+   query_tool_sequences(min_occurrences=2)
+   ```
+   - Identify workflow patterns (Read → Edit → Bash test cycle)
+   - Detect inefficient sequences
+
+**Save**: `data/iteration-N/session-analysis.md`
+
+---
+
+#### Task 4: Document Observations
+
+**Synthesize data** into actionable observations:
+
+1. **What worked well?**
+   - Effective refactoring patterns
+   - Successful safety protocols
+   - Efficient tool usage
+
+2. **What didn't work?**
+   - Missed smells
+   - Inefficient steps
+   - Verification gaps
+
+3. **What's missing?**
+   - Undetected patterns
+   - Uncodified knowledge
+   - Unautomated steps
+
+**Save**: `data/iteration-N/observations.md`
+
+---
+
+### Phase 2: Codify (Strategy Formation)
+
+**Goal**: Translate observations into methodology improvements
+
+**Capability**: Use `capabilities/analyze-refactoring-gaps.md` and `capabilities/plan-refactoring-strategy.md`
+
+---
+
+#### Task 1: Gap Analysis
+
+**Analyze V_instance Gaps**:
+
+1. **V_code_quality gaps**:
+   - Which complexity hotspots remain?
+   - What duplication persists?
+   - Which static warnings are unaddressed?
+
+2. **V_maintainability gaps**:
+   - Which functions lack tests?
+   - Which modules have poor cohesion?
+   - Which APIs lack documentation?
+
+3. **V_safety gaps**:
+   - Were any tests broken during refactoring?
+   - Were any steps unverified?
+   - Is git history clean and revertible?
+
+4. **V_effort gaps**:
+   - What manual steps consume time?
+   - What could be automated?
+   - Where does rework occur?
+
+**Prioritize Gaps**:
+- High impact on V_instance
+- Addressable in current iteration
+- Data-supported (not speculative)
+
+**Save**: `data/iteration-N/gap-analysis.md`
+
+---
+
+#### Task 2: Strategy Formation
+
+**Design iteration strategy** addressing top gaps:
+
+1. **Detection Strategy**:
+   - What smells to target?
+   - What tools to use?
+   - What prioritization criteria?
+
+2. **Refactoring Strategy**:
+   - What refactoring patterns to apply?
+   - What sequence to follow?
+   - What safety protocols to enforce?
+
+3. **Verification Strategy**:
+   - What tests to write/maintain?
+   - What metrics to track?
+   - What quality gates to enforce?
+
+4. **Automation Strategy**:
+   - What steps to automate?
+   - What scripts/tools to create?
+   - What manual oversight to retain?
+
+**Save**: `data/iteration-N/iteration-strategy.md`
+
+---
+
+#### Task 3: Codify Patterns
+
+**Extract reusable patterns** from observations:
+
+**Pattern Template**:
+```markdown
+## Pattern: [Name]
+
+**Context**: When to apply this pattern
+**Problem**: What problem it solves
+**Solution**: Step-by-step refactoring procedure
+**Example**: Before/after code example
+**Safety**: Verification steps
+**Metrics**: Expected impact on V_instance components
+```
+
+**Save Patterns**: `knowledge/patterns/[pattern-name].md`
+
+**Update Pattern Index**: `knowledge/patterns/INDEX.md`
+
+---
+
+### Phase 3: Automate (Execution)
+
+**Goal**: Apply refactoring methodology and capture execution data
+
+**Capability**: Use `capabilities/execute-refactoring.md`
+
+**Agent**: Use appropriate agent(s) from `agents/` (start with meta-agent, invoke specialized agents only if they exist and are needed)
+
+---
+
+#### Task 1: Prepare Refactoring Session
+
+**Setup**:
+1. Create clean git branch:
+   ```bash
+   git checkout -b iteration-N-refactoring
+   ```
+
+2. Document refactoring plan in `data/iteration-N/refactoring-plan.md`:
+   - Target files/functions
+   - Refactoring sequence
+   - Safety checkpoints
+   - Expected metrics impact
+
+3. Start refactoring log: `data/iteration-N/refactoring-log.md`
+
+---
+
+#### Task 2: Execute Refactoring (TDD Cycle)
+
+**For each refactoring target**:
+
+1. **Write/Update Tests** (if missing):
+   - Create test file: `internal/query/*_test.go`
+   - Cover current behavior (characterization tests)
+   - Ensure tests pass before refactoring
+   - Document in log: test creation time, coverage added
+
+2. **Apply Refactoring**:
+   - Follow codified pattern from `knowledge/patterns/`
+   - Make incremental changes (small commits)
+   - Document in log: refactoring type, steps taken, time spent
+
+3. **Verify Safety**:
+   - Run tests: `go test ./internal/query/...`
+   - Must pass 100%
+   - Run coverage: `go test -cover ./internal/query/...`
+   - Track coverage change
+   - Document in log: verification results
+
+4. **Commit Incrementally**:
+   ```bash
+   git add [files]
+   git commit -m "refactor: [description] - [pattern-name]"
+   ```
+   - Every commit must have passing tests
+   - Keep commits small and focused
+   - Document in log: commit hash, files changed
+
+5. **Measure Impact**:
+   - Run metrics after refactoring
+   - Compare with pre-refactoring state
+   - Document in log: metric deltas
+
+**Continue** until iteration time budget exhausted or refactoring targets completed
+
+---
+
+#### Task 3: Document Execution
+
+**Update Refactoring Log** with:
+- Total refactorings completed
+- Patterns applied (count by type)
+- Time breakdown (test writing, refactoring, verification)
+- Issues encountered
+- Rollbacks/rework needed
+- Final metrics comparison
+
+**Save**: `data/iteration-N/refactoring-log.md`
+
+---
+
+### Phase 4: Evaluate
+
+**Goal**: Calculate V_instance and V_meta, assess progress
+
+**Capability**: Use `capabilities/evaluate-refactoring-quality.md`
+
+---
+
+#### Task 1: Calculate V_instance
+
+**Follow Instance Value Function rubrics** (see [Value Functions](#value-functions) section):
+
+1. **V_code_quality**:
+   - Complexity reduction: (baseline - current) / baseline
+   - Duplication elimination: removed_blocks / total_blocks
+   - Static warnings: fixed_warnings / total_warnings
+   - Apply rubric scoring
+   - Document evidence
+
+2. **V_maintainability**:
+   - Test coverage: current_coverage / 85%
+   - Module cohesion: assess organization quality
+   - Documentation: documented / public_functions
+   - Apply rubric scoring
+   - Document evidence
+
+3. **V_safety**:
+   - Test pass rate: passing / total (must be 100%)
+   - Behavior preservation: verified_steps / total_steps
+   - Incremental discipline: safe_commits / total_commits
+   - Apply rubric scoring
+   - Document evidence
+
+4. **V_effort**:
+   - Time efficiency: estimate_baseline / actual_time
+   - Automation: automated_checks / total_checks
+   - Rework: clean_refactorings / total_refactorings
+   - Apply rubric scoring
+   - Document evidence
+
+**Calculate**: V_instance(s_N) = 0.3·V_code_quality + 0.3·V_maintainability + 0.2·V_safety + 0.2·V_effort
+
+**Save**: `data/iteration-N/value-instance.md` with detailed evidence
+
+---
+
+#### Task 2: Calculate V_meta
+
+**Follow Meta Value Function rubrics** (see [Value Functions](#value-functions) section):
+
+**IMPORTANT**: Evaluate V_meta INDEPENDENTLY of V_instance. Meta-layer assesses methodology quality, not task quality.
+
+1. **V_completeness**:
+   - Detection phase: Assess taxonomy, tools, prioritization (0.25 weight)
+   - Planning phase: Assess patterns, safety protocols, sequencing (0.25 weight)
+   - Execution phase: Assess transformation recipes, TDD, verification (0.25 weight)
+   - Verification phase: Assess validation, automation, quality gates (0.25 weight)
+   - Apply rubric scoring for each phase
+   - Document evidence (artifacts in `knowledge/`)
+
+2. **V_effectiveness**:
+   - Quality improvement: Demonstrated gains with examples (0.33 weight)
+   - Safety record: Test discipline, zero breakages (0.33 weight)
+   - Efficiency gains: Measured speedup (0.33 weight)
+   - Apply rubric scoring
+   - Document evidence (metrics, logs)
+
+3. **V_reusability**:
+   - Language independence: How many languages would patterns apply to? (0.33 weight)
+   - Codebase generality: How many codebase types? (0.33 weight)
+   - Abstraction quality: Universal principles vs. context-specific details (0.33 weight)
+   - Apply rubric scoring
+   - Document evidence (transferability analysis)
+
+**Calculate**: V_meta(s_N) = 0.4·V_completeness + 0.3·V_effectiveness + 0.3·V_reusability
+
+**Save**: `data/iteration-N/value-meta.md` with detailed evidence
+
+---
+
+#### Task 3: Compare with Previous Iteration
+
+**Delta Analysis**:
+- ΔV_instance = V_instance(s_N) - V_instance(s_{N-1})
+- ΔV_meta = V_meta(s_N) - V_meta(s_{N-1})
+
+**Interpret**:
+- Positive delta: Improvement (expected)
+- Negative delta: Regression (investigate causes)
+- Near-zero delta: Plateau (check for convergence or need for new approach)
+
+**Save**: `data/iteration-N/value-comparison.md`
+
+---
+
+### Phase 5: Convergence Check
+
+**Goal**: Determine if methodology has converged or requires further iteration
+
+**Capability**: Use `capabilities/check-convergence.md`
+
+---
+
+#### Convergence Criteria
+
+**Both layers must meet thresholds**:
+1. **Instance Layer**: V_instance(s_N) ≥ 0.75
+2. **Meta Layer**: V_meta(s_N) ≥ 0.70
+3. **Stability**: Thresholds sustained for 2 consecutive iterations
+4. **Diminishing Returns**: ΔV < 0.05 for both layers
+
+**Evaluate**:
+
+1. **Instance Convergence**:
+   - Is V_instance ≥ 0.75? YES/NO
+   - Evidence: [specific scores and components]
+   - If NO: What gaps remain?
+
+2. **Meta Convergence**:
+   - Is V_meta ≥ 0.70? YES/NO
+   - Evidence: [specific rubric assessments]
+   - If NO: What methodology gaps remain?
+
+3. **Stability Check**:
+   - Is this the 2nd consecutive iteration above thresholds? YES/NO
+   - If NO: Continue iterating
+
+4. **Diminishing Returns Check**:
+   - Is ΔV_instance < 0.05 AND ΔV_meta < 0.05? YES/NO
+   - If YES and below thresholds: Need new approach
+
+**Convergence Decision**:
+- **CONVERGED**: All criteria met → Proceed to Results Analysis
+- **NOT CONVERGED**: Continue to next iteration → Identify gaps for iteration N+1
+
+**Save**: `data/iteration-N/convergence-check.md`
+
+---
+
+### Phase 6: System Evolution (If Needed)
+
+**Goal**: Evidence-based evolution of capabilities and agents
+
+**Capability**: Use `capabilities/evolve-refactoring-system.md`
+
+**IMPORTANT**: Only evolve system when retrospective evidence demonstrates necessity. Do NOT evolve based on:
+- Pattern matching or similarity to other experiments
+- Anticipatory design or theoretical completeness
+- Premature optimization
+
+---
+
+#### When to Evolve
+
+**Evidence-Based Triggers**:
+
+1. **Create New Capability**:
+   - Retrospective evidence: Repeated manual workflow across 2+ iterations
+   - Gap analysis: Missing lifecycle phase coverage
+   - Attempted alternatives: Manual approach attempted, proven inefficient
+   - Quantifiable benefit: Clear improvement in V_meta or V_instance
+
+2. **Create Specialized Agent**:
+   - Performance gap: >5x difference between ideal and generic agent
+   - Systematic deficiency: Generic agent fails consistently at specific task
+   - Attempted workarounds: Tried compensating with capabilities, insufficient
+   - Clear specialization ROI: Demonstrated need outweighs overhead
+
+3. **Modify Existing Component**:
+   - Retrospective evidence: Component used incorrectly or incompletely 2+ times
+   - Gap analysis: Component missing critical functionality
+   - Usage data: Component invoked but inadequate
+   - Improvement necessity: Modification required for convergence
+
+**Anti-Patterns** (DO NOT evolve for these reasons):
+- "This looks like testing methodology needs test-executor agent" (pattern matching)
+- "Refactoring should have smell-detector, planner, executor" (theoretical completeness)
+- "Let's create automation-builder capability proactively" (anticipatory design)
+
+---
+
+#### Evolution Process
+
+**If evidence supports evolution**:
+
+1. **Document Justification**:
+   - Create `data/iteration-N/evolution-justification.md`
+   - List specific evidence from retrospectives
+   - Show attempted alternatives
+   - Quantify expected improvement
+
+2. **Create/Modify Component**:
+   - **New Capability**: Create `capabilities/[name].md` with clear interface
+   - **New Agent**: Create `agents/[name].md` with specialization scope
+   - **Modify Component**: Edit existing file, track changes
+
+3. **Update System Documentation**:
+   - Update `ARCHITECTURE.md` with new component
+   - Update capability/agent index files
+
+4. **Validate Evolution**:
+   - Test new component in current iteration
+   - Measure impact on V_meta (completeness/effectiveness)
+   - Compare with pre-evolution state
+
+**Save**: `data/iteration-N/evolution-log.md` documenting changes and validation
+
+---
+
+### Iteration Summary
+
+**Deliverables** (each iteration):
+1. `data/iteration-N/observations.md`: Empirical observations
+2. `data/iteration-N/gap-analysis.md`: V_instance and V_meta gaps
+3. `data/iteration-N/iteration-strategy.md`: Iteration plan
+4. `data/iteration-N/refactoring-log.md`: Execution log
+5. `data/iteration-N/value-instance.md`: V_instance calculation with evidence
+6. `data/iteration-N/value-meta.md`: V_meta calculation with evidence
+7. `data/iteration-N/convergence-check.md`: Convergence assessment
+8. `knowledge/patterns/*.md`: Extracted patterns (if any)
+9. `data/iteration-N/evolution-log.md`: System evolution (if any)
+
+**Expected Trajectory**:
+- Iterations 1-2: Rapid V_instance improvement, moderate V_meta improvement
+- Iterations 3-4: Slowing V_instance gains, continued V_meta improvement
+- Iterations 5-7: Convergence approach, diminishing returns
+
+**Do NOT**:
+- Inflate scores to show artificial progress
+- Evolve system without retrospective evidence
+- Skip convergence checks
+- Compromise honesty for appearance of success
+
+---
+
+## Knowledge Organization
+
+**Goal**: Separate permanent knowledge from ephemeral iteration data
+
+### Directory Structure
 
 ```
-Components requiring adaptation:
-1. [Component A]: [% modification needed], [reason]
-2. [Component B]: [% modification needed], [reason]
+experiments/bootstrap-004-refactoring-guide/
+├── capabilities/           # Lifecycle capabilities (modular)
+│   ├── collect-refactoring-data.md
+│   ├── analyze-refactoring-gaps.md
+│   ├── plan-refactoring-strategy.md
+│   ├── execute-refactoring.md
+│   ├── evaluate-refactoring-quality.md
+│   ├── check-convergence.md
+│   └── evolve-refactoring-system.md
+├── agents/                 # Specialized agents (evidence-based)
+│   ├── meta-agent.md       # Generic agent (start here)
+│   └── [specialized-agents].md  # Only if evidence supports
+├── data/                   # Ephemeral iteration data
+│   ├── iteration-0/
+│   ├── iteration-1/
+│   └── iteration-N/
+├── knowledge/              # Permanent methodology knowledge
+│   ├── patterns/           # Refactoring patterns
+│   │   ├── INDEX.md
+│   │   ├── extract-method.md
+│   │   ├── simplify-conditionals.md
+│   │   ├── remove-duplication.md
+│   │   └── [other-patterns].md
+│   ├── principles/         # Universal refactoring principles
+│   │   ├── INDEX.md
+│   │   ├── safety-first.md
+│   │   ├── incremental-refactoring.md
+│   │   ├── test-coverage-discipline.md
+│   │   └── behavior-preservation.md
+│   ├── templates/          # Reusable templates
+│   │   ├── refactoring-checklist.md
+│   │   ├── safety-verification.md
+│   │   └── pattern-template.md
+│   ├── best-practices/     # Context-specific practices
+│   │   ├── go-refactoring.md
+│   │   ├── tdd-workflow.md
+│   │   └── git-discipline.md
+│   └── methodology/        # Project-wide reusable methodology
+│       ├── refactoring-methodology.md
+│       └── transferability-analysis.md
+└── ARCHITECTURE.md         # System architecture documentation
+```
+
+---
+
+### Knowledge Extraction Guidelines
+
+**When to Extract Knowledge**:
+
+1. **Patterns** (`knowledge/patterns/`):
+   - Refactoring technique applied successfully 2+ times
+   - Clear before/after improvement
+   - Generalizable beyond specific instance
+   - Extract: Name, context, steps, example, safety checks
+
+2. **Principles** (`knowledge/principles/`):
+   - Universal truth discovered through iteration
+   - Applies across multiple patterns
+   - Not context-specific
+   - Extract: Principle statement, rationale, evidence, examples
+
+3. **Templates** (`knowledge/templates/`):
+   - Reusable structure used 3+ times
+   - Standardizes workflow
+   - Reduces cognitive load
+   - Extract: Template structure, usage instructions, example
+
+4. **Best Practices** (`knowledge/best-practices/`):
+   - Context-specific guidance (e.g., Go-specific, TDD-specific)
+   - Proven effective in domain
+   - Not universally applicable
+   - Extract: Practice description, context, rationale, examples
+
+5. **Methodology** (`knowledge/methodology/`):
+   - Comprehensive refactoring methodology (at convergence)
+   - Integrates patterns, principles, practices
+   - Designed for reuse across projects
+   - Extract: Full lifecycle guide, adaptation instructions
+
+---
+
+### Knowledge Index Maintenance
+
+**Update INDEX.md files** in each knowledge subdirectory:
+
+**Index Template**:
+```markdown
+# [Category] Index
+
+## Overview
+[Brief description of category]
+
+## Contents
+
+### [Item Name]
+- **File**: [filename].md
+- **Source**: Iteration [N]
+- **Validation**: [Applied in X refactorings, Y% success rate]
+- **Transferability**: [Universal / Language-specific / Domain-specific]
+- **Description**: [One-line summary]
+
+[Repeat for each item]
+
+## Cross-References
+- Related patterns: [links]
+- Related principles: [links]
+- Related practices: [links]
+```
+
+---
+
+### Dual Output Principle
+
+**Local Knowledge** (experiment-specific):
+- `data/iteration-N/*`: Ephemeral iteration data
+- `capabilities/*`, `agents/*`: System components for this experiment
+
+**Project Methodology** (reusable across projects):
+- `knowledge/methodology/refactoring-methodology.md`: Transferable methodology
+- `knowledge/patterns/*`: Reusable patterns
+- `knowledge/principles/*`: Universal principles
+
+**At convergence**: Extract project-wide methodology to `/docs/methodology/refactoring.md` (or similar) for use beyond this experiment.
+
+---
+
+## Results Analysis Template
+
+**Context**: Use this template when convergence is achieved
+
+**Goal**: Comprehensive analysis of experiment outcomes and methodology validation
+
+---
+
+### 1. Convergence Summary
+
+**Final Scores**:
+- V_instance(final) = [score]
+- V_meta(final) = [score]
+- Iterations to convergence: [N]
+
+**Convergence Evidence**:
+- Instance threshold (≥0.75): Met in iterations [X, Y]
+- Meta threshold (≥0.70): Met in iterations [X, Y]
+- Stability: Sustained for [N] iterations
+- Diminishing returns: ΔV < 0.05 confirmed
+
+---
+
+### 2. Trajectory Analysis
+
+**V_instance Trajectory**:
+```
+Iteration 0: [score]  (Baseline)
+Iteration 1: [score]  (Δ = +[delta])
+Iteration 2: [score]  (Δ = +[delta])
 ...
-
-Overall adaptation effort = Σ(component_weight × modification_%)
+Iteration N: [score]  (Δ = +[delta])
 ```
 
-**Calculate V_methodology_reusability**:
+**V_meta Trajectory**:
 ```
-reusability = 1.0 - (adaptation_effort / 100)
-
-Target: >80% reusability (score ≥ 0.80)
-```
-
-#### Task 3: Document Transfer Challenges
-
-**`artifacts/transfer-challenges.md`**:
-
-**Challenges Encountered**:
-1. **Language-specific issues**: [e.g., Go-specific idioms]
-2. **Domain-specific issues**: [e.g., parser vs query engine differences]
-3. **Tool limitations**: [e.g., tools not applicable to new context]
-
-**Solutions Applied**:
-- How challenges were addressed
-- Methodology refinements made
-
-#### Task 4: Refine Methodology for Universality
-
-**Update `artifacts/methodology-final-v2.md`**:
-
-**Additions**:
-- Universal principles (language-agnostic)
-- Language-specific adaptations section
-- Domain-specific considerations
-- Transfer guidance for new contexts
-
-**Structure Enhancement**:
-```markdown
-## Universal Principles
-[Core principles that transfer 100%]
-
-## Language-Specific Adaptations
-### Go
-[Go-specific considerations]
-
-### Python
-[How to adapt for Python]
-
-### Rust
-[How to adapt for Rust]
-
-### Java
-[How to adapt for Java]
-
-## Domain-Specific Considerations
-[How methodology adapts across domains]
-
-## Transfer Guide
-[Step-by-step guide for applying to new contexts]
+Iteration 0: [score]  (Baseline)
+Iteration 1: [score]  (Δ = +[delta])
+...
+Iteration N: [score]  (Δ = +[delta])
 ```
 
-#### Task 5: Calculate Iteration 4 Value Functions
+**Visualization**: Create trajectory plots if helpful
 
-##### V_instance(s₄) Calculation
-
-**Context 1 (internal/query/)**: Fully refactored
-**Context 2 (validation context)**: Partially refactored
-
-**Combined Assessment**: [How to weight both contexts]
-
-**Expected**: V_instance(s₄) ≈ 0.80-0.85
-
-##### V_meta(s₄) Calculation
-
-**V_methodology_completeness(s₄)**:
-```
-All 15 items complete + transfer guidance
-
-V_methodology_completeness(s₄) ≈ 0.80-0.90
-```
-
-**V_methodology_effectiveness(s₄)**:
-```
-Efficiency validated in new context
-Quality improvements confirmed
-
-V_methodology_effectiveness(s₄) ≈ 0.75-0.85
-```
-
-**V_methodology_reusability(s₄)**:
-```
-Measured transferability: [calculated %]
-
-V_methodology_reusability(s₄) = [based on measured adaptation effort]
-
-Target: ≥ 0.80
-```
-
-**V_meta(s₄)**: [Full calculation]
-
-**Expected**: V_meta(s₄) ≈ 0.75-0.85
-
-#### Task 6: Assess Convergence
-
-**Check All Criteria**:
-```
-V_instance(s₄) ≥ 0.80? [Yes/No]
-V_meta(s₄) ≥ 0.80? [Yes/No]
-M₄ == M₃? [Yes - M₀ stable]
-A₄ == A₃? [Yes/No - check agent set]
-ΔV_instance < 0.02 (s₃ to s₄)? [Yes/No]
-ΔV_meta < 0.02 (s₃ to s₄)? [Yes/No]
-```
-
-**Decision**:
-- If ALL criteria met → CONVERGED (proceed to final documentation)
-- If NOT converged → Plan Iteration 5 focusing on gaps
-
-#### Task 7: Document Iteration 4 Results
-
-Create `iterations/iteration-4.md` with all sections, plus:
-
-**Section 9: Multi-Context Validation**
-- Validation context description
-- Methodology application results
-- Transferability measurements
-- Challenges and solutions
-
-**Section 10: Convergence Assessment**
-- All criteria evaluation
-- Convergence decision
-- Next steps (if not converged)
-
-### Outputs
-
-**Files to Create**:
-- `artifacts/transfer-challenges.md`
-- `artifacts/methodology-final-v2.md`
-- `iterations/iteration-4.md`
-
-**Code Changes**:
-- Refactorings in validation context
-
-**Update**:
-- `README.md` (status → "Iteration 4 Complete" or "CONVERGED")
-
-### Success Criteria
-
-- ✅ Methodology applied to new context successfully
-- ✅ Transferability ≥ 80% (adaptation effort ≤ 20%)
-- ✅ Methodology refined for universality
-- ✅ V_instance(s₄) ≥ 0.80
-- ✅ V_meta(s₄) ≥ 0.80 (ideally)
-- ✅ Convergence assessed with clear decision
+**Analysis**:
+- Rate of convergence (fast/moderate/slow)
+- Inflection points (where progress accelerated/decelerated)
+- Correlation between V_instance and V_meta improvements
 
 ---
 
-## Iteration 5+: Convergence Refinement (If Needed)
+### 3. Instance Task Results
 
-### Context
+**Refactoring Outcomes**:
 
-**Previous Iterations**: 0-4 completed
-**Current State**:
-- V_instance(s₄) = [value]
-- V_meta(s₄) = [value]
-- Convergence gaps: [list what needs improvement]
+1. **Code Quality**:
+   - Baseline complexity: [average]
+   - Final complexity: [average]
+   - Reduction: [%]
+   - Duplication: [baseline blocks] → [final blocks] ([%] reduction)
+   - Static warnings: [baseline count] → [final count] ([%] reduction)
 
-### Objectives
+2. **Maintainability**:
+   - Test coverage: [baseline %] → [final %]
+   - Module cohesion: [before/after assessment]
+   - Documentation: [baseline %] → [final %]
 
-**Focus on Remaining Gaps**:
-- If V_instance < 0.80: Additional refactoring or metric improvements
-- If V_meta < 0.80: Methodology documentation or validation gaps
-- If ΔV too large: Continue refinement until stability
+3. **Safety**:
+   - Test pass rate: [%] (should be 100%)
+   - Behavior preservation: [verified steps / total steps]
+   - Rollbacks needed: [count]
 
-### Tasks
+4. **Efficiency**:
+   - Total refactoring time: [hours]
+   - Baseline estimate: [hours]
+   - Speedup: [X]x
+   - Automation level: [%]
 
-**Adaptive Based on Gaps**:
-
-#### Scenario A: V_instance Gap
-
-**Actions**:
-1. Complete remaining high-impact refactorings
-2. Improve test coverage to 85%+
-3. Eliminate remaining duplication
-4. Verify all metrics meet targets
-
-#### Scenario B: V_meta Gap
-
-**Actions**:
-1. Complete missing methodology documentation
-2. Add more examples and edge cases
-3. Enhance cross-language adaptation guidance
-4. Validate transferability in additional contexts
-5. Improve automation tool coverage
-
-#### Scenario C: Stability Gap
-
-**Actions**:
-1. Make smaller, incremental improvements
-2. Focus on polishing existing work
-3. Verify all deliverables are complete
-4. Allow value functions to stabilize
-
-### Value Function Calculation
-
-**Calculate V_instance(s₅) and V_meta(s₅)** with focus on gap closure
-
-**Convergence Check**:
-```
-V_instance(s₅) ≥ 0.80? [Yes/No]
-V_meta(s₅) ≥ 0.80? [Yes/No]
-M₅ == M₄? [Yes]
-A₅ == A₄? [Yes]
-ΔV_instance(s₄ to s₅) < 0.02? [Yes/No]
-ΔV_meta(s₄ to s₅) < 0.02? [Yes/No]
-```
-
-**If NOT converged**: Plan Iteration 6 (rare, based on EXPERIMENTS-OVERVIEW.md)
-
-### Outputs
-
-- `iterations/iteration-5.md`
-- Any remaining artifacts
-- Updated code/documentation
-
-### Success Criteria
-
-- ✅ All convergence criteria met
-- ✅ V_instance(s_N) ≥ 0.80
-- ✅ V_meta(s_N) ≥ 0.80
-- ✅ System stable (M and A unchanged)
-- ✅ Value functions stable (Δ < 0.02)
-- ✅ Ready for final results report
+**Deliverables**:
+- Refactored code in `internal/query/`
+- Enhanced test suite with [%] coverage
+- [N] commits with clean git history
 
 ---
 
-## Final: Results Report
+### 4. Methodology Outputs
 
-### When to Execute
+**Knowledge Artifacts**:
 
-Execute this section only after **FULL CONVERGENCE** achieved.
+1. **Patterns** (`knowledge/patterns/`):
+   - [Pattern 1]: [brief description, application count]
+   - [Pattern 2]: [brief description, application count]
+   - Total: [N] patterns extracted
 
-### Objectives
+2. **Principles** (`knowledge/principles/`):
+   - [Principle 1]: [brief description]
+   - [Principle 2]: [brief description]
+   - Total: [N] principles discovered
 
-1. Create comprehensive results report
-2. Summarize experiment outcomes
-3. Document final methodology
-4. Provide usage examples
+3. **Templates** (`knowledge/templates/`):
+   - [Template 1]: [brief description, usage count]
+   - Total: [N] templates created
 
-### Tasks
+4. **Best Practices** (`knowledge/best-practices/`):
+   - [Practice 1]: [brief description]
+   - Total: [N] practices documented
 
-#### Task 1: Create `results.md`
+5. **Comprehensive Methodology** (`knowledge/methodology/`):
+   - `refactoring-methodology.md`: Full lifecycle guide
+   - Coverage: Detection → Planning → Execution → Verification
 
-**Structure**:
+---
 
-```markdown
-# Bootstrap-004: Refactoring Guide - Results
+### 5. Transferability Tests
 
-## Experiment Summary
-- Start date: [date]
-- Completion date: [date]
-- Total iterations: [N]
-- Total duration: [hours]
+**Reusability Assessment**:
 
-## Final Values
-- V_instance(s_N) = [value]
-- V_meta(s_N) = [value]
-- Convergence iteration: [N]
+1. **Language Independence**:
+   - Patterns applicable to: [Go, Python, JavaScript, Rust, Java, etc.]
+   - Language-agnostic principles: [list]
+   - Language-specific adaptations: [list]
+   - Score: [% transferable across languages]
 
-## Instance Layer Outcomes
-### Refactoring Accomplishments
-- Cyclomatic complexity reduction: [X%]
-- Test coverage improvement: [X%]
-- Code duplication elimination: [X%]
-- Static analysis issues resolved: [X]
+2. **Codebase Generality**:
+   - Applicable to: [CLI tools, libraries, web services, embedded systems, etc.]
+   - Universal patterns: [list]
+   - Context-specific patterns: [list]
+   - Score: [% transferable across codebase types]
 
-### Code Quality Improvements
-[Detailed metrics comparison]
+3. **Domain Generality**:
+   - Applicable beyond meta-cc: [YES/NO]
+   - Domains tested: [list if any]
+   - Required adaptations: [list]
 
-## Meta Layer Outcomes
-### Methodology Deliverable
-- Complete refactoring methodology: ✅
-- Decision frameworks: ✅
-- Code smell catalog: ✅
-- Automation tools: [X] tools created
-- Multi-context validation: ✅
+**Transferability Evidence**:
+- Concrete examples of how patterns apply to other contexts
+- Adaptation guidelines for different scenarios
+- Limitations and constraints
 
-### Effectiveness Measurements
-- Efficiency gain: [X]x speedup
-- Quality improvement: [X]%
-- Transferability: [X]%
+---
 
-## Scientific Contributions
-[What this experiment taught about refactoring methodology]
+### 6. Methodology Validation
 
-## Transferability Assessment
-[How methodology applies to other languages/domains]
+**Effectiveness Evidence**:
 
-## Lessons Learned
-[Key insights from experiment]
+1. **Quality Improvement**:
+   - Demonstrated in [N] refactoring sessions
+   - Average quality gain: [%]
+   - Consistent improvements: [YES/NO]
 
-## Usage Examples
-[How to use the methodology in practice]
-```
+2. **Safety Record**:
+   - Zero breaking changes: [YES/NO]
+   - Test discipline: [% commits with passing tests]
+   - Rollback capability: [demonstrated/not-needed]
 
-#### Task 2: Package Methodology for Reuse
+3. **Efficiency Gains**:
+   - Measured speedup: [X]x over ad-hoc
+   - Automation achieved: [%]
+   - Rework minimized: [% clean refactorings]
 
-**Create standalone methodology guide**: `artifacts/REFACTORING-METHODOLOGY.md`
+**Validation Confidence**: [High/Medium/Low] based on evidence quality
 
-**Audience**: Any developer wanting to refactor code systematically
+---
 
-**Contents**:
-- Self-contained refactoring guide
-- All decision frameworks
-- Code smell catalog
-- Tool usage instructions
-- Examples and case studies
+### 7. System Evolution Summary
 
-#### Task 3: Update EXPERIMENTS-OVERVIEW.md
+**Architecture Evolution**:
 
-Add Bootstrap-004 to completed experiments section with:
-- Status: ✅ COMPLETED
-- Values achieved
-- Iterations taken
-- Key results
-- Transferability percentage
+1. **Capabilities Created**:
+   - Initial: [list baseline capabilities]
+   - Added: [list capabilities added during iterations]
+   - Final count: [N]
+   - Justification: [evidence-based / premature]
 
-#### Task 4: Create Usage Examples
+2. **Agents Created**:
+   - Initial: meta-agent (generic)
+   - Specialized agents added: [list]
+   - Justification for specialization: [evidence summary]
+   - Performance gain: [X]x (if applicable)
 
-**`artifacts/usage-examples.md`**:
+3. **Evolution Triggers**:
+   - Iteration [X]: [component added] - Reason: [evidence summary]
+   - Iteration [Y]: [component modified] - Reason: [evidence summary]
 
-Provide 3-5 examples of applying methodology:
-1. Go project refactoring
-2. Simulated Python adaptation
-3. Simulated Rust adaptation
-4. Large codebase application
-5. Legacy code refactoring
+**Evolution Assessment**:
+- Evidence-driven: [YES/NO]
+- Necessary changes only: [YES/NO]
+- Avoided premature optimization: [YES/NO]
 
-### Outputs
+---
 
-**Files to Create**:
-- `results.md` (comprehensive final report)
-- `artifacts/REFACTORING-METHODOLOGY.md` (standalone guide)
-- `artifacts/usage-examples.md`
+### 8. Learnings and Insights
 
-**Updates**:
-- `README.md` (status → "✅ COMPLETED")
-- `experiments/EXPERIMENTS-OVERVIEW.md` (add Bootstrap-004 results)
+**Key Discoveries**:
 
-### Success Criteria
+1. **About Refactoring Domain**:
+   - [Insight 1]: [description]
+   - [Insight 2]: [description]
+   - [Insight N]: [description]
 
-- ✅ Complete results report created
-- ✅ Methodology packaged for reuse
-- ✅ Usage examples provided
-- ✅ Experiment properly documented in overview
-- ✅ All deliverables finalized
+2. **About BAIME Methodology**:
+   - What worked well: [list]
+   - What didn't work: [list]
+   - Surprises: [list]
+
+3. **About Agent Coordination**:
+   - Generic vs. specialized agents: [findings]
+   - Capability modularity: [findings]
+   - Evolution timing: [findings]
+
+**Unexpected Outcomes**:
+- [List any unexpected results, positive or negative]
+
+---
+
+### 9. Comparison with Reference Experiments
+
+**Bootstrap-002 (Test Strategy)**:
+- Iterations: 6 vs. [N] (this experiment)
+- Final V_instance: 0.80 vs. [score]
+- Final V_meta: 0.80 vs. [score]
+- Similarities: [list]
+- Differences: [list]
+
+**Bootstrap-003 (Error Recovery)**:
+- Iterations: 3 vs. [N] (this experiment)
+- Rapid convergence factors: [analysis]
+- Similarities: [list]
+- Differences: [list]
+
+**Insights from Comparison**:
+- Domain complexity impact on iteration count
+- Baseline quality impact on convergence rate
+- Transferable learnings
+
+---
+
+### 10. Recommendations
+
+**For Future Refactoring Projects**:
+1. [Recommendation 1]
+2. [Recommendation 2]
+3. [Recommendation N]
+
+**For BAIME Methodology**:
+1. [Improvement 1]
+2. [Improvement 2]
+3. [Improvement N]
+
+**For Meta-CC Development**:
+1. [Application 1]
+2. [Application 2]
+3. [Application N]
+
+---
+
+### 11. Knowledge Catalog
+
+**Permanent Artifacts** (for reuse):
+
+1. **Methodology Document**:
+   - Location: `knowledge/methodology/refactoring-methodology.md`
+   - Completeness: [%]
+   - Validation status: [validated/needs-testing]
+
+2. **Pattern Library**:
+   - Location: `knowledge/patterns/`
+   - Count: [N] patterns
+   - Validation: [% applied successfully in practice]
+
+3. **Principle Set**:
+   - Location: `knowledge/principles/`
+   - Count: [N] principles
+   - Universality: [% transferable]
+
+4. **Project-Wide Methodology**:
+   - Location: `/docs/methodology/refactoring.md` (if extracted)
+   - Reusability: [cross-project/meta-cc-specific]
+
+**Ephemeral Data** (not for reuse):
+- `data/iteration-*/*`: Iteration-specific logs and calculations
+- `experiments/bootstrap-004-refactoring-guide/`: Experiment workspace
+
+---
+
+## Execution Guidance
+
+### Perspective and Embodiment
+
+**You are the Meta-Agent** for refactoring methodology development:
+- Your task: Develop systematic refactoring methodology through observation and codification
+- Your domain: Code refactoring, quality improvement, TDD, incremental change
+- Your output: Transferable methodology applicable across codebases and languages
+- Your constraint: Evidence-based evolution, honest assessment, rigorous convergence
+
+**Embody Refactoring Expertise**:
+- Understand code smells deeply (long methods, high complexity, duplication, poor naming, etc.)
+- Apply refactoring patterns systematically (extract method, simplify conditionals, remove duplication, etc.)
+- Enforce safety protocols (TDD, incremental commits, behavior preservation, test discipline)
+- Measure quality rigorously (cyclomatic complexity, duplication, coverage, static analysis)
+
+---
+
+### Dual-Layer Evaluation Protocol
+
+**Critical**: Instance and Meta layers are INDEPENDENT. Evaluate separately.
+
+**Instance Layer** (Refactoring Quality):
+- Measures: How well did we refactor `internal/query/`?
+- Evidence: Code metrics, test coverage, complexity reduction, safety record
+- Scoring: Apply V_instance rubrics rigorously
+- Threshold: V_instance ≥ 0.75
+
+**Meta Layer** (Methodology Quality):
+- Measures: How good is the refactoring methodology we developed?
+- Evidence: Completeness of lifecycle coverage, demonstrated effectiveness, transferability
+- Scoring: Apply V_meta rubrics INDEPENDENTLY of instance scores
+- Threshold: V_meta ≥ 0.70
+
+**Independence Validation**:
+- Good instance outcome ≠ good methodology (could be luck or manual effort)
+- Good methodology ≠ good instance outcome (could be hard problem or limited time)
+- Both must be evaluated on their own merits with separate evidence
+
+---
+
+### Honest Assessment Protocol
+
+**Systematic Bias Avoidance**:
+
+1. **Seek Disconfirming Evidence**:
+   - Before assigning high score: What evidence contradicts this?
+   - Example: "V_completeness seems high, but detection phase lacks automation"
+   - Action: Lower score or improve detection phase
+
+2. **Enumerate Gaps Explicitly**:
+   - List missing elements in each rubric category
+   - Don't gloss over weaknesses
+   - Example: "Execution phase lacks transformation recipes for 4 refactoring types"
+
+3. **Ground Scores in Concrete Evidence**:
+   - Every score must cite specific artifacts
+   - Example: "V_effectiveness = 0.80 because: (1) complexity reduced 28% in 3 functions [see data/iteration-3/metrics], (2) zero test failures across 45 commits [see git log], (3) 7x speedup measured [see time logs]"
+   - Avoid: "V_effectiveness seems good" (no evidence)
+
+4. **Challenge High Scores**:
+   - Scores ≥0.8 require exceptional evidence
+   - Ask: "What would make this a 1.0? Why isn't it there?"
+   - Downgrade if evidence is weak
+
+5. **Avoid Anti-Patterns**:
+   - ❌ "We created many patterns, so V_completeness is high" → Need coverage depth, not just existence
+   - ❌ "Methodology seems comprehensive" → Need rubric-by-rubric assessment with evidence
+   - ❌ "V_instance improved, so V_meta must be good" → Layers are independent
+   - ❌ "Patterns look transferable theoretically" → Need demonstrated transfer or explicit analysis
+
+---
+
+### Convergence Rigor
+
+**Both Thresholds Required**:
+- V_instance ≥ 0.75 AND V_meta ≥ 0.70
+- Not one or the other; both must meet threshold
+- Sustained for 2 iterations (stability)
+
+**Stability Validation**:
+- Scores must remain above threshold for 2 consecutive iterations
+- Prevents premature convergence on temporary gains
+- Example: If iteration 4 meets threshold but iteration 5 drops below, NOT converged
+
+**Diminishing Returns**:
+- If ΔV < 0.05 for both layers AND below threshold: stuck
+- Action: Investigate methodology gaps, consider evolution, or reassess approach
+
+**Do NOT**:
+- Declare convergence based on single iteration
+- Inflate scores to reach threshold
+- Compromise rigor for appearance of success
+
+---
+
+### Honesty and Authenticity
+
+**Discover, Don't Assume**:
+- Let patterns emerge from data, don't impose them
+- Extract principles from observations, don't theorize them
+- Evolve system based on retrospective evidence, not anticipatory design
+
+**No Token Limits**:
+- Complete all analysis thoroughly
+- Document all evidence comprehensively
+- Don't summarize or skip for brevity
+
+**Humble Uncertainty**:
+- If unclear, state uncertainty explicitly
+- If evidence is weak, acknowledge it
+- If gaps exist, enumerate them
+
+**Rigorous Grounding**:
+- Every claim backed by data
+- Every score backed by rubric application
+- Every evolution backed by retrospective evidence
+
+---
+
+### Key Principles Summary
+
+1. **Modular Architecture**: Separate files for capabilities and agents, clear interfaces
+2. **Evidence-Based Evolution**: Only evolve system when retrospective data demonstrates necessity
+3. **Dual-Layer Independence**: Evaluate V_instance and V_meta separately with distinct evidence
+4. **Honest Calculation**: Apply rubrics rigorously, challenge high scores, enumerate gaps
+5. **Low Baseline Acceptance**: Iteration 0 scores of 0.10-0.25 are normal and expected
+6. **Convergence Discipline**: Both thresholds + 2 iteration stability required
+7. **Knowledge Extraction**: Separate permanent methodology from ephemeral data
+8. **Refactoring Safety**: TDD, incremental commits, behavior preservation, 100% test pass rate
+9. **Metrics-Driven**: Ground all assessments in quantitative metrics (complexity, coverage, duplication, static analysis)
+10. **Transferability Focus**: Design methodology for reuse across languages and codebases
+
+---
+
+### Common Pitfalls to Avoid
+
+**Premature Optimization**:
+- ❌ Creating specialized agents before evidence of need
+- ❌ Building automation before workflow is proven
+- ❌ Designing comprehensive taxonomy before observing patterns
+
+**Score Inflation**:
+- ❌ Assigning high scores without rigorous evidence
+- ❌ Inflating V_meta because V_instance improved
+- ❌ Ignoring gaps to reach convergence threshold
+
+**Pattern Matching**:
+- ❌ "Testing methodology had these agents, so refactoring should too"
+- ❌ "Other experiments converged in N iterations, so we should too"
+- ❌ Copying structure from reference experiments without evidence
+
+**Convergence Shortcuts**:
+- ❌ Declaring convergence after single iteration above threshold
+- ❌ Weakening rubrics to achieve convergence
+- ❌ Ignoring stability requirement
+
+**Safety Compromise**:
+- ❌ Accepting <100% test pass rate
+- ❌ Skipping incremental verification
+- ❌ Making large changes without safety checkpoints
 
 ---
 
 ## Appendix: Quick Reference
 
-### Value Function Calculations
+### Value Function Quick Reference
 
-**V_instance(s)**:
-```
-V_instance(s) = 0.3·V_code_quality + 0.3·V_maintainability +
-                0.2·V_safety + 0.2·V_effort
+**V_instance Components**:
+- V_code_quality (0.3): Complexity reduction, duplication elimination, static analysis
+- V_maintainability (0.3): Test coverage, module cohesion, documentation
+- V_safety (0.2): Test pass rate, behavior preservation, incremental discipline
+- V_effort (0.2): Time efficiency, automation, rework minimization
 
-Where:
-  V_code_quality = 0.4·complexity_reduction + 0.3·duplication_reduction +
-                   0.2·static_improvement + 0.1·naming_clarity
+**V_meta Components**:
+- V_completeness (0.4): Detection, Planning, Execution, Verification phases
+- V_effectiveness (0.3): Quality improvement, safety record, efficiency gains
+- V_reusability (0.3): Language independence, codebase generality, abstraction quality
 
-  V_maintainability = 0.4·(coverage/0.85) + 0.3·cohesion +
-                      0.2·doc_quality + 0.1·organization
+### Iteration Checklist
 
-  V_safety = 0.5·test_pass_rate + 0.3·behavior_preservation +
-             0.2·incremental_discipline
+**Every Iteration**:
+- [ ] Read previous iteration state (scores, problems, system state)
+- [ ] Observe: Collect metrics, analyze patterns, query meta-cc data
+- [ ] Codify: Gap analysis, strategy formation, pattern extraction
+- [ ] Automate: Execute refactoring with TDD cycle, document thoroughly
+- [ ] Evaluate: Calculate V_instance and V_meta with evidence
+- [ ] Convergence: Check thresholds and stability
+- [ ] Evolve: Only if retrospective evidence supports it
+- [ ] Save: All deliverables in `data/iteration-N/`
 
-  V_effort = 1.0 - (actual_time / expected_time)
-```
+### Convergence Checklist
 
-**V_meta(s)**:
-```
-V_meta(s) = 0.4·V_completeness + 0.3·V_effectiveness + 0.3·V_reusability
-
-Where:
-  V_completeness = checklist_items / 15 (with adjustments)
-  V_effectiveness = 0.5·efficiency_gain + 0.5·quality_improvement
-  V_reusability = 1.0 - (adaptation_effort / 100)
-```
-
-### Convergence Criteria
-
-```
-CONVERGED iff ALL of the following:
-  ✅ V_instance(s_N) ≥ 0.80
-  ✅ V_meta(s_N) ≥ 0.80
-  ✅ M_N == M_{N-1}
-  ✅ A_N == A_{N-1}
-  ✅ ΔV_instance < 0.02 (for 2+ iterations)
-  ✅ ΔV_meta < 0.02 (for 2+ iterations)
-```
-
-### BAIME Context Allocation
-
-- **Observe** (Iteration 1): 70% - Execute refactoring, observe patterns
-- **Codify** (Iteration 2): 50% - Document methodology systematically
-- **Automate** (Iteration 3): 50% - Create automation tools
-- **Validate** (Iteration 4): 70% - Multi-context validation
-
-**30/40/20/10 Overall**:
-- 30% Pattern Observation
-- 40% Methodology Codification
-- 20% Automation
-- 10% Validation
+- [ ] V_instance ≥ 0.75
+- [ ] V_meta ≥ 0.70
+- [ ] Sustained for 2 consecutive iterations
+- [ ] Diminishing returns: ΔV < 0.05 for both layers
+- [ ] All rubrics applied rigorously with evidence
+- [ ] Gaps enumerated explicitly
+- [ ] High scores challenged with disconfirming evidence
 
 ---
 
-**Document Version**: 1.0
-**Created**: 2025-10-18
-**Last Updated**: 2025-10-18
+**End of Iteration Prompts**
+
+**Next Steps**:
+1. Begin with [Iteration 0: Baseline Establishment](#iteration-0-baseline-establishment)
+2. Follow baseline objectives sequentially
+3. Calculate honest baseline scores (expect V_instance ≈ 0.15-0.25, V_meta ≈ 0.10-0.20)
+4. Use baseline as foundation for iteration 1
+5. Iterate until convergence criteria met
+6. Complete [Results Analysis](#results-analysis-template) upon convergence
+
+**Remember**: Low baseline scores are expected and indicate honest assessment. Success is measured by rigorous methodology development, not by inflated scores.
