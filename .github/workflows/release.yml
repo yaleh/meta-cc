@@ -73,27 +73,33 @@ jobs:
         run: |
           mkdir -p build
 
+          # Set version info for ldflags
+          VERSION=${{ steps.version.outputs.VERSION }}
+          COMMIT=$(git rev-parse --short HEAD)
+          BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+          LDFLAGS="-X github.com/yaleh/meta-cc/cmd.Version=${VERSION} -X github.com/yaleh/meta-cc/cmd.Commit=${COMMIT} -X github.com/yaleh/meta-cc/cmd.BuildTime=${BUILD_TIME}"
+
           # Linux amd64
-          GOOS=linux GOARCH=amd64 go build -o build/meta-cc-linux-amd64 .
+          GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-linux-amd64 .
 
           # Linux arm64
-          GOOS=linux GOARCH=arm64 go build -o build/meta-cc-linux-arm64 .
+          GOOS=linux GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-linux-arm64 .
 
           # macOS amd64
-          GOOS=darwin GOARCH=amd64 go build -o build/meta-cc-darwin-amd64 .
+          GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-darwin-amd64 .
 
           # macOS arm64
-          GOOS=darwin GOARCH=arm64 go build -o build/meta-cc-darwin-arm64 .
+          GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-darwin-arm64 .
 
           # Windows amd64
-          GOOS=windows GOARCH=amd64 go build -o build/meta-cc-windows-amd64.exe .
+          GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-windows-amd64.exe .
 
           # MCP server binaries
-          GOOS=linux GOARCH=amd64 go build -o build/meta-cc-mcp-linux-amd64 ./cmd/mcp-server
-          GOOS=linux GOARCH=arm64 go build -o build/meta-cc-mcp-linux-arm64 ./cmd/mcp-server
-          GOOS=darwin GOARCH=amd64 go build -o build/meta-cc-mcp-darwin-amd64 ./cmd/mcp-server
-          GOOS=darwin GOARCH=arm64 go build -o build/meta-cc-mcp-darwin-arm64 ./cmd/mcp-server
-          GOOS=windows GOARCH=amd64 go build -o build/meta-cc-mcp-windows-amd64.exe ./cmd/mcp-server
+          GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-mcp-linux-amd64 ./cmd/mcp-server
+          GOOS=linux GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-mcp-linux-arm64 ./cmd/mcp-server
+          GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-mcp-darwin-amd64 ./cmd/mcp-server
+          GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-mcp-darwin-arm64 ./cmd/mcp-server
+          GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-mcp-windows-amd64.exe ./cmd/mcp-server
 
       - name: Package Capabilities
         run: |
