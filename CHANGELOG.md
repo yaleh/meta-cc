@@ -5,6 +5,45 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Skills Distribution** - 15 validated methodologies now packaged with plugin
+  - Testing Strategy (3.1x speedup, 89% transferable)
+  - CI/CD Optimization (2.5-3.5x speedup)
+  - Error Recovery (95.4% error coverage)
+  - Dependency Health (6x speedup)
+  - Knowledge Transfer (3-8x ramp-up reduction)
+  - Technical Debt Management (4.5x speedup)
+  - Code Refactoring (28% complexity reduction)
+  - Cross-Cutting Concerns (60-75% faster diagnosis)
+  - Observability Instrumentation (23-46x speedup)
+  - API Design (82.5% transferable)
+  - Methodology Bootstrapping (10-50x speedup)
+  - Agent Prompt Evolution (5x performance gap detection)
+  - Baseline Quality Assessment (40-50% iteration reduction)
+  - Rapid Convergence (40-60% time reduction)
+  - Retrospective Validation (40-60% time reduction)
+- **Agent Manifest Updates** - All 5 agents now declared in plugin.json
+  - iteration-executor
+  - iteration-prompt-designer
+  - knowledge-extractor
+  - project-planner (existing)
+  - stage-executor (existing)
+
+### Changed
+- **Build Pipeline** - Updated to include skills directory in releases
+  - scripts/sync-plugin-files.sh: Copy skills to dist/
+  - Makefile: Support skills in sync-plugin-files target
+  - .github/workflows/release.yml: Package skills in releases
+- **Installation** - Enhanced to deploy skills to ~/.claude/skills/
+- **Package Size** - Increased by ~1.5MB (10-11MB → 12MB, ~15% increase)
+
+### Improved
+- **User Experience** - Zero-friction access to validated methodologies
+- **Documentation** - Added comprehensive skills overview to README.md
+- **Testing** - Added 4 new smoke tests for skills and agents verification
+
 ## [0.26.8] - 2025-10-12
 
 ### Changed
