@@ -41,7 +41,7 @@
     {
       "name": "meta-cc-skills",
       "source": "./.claude",
-      "description": "Software development methodology skills - 18 validated patterns for testing, CI/CD, error recovery, documentation, refactoring, and more. Based on BAIME methodology with proven 10-50x speedup.",
+      "description": "Software development methodology skills - 16 validated patterns for testing, CI/CD, error recovery, documentation, refactoring, and more. Based on BAIME methodology with proven 10-50x speedup.",
       "version": "0.31.0",
       "author": {
         "name": "Yale Huang",
@@ -61,9 +61,7 @@
       "strict": false,
       "skills": [
         "./skills/agent-prompt-evolution",
-        "./skills/agent-specialization",
         "./skills/api-design",
-        "./skills/baime-methodology-development",
         "./skills/baseline-quality-assessment",
         "./skills/ci-cd-optimization",
         "./skills/code-refactoring",
