@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for CHANGELOG validation
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -183,6 +185,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for CHANGELOG validation
 
       - name: Install Bats
         run: |
@@ -199,6 +203,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for CHANGELOG validation
 
       - name: Setup Go
         uses: actions/setup-go@v4
