@@ -82,6 +82,67 @@ Follow the OCA cycle (see [reference/observe-codify-automate.md](reference/obser
 
 ---
 
+## Specialized Subagents
+
+BAIME provides two specialized Claude Code subagents to streamline experiment execution:
+
+### iteration-prompt-designer
+
+**When to use**: At experiment start, to create comprehensive ITERATION-PROMPTS.md
+
+**What it does**:
+- Designs iteration templates tailored to your domain
+- Incorporates modular Meta-Agent architecture
+- Provides domain-specific guidance for each iteration
+- Creates structured prompts for baseline and subsequent iterations
+
+**How to invoke**:
+```
+Use the Task tool with subagent_type="iteration-prompt-designer"
+
+Example:
+"Design ITERATION-PROMPTS.md for refactoring methodology experiment"
+```
+
+**Benefits**:
+- ✅ Comprehensive iteration prompts (saves 2-3 hours setup time)
+- ✅ Domain-specific value function design
+- ✅ Proper baseline iteration structure
+- ✅ Evidence-driven evolution guidance
+
+---
+
+### iteration-executor
+
+**When to use**: For each iteration execution (Iteration 0, 1, 2, ...)
+
+**What it does**:
+- Executes iteration through lifecycle phases (Observe → Codify → Automate → Evaluate)
+- Coordinates Meta-Agent capabilities and agent invocations
+- Tracks state transitions (M_{n-1} → M_n, A_{n-1} → A_n, s_{n-1} → s_n)
+- Calculates dual-layer value functions (V_instance, V_meta) systematically
+- Evaluates convergence criteria rigorously
+- Generates complete iteration documentation
+
+**How to invoke**:
+```
+Use the Task tool with subagent_type="iteration-executor"
+
+Example:
+"Execute Iteration 2 of testing methodology experiment using iteration-executor"
+```
+
+**Benefits**:
+- ✅ Consistent iteration structure across experiments
+- ✅ Systematic value calculation (reduces bias, improves honesty)
+- ✅ Proper convergence evaluation (prevents premature convergence)
+- ✅ Complete artifact generation (data, knowledge, reflections)
+- ✅ Reduced iteration time (structured execution vs ad-hoc)
+
+**Important**: iteration-executor reads capability files fresh each iteration (no caching) to ensure latest guidance is applied.
+
+---
+
 ## Core Framework
 
 ### The OCA Cycle
@@ -153,6 +214,127 @@ Methodology complete when:
 
 ---
 
+## Iteration Documentation Structure
+
+Every BAIME iteration must produce a comprehensive iteration report following a standardized 10-section structure. This ensures consistent quality, complete knowledge capture, and reproducible methodology development.
+
+### Required Sections
+
+**See complete example**: [examples/iteration-documentation-example.md](examples/iteration-documentation-example.md)
+
+**Use blank template**: [examples/iteration-structure-template.md](examples/iteration-structure-template.md)
+
+1. **Executive Summary** (2-3 paragraphs)
+   - Iteration focus and objectives
+   - Key achievements
+   - Key learnings
+   - Value scores (V_instance, V_meta)
+
+2. **Pre-Execution Context**
+   - Previous state: M_{n-1}, A_{n-1}, s_{n-1}
+   - Previous values: V_instance(s_{n-1}), V_meta(s_{n-1}) with component breakdowns
+   - Primary objectives for this iteration
+
+3. **Work Executed** (organized by BAIME phases)
+   - **Phase 1: OBSERVE** - Data collection, measurements, gap identification
+   - **Phase 2: CODIFY** - Pattern extraction, documentation, knowledge creation
+   - **Phase 3: AUTOMATE** - Tool creation, script development, enforcement
+   - **Phase 4: EVALUATE** - Metric calculation, value assessment
+
+4. **Value Calculations** (detailed, evidence-based)
+   - **V_instance(s_n)** with component breakdowns
+     - Each component score with concrete evidence
+     - Formula application with arithmetic
+     - Final score calculation
+     - Change from previous iteration (ΔV)
+   - **V_meta(s_n)** with rubric assessments
+     - Completeness score (checklist-based, with evidence)
+     - Effectiveness score (speedup, quality gains, with evidence)
+     - Reusability score (transferability estimate, with evidence)
+     - Final score calculation
+     - Change from previous iteration (ΔV)
+
+5. **Gap Analysis**
+   - **Instance layer gaps** (what's needed to reach V_instance ≥ 0.80)
+     - Prioritized list with estimated effort
+   - **Meta layer gaps** (what's needed to reach V_meta ≥ 0.80)
+     - Prioritized list with estimated effort
+   - Estimated work remaining
+
+6. **Convergence Check** (systematic criteria evaluation)
+   - **Dual threshold**: V_instance ≥ 0.80 AND V_meta ≥ 0.80
+   - **System stability**: M_n == M_{n-1} AND A_n == A_{n-1}
+   - **Objectives completeness**: All planned work finished
+   - **Diminishing returns**: ΔV < 0.02 for 2+ iterations
+   - **Convergence decision**: YES/NO with detailed rationale
+
+7. **Evolution Decisions** (evidence-driven)
+   - **Agent sufficiency analysis** (A_n vs A_{n-1})
+     - Each agent's performance assessment
+     - Decision: evolution needed or not
+     - Rationale with evidence
+   - **Meta-Agent sufficiency analysis** (M_n vs M_{n-1})
+     - Each capability's effectiveness assessment
+     - Decision: evolution needed or not
+     - Rationale with evidence
+
+8. **Artifacts Created**
+   - Data files (coverage reports, metrics, measurements)
+   - Knowledge files (patterns, principles, methodology documents)
+   - Code changes (implementation, tests, tools)
+   - Other deliverables
+
+9. **Reflections**
+   - **What worked well** (successes to repeat)
+   - **What didn't work** (failures to avoid)
+   - **Learnings** (insights from this iteration)
+   - **Insights for methodology** (meta-level learnings)
+
+10. **Conclusion**
+    - Iteration summary
+    - Key metrics and improvements
+    - Critical decisions made
+    - Next steps
+    - Confidence assessment
+
+### File Naming Convention
+
+```
+iterations/iteration-N.md
+```
+
+Where N = 0, 1, 2, 3, ... (starting from 0 for baseline)
+
+### Documentation Quality Standards
+
+**Evidence-based scores**:
+- Every value component score must have concrete evidence
+- Avoid vague assessments ("seems good" ❌, "72.3% coverage, +5% from baseline" ✅)
+- Show arithmetic for all calculations
+
+**Honest assessment**:
+- Low scores early are expected and acceptable (baseline V_meta often 0.15-0.25)
+- Don't inflate scores to meet targets
+- Document gaps explicitly
+- Acknowledge when objectives are not met
+
+**Complete coverage**:
+- All 10 sections must be present
+- Don't skip reflections (valuable for meta-learning)
+- Don't skip gap analysis (critical for planning)
+- Don't skip convergence check (prevents premature convergence)
+
+### Tools for Iteration Documentation
+
+**Recommended workflow**:
+1. Copy [examples/iteration-structure-template.md](examples/iteration-structure-template.md) to `iterations/iteration-N.md`
+2. Invoke `iteration-executor` subagent to execute iteration with structured documentation
+3. Review [examples/iteration-documentation-example.md](examples/iteration-documentation-example.md) for quality reference
+
+**Automated generation**: Use `iteration-executor` subagent to ensure consistent structure and systematic value calculation.
+
+---
+
 ## Three-Layer Architecture
 
 **BAIME** integrates three complementary methodologies into a unified framework:
@@ -219,6 +401,29 @@ Use [templates/iteration-prompts-template.md](templates/iteration-prompts-templa
 - Value calculation rubrics
 - Convergence checks
 
+**Automated generation**: Use `iteration-prompt-designer` subagent to create domain-specific iteration prompts.
+
+### Iteration Documentation Template
+
+**Structure template**: [examples/iteration-structure-template.md](examples/iteration-structure-template.md)
+- 10-section standardized structure
+- Blank template ready to copy and fill
+- Includes all required components
+
+**Complete example**: [examples/iteration-documentation-example.md](examples/iteration-documentation-example.md)
+- Real iteration from test strategy experiment
+- Shows proper value calculations with evidence
+- Demonstrates honest assessment and gap analysis
+- Illustrates quality reflections and insights
+
+**Automated execution**: Use `iteration-executor` subagent to ensure consistent structure and systematic value calculation.
+
+**Quality standards**:
+- Evidence-based scoring (concrete data, not vague assessments)
+- Honest evaluation (low scores acceptable, inflation harmful)
+- Complete coverage (all 10 sections required)
+- Arithmetic shown (all value calculations with steps)
+
 ---
 
 ## Common Pitfalls
@@ -236,6 +441,28 @@ Use [templates/iteration-prompts-template.md](templates/iteration-prompts-templa
 - Trust the convergence criteria (system knows when done)
 - Calculate V(s) honestly based on actual state
 - Complete all analysis thoroughly before codifying
+
+### Iteration Documentation Pitfalls
+
+❌ **Don't**:
+- Skip iteration documentation (every iteration needs iteration-N.md)
+- Calculate V-scores without component breakdowns and evidence
+- Use vague assessments ("seems good", "probably 0.7")
+- Omit gap analysis or convergence checks
+- Document only successes (failures provide valuable learnings)
+- Assume convergence without systematic criteria evaluation
+- Inflate scores to meet targets (honesty is critical)
+- Skip reflections section (meta-learning opportunity)
+
+✅ **Do**:
+- Use `iteration-executor` subagent for consistent structure
+- Provide concrete evidence for each value component
+- Show arithmetic for all calculations
+- Document both instance and meta layer gaps explicitly
+- Include reflections (what worked, didn't work, learnings, insights)
+- Be honest about scores (baseline V_meta of 0.20 is normal and acceptable)
+- Follow the 10-section structure for every iteration
+- Reference iteration documentation example for quality standards
 
 ---
 
