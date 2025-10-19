@@ -626,3 +626,47 @@ func TestCalculateSequenceTimeSpan_EdgeCases(t *testing.T) {
 		})
 	}
 }
+
+// TestFindMinMaxTimestamps tests the findMinMaxTimestamps helper function
+func TestFindMinMaxTimestamps(t *testing.T) {
+	tests := []struct {
+		name       string
+		timestamps []int64
+		wantMin    int64
+		wantMax    int64
+	}{
+		{
+			name:       "empty slice",
+			timestamps: []int64{},
+			wantMin:    0,
+			wantMax:    0,
+		},
+		{
+			name:       "single timestamp",
+			timestamps: []int64{100},
+			wantMin:    100,
+			wantMax:    100,
+		},
+		{
+			name:       "multiple timestamps",
+			timestamps: []int64{300, 100, 500, 200},
+			wantMin:    100,
+			wantMax:    500,
+		},
+		{
+			name:       "already sorted",
+			timestamps: []int64{100, 200, 300},
+			wantMin:    100,
+			wantMax:    300,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotMin, gotMax := findMinMaxTimestamps(tt.timestamps)
+			if gotMin != tt.wantMin || gotMax != tt.wantMax {
+				t.Errorf("findMinMaxTimestamps() = (%d, %d), want (%d, %d)", gotMin, gotMax, tt.wantMin, tt.wantMax)
+			}
+		})
+	}
+}

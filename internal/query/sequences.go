@@ -237,6 +237,26 @@ func collectOccurrenceTimestamps(occurrences []types.SequenceOccurrence, entries
 	return timestamps
 }
 
+// findMinMaxTimestamps finds minimum and maximum values in a slice of timestamps
+func findMinMaxTimestamps(timestamps []int64) (int64, int64) {
+	if len(timestamps) == 0 {
+		return 0, 0
+	}
+
+	minTs := timestamps[0]
+	maxTs := timestamps[0]
+	for _, ts := range timestamps[1:] {
+		if ts < minTs {
+			minTs = ts
+		}
+		if ts > maxTs {
+			maxTs = ts
+		}
+	}
+
+	return minTs, maxTs
+}
+
 // calculateSequenceTimeSpan calculates time span for sequence occurrences
 func calculateSequenceTimeSpan(occurrences []types.SequenceOccurrence, entries []parser.SessionEntry, toolCalls []toolCallWithTurn) int {
 	if len(occurrences) == 0 {
@@ -251,16 +271,7 @@ func calculateSequenceTimeSpan(occurrences []types.SequenceOccurrence, entries [
 	}
 
 	// Find min and max
-	minTs := timestamps[0]
-	maxTs := timestamps[0]
-	for _, ts := range timestamps[1:] {
-		if ts < minTs {
-			minTs = ts
-		}
-		if ts > maxTs {
-			maxTs = ts
-		}
-	}
+	minTs, maxTs := findMinMaxTimestamps(timestamps)
 
 	return int((maxTs - minTs) / SecondsPerMinute)
 }
