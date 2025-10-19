@@ -1,0 +1,250 @@
+{
+  "experiment": "bootstrap-004-refactoring-guide",
+  "extraction_date": "2025-10-19",
+  "extractor": "manual-baseline",
+  "time_started": "2025-10-19 03:03:15",
+
+  "patterns_available": {
+    "count": 8,
+    "list": [
+      {
+        "name": "Extract Method",
+        "source": "results.md line 309-311, iterations/iteration-1.md",
+        "validated": true,
+        "applications": 3,
+        "success_rate": "100%"
+      },
+      {
+        "name": "Simplify Conditionals",
+        "source": "results.md line 316-321",
+        "validated": false,
+        "applications": 0,
+        "success_rate": "N/A"
+      },
+      {
+        "name": "Remove Duplication",
+        "source": "results.md line 322-327",
+        "validated": false,
+        "applications": 0,
+        "success_rate": "N/A"
+      },
+      {
+        "name": "Characterization Tests",
+        "source": "results.md line 328-333, templates/tdd-refactoring-workflow.md",
+        "validated": true,
+        "applications": 2,
+        "success_rate": "100%"
+      },
+      {
+        "name": "Extract Variable",
+        "source": "results.md line 335-340",
+        "validated": true,
+        "applications": 2,
+        "success_rate": "100%"
+      },
+      {
+        "name": "Decompose Boolean",
+        "source": "results.md line 341-345",
+        "validated": true,
+        "applications": 1,
+        "success_rate": "100%"
+      },
+      {
+        "name": "Introduce Helper Function",
+        "source": "results.md line 346-351",
+        "validated": true,
+        "applications": 3,
+        "success_rate": "100%"
+      },
+      {
+        "name": "Inline Temporary",
+        "source": "results.md line 352-357",
+        "validated": false,
+        "applications": 0,
+        "success_rate": "N/A"
+      }
+    ]
+  },
+
+  "principles_available": {
+    "count": 8,
+    "list": [
+      {
+        "name": "Test-Driven Refactoring",
+        "source": "results.md line 366-371, templates/tdd-refactoring-workflow.md",
+        "universality": "high",
+        "evidence": "5/5 commits with passing tests"
+      },
+      {
+        "name": "Incremental Safety",
+        "source": "results.md line 372-377, templates/incremental-commit-protocol.md",
+        "universality": "high",
+        "evidence": "Average commit size 50 lines"
+      },
+      {
+        "name": "Behavior Preservation",
+        "source": "results.md line 378-383, templates/tdd-refactoring-workflow.md",
+        "universality": "high",
+        "evidence": "9 edge case tests prevented all regressions"
+      },
+      {
+        "name": "Complexity as Signal",
+        "source": "results.md line 384-388",
+        "universality": "medium",
+        "evidence": "Functions with complexity ≥7 were high-value targets"
+      },
+      {
+        "name": "Coverage-Driven Verification",
+        "source": "results.md line 389-393",
+        "universality": "high",
+        "evidence": "Achieved 100% coverage on refactored functions"
+      },
+      {
+        "name": "Extract to Simplify",
+        "source": "results.md line 394-398",
+        "universality": "high",
+        "evidence": "3 helpers extracted, complexity reduced 43-70%"
+      },
+      {
+        "name": "Automation for Consistency",
+        "source": "results.md line 399-403",
+        "universality": "high",
+        "evidence": "2 automation scripts saved ~10 minutes per iteration"
+      },
+      {
+        "name": "Evidence-Based Evolution",
+        "source": "results.md line 404-408",
+        "universality": "high",
+        "evidence": "0 unnecessary capabilities created"
+      }
+    ]
+  },
+
+  "templates_available": {
+    "count": 4,
+    "list": [
+      {
+        "name": "Refactoring Safety Checklist",
+        "file": "knowledge/templates/refactoring-safety-checklist.md",
+        "lines": 172,
+        "usage_rate": "100%",
+        "effectiveness": "100% (zero incidents)"
+      },
+      {
+        "name": "TDD Refactoring Workflow",
+        "file": "knowledge/templates/tdd-refactoring-workflow.md",
+        "lines": 234,
+        "usage_rate": "100%",
+        "effectiveness": "100% (all commits with passing tests)"
+      },
+      {
+        "name": "Incremental Commit Protocol",
+        "file": "knowledge/templates/incremental-commit-protocol.md",
+        "lines": 303,
+        "usage_rate": "100%",
+        "effectiveness": "100% (clean history, all commits revertible)"
+      },
+      {
+        "name": "Automated Complexity Checking Script",
+        "file": "scripts/check-complexity.sh",
+        "lines": 82,
+        "usage_rate": "100%",
+        "effectiveness": "100% (caught all complexity regressions)"
+      }
+    ]
+  },
+
+  "scripts_available": {
+    "count": 1,
+    "list": [
+      {
+        "name": "check-complexity.sh",
+        "file": "scripts/check-complexity.sh",
+        "lines": 82,
+        "language": "bash",
+        "dependencies": ["gocyclo"],
+        "transferability": "70% (concept universal, implementation Go-specific)"
+      }
+    ]
+  },
+
+  "examples_available": {
+    "count": 2,
+    "list": [
+      {
+        "name": "calculateSequenceTimeSpan refactoring",
+        "source": "iterations/iteration-2.md, results.md",
+        "pattern": "Extract Method",
+        "duration": "40 minutes",
+        "outcome": "Complexity 10→3 (-70%), Coverage 85%→100%"
+      },
+      {
+        "name": "findAllSequences refactoring",
+        "source": "iterations/iteration-3.md, results.md",
+        "pattern": "Extract Method",
+        "duration": "40 minutes",
+        "outcome": "Complexity 7→4 (-43%), Coverage maintained 94%"
+      }
+    ]
+  },
+
+  "best_practices_embedded": {
+    "count": 7,
+    "list": [
+      "Test-first approach (TDD Workflow)",
+      "Incremental commits (Commit Protocol)",
+      "Automated verification (Complexity Checking)",
+      "Rollback readiness (Safety Checklist)",
+      "Characterization testing (TDD Workflow)",
+      "Coverage targets ≥95% (TDD Workflow)",
+      "Complexity thresholds ≤8 (Complexity Checking)"
+    ]
+  },
+
+  "metrics_available": {
+    "instance_metrics": {
+      "complexity_reduction": "28% in targeted functions",
+      "coverage_improvement": "+2% overall, +15% in targeted functions",
+      "safety_record": "100% test pass rate, 0 regressions",
+      "efficiency": "1.85x speedup",
+      "refactorings_completed": 2
+    },
+    "meta_metrics": {
+      "iterations_to_convergence": 4,
+      "final_v_instance": 0.78,
+      "final_v_meta": 0.74,
+      "pattern_success_rate": "100% (10/10 applications)",
+      "template_usage_rate": "100%",
+      "automation_rate": "50%"
+    }
+  },
+
+  "gaps_identified": {
+    "missing_comprehensive_doc": "No single refactoring-methodology.md consolidating all knowledge",
+    "missing_coverage_script": "check-coverage-regression.sh not implemented",
+    "duplication_not_addressed": "6 production duplication groups remain",
+    "limited_validation": "Only 2 refactorings in single codebase",
+    "theoretical_transferability": "Not demonstrated cross-language/cross-project"
+  },
+
+  "extraction_complexity": {
+    "patterns": "Low (clearly documented in results.md)",
+    "principles": "Medium (embedded in templates, need extraction)",
+    "templates": "Low (already separate files, just copy)",
+    "scripts": "Low (already separate files, just copy)",
+    "examples": "High (need to extract from iteration reports, create walkthrough format)",
+    "frontmatter": "High (need to study existing skills to match format)"
+  },
+
+  "estimated_extraction_time": {
+    "reading_source": "60 minutes",
+    "creating_inventory": "30 minutes",
+    "creating_skill_md": "60 minutes",
+    "copying_templates": "15 minutes",
+    "extracting_patterns_principles": "90 minutes",
+    "creating_examples": "60 minutes",
+    "copying_scripts": "15 minutes",
+    "validation": "60 minutes",
+    "total_estimate": "390 minutes (6.5 hours)"
+  }
+}

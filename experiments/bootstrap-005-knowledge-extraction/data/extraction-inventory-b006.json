@@ -1,0 +1,160 @@
+{
+  "experiment": "bootstrap-006-api-design",
+  "extraction_date": "2025-10-19",
+  "source_experiment_status": "CONVERGED (V_instance=0.87, V_meta=0.786)",
+  "patterns": [
+    {
+      "name": "Deterministic Parameter Categorization",
+      "source_file": "results.md",
+      "source_lines": "550-568",
+      "validated": true,
+      "applications_count": 8,
+      "transferability": "Universal to all query-based APIs"
+    },
+    {
+      "name": "Safe API Refactoring via JSON Property",
+      "source_file": "results.md",
+      "source_lines": "570-591",
+      "validated": true,
+      "applications_count": 1,
+      "transferability": "Universal to all JSON-based APIs"
+    },
+    {
+      "name": "Audit-First Refactoring",
+      "source_file": "results.md",
+      "source_lines": "593-614",
+      "validated": true,
+      "applications_count": 1,
+      "transferability": "Universal to any refactoring effort"
+    },
+    {
+      "name": "Automated Consistency Validation",
+      "source_file": "results.md",
+      "source_lines": "616-658",
+      "validated": true,
+      "applications_count": 1,
+      "transferability": "Universal to any API with documented conventions"
+    },
+    {
+      "name": "Automated Quality Gates",
+      "source_file": "results.md",
+      "source_lines": "660-699",
+      "validated": true,
+      "applications_count": 1,
+      "transferability": "Universal to any pre-commit quality check"
+    },
+    {
+      "name": "Example-Driven Documentation",
+      "source_file": "results.md",
+      "source_lines": "701-733",
+      "validated": true,
+      "applications_count": 3,
+      "transferability": "Universal to any technical documentation"
+    }
+  ],
+  "principles": [
+    {
+      "name": "Specifications Alone are Insufficient",
+      "source_file": "results.md",
+      "source_lines": "986-996",
+      "evidence": "Iterations 0-3 produced 0 patterns (specifications only), Iterations 4-6 extracted 6 patterns (execution observed)"
+    },
+    {
+      "name": "Pattern Extraction Efficiency",
+      "source_file": "results.md",
+      "source_lines": "1000-1010",
+      "evidence": "Single task (Task 1) yielded 3 patterns - depth > breadth"
+    },
+    {
+      "name": "Agent Specialization Framework",
+      "source_file": "results.md",
+      "source_lines": "1012-1023",
+      "evidence": "ΔV ≥ 0.05 threshold enabled 5-iteration sustained stability"
+    },
+    {
+      "name": "Operational vs. Design Quality",
+      "source_file": "results.md",
+      "source_lines": "1025-1037",
+      "evidence": "Design V_consistency=0.87, Operational V_consistency=0.94 (+0.07)"
+    },
+    {
+      "name": "Meta-Agent Portability",
+      "source_file": "results.md",
+      "source_lines": "1039-1049",
+      "evidence": "M₀ (5 capabilities) transferred from bootstrap-003 to bootstrap-006 with zero modifications"
+    },
+    {
+      "name": "Convergence Doesn't Mean Stop",
+      "source_file": "results.md",
+      "source_lines": "1051-1063",
+      "evidence": "Iterations 5-6 after convergence added +0.04 value (0.83 → 0.87)"
+    },
+    {
+      "name": "Pattern Diversity Across Work Types",
+      "source_file": "results.md",
+      "source_lines": "1065-1077",
+      "evidence": "Implementation work → Patterns 1-3, Automation → Patterns 4-5, Documentation → Pattern 6"
+    },
+    {
+      "name": "Example Structure Matters",
+      "source_file": "results.md",
+      "source_lines": "1079-1089",
+      "evidence": "Problem → solution → outcome structure aids comprehension"
+    }
+  ],
+  "templates": [],
+  "scripts": [],
+  "methodology_document": {
+    "filename": "API-DESIGN-METHODOLOGY.md",
+    "location": "root",
+    "lines": 753,
+    "version": "3.0",
+    "patterns_count": 6,
+    "word_count": 22000
+  },
+  "examples": [
+    {
+      "source": "iteration-4.md",
+      "narrative": "Parameter reordering implementation (Task 1)",
+      "suitable_for_walkthrough": true,
+      "patterns_demonstrated": ["Pattern 1", "Pattern 2", "Pattern 3"]
+    },
+    {
+      "source": "iteration-5.md",
+      "narrative": "Validation tool and pre-commit hook implementation (Tasks 2-3)",
+      "suitable_for_walkthrough": true,
+      "patterns_demonstrated": ["Pattern 4", "Pattern 5"]
+    },
+    {
+      "source": "iteration-6.md",
+      "narrative": "Documentation enhancement (Task 4)",
+      "suitable_for_walkthrough": true,
+      "patterns_demonstrated": ["Pattern 6"]
+    }
+  ],
+  "knowledge_artifacts": {
+    "patterns_file": "knowledge/patterns.md",
+    "principles_file": "knowledge/principles.md"
+  },
+  "validation_data": {
+    "instance_value": 0.87,
+    "meta_value": 0.786,
+    "iterations": 9,
+    "convergence_iteration": 6,
+    "transfer_test_completed": true,
+    "average_pattern_transferability": 0.825
+  },
+  "gaps": [
+    "No templates directory (patterns are embedded in results.md and API-DESIGN-METHODOLOGY.md)",
+    "No automation scripts directory (validation tool in cmd/validate-api, hooks in scripts/)",
+    "No standalone examples directory (walkthroughs embedded in iteration reports)"
+  ],
+  "estimated_extraction_time": {
+    "inventory_creation": 15,
+    "skill_md_creation": 30,
+    "patterns_extraction": 25,
+    "examples_creation": 30,
+    "validation": 15,
+    "total_minutes": 115
+  }
+}
