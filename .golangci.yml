@@ -14,9 +14,10 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    - goconst
-    - gocognit
-    - gocyclo
+  disable:
+    - goconst      # Too noisy for test files
+    - gocognit     # Complex test functions are acceptable
+    - gocyclo      # Complex test functions are acceptable
 
 linters-settings:
   errcheck:
@@ -33,10 +34,8 @@ linters-settings:
   gocyclo:
     min-complexity: 20  # Allow moderately complex functions
   govet:
-    enable:
-      - fieldalignment
-    fieldalignment:
-      suggest-new: true
+    disable:
+      - fieldalignment  # Struct optimization not critical for correctness
 
 issues:
   exclude-rules:

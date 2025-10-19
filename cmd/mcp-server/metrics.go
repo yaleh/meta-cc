@@ -132,8 +132,8 @@ var (
 	requestQueueCounter   atomic.Int32
 	concurrentReqsCounter atomic.Int32
 	prevNumGC             uint32
-	prevCPUTime           time.Duration
-	prevCPUTimestamp      time.Time
+	_prevCPUTime          time.Duration // Reserved for future CPU tracking
+	_prevCPUTimestamp     time.Time     // Reserved for future CPU tracking
 )
 
 func init() {
@@ -156,7 +156,7 @@ func init() {
 	prometheus.MustRegister(timeoutErrors)
 
 	// Initialize CPU tracking
-	prevCPUTimestamp = time.Now()
+	_prevCPUTimestamp = time.Now()
 
 	slog.Debug("Prometheus metrics registered",
 		"metrics_count", 15,

@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/yaleh/meta-cc/cmd"
 	"os"
+
+	"github.com/yaleh/meta-cc/cmd"
 )
 
 func main() {
