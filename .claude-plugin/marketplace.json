@@ -11,7 +11,7 @@
       "name": "meta-cc",
       "source": "./",
       "description": "Meta-Cognition tool for analyzing Claude Code session history. Provides unified /meta command with natural language intent matching, 5 specialized agents, 13 capabilities, and 16 MCP tools. Lightweight and fast.",
-      "version": "0.30.0",
+      "version": "0.30.1",
       "author": {
         "name": "Yale Huang",
         "email": "yaleh@ieee.org",
