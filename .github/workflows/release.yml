@@ -32,23 +32,6 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Verify plugin.json version matches tag
-        run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
-          VERSION_NUM=${VERSION#v}
-          PLUGIN_VERSION=$(jq -r '.version' .claude-plugin/plugin.json)
-
-          if [ "$PLUGIN_VERSION" != "$VERSION_NUM" ]; then
-            echo "❌ ERROR: Version mismatch!"
-            echo "  Git tag: $VERSION ($VERSION_NUM)"
-            echo "  plugin.json: $PLUGIN_VERSION"
-            echo ""
-            echo "This should not happen if you used scripts/release.sh"
-            echo "Please ensure the release script updated version files correctly."
-            exit 1
-          fi
-          echo "✓ Version verified: $VERSION_NUM"
-
       - name: Verify marketplace.json version matches tag
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
@@ -274,7 +257,7 @@ jobs:
           echo "- **Total size**: $(du -sh build/packages | cut -f1)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Quality Gates" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Version verification (plugin.json, marketplace.json)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Version verification (marketplace.json)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Smoke tests (25/25 passed)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Checksums generated (SHA256)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

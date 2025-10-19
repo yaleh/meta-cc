@@ -213,20 +213,7 @@ else
     test_result "CLI version matches tag" "fail" "CLI binary not found"
 fi
 
-# Test 2.2: plugin.json version matches tag
-if [ -f ".claude-plugin/plugin.json" ]; then
-    PLUGIN_VERSION=$(jq -r '.version' .claude-plugin/plugin.json 2>/dev/null || echo "UNKNOWN")
-
-    if [ "$PLUGIN_VERSION" = "$VERSION_NUM" ]; then
-        test_result "plugin.json version matches tag ($VERSION_NUM)" "pass"
-    else
-        test_result "plugin.json version matches tag" "fail" "plugin.json has '$PLUGIN_VERSION' but tag is '$VERSION_NUM'"
-    fi
-else
-    test_result "plugin.json version matches tag" "fail" "plugin.json not found"
-fi
-
-# Test 2.3: marketplace.json version matches tag
+# Test 2.2: marketplace.json version matches tag
 if [ -f ".claude-plugin/marketplace.json" ]; then
     MARKETPLACE_VERSION=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json 2>/dev/null || echo "UNKNOWN")
 
@@ -262,7 +249,6 @@ done
 REQUIRED_FILES=(
     "bin/meta-cc"
     "bin/meta-cc-mcp"
-    ".claude-plugin/plugin.json"
     ".claude-plugin/marketplace.json"
     "install.sh"
     "uninstall.sh"
@@ -275,7 +261,6 @@ if [ "$PLATFORM" = "windows-amd64" ]; then
     REQUIRED_FILES=(
         "bin/meta-cc.exe"
         "bin/meta-cc-mcp.exe"
-        ".claude-plugin/plugin.json"
         ".claude-plugin/marketplace.json"
         "install.sh"
         "uninstall.sh"
@@ -293,14 +278,6 @@ for file in "${REQUIRED_FILES[@]}"; do
 done
 
 # Test 3.3: JSON files are valid
-if [ -f ".claude-plugin/plugin.json" ]; then
-    if jq . .claude-plugin/plugin.json > /dev/null 2>&1; then
-        test_result "plugin.json is valid JSON" "pass"
-    else
-        test_result "plugin.json is valid JSON" "fail" "JSON syntax error"
-    fi
-fi
-
 if [ -f ".claude-plugin/marketplace.json" ]; then
     if jq . .claude-plugin/marketplace.json > /dev/null 2>&1; then
         test_result "marketplace.json is valid JSON" "pass"
@@ -309,57 +286,50 @@ if [ -f ".claude-plugin/marketplace.json" ]; then
     fi
 fi
 
-# Test 3.4: plugin.json has required fields
-if [ -f ".claude-plugin/plugin.json" ]; then
-    REQUIRED_FIELDS=("name" "version" "commands")
-    for field in "${REQUIRED_FIELDS[@]}"; do
-        if jq -e ".$field" .claude-plugin/plugin.json > /dev/null 2>&1; then
-            test_result "plugin.json has field: $field" "pass"
-        else
-            test_result "plugin.json has field: $field" "fail" "Required field missing"
-        fi
-    done
-fi
-
-# Test 3.5: Skills structure verification
+# Test 3.4: Skills structure verification
 if [ -d "skills" ]; then
     SKILL_COUNT=$(find skills -name "SKILL.md" 2>/dev/null | wc -l)
-    if [ "$SKILL_COUNT" -eq 15 ]; then
-        test_result "Skills structure: found 15 skills" "pass"
+    if [ "$SKILL_COUNT" -eq 18 ]; then
+        test_result "Skills structure: found 18 skills" "pass"
     else
-        test_result "Skills structure: found 15 skills" "fail" "Expected 15 skills, found $SKILL_COUNT"
+        test_result "Skills structure: found 18 skills" "fail" "Expected 18 skills, found $SKILL_COUNT"
     fi
 else
     test_result "Skills directory exists" "fail" "skills/ directory not found"
 fi
 
-# Test 3.6: marketplace.json contains meta-cc-skills plugin
-# (Skills moved to separate plugin in v0.30.0)
+# Test 3.5: marketplace.json contains meta-cc-skills plugin
+# (Skills moved to separate plugin in v0.30.0, updated to 18 skills in v0.31.0)
 if [ -f ".claude-plugin/marketplace.json" ]; then
     SKILLS_PLUGIN_EXISTS=$(jq '.plugins[] | select(.name=="meta-cc-skills")' .claude-plugin/marketplace.json 2>/dev/null)
     if [ -n "$SKILLS_PLUGIN_EXISTS" ]; then
         SKILLS_COUNT=$(jq '.plugins[] | select(.name=="meta-cc-skills") | .skills | length' .claude-plugin/marketplace.json 2>/dev/null || echo 0)
-        if [ "$SKILLS_COUNT" -eq 15 ]; then
-            test_result "marketplace.json declares meta-cc-skills plugin with 15 skills" "pass"
+        if [ "$SKILLS_COUNT" -eq 18 ]; then
+            test_result "marketplace.json declares meta-cc-skills plugin with 18 skills" "pass"
         else
-            test_result "marketplace.json declares meta-cc-skills plugin" "fail" "Expected 15 skills in meta-cc-skills plugin, found $SKILLS_COUNT"
+            test_result "marketplace.json declares meta-cc-skills plugin" "fail" "Expected 18 skills in meta-cc-skills plugin, found $SKILLS_COUNT"
         fi
     else
         test_result "marketplace.json declares meta-cc-skills plugin" "fail" "meta-cc-skills plugin not found in marketplace.json"
     fi
 fi
 
-# Test 3.7: All agents in manifest
-if [ -f ".claude-plugin/plugin.json" ]; then
-    AGENT_COUNT=$(jq '.agents | length' .claude-plugin/plugin.json 2>/dev/null || echo 0)
-    if [ "$AGENT_COUNT" -eq 5 ]; then
-        test_result "plugin.json declares 5 agents" "pass"
+# Test 3.6: marketplace.json contains meta-cc plugin with agents
+if [ -f ".claude-plugin/marketplace.json" ]; then
+    META_CC_PLUGIN_EXISTS=$(jq '.plugins[] | select(.name=="meta-cc")' .claude-plugin/marketplace.json 2>/dev/null)
+    if [ -n "$META_CC_PLUGIN_EXISTS" ]; then
+        AGENT_COUNT=$(jq '.plugins[] | select(.name=="meta-cc") | .agents | length' .claude-plugin/marketplace.json 2>/dev/null || echo 0)
+        if [ "$AGENT_COUNT" -eq 5 ]; then
+            test_result "marketplace.json declares meta-cc plugin with 5 agents" "pass"
+        else
+            test_result "marketplace.json declares meta-cc plugin with agents" "fail" "Expected 5 agents in meta-cc plugin, found $AGENT_COUNT"
+        fi
     else
-        test_result "plugin.json declares 5 agents" "fail" "Expected 5 agents in manifest, found $AGENT_COUNT"
+        test_result "marketplace.json declares meta-cc plugin" "fail" "meta-cc plugin not found in marketplace.json"
     fi
 fi
 
-# Test 3.8: Verify specific agents exist
+# Test 3.7: Verify specific agents exist
 EXPECTED_AGENTS=(
     "agents/iteration-executor.md"
     "agents/iteration-prompt-designer.md"
