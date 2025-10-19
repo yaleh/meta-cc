@@ -46,7 +46,7 @@ The skills plugin provides systematic methodologies including:
 - **Documentation Management** - Templates, patterns, automation tools
 - And 11 more validated skills
 
-**Try BAIME**: Just tell Claude _"用 BAIME 构建 [领域] 能力并完成 [任务]"_ - Claude handles everything automatically. See [BAIME Usage Guide](docs/tutorials/baime-usage.md#try-baime-in-3-steps) for examples and the 3-level trial workflow.
+**Try BAIME**: Just tell Claude _"Use BAIME to build [domain] capability and complete [tasks]"_ - Claude handles everything automatically. See [BAIME Usage Guide](docs/tutorials/baime-usage.md#try-baime-in-3-steps) for examples and the 3-level trial workflow.
 
 ### 2. Install Binaries
 

@@ -30,13 +30,6 @@ Want to experience BAIME? Just give Claude **dual objectives** - one for buildin
 **Single instruction to Claude**:
 
 ```
-用 BAIME 构建 [领域] 相关能力（meta objectives），并实际完成以下任务（instance objectives）：
-- [具体任务 1]
-- [具体任务 2]
-```
-
-**English version**:
-```
 Use BAIME to build [domain] capabilities (meta objectives) and complete these tasks (instance objectives):
 - [specific task 1]
 - [specific task 2]
@@ -46,9 +39,9 @@ Use BAIME to build [domain] capabilities (meta objectives) and complete these ta
 
 **What you say**:
 ```
-用 BAIME 构建文档相关能力（meta objectives），并实际完成以下任务（instance objectives）：
-- 更新 README.md 说明如何安装 meta-cc-skills 插件
-- 提供 BAIME 使用的具体文档
+Use BAIME to build documentation capabilities (meta objectives) and complete these tasks (instance objectives):
+- Update README.md to explain how to install meta-cc-skills plugin
+- Provide comprehensive BAIME usage documentation
 ```
 
 **What Claude does automatically**:
@@ -70,9 +63,9 @@ Choose based on your time and commitment:
 
 | Level | What to Ask | Time | What You Learn |
 |-------|-------------|------|----------------|
-| **Minimal** | "用 BAIME 创建 commit message 模板" | 30-60 min | BAIME mechanics, single iteration |
-| **Quick** | "用 BAIME 构建文档能力并更新 README" | 2-4 hours | Full OCA cycle, 2-3 iterations |
-| **Complete** | "用 BAIME 开发测试策略" | 10-20 hours | Full methodology, convergence, skill extraction |
+| **Minimal** | "Use BAIME to create commit message template" | 30-60 min | BAIME mechanics, single iteration |
+| **Quick** | "Use BAIME to build documentation capability and update README" | 2-4 hours | Full OCA cycle, 2-3 iterations |
+| **Complete** | "Use BAIME to develop testing strategy" | 10-20 hours | Full methodology, convergence, skill extraction |
 
 ### Key Insight
 
