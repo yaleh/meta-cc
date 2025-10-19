@@ -39,13 +39,19 @@ if [ -d "$CAPABILITIES_DIR/agents" ] && ls "$CAPABILITIES_DIR/agents/"*.md 1> /d
     cp "$CAPABILITIES_DIR/agents/"*.md "$DIST_DIR/agents/"
 fi
 
-# Copy skills directory with all supporting files
+# Copy skills directory with all supporting files (exclude archived)
 echo "  Copying skills from .claude/skills/..."
 if [ -d "$PROJECT_ROOT/.claude/skills" ]; then
-    cp -r "$PROJECT_ROOT/.claude/skills/"* "$DIST_DIR/skills/"
+    # Copy each skill directory individually, excluding archived
+    for skill_dir in "$PROJECT_ROOT/.claude/skills/"*/; do
+        skill_name=$(basename "$skill_dir")
+        if [ "$skill_name" != "archived" ]; then
+            cp -r "$skill_dir" "$DIST_DIR/skills/"
+        fi
+    done
     SKILL_COUNT=$(find "$DIST_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l)
     SKILL_FILES=$(find "$DIST_DIR/skills" -type f 2>/dev/null | wc -l)
-    echo "    ✓ Copied $SKILL_COUNT skills ($SKILL_FILES total files)"
+    echo "    ✓ Copied $SKILL_COUNT skills ($SKILL_FILES total files, excluded archived)"
 fi
 
 # Count files
