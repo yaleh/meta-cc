@@ -157,9 +157,14 @@ echo "" | tee -a "$REPORT_FILE"
 if [ "$TOTAL_ISSUES" -eq 0 ]; then
     echo "${GREEN}✓ All checks passed!${NC}" | tee -a "$REPORT_FILE"
     exit 0
-else
-    echo "${YELLOW}⚠ $TOTAL_ISSUES issue(s) found${NC}" | tee -a "$REPORT_FILE"
+elif [ "$ERRORS" -gt 0 ]; then
+    echo "${RED}✗ $ERRORS error(s) found${NC}" | tee -a "$REPORT_FILE"
     echo "" | tee -a "$REPORT_FILE"
     echo "See detailed report above." | tee -a "$REPORT_FILE"
     exit 1
+else
+    echo "${YELLOW}⚠ $TOTAL_ISSUES issue(s) found (warnings/info only)${NC}" | tee -a "$REPORT_FILE"
+    echo "" | tee -a "$REPORT_FILE"
+    echo "See detailed report above." | tee -a "$REPORT_FILE"
+    exit 0
 fi
