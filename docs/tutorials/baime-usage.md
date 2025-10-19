@@ -6,7 +6,7 @@
 
 ## Table of Contents
 
-- [Try BAIME in 30 Minutes](#try-baime-in-30-minutes)
+- [Try BAIME in 3 Steps](#try-baime-in-3-steps)
 - [What is BAIME?](#what-is-baime)
 - [When to Use BAIME](#when-to-use-baime)
 - [Prerequisites](#prerequisites)
@@ -21,70 +21,66 @@
 
 ---
 
-## Try BAIME in 30 Minutes
+## Try BAIME in 3 Steps
 
-Want to quickly experience BAIME without committing to a full experiment? Here's a minimal trial workflow:
+Want to experience BAIME? Just give Claude **dual objectives** - one for building methodology (meta), one for completing a task (instance):
 
-### Quick Trial Workflow
+### Simplest Way to Try BAIME
 
-**Time investment**: 30-45 minutes
-**Outcome**: Understand BAIME mechanics with a minimal working example
+**Single instruction to Claude**:
 
-**Steps**:
+```
+用 BAIME 构建 [领域] 相关能力（meta objectives），并实际完成以下任务（instance objectives）：
+- [具体任务 1]
+- [具体任务 2]
+```
 
-1. **Pick a tiny domain** (e.g., "Create a commit message template"):
-   ```
-   Domain: Standardize commit messages for this project
-   Goal: Create reusable commit message template
-   ```
+**English version**:
+```
+Use BAIME to build [domain] capabilities (meta objectives) and complete these tasks (instance objectives):
+- [specific task 1]
+- [specific task 2]
+```
 
-2. **Ask Claude to design iteration prompts**:
-   ```
-   "Use the iteration-prompt-designer subagent to create ITERATION-PROMPTS.md
-   for a commit message template methodology experiment"
-   ```
+### Real Example
 
-   **What happens**: Claude invokes the `iteration-prompt-designer` specialized agent, which creates a comprehensive ITERATION-PROMPTS.md file with:
-   - Domain-specific value function definitions
-   - OCA cycle guidance
-   - Baseline iteration structure
+**What you say**:
+```
+用 BAIME 构建文档相关能力（meta objectives），并实际完成以下任务（instance objectives）：
+- 更新 README.md 说明如何安装 meta-cc-skills 插件
+- 提供 BAIME 使用的具体文档
+```
 
-   **Time**: ~5-10 minutes
+**What Claude does automatically**:
+1. Uses `iteration-prompt-designer` to create experiment structure
+2. Uses `iteration-executor` to run iterations (0 → 1 → 2 → ... → N)
+3. Uses `knowledge-extractor` to create reusable skill
+4. Completes your specific tasks using the methodology
 
-3. **Run Iteration 0 only** (baseline):
-   ```
-   "Use the iteration-executor subagent to execute Iteration 0
-   following the ITERATION-PROMPTS.md guidance"
-   ```
+**What you get**:
+- ✅ Your tasks completed (README updated, BAIME docs created)
+- ✅ Reusable methodology (documentation-management skill)
+- ✅ Full experiment trail (templates, patterns, tools)
 
-   **What happens**: Claude invokes the `iteration-executor` agent to:
-   - Observe current state (collect baseline data)
-   - Codify initial patterns (extract template structure)
-   - Automate if beneficial (create simple script)
-   - Evaluate progress (calculate V_instance and V_meta)
+**Time**: Varies by domain complexity (2-20 hours)
 
-   **Time**: ~15-20 minutes
+### Three Levels of Trial
 
-4. **Review the outputs**:
-   - Check `experiments/commit-messages/iteration-0.md` - Full iteration report with 10 sections
-   - Check `system-state.md` - Current methodology state (M_0, A_0, s_0)
-   - Check value scores - Typical Iteration 0: V_instance=0.30-0.50, V_meta=0.20-0.40
+Choose based on your time and commitment:
 
-   **Time**: ~5-10 minutes
+| Level | What to Ask | Time | What You Learn |
+|-------|-------------|------|----------------|
+| **Minimal** | "用 BAIME 创建 commit message 模板" | 30-60 min | BAIME mechanics, single iteration |
+| **Quick** | "用 BAIME 构建文档能力并更新 README" | 2-4 hours | Full OCA cycle, 2-3 iterations |
+| **Complete** | "用 BAIME 开发测试策略" | 10-20 hours | Full methodology, convergence, skill extraction |
 
-**Total time**: 30-45 minutes
+### Key Insight
 
-**What you'll learn**:
-- ✅ How the three specialized agents work together
-- ✅ What the OCA cycle looks like in practice
-- ✅ How value functions measure progress
-- ✅ The structure of iteration reports and system state
-- ✅ Whether BAIME fits your use case
+**You don't need to understand BAIME to use it** - just state:
+1. **Meta objective**: What capability you want to build
+2. **Instance objectives**: What tasks you need to complete
 
-**Next steps**:
-- If it clicks, continue with Iterations 1-N (2-4 more iterations)
-- If unclear, review the iteration report to understand the methodology
-- If not suitable, you've only invested 30 minutes
+Claude handles the BAIME framework, specialized agents, and iteration management automatically.
 
 ---
 
