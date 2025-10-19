@@ -46,7 +46,7 @@ The skills plugin provides systematic methodologies including:
 - **Documentation Management** - Templates, patterns, automation tools
 - And 11 more validated skills
 
-See [BAIME Usage Guide](docs/tutorials/baime-usage.md) for details.
+**Try BAIME in 30 minutes**: Install the skills plugin, then ask Claude: _"Use iteration-prompt-designer to create ITERATION-PROMPTS.md for a commit message template methodology"_. See [BAIME Usage Guide](docs/tutorials/baime-usage.md#try-baime-in-30-minutes) for the complete quick trial workflow.
 
 ### 2. Install Binaries
 
