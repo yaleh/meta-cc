@@ -47,13 +47,7 @@ make all
 echo "✓ Tests passed"
 echo ""
 
-# Update plugin.json version
-echo "Updating plugin.json version to $VERSION_NUM..."
-jq --arg ver "$VERSION_NUM" '.version = $ver' .claude-plugin/plugin.json > .claude-plugin/plugin.json.tmp
-mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
-echo "✓ plugin.json updated"
-
-# Update marketplace.json version
+# Update marketplace.json version (plugin.json no longer exists after consolidation)
 echo "Updating marketplace.json version to $VERSION_NUM..."
 jq --arg ver "$VERSION_NUM" '.plugins[0].version = $ver' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
 mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
@@ -82,10 +76,10 @@ echo "✓ CHANGELOG.md updated automatically"
 
 # Commit version updates
 echo "Committing version updates..."
-git add .claude-plugin/plugin.json .claude-plugin/marketplace.json CHANGELOG.md
+git add .claude-plugin/marketplace.json CHANGELOG.md
 git commit -m "chore: release $VERSION
 
-Update plugin.json, marketplace.json, and CHANGELOG.md to version $VERSION_NUM.
+Update marketplace.json and CHANGELOG.md to version $VERSION_NUM.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
