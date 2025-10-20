@@ -5,6 +5,21 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.0] - 2025-10-20
+
+
+### Changed
+
+- Refactoring: remove environment variable detection for session location (#4)
+- Documentation: add Chinese BAIME intro page with English translations
+- Documentation: add BAIME introductory tutorial page with overview and stats
+
+### Fixed
+
+- update script for consolidated plugin structure
+- restore version field in golangci config
+- remove obsolete plugin.json verification step
+
 ## [0.30.2] - 2025-10-19
 
 
