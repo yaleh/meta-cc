@@ -1,9 +1,8 @@
 # golangci-lint configuration
 # Only lints that are critical for production code
 
-# Version 2 config format (required for local golangci-lint v2)
-# Note: GitHub Actions uses golangci-lint-action which doesn't require this
-version: "2"
+# Version 2 config format
+version: 2
 
 run:
   timeout: 5m
