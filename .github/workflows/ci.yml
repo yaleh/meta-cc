@@ -184,7 +184,8 @@ jobs:
         shell: bash
         run: |
           # Check test duration regression (20% threshold)
-          bash scripts/check-performance-regression.sh test_duration ${{ env.TEST_DURATION }} 20
+          # Exit code 2 (insufficient data) is treated as a warning, not a failure
+          bash scripts/check-performance-regression.sh test_duration ${{ env.TEST_DURATION }} 20 || [ $? -eq 2 ]
 
       - name: Commit and push metrics
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22' && github.event_name == 'push'
