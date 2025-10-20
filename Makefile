@@ -19,9 +19,90 @@ BINARY_NAME := meta-cc
 MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint lint-errors fmt vet help sync-plugin-files dev
+.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci
 
-all: lint test build
+# ==============================================================================
+# Build Quality Gates (BAIME Experiment - Iteration 1)
+# ==============================================================================
+
+# P0: Critical checks (blocks commit)
+check-workspace: check-temp-files check-fixtures check-deps
+	@echo "✅ Workspace validation passed"
+
+# P1: Enhanced checks (Iteration 2)
+check-scripts:
+	@bash scripts/check-scripts.sh
+
+check-debug:
+	@bash scripts/check-debug.sh
+
+check-go-quality:
+	@bash scripts/check-go-quality.sh
+
+# P0 + P1 + P2: Complete workspace validation
+check-workspace-full: check-workspace check-scripts check-debug check-go-quality
+	@echo "✅ Full workspace validation passed"
+
+check-temp-files:
+	@bash scripts/check-temp-files.sh
+
+check-fixtures:
+	@bash scripts/check-fixtures.sh
+
+check-deps:
+	@bash scripts/check-deps.sh
+
+check-imports:
+	@echo "Checking import formatting..."
+	@UNFORMATTED=$$(goimports -l . 2>/dev/null | grep -v vendor || true); \
+	if [ -n "$$UNFORMATTED" ]; then \
+		echo "❌ ERROR: Files with incorrect imports:"; \
+		echo "$$UNFORMATTED" | sed 's/^/  - /'; \
+		echo ""; \
+		echo "Run 'make fix-imports' to auto-fix"; \
+		exit 1; \
+	fi
+	@echo "✓ Imports verified"
+
+fix-imports:
+	@echo "Auto-fixing imports..."
+	@goimports -w .
+	@echo "✓ Imports fixed"
+
+# ==============================================================================
+# Unified Build Targets
+# ==============================================================================
+
+# Developer quick iteration (minimal checks)
+dev: fmt build
+	@echo "✅ Development build ready"
+	@echo ""
+	@echo "For commit preparation, run:"
+	@echo "  make pre-commit"
+
+# Pre-commit validation (P0 + P1 + P2 + quick tests)
+pre-commit: check-workspace-full test
+	@echo ""
+	@echo "✅ Ready to commit"
+	@echo ""
+	@echo "All pre-commit checks passed:"
+	@echo "  ✓ Workspace clean (no temp files)"
+	@echo "  ✓ Fixtures verified"
+	@echo "  ✓ Dependencies in sync"
+	@echo "  ✓ Scripts validated (shellcheck)"
+	@echo "  ✓ No debug statements"
+	@echo "  ✓ Go code quality (fmt + vet + build)"
+	@echo "  ✓ Tests passed"
+
+# Full local validation (P0 + P1 + P2 checks + build)
+all: check-workspace-full test build
+	@echo ""
+	@echo "✅ All quality gates passed"
+
+# CI-level validation (comprehensive)
+ci: check-workspace-full test-all build
+	@echo ""
+	@echo "✅ CI validation passed"
 
 build: build-cli build-mcp
 
@@ -115,12 +196,7 @@ sync-plugin-files:
 	SKILL_COUNT=$$(find $(DIST_DIR)/skills -name "SKILL.md" 2>/dev/null | wc -l); \
 	echo "✓ Total: $$CMD_COUNT commands, $$AGENT_COUNT agents, $$SKILL_COUNT skills"
 
-dev: build
-	@echo "Development build complete"
-	@echo "Plugin files in .claude/ are ready for immediate use in Claude Code"
-	@echo ""
-	@echo "For local capability development, set:"
-	@echo "  export META_CC_CAPABILITY_SOURCES=\"$(CAPABILITIES_DIR)/commands\""
+# dev target is now defined in Build Quality Gates section above (line ~64)
 
 bundle-release: sync-plugin-files
 	@echo "Creating release bundles for all platforms..."

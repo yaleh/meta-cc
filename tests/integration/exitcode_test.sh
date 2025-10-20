@@ -7,7 +7,7 @@ echo "=== Exit Code Test ==="
 
 # Build the binary first
 echo "Building meta-cc..."
-cd /home/yale/work/meta-cc
+cd /home/yale/work/meta-cc || exit 1
 go build -o meta-cc-test ./main.go
 if [ $? -ne 0 ]; then
     echo "✗ Failed to build meta-cc"
