@@ -24,3 +24,27 @@ validation_coverage.out
 /experiments/bootstrap-002-test-strategy/python-validation/data/
 /experiments/bootstrap-002-test-strategy/python-validation/src/__pycache__/
 /experiments/bootstrap-002-test-strategy/python-validation/tests/__pycache__/
+
+# ============================================================================
+# Temporary files (Build Quality Gates - BAIME Experiment)
+# ============================================================================
+
+# Temporary Go files
+test_*.go
+debug_*.go
+tmp_*.go
+scratch_*.go
+temp_*.go
+experiment_*.go
+
+# Editor temporary files
+*~
+*.swp
+.*.swp
+*.swo
+\#*#
+.\#*
+
+# OS temporary files
+.DS_Store
+Thumbs.db
