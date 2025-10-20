@@ -31,11 +31,6 @@ func TestQueryUserMessagesCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := queryUserMessagesCmd.Flags().Set("pattern", ""); err != nil {
 		t.Fatalf("Failed to reset pattern flag: %v", err)
@@ -44,7 +39,7 @@ func TestQueryUserMessagesCommand_Integration(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "user-messages", "--session-only", "--pattern", ".*", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "user-messages", "--session", sessionID, "--pattern", ".*", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -81,11 +76,6 @@ func TestQueryUserMessagesCommand_PatternFilter(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := queryUserMessagesCmd.Flags().Set("pattern", ""); err != nil {
 		t.Fatalf("Failed to reset pattern flag: %v", err)
@@ -94,7 +84,7 @@ func TestQueryUserMessagesCommand_PatternFilter(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "user-messages", "--session-only", "--pattern", "debug", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "user-messages", "--session", sessionID, "--pattern", "debug", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -132,11 +122,6 @@ func TestQueryUserMessagesCommand_NoMatches(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := queryUserMessagesCmd.Flags().Set("pattern", ""); err != nil {
 		t.Fatalf("Failed to reset pattern flag: %v", err)
@@ -145,7 +130,7 @@ func TestQueryUserMessagesCommand_NoMatches(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "user-messages", "--session-only", "--pattern", "nonexistent", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "user-messages", "--session", sessionID, "--pattern", "nonexistent", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	// Should complete without error but produce warning

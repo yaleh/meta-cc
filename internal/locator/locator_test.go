@@ -142,6 +142,7 @@ func TestLocate_SessionOnlyMode(t *testing.T) {
 }
 
 func TestLocate_WithEnvVars(t *testing.T) {
+	// Test that environment variables are no longer used
 	// 准备测试环境
 	homeDir, _ := os.UserHomeDir()
 	sessionID := "env-session-123"
@@ -157,7 +158,7 @@ func TestLocate_WithEnvVars(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	// 设置环境变量
+	// 设置环境变量（应该被忽略）
 	os.Setenv("CC_SESSION_ID", sessionID)
 	os.Setenv("CC_PROJECT_HASH", projectHash)
 	defer os.Unsetenv("CC_SESSION_ID")
@@ -168,13 +169,10 @@ func TestLocate_WithEnvVars(t *testing.T) {
 		SessionOnly: true,
 	}
 
-	path, err := locator.Locate(opts)
-	if err != nil {
-		t.Fatalf("Expected no error with env vars, got: %v", err)
-	}
-
-	if path != sessionFile {
-		t.Errorf("Expected path %s, got %s", sessionFile, path)
+	// Environment variables should no longer work
+	_, err := locator.Locate(opts)
+	if err == nil {
+		t.Error("Expected error when env vars set but not used (session-only mode without explicit session ID)")
 	}
 }
 

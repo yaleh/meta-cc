@@ -16,21 +16,11 @@ type LocateOptions struct {
 // Phase 13: 默认使用项目级分析（--project .），除非设置 --session-only
 // 按优先级尝试以下策略：
 //
-//  1. 环境变量 CC_SESSION_ID + CC_PROJECT_HASH (仅当 --session-only 时)
-//  2. 命令行参数 --session
-//  3. 命令行参数 --project
-//  4. 默认：当前工作目录（Phase 13: 项目级默认）
+//  1. 命令行参数 --session
+//  2. 命令行参数 --project
+//  3. 默认：当前工作目录（Phase 13: 项目级默认）
 func (l *SessionLocator) Locate(opts LocateOptions) (string, error) {
-	// 策略1: 环境变量（仅在 --session-only 模式下）
-	if opts.SessionOnly && os.Getenv("CC_SESSION_ID") != "" {
-		path, err := l.FromEnv()
-		if err == nil {
-			return path, nil
-		}
-		// 环境变量设置了但失败，记录警告但继续尝试其他策略
-	}
-
-	// 策略2: --session 参数
+	// 策略1: --session 参数
 	if opts.SessionID != "" {
 		path, err := l.FromSessionID(opts.SessionID)
 		if err == nil {
@@ -50,7 +40,7 @@ func (l *SessionLocator) Locate(opts LocateOptions) (string, error) {
 		projectPath = cwd
 	}
 
-	// 策略3: --project 参数或默认项目路径
+	// 策略2: --project 参数或默认项目路径
 	if projectPath != "" {
 		path, err := l.FromProjectPath(projectPath)
 		if err == nil {
@@ -60,13 +50,5 @@ func (l *SessionLocator) Locate(opts LocateOptions) (string, error) {
 		return "", fmt.Errorf("no sessions found for project %q: %w", projectPath, err)
 	}
 
-	// 策略4: --session-only 模式下的后备策略（环境变量检测）
-	if opts.SessionOnly && os.Getenv("CC_SESSION_ID") != "" {
-		path, err := l.FromEnv()
-		if err == nil {
-			return path, nil
-		}
-	}
-
-	return "", fmt.Errorf("failed to locate session file: tried session ID, project path, and env vars")
+	return "", fmt.Errorf("failed to locate session file: no session specified")
 }

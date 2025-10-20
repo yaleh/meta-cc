@@ -33,15 +33,10 @@ func TestQueryProjectStateCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "project-state", "--session-only", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "project-state", "--session", sessionID, "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -75,15 +70,10 @@ func TestQueryProjectStateCommand_EmptySession(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "project-state", "--session-only", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "project-state", "--session", sessionID, "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	// Should complete without error but produce warning

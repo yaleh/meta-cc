@@ -75,8 +75,7 @@ func getGlobalOptions() GlobalOptions {
 	// 条件：
 	//  - 未明确指定 --project
 	//  - 未设置 --session 或 --session-only
-	//  - 未设置环境变量 CC_SESSION_ID（用于测试和特殊场景）
-	if projPath == "" && sessionID == "" && !sessionOnly && os.Getenv("CC_SESSION_ID") == "" {
+	if projPath == "" && sessionID == "" && !sessionOnly {
 		if cwd, err := os.Getwd(); err == nil {
 			projPath = cwd
 		}

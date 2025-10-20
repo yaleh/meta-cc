@@ -31,15 +31,10 @@ func TestQueryConversationCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "conversation", "--session-only", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "conversation", "--session", sessionID, "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -79,11 +74,6 @@ func TestQueryConversationCommand_PatternFilter(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := queryConversationCmd.Flags().Set("pattern", ""); err != nil {
 		t.Fatalf("Failed to reset pattern flag: %v", err)
@@ -92,7 +82,7 @@ func TestQueryConversationCommand_PatternFilter(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "conversation", "--session-only", "--pattern", "debug", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "conversation", "--session", sessionID, "--pattern", "debug", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {

@@ -30,14 +30,8 @@ func setupTestSessionForRefactor(t *testing.T) (cleanup func()) {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
-	// Set environment variables
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-
 	return func() {
 		os.RemoveAll(sessionDir)
-		os.Unsetenv("CC_SESSION_ID")
-		os.Unsetenv("CC_PROJECT_HASH")
 	}
 }
 
@@ -45,6 +39,8 @@ func setupTestSessionForRefactor(t *testing.T) (cleanup func()) {
 func TestRefactored_QueryTools(t *testing.T) {
 	cleanup := setupTestSessionForRefactor(t)
 	defer cleanup()
+
+	sessionID := "test-session-refactor"
 
 	// Reset flags from previous tests
 	if err := queryToolsCmd.Flags().Set("status", ""); err != nil {
@@ -61,7 +57,7 @@ func TestRefactored_QueryTools(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "tools", "--session-only", "--limit", "10"})
+	rootCmd.SetArgs([]string{"query", "tools", "--session", sessionID, "--limit", "10"})
 
 	err := rootCmd.Execute()
 	if err != nil {

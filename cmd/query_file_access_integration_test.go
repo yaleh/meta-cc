@@ -31,11 +31,6 @@ func TestQueryFileAccessCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := queryFileAccessCmd.Flags().Set("file", ""); err != nil {
 		t.Fatalf("Failed to reset file flag: %v", err)
@@ -44,7 +39,7 @@ func TestQueryFileAccessCommand_Integration(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "file-access", "--session-only", "--file", "/test.txt", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "file-access", "--session", sessionID, "--file", "/test.txt", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -82,11 +77,6 @@ func TestQueryFileAccessCommand_NoFile(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := queryFileAccessCmd.Flags().Set("file", ""); err != nil {
 		t.Fatalf("Failed to reset file flag: %v", err)
@@ -95,7 +85,7 @@ func TestQueryFileAccessCommand_NoFile(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "file-access", "--session-only", "--file", "/nonexistent.txt", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "file-access", "--session", sessionID, "--file", "/nonexistent.txt", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	// Should complete without error but produce warning for no results

@@ -818,65 +818,46 @@ func TestBuildCommandAdditional(t *testing.T) {
 	}
 }
 
-// Test getSessionHash with different environment variables
+// Test getSessionHash fallback behavior (env vars no longer used)
 func TestGetSessionHash(t *testing.T) {
-	os.Setenv("CC_SESSION_ID", "test-session-id")
-	os.Setenv("CC_PROJECT_HASH", "test-project-hash")
-	cfg, _ := config.Load()
 	// Save original env vars
 	origSessionID := os.Getenv("CC_SESSION_ID")
 	origProjectHash := os.Getenv("CC_PROJECT_HASH")
 	defer func() {
-		os.Setenv("CC_SESSION_ID", origSessionID)
-		os.Setenv("CC_PROJECT_HASH", origProjectHash)
+		if origSessionID != "" {
+			os.Setenv("CC_SESSION_ID", origSessionID)
+		} else {
+			os.Unsetenv("CC_SESSION_ID")
+		}
+		if origProjectHash != "" {
+			os.Setenv("CC_PROJECT_HASH", origProjectHash)
+		} else {
+			os.Unsetenv("CC_PROJECT_HASH")
+		}
 	}()
 
+	// Clear env vars
+	os.Unsetenv("CC_SESSION_ID")
+	os.Unsetenv("CC_PROJECT_HASH")
+
+	cfg, _ := config.Load()
+
 	tests := []struct {
-		name           string
-		sessionID      string
-		projectHash    string
-		expectNotEmpty bool
+		name         string
+		expectedHash string
 	}{
 		{
-			name:           "with session ID",
-			sessionID:      "abc123-def456-ghi789",
-			projectHash:    "",
-			expectNotEmpty: true,
-		},
-		{
-			name:           "with project hash",
-			sessionID:      "",
-			projectHash:    "project-hash-123",
-			expectNotEmpty: true,
-		},
-		{
-			name:           "with both",
-			sessionID:      "session-abc",
-			projectHash:    "project-xyz",
-			expectNotEmpty: true,
-		},
-		{
-			name:           "with neither",
-			sessionID:      "",
-			projectHash:    "",
-			expectNotEmpty: true, // Falls back to default
+			name:         "should return unknown when env vars not set",
+			expectedHash: "unknown",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("CC_SESSION_ID", tt.sessionID)
-			os.Setenv("CC_PROJECT_HASH", tt.projectHash)
-
 			result := getSessionHash(cfg)
 
-			if tt.expectNotEmpty && result == "" {
-				t.Error("expected non-empty session hash")
-			}
-
-			// Check that result is reasonable length (8 chars for session hash prefix)
-			if tt.sessionID != "" && len(result) < 8 {
-				t.Errorf("session hash too short: %s", result)
+			if result != tt.expectedHash {
+				t.Errorf("expected session hash '%s', got '%s'", tt.expectedHash, result)
 			}
 		})
 	}
