@@ -1029,6 +1029,16 @@ fi
 			expectOut:   "total_turns",
 		},
 		{
+			name:     "get_session_stats with default scope",
+			toolName: "get_session_stats",
+			args: map[string]interface{}{
+				"output_format": "jsonl",
+				// Note: scope not specified - should default to "session"
+			},
+			expectError: false,
+			expectOut:   "total_turns",
+		},
+		{
 			name:     "query_tools with jq filter",
 			toolName: "query_tools",
 			args: map[string]interface{}{

@@ -83,7 +83,7 @@ func buildTool(name, description string, properties map[string]Property, require
 func getToolDefinitions() []Tool {
 	return []Tool{
 		buildTool("get_session_stats", "Get session statistics. Default scope: session.", map[string]Property{}),
-		buildTool("query_tools", "Query tool calls with filters. Default scope: project.", map[string]Property{
+		buildTool("query_tools", "Query assistant's internal tool calls. Large output, not for user analysis. Default scope: project.", map[string]Property{
 			// Tier 2: Filtering
 			"tool": {
 				Type:        "string",
@@ -130,7 +130,7 @@ func getToolDefinitions() []Tool {
 				Description: "Context window size (default: 3)",
 			},
 		}, "error_signature"),
-		buildTool("query_tool_sequences", "Query workflow patterns. Default scope: project.", map[string]Property{
+		buildTool("query_tool_sequences", "Query assistant's tool sequences. Large output, not for user analysis. Default scope: project.", map[string]Property{
 			// Tier 2: Filtering
 			"pattern": {
 				Type:        "string",
@@ -165,7 +165,7 @@ func getToolDefinitions() []Tool {
 				Description: "Max results (no limit by default, rely on hybrid output mode)",
 			},
 		}),
-		buildTool("query_tools_advanced", "Query tools with SQL-like filters. Default scope: project.", map[string]Property{
+		buildTool("query_tools_advanced", "Query assistant's tools with SQL. Large output, not for user analysis. Default scope: project.", map[string]Property{
 			"where": {
 				Type:        "string",
 				Description: "SQL-like filter expression (required)",

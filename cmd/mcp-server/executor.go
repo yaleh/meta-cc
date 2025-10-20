@@ -34,8 +34,12 @@ func NewToolExecutor() *ToolExecutor {
 
 // ExecuteTool executes a meta-cc command and applies jq filtering
 func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map[string]interface{}) (string, error) {
-	// Get scope for metrics
-	scope := getStringParam(args, "scope", "project")
+	// Get scope for metrics (with tool-specific defaults)
+	defaultScope := "project"
+	if toolName == "get_session_stats" {
+		defaultScope = "session"
+	}
+	scope := getStringParam(args, "scope", defaultScope)
 
 	// Start timing for tool execution metrics
 	start := time.Now()
