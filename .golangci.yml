@@ -1,8 +1,6 @@
 # golangci-lint configuration
 # Only lints that are critical for production code
-
-# Version 2 config format
-version: 2
+# Note: No version field for v1 compatibility with GitHub Actions
 
 run:
   timeout: 5m
