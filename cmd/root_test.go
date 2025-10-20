@@ -187,19 +187,10 @@ func TestGetGlobalOptions_DefaultProjectPath(t *testing.T) {
 	resetGlobalFlags()
 	defer resetGlobalFlags()
 
-	// Clear environment variables
-	oldSessionEnv := os.Getenv("CC_SESSION_ID")
-	os.Unsetenv("CC_SESSION_ID")
-	defer func() {
-		if oldSessionEnv != "" {
-			os.Setenv("CC_SESSION_ID", oldSessionEnv)
-		}
-	}()
-
 	// Get options with no flags set
 	opts := getGlobalOptions()
 
-	// Should default to current working directory
+	// Should always default to current working directory (env vars no longer used)
 	cwd, _ := os.Getwd()
 	if opts.ProjectPath != cwd {
 		t.Errorf("Expected ProjectPath=%s, got %s", cwd, opts.ProjectPath)
@@ -267,13 +258,13 @@ func TestGetGlobalOptions_WithFlags(t *testing.T) {
 			expectedSessionOnly: true,
 		},
 		{
-			name:                "env session ID set",
+			name:                "env session ID set (no longer affects behavior)",
 			sessionID:           "",
 			projectPath:         "",
 			sessionOnly:         false,
 			envSessionID:        "env-session-456",
 			expectedSession:     "",
-			expectedProject:     "", // No default when env is set
+			expectedProject:     "cwd", // Should default to cwd even with env var
 			expectedSessionOnly: false,
 		},
 	}
@@ -305,7 +296,7 @@ func TestGetGlobalOptions_WithFlags(t *testing.T) {
 			}
 
 			// Verify project path (handle default case)
-			if tt.expectedProject == "" && tt.sessionID == "" && !tt.sessionOnly && tt.envSessionID == "" {
+			if tt.expectedProject == "cwd" || (tt.expectedProject == "" && tt.sessionID == "" && !tt.sessionOnly) {
 				// Should default to cwd
 				cwd, _ := os.Getwd()
 				if opts.ProjectPath != cwd {
@@ -325,7 +316,7 @@ func TestGetGlobalOptions_WithFlags(t *testing.T) {
 	}
 }
 
-// TestGetGlobalOptions_EnvironmentVariables tests environment variable handling
+// TestGetGlobalOptions_EnvironmentVariables tests that env vars no longer affect behavior
 func TestGetGlobalOptions_EnvironmentVariables(t *testing.T) {
 	resetGlobalFlags()
 	defer resetGlobalFlags()
@@ -346,17 +337,16 @@ func TestGetGlobalOptions_EnvironmentVariables(t *testing.T) {
 		}
 	}()
 
-	// Set environment variables
+	// Set environment variables (should not affect behavior)
 	os.Setenv("CC_SESSION_ID", "env-session")
 	os.Setenv("CC_PROJECT_PATH", "/env/project")
 
-	// Note: getGlobalOptions doesn't directly read env vars (viper does during flag parsing)
-	// But it checks CC_SESSION_ID for default project path logic
 	opts := getGlobalOptions()
 
-	// With CC_SESSION_ID set, should not default to cwd
-	if opts.ProjectPath != "" {
-		t.Logf("ProjectPath is '%s' (expected empty when CC_SESSION_ID env is set)", opts.ProjectPath)
+	// Should default to cwd regardless of env vars
+	cwd, _ := os.Getwd()
+	if opts.ProjectPath != cwd {
+		t.Errorf("Expected ProjectPath=%s (env vars should not affect), got %s", cwd, opts.ProjectPath)
 	}
 }
 

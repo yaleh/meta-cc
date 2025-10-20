@@ -54,11 +54,6 @@ func TestQueryToolsCommand_NoFilters(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset global variables from previous tests
 	queryToolsStatus = ""
 	queryToolsTool = ""
@@ -73,7 +68,7 @@ func TestQueryToolsCommand_NoFilters(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "tools", "--session-only", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "tools", "--session", sessionID, "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -113,15 +108,10 @@ func TestQueryToolsCommand_FilterByStatus(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "tools", "--session-only", "--status", "error", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "tools", "--session", sessionID, "--status", "error", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -158,11 +148,6 @@ func TestQueryToolsCommand_FilterByTool(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags from previous tests
 	if err := queryToolsCmd.Flags().Set("status", ""); err != nil {
 		t.Fatalf("Failed to reset status flag: %v", err)
@@ -174,7 +159,7 @@ func TestQueryToolsCommand_FilterByTool(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "tools", "--session-only", "--tool", "Grep", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "tools", "--session", sessionID, "--tool", "Grep", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -214,11 +199,6 @@ func TestQueryToolsCommand_Limit(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags from previous tests
 	if err := queryToolsCmd.Flags().Set("status", ""); err != nil {
 		t.Fatalf("Failed to reset status flag: %v", err)
@@ -233,7 +213,7 @@ func TestQueryToolsCommand_Limit(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "tools", "--session-only", "--limit", "1", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "tools", "--session", sessionID, "--limit", "1", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -271,15 +251,10 @@ func TestQueryToolsCommand_CombinedFilters(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "tools", "--session-only", "--tool", "Read", "--status", "error", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "tools", "--session", sessionID, "--tool", "Read", "--status", "error", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {

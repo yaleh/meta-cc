@@ -31,15 +31,10 @@ func TestQuerySuccessfulPromptsCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "successful-prompts", "--session-only", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "successful-prompts", "--session", sessionID, "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -75,11 +70,6 @@ func TestQuerySuccessfulPromptsCommand_MinQualityScore(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := querySuccessfulPromptsCmd.Flags().Set("min-quality-score", "0.0"); err != nil {
 		t.Fatalf("Failed to reset min-quality-score flag: %v", err)
@@ -88,7 +78,7 @@ func TestQuerySuccessfulPromptsCommand_MinQualityScore(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "successful-prompts", "--session-only", "--min-quality-score", "0.5", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "successful-prompts", "--session", sessionID, "--min-quality-score", "0.5", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {

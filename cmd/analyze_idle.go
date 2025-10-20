@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yaleh/meta-cc/internal/analyzer"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/pkg/output"
 )
 
@@ -53,7 +54,7 @@ func runAnalyzeIdle(cmd *cobra.Command, args []string) error {
 	case "tsv":
 		outputStr, formatErr = output.FormatTSV(result)
 	default:
-		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
+		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv): %w", outputFormat, mcerrors.ErrInvalidInput)
 	}
 
 	if formatErr != nil {

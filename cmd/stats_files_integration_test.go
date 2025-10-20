@@ -35,15 +35,10 @@ func TestStatsFilesCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"stats", "files", "--session-only", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"stats", "files", "--session", sessionID, "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -89,11 +84,6 @@ func TestStatsFilesCommand_SortByEditCount(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := statsFilesCmd.Flags().Set("sort-by", "total_ops"); err != nil {
 		t.Fatalf("Failed to reset sort-by flag: %v", err)
@@ -102,7 +92,7 @@ func TestStatsFilesCommand_SortByEditCount(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"stats", "files", "--session-only", "--sort-by", "edit_count", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"stats", "files", "--session", sessionID, "--sort-by", "edit_count", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -142,11 +132,6 @@ func TestStatsFilesCommand_TopN(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := statsFilesCmd.Flags().Set("top", "0"); err != nil {
 		t.Fatalf("Failed to reset top flag: %v", err)
@@ -155,7 +140,7 @@ func TestStatsFilesCommand_TopN(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"stats", "files", "--session-only", "--top", "2", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"stats", "files", "--session", sessionID, "--top", "2", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {

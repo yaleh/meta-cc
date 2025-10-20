@@ -33,15 +33,10 @@ func TestQueryErrorsCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "errors", "--session-only", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "errors", "--session", sessionID, "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -89,15 +84,10 @@ func TestQueryErrorsCommand_NoErrors(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "errors", "--session-only", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "errors", "--session", sessionID, "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	// Should complete with error for no results
@@ -136,15 +126,10 @@ func TestQueryErrorsCommand_Pagination(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "errors", "--session-only", "--limit", "1", "--offset", "0", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "errors", "--session", sessionID, "--limit", "1", "--offset", "0", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {

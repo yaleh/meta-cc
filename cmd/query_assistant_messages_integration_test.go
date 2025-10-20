@@ -31,15 +31,10 @@ func TestQueryAssistantMessagesCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "assistant-messages", "--session-only", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "assistant-messages", "--session", sessionID, "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -82,11 +77,6 @@ func TestQueryAssistantMessagesCommand_PatternFilter(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := queryAssistantMessagesCmd.Flags().Set("pattern", ""); err != nil {
 		t.Fatalf("Failed to reset pattern flag: %v", err)
@@ -95,7 +85,7 @@ func TestQueryAssistantMessagesCommand_PatternFilter(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "assistant-messages", "--session-only", "--pattern", "error", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "assistant-messages", "--session", sessionID, "--pattern", "error", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -138,11 +128,6 @@ func TestQueryAssistantMessagesCommand_ToolCountFilter(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset ALL global variables to ensure test isolation
 	queryAssistantPattern = ""
 	queryAssistantMinTools = -1
@@ -159,7 +144,7 @@ func TestQueryAssistantMessagesCommand_ToolCountFilter(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "assistant-messages", "--session-only", "--min-tools", "1", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "assistant-messages", "--session", sessionID, "--min-tools", "1", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {

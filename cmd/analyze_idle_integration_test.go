@@ -34,15 +34,10 @@ func TestAnalyzeIdleCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", testSessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"analyze", "idle-periods", "--session-only", "--output", "jsonl", "--threshold", "5"})
+	rootCmd.SetArgs([]string{"analyze", "idle-periods", "--session", testSessionID, "--output", "jsonl", "--threshold", "5"})
 
 	err = rootCmd.Execute()
 	if err != nil {
@@ -85,11 +80,6 @@ func TestAnalyzeIdleCommand_WithThreshold(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", testSessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags from previous tests
 	if err := analyzeIdleCmd.Flags().Set("threshold", "5"); err != nil {
 		t.Fatalf("Failed to reset threshold flag: %v", err)
@@ -98,7 +88,7 @@ func TestAnalyzeIdleCommand_WithThreshold(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"analyze", "idle-periods", "--session-only", "--output", "jsonl", "--threshold", "10"})
+	rootCmd.SetArgs([]string{"analyze", "idle-periods", "--session", testSessionID, "--output", "jsonl", "--threshold", "10"})
 
 	err = rootCmd.Execute()
 	if err != nil {

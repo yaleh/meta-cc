@@ -33,15 +33,10 @@ func TestStatsTimeSeriesCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"stats", "time-series", "--session-only", "--metric", "tool-calls", "--interval", "hour", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"stats", "time-series", "--session", sessionID, "--metric", "tool-calls", "--interval", "hour", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -80,11 +75,6 @@ func TestStatsTimeSeriesCommand_ErrorRate(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := statsTimeSeriesCmd.Flags().Set("metric", "tool-calls"); err != nil {
 		t.Fatalf("Failed to reset metric flag: %v", err)
@@ -93,7 +83,7 @@ func TestStatsTimeSeriesCommand_ErrorRate(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"stats", "time-series", "--session-only", "--metric", "error-rate", "--interval", "hour", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"stats", "time-series", "--session", sessionID, "--metric", "error-rate", "--interval", "hour", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -131,11 +121,6 @@ func TestStatsTimeSeriesCommand_DayInterval(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := statsTimeSeriesCmd.Flags().Set("interval", "hour"); err != nil {
 		t.Fatalf("Failed to reset interval flag: %v", err)
@@ -144,7 +129,7 @@ func TestStatsTimeSeriesCommand_DayInterval(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"stats", "time-series", "--session-only", "--metric", "tool-calls", "--interval", "day", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"stats", "time-series", "--session", sessionID, "--metric", "tool-calls", "--interval", "day", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {

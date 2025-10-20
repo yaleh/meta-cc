@@ -33,15 +33,10 @@ func TestStatsAggregateCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"stats", "aggregate", "--session-only", "--group-by", "tool", "--metrics", "count", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"stats", "aggregate", "--session", sessionID, "--group-by", "tool", "--metrics", "count", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -83,11 +78,6 @@ func TestStatsAggregateCommand_ErrorRate(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := statsAggregateCmd.Flags().Set("group-by", "tool"); err != nil {
 		t.Fatalf("Failed to reset group-by flag: %v", err)
@@ -99,7 +89,7 @@ func TestStatsAggregateCommand_ErrorRate(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"stats", "aggregate", "--session-only", "--group-by", "tool", "--metrics", "error_rate", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"stats", "aggregate", "--session", sessionID, "--group-by", "tool", "--metrics", "error_rate", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -136,11 +126,6 @@ func TestStatsAggregateCommand_WithFilter(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := statsAggregateCmd.Flags().Set("filter", ""); err != nil {
 		t.Fatalf("Failed to reset filter flag: %v", err)
@@ -149,7 +134,7 @@ func TestStatsAggregateCommand_WithFilter(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"stats", "aggregate", "--session-only", "--group-by", "tool", "--metrics", "count", "--filter", "tool='Read'", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"stats", "aggregate", "--session", sessionID, "--group-by", "tool", "--metrics", "count", "--filter", "tool='Read'", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {

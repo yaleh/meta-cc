@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/spf13/cobra"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/parser"
 	"github.com/yaleh/meta-cc/pkg/output"
 )
@@ -140,7 +141,7 @@ func runQueryAssistantMessages(cmd *cobra.Command, args []string) error {
 	case "tsv":
 		outputStr, formatErr = output.FormatTSV(messages)
 	default:
-		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
+		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv): %w", outputFormat, mcerrors.ErrInvalidInput)
 	}
 
 	if formatErr != nil {

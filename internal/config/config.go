@@ -65,13 +65,15 @@ type CapabilityConfig struct {
 }
 
 // SessionConfig holds session information from Claude Code.
+// Note: Session information is no longer loaded from environment variables.
+// This structure is retained for future use and backward compatibility.
 type SessionConfig struct {
 	// SessionID is the unique session identifier from Claude Code.
-	// Set by Claude Code via CC_SESSION_ID environment variable.
+	// No longer populated from environment variables.
 	SessionID string
 
 	// ProjectHash is the project path hash from Claude Code.
-	// Set by Claude Code via CC_PROJECT_HASH environment variable.
+	// No longer populated from environment variables.
 	ProjectHash string
 }
 
@@ -155,10 +157,11 @@ func loadCapabilityConfig() CapabilityConfig {
 }
 
 // loadSessionConfig loads session configuration from environment.
+// Note: Environment variables are no longer used. This returns an empty config.
 func loadSessionConfig() SessionConfig {
 	return SessionConfig{
-		SessionID:   os.Getenv("CC_SESSION_ID"),
-		ProjectHash: os.Getenv("CC_PROJECT_HASH"),
+		SessionID:   "",
+		ProjectHash: "",
 	}
 }
 

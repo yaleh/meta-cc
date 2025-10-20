@@ -21,7 +21,7 @@ func StandardToolParameters() map[string]Property {
 		},
 		"jq_filter": {
 			Type:        "string",
-			Description: "jq expression for filtering (default: '.[]')",
+			Description: "jq expression for filtering (default: '.[]'). IMPORTANT: Do NOT wrap in quotes - use raw jq expression like: .[] | {field: .field}",
 		},
 		"stats_only": {
 			Type:        "boolean",

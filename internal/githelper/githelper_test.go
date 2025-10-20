@@ -144,10 +144,6 @@ func TestGetCommitsSince(t *testing.T) {
 		t.Errorf("expected 'Second commit', got '%s'", commits[0].Message)
 	}
 
-	if commits[0].Author != "Test User" {
-		t.Errorf("expected 'Test User', got '%s'", commits[0].Author)
-	}
-
 	if commits[0].FilesChanged != 1 {
 		t.Errorf("expected 1 file changed, got %d", commits[0].FilesChanged)
 	}

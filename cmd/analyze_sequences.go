@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/query"
 	"github.com/yaleh/meta-cc/pkg/output"
 )
@@ -67,7 +68,7 @@ func runAnalyzeSequences(cmd *cobra.Command, args []string) error {
 	case "tsv":
 		outputStr, formatErr = output.FormatTSV(sequences)
 	default:
-		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv)", outputFormat)
+		return fmt.Errorf("unsupported output format: %s (supported: jsonl, tsv): %w", outputFormat, mcerrors.ErrInvalidInput)
 	}
 
 	if formatErr != nil {

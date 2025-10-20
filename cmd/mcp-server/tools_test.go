@@ -572,3 +572,35 @@ func TestListCapabilitiesToolSchema(t *testing.T) {
 		}
 	}
 }
+
+// TestJqFilterDescriptionImproved verifies that jq_filter parameter description includes quote escaping guidance
+func TestJqFilterDescriptionImproved(t *testing.T) {
+	params := StandardToolParameters()
+
+	jqFilterParam := params["jq_filter"]
+
+	// Verify description contains important guidance
+	desc := jqFilterParam.Description
+
+	// Should mention "IMPORTANT" or "Do NOT" to highlight quote escaping rule
+	if !strings.Contains(desc, "IMPORTANT") && !strings.Contains(desc, "Do NOT") {
+		t.Errorf("jq_filter description should highlight quote escaping with 'IMPORTANT' or 'Do NOT', got: %s", desc)
+	}
+
+	// Should contain example of correct syntax
+	if !strings.Contains(desc, ".[] | {field: .field}") {
+		t.Errorf("jq_filter description should include correct syntax example, got: %s", desc)
+	}
+
+	// Should warn about quotes
+	if !strings.Contains(desc, "quotes") {
+		t.Errorf("jq_filter description should warn about quotes, got: %s", desc)
+	}
+
+	// Should still mention default value
+	if !strings.Contains(desc, "default") {
+		t.Errorf("jq_filter description should still mention default value, got: %s", desc)
+	}
+
+	t.Logf("jq_filter description: %s", desc)
+}

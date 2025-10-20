@@ -31,11 +31,6 @@ func TestQueryContextCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := queryContextCmd.Flags().Set("error-signature", ""); err != nil {
 		t.Fatalf("Failed to reset error-signature flag: %v", err)
@@ -47,7 +42,7 @@ func TestQueryContextCommand_Integration(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "context", "--session-only", "--error-signature", "Read:file", "--window", "1"})
+	rootCmd.SetArgs([]string{"query", "context", "--session", sessionID, "--error-signature", "Read:file", "--window", "1"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -82,11 +77,6 @@ func TestQueryContextCommand_InvalidSignature(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Reset flags
 	if err := queryContextCmd.Flags().Set("error-signature", ""); err != nil {
 		t.Fatalf("Failed to reset error-signature flag: %v", err)
@@ -95,7 +85,7 @@ func TestQueryContextCommand_InvalidSignature(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "context", "--session-only", "--error-signature", "NonExistent:error"})
+	rootCmd.SetArgs([]string{"query", "context", "--session", sessionID, "--error-signature", "NonExistent:error"})
 
 	err := rootCmd.Execute()
 	// Should complete without error but find no occurrences

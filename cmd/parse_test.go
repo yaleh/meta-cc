@@ -33,17 +33,11 @@ func TestParseExtractCommand_TypeTurns(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	// Set environment variables
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Capture output
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"parse", "extract", "--type", "turns", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"parse", "extract", "--type", "turns", "--session", sessionID, "--output", "jsonl"})
 
 	// Execute command
 	err := rootCmd.Execute()
@@ -87,15 +81,10 @@ func TestParseExtractCommand_TypeTools(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"parse", "extract", "--type", "tools"})
+	rootCmd.SetArgs([]string{"parse", "extract", "--type", "tools", "--session", sessionID})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -190,16 +179,10 @@ func TestParseStatsCommand_JSON(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	// Set environment variables
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	// Capture output
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"parse", "stats", "--session-only", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"parse", "stats", "--session", sessionID, "--output", "jsonl"})
 
 	// Execute command
 	err := rootCmd.Execute()
@@ -246,14 +229,9 @@ func TestParseStatsCommand_Markdown(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"parse", "stats", "--session-only", "--output", "tsv"})
+	rootCmd.SetArgs([]string{"parse", "stats", "--session", sessionID, "--output", "tsv"})
 
 	err := rootCmd.Execute()
 	if err != nil {

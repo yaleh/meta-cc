@@ -256,6 +256,7 @@ func TestCapabilitySourcesSlice(t *testing.T) {
 
 func TestSessionConfig(t *testing.T) {
 	clearTestEnv(t)
+	// Environment variables should no longer be read
 	os.Setenv("CC_SESSION_ID", "test-session-123")
 	os.Setenv("CC_PROJECT_HASH", "-home-user-project")
 
@@ -264,12 +265,13 @@ func TestSessionConfig(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if cfg.Session.SessionID != "test-session-123" {
-		t.Errorf("expected session ID test-session-123, got %s", cfg.Session.SessionID)
+	// Session config should be empty (env vars no longer used)
+	if cfg.Session.SessionID != "" {
+		t.Errorf("expected empty session ID, got %s", cfg.Session.SessionID)
 	}
 
-	if cfg.Session.ProjectHash != "-home-user-project" {
-		t.Errorf("expected project hash -home-user-project, got %s", cfg.Session.ProjectHash)
+	if cfg.Session.ProjectHash != "" {
+		t.Errorf("expected empty project hash, got %s", cfg.Session.ProjectHash)
 	}
 }
 

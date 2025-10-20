@@ -35,15 +35,10 @@ func TestQuerySequencesCommand_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "tool-sequences", "--session-only", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "tool-sequences", "--session", sessionID, "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -85,15 +80,10 @@ func TestQuerySequencesCommand_WithPattern(t *testing.T) {
 	}
 	defer os.RemoveAll(sessionDir)
 
-	os.Setenv("CC_SESSION_ID", sessionID)
-	os.Setenv("CC_PROJECT_HASH", projectHash)
-	defer os.Unsetenv("CC_SESSION_ID")
-	defer os.Unsetenv("CC_PROJECT_HASH")
-
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"query", "tool-sequences", "--session-only", "--pattern", "Grep", "--min-occurrences", "1", "--include-builtin-tools", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"query", "tool-sequences", "--session", sessionID, "--pattern", "Grep", "--min-occurrences", "1", "--include-builtin-tools", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
