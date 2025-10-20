@@ -20,6 +20,11 @@ func ApplyJQFilter(jsonlData string, jqExpr string) (string, error) {
 	// Parse jq expression
 	query, err := gojq.Parse(jqExpr)
 	if err != nil {
+		// Check if this is a common quote-wrapping mistake
+		if (strings.HasPrefix(jqExpr, "'") && strings.HasSuffix(jqExpr, "'") && len(jqExpr) > 2) ||
+			(strings.HasPrefix(jqExpr, `"`) && strings.HasSuffix(jqExpr, `"`) && len(jqExpr) > 2) {
+			return "", fmt.Errorf("jq filter error: '%s' appears to be quoted. Remove outer quotes: use '.[] | {field: .field}' not \"%s\"", jqExpr, jqExpr)
+		}
 		return "", fmt.Errorf("invalid jq expression '%s': %w", jqExpr, mcerrors.ErrParseError)
 	}
 

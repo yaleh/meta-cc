@@ -134,3 +134,103 @@ func TestGenerateStats_EmptyData(t *testing.T) {
 		t.Error("expected empty stats for empty data")
 	}
 }
+
+// TestApplyJQFilter_QuotedExpressionError verifies improved error message for quoted expressions
+func TestApplyJQFilter_QuotedExpressionError(t *testing.T) {
+	jsonlData := `{"tool":"Bash","status":"success"}
+{"tool":"Read","status":"error"}`
+
+	// Test common mistake: wrapping jq expression in quotes
+	testCases := []struct {
+		name     string
+		badExpr  string
+		expected string
+	}{
+		{
+			name:     "single quoted expression",
+			badExpr:  `'.[] | {tool: .tool}'`,
+			expected: "appears to be quoted",
+		},
+		{
+			name:     "single quoted complex expression",
+			badExpr:  `'.[] | {turn: .turn, content: .content[0:100]}'`,
+			expected: "appears to be quoted",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ApplyJQFilter(jsonlData, tc.badExpr)
+			if err == nil {
+				t.Errorf("expected error for quoted expression: %s", tc.badExpr)
+				return
+			}
+
+			// Verify error message contains helpful guidance
+			if !strings.Contains(err.Error(), tc.expected) {
+				t.Errorf("error message should contain '%s' for expression '%s', got: %v",
+					tc.expected, tc.badExpr, err)
+			}
+
+			// Verify error message suggests correct syntax
+			if !strings.Contains(err.Error(), ".[] | {field: .field}") {
+				t.Errorf("error message should suggest correct syntax for expression '%s', got: %v",
+					tc.badExpr, err)
+			}
+
+			t.Logf("Error for '%s': %v", tc.badExpr, err)
+		})
+	}
+}
+
+// TestApplyJQFilter_GenuineSyntaxStillReportsOriginalError verifies that genuine syntax errors still get appropriate error messages
+func TestApplyJQFilter_GenuineSyntaxStillReportsOriginalError(t *testing.T) {
+	jsonlData := `{"tool":"Bash","status":"success"}`
+
+	// Test genuine syntax errors (not quote-related)
+	testCases := []struct {
+		name     string
+		badExpr  string
+		expected string
+	}{
+		{
+			name:     "invalid bracket syntax",
+			badExpr:  `. [ invalid syntax`,
+			expected: "invalid jq expression",
+		},
+		{
+			name:     "missing closing brace",
+			badExpr:  `.[] | select(.tool == "Bash"`,
+			expected: "invalid jq expression",
+		},
+		{
+			name:     "invalid function",
+			badExpr:  `.[] | invalid_function()`,
+			expected: "invalid jq expression",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ApplyJQFilter(jsonlData, tc.badExpr)
+			if err == nil {
+				t.Errorf("expected error for invalid expression: %s", tc.badExpr)
+				return
+			}
+
+			// Verify error message doesn't incorrectly suggest quote issues
+			if strings.Contains(err.Error(), "appears to be quoted") {
+				t.Errorf("genuine syntax error should not suggest quote issues for expression '%s', got: %v",
+					tc.badExpr, err)
+			}
+
+			// Should still indicate invalid jq expression
+			if !strings.Contains(err.Error(), tc.expected) {
+				t.Errorf("error message should contain '%s' for expression '%s', got: %v",
+					tc.expected, tc.badExpr, err)
+			}
+
+			t.Logf("Error for '%s': %v", tc.badExpr, err)
+		})
+	}
+}

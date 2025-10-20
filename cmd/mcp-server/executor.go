@@ -137,7 +137,8 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 			"error", err.Error(),
 			"error_type", "execution_error",
 		)
-		return "", fmt.Errorf("jq filter error for tool %s: %w", toolName, mcerrors.ErrParseError)
+		// Preserve detailed error message from ApplyJQFilter
+		return "", fmt.Errorf("jq filter error for tool %s: %w", toolName, err)
 	}
 
 	// Parse JSONL to interface array for hybrid mode adaptation
