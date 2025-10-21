@@ -1,41 +1,87 @@
 @startuml
-title BAIME Methodology Flow
+title BAIME Methodology - Bootstrapping Loop with Dual Objectives
 
 start
 
-partition "Core Architecture & Goal" {
+partition "Initial State" {
     split
-        :**Instance Objectives**
-        ("Build better AI systems" / AI System Creation);
+        partition "Dual Objectives" {
+            split
+                :**Instance Objective**
+                (Achieve Task T);
+            split again
+                :**Meta Objective**
+                (Improve the Methodology);
+            end split
+        }
     split again
-        :**Meta Objectives**
-        ("Build better methodologies" / Methodology Creation);
+        partition "Initial System" {
+            split
+                :Meta-Agent (M₀);
+                note right: Governs Agent Set (A₀)
+            split again
+                :Agent Set (A₀);
+            end split
+        }
     end split
 }
 
 repeat
-    partition "Core Process: Iteration" {
-        :1. **Divergence: Generation**
-        Generative models propose diverse
-        candidate methodologies;
+    partition "Meta-Agent Iteration (Mᵢ)" {
+        :Observe
+        (Gather data from environment);
 
-        :2. **Evaluation**
-        Test candidates in a "crucible" environment
-        and generate performance "reward" signals;
+        :Plan
+        (Formulate strategy);
 
-        :3. **Convergence: Update/Selection**
-        RL controller optimizes and "converges"
-        on a better generation strategy based on rewards;
+        :Execute;
+        note right: Meta-Agent invokes Agent Set (Aᵢ)
+
+        partition "Reflect" {
+            split
+                :Meta Objective Reflection
+                (Assess improvement of Methodology);
+            split again
+                :Instance Objective Reflection
+                (Assess performance on Task T);
+            end split
+        }
+
+        partition "Evolve System" {
+            split
+                :Evolve Meta-Agent
+                (Update Mᵢ -> Mᵢ₊₁);
+            split again
+                :Evolve Agent Set
+                (Update Aᵢ -> Aᵢ₊₁);
+            end split
+        }
     }
-repeat while (is improvement found?) is (yes: Feedback Loop to Update Generator) not (no: The improved methodology a stronger **AI System**);
+repeat while (is converged?
 
-partition "Emergent Result & Risk" {
-    :Emergent Result: **Acceleration**
-    (Compounding improvement and super-linear scaling);
-    :Risk: **Runaway Feedback Loops**
-    (Divergence in performance without
-    convergence on safety/alignment);
+      - ‖Aₙ - Aₙ₋₁‖ < ε
+      - ‖Mₙ - Mₙ₋₁‖ < ε
+      - V(Aₙ) ≥ threshold
+      - V(Mₙ) ≥ threshold
+) is (**no**
+)
+-> **yes**;
+
+partition "Final Output" {
+    split
+        :**Instance Objective Output**
+        (Output **O**);
+    split again
+        partition "Evolved System" {
+            split
+                :Meta-Agent (Mₙ);
+            split again
+                :Agent Set (Aₙ);
+            end split
+        }
+    end split
 }
 
 stop
+
 @enduml
