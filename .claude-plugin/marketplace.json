@@ -48,6 +48,7 @@
         "./skills/agent-prompt-evolution",
         "./skills/api-design",
         "./skills/baseline-quality-assessment",
+        "./skills/build-quality-gates",
         "./skills/ci-cd-optimization",
         "./skills/code-refactoring",
         "./skills/cross-cutting-concerns",
