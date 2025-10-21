@@ -7,17 +7,17 @@ partition "Initial State" {
     split
         partition "Dual Objectives" {
             split
-                :**Instance Objective**
+                :**Instance Objectives**
                 (Achieve Task T);
             split again
-                :**Meta Objective**
+                :**Meta Objectives**
                 (Improve the Methodology);
             end split
         }
     split again
         partition "Initial System" {
             split
-                :Meta-Agent (M₀);
+                :Meta-Agent Set (M₀);
                 note right: Governs Agent Set (A₀)
             split again
                 :Agent Set (A₀);
@@ -27,7 +27,7 @@ partition "Initial State" {
 }
 
 repeat
-    partition "Meta-Agent Iteration (Mᵢ)" {
+    partition "Iteration" {
         :Observe
         (Gather data from environment);
 
@@ -35,7 +35,7 @@ repeat
         (Formulate strategy);
 
         :Execute;
-        note right: Meta-Agent invokes Agent Set (Aᵢ)
+        note right: Meta-Agent Set invokes Agent Set (Aᵢ)
 
         partition "Reflect" {
             split
@@ -49,7 +49,7 @@ repeat
 
         partition "Evolve System" {
             split
-                :Evolve Meta-Agent
+                :Evolve Meta-Agent Set
                 (Update Mᵢ -> Mᵢ₊₁);
             split again
                 :Evolve Agent Set
@@ -74,7 +74,7 @@ partition "Final Output" {
     split again
         partition "Evolved System" {
             split
-                :Meta-Agent (Mₙ);
+                :Meta-Agent Set (Mₙ);
             split again
                 :Agent Set (Aₙ);
             end split
