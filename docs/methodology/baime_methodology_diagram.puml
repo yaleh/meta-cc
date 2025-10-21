@@ -1,0 +1,41 @@
+@startuml
+title BAIME Methodology Flow
+
+start
+
+partition "Core Architecture & Goal" {
+    split
+        :**Instance Objectives**
+        ("Build better AI systems" / AI System Creation);
+    split again
+        :**Meta Objectives**
+        ("Build better methodologies" / Methodology Creation);
+    end split
+}
+
+repeat
+    partition "Core Process: Iteration" {
+        :1. **Divergence: Generation**
+        Generative models propose diverse
+        candidate methodologies;
+
+        :2. **Evaluation**
+        Test candidates in a "crucible" environment
+        and generate performance "reward" signals;
+
+        :3. **Convergence: Update/Selection**
+        RL controller optimizes and "converges"
+        on a better generation strategy based on rewards;
+    }
+repeat while (is improvement found?) is (yes: Feedback Loop to Update Generator) not (no: The improved methodology a stronger **AI System**);
+
+partition "Emergent Result & Risk" {
+    :Emergent Result: **Acceleration**
+    (Compounding improvement and super-linear scaling);
+    :Risk: **Runaway Feedback Loops**
+    (Divergence in performance without
+    convergence on safety/alignment);
+}
+
+stop
+@enduml
