@@ -1,4 +1,5 @@
 @startuml
+!theme amiga
 title BAIME Methodology - Bootstrapping Loop with Dual Objectives
 
 start
@@ -29,7 +30,7 @@ partition "Initial State" {
 repeat
     partition "Iteration" {
         :Observe
-        (Gather data from environment);
+        (Gather data from environment and history);
 
         :Plan
         (Formulate strategy);
