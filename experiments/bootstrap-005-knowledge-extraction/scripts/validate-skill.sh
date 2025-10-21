@@ -26,17 +26,17 @@ CHECKS_WARNING=0
 # Helper functions
 pass() {
     echo -e "${GREEN}✓${NC} $1"
-    ((CHECKS_PASSED++))
+    ((++CHECKS_PASSED)) >/dev/null
 }
 
 fail() {
     echo -e "${RED}✗${NC} $1"
-    ((CHECKS_FAILED++))
+    ((++CHECKS_FAILED)) >/dev/null
 }
 
 warn() {
     echo -e "${YELLOW}⚠${NC} $1"
-    ((CHECKS_WARNING++))
+    ((++CHECKS_WARNING)) >/dev/null
 }
 
 # Validation functions
@@ -179,28 +179,39 @@ check_broken_links() {
     fi
 }
 
-check_completeness() {
+check_contract_format() {
     if [ ! -f "$SKILL_DIR/SKILL.md" ]; then
         return
     fi
 
-    local content=$(cat "$SKILL_DIR/SKILL.md")
+    local line_count
+    line_count=$(wc -l < "$SKILL_DIR/SKILL.md")
 
-    # Check for required sections
-    local required_sections=(
-        "## When to Use"
-        "## Quick Start"
-        "## Patterns"
-        "## Principles"
-    )
+    if [ "$line_count" -le 40 ]; then
+        pass "SKILL.md line count ≤ 40 (actual: $line_count)"
+    else
+        fail "SKILL.md line count exceeds 40 (actual: $line_count)"
+    fi
 
-    for section in "${required_sections[@]}"; do
-        if echo "$content" | grep -q "$section"; then
-            pass "Section present: $section"
-        else
-            warn "Section missing: $section (recommended)"
-        fi
-    done
+    if grep -q '^λ(' "$SKILL_DIR/SKILL.md"; then
+        pass "λ-contract present"
+    else
+        fail "λ-contract missing"
+    fi
+
+    if grep -q '^##' "$SKILL_DIR/SKILL.md"; then
+        fail "Unexpected Markdown headings (##) found"
+    else
+        pass "No extraneous Markdown headings detected"
+    fi
+
+    if grep -q '^[[:space:]]*>' "$SKILL_DIR/SKILL.md"; then
+        fail "Blockquotes found; contract should stay declarative"
+    fi
+
+    if grep -q '[[:space:]]*[🎯⚠️✅❌]' "$SKILL_DIR/SKILL.md"; then
+        fail "Emoji detected; remove decorative glyphs"
+    fi
 }
 
 # Main validation
@@ -216,7 +227,7 @@ check_directory_structure
 check_naming_conventions
 check_markdown_syntax
 check_broken_links
-check_completeness
+check_contract_format
 
 echo ""
 echo "================================"
