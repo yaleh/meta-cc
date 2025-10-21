@@ -289,10 +289,10 @@ fi
 # Test 3.4: Skills structure verification
 if [ -d "skills" ]; then
     SKILL_COUNT=$(find skills -name "SKILL.md" 2>/dev/null | wc -l)
-    if [ "$SKILL_COUNT" -eq 16 ]; then
-        test_result "Skills structure: found 16 skills" "pass"
+    if [ "$SKILL_COUNT" -eq 17 ]; then
+        test_result "Skills structure: found 17 skills" "pass"
     else
-        test_result "Skills structure: found 16 skills" "fail" "Expected 16 skills, found $SKILL_COUNT"
+        test_result "Skills structure: found 17 skills" "fail" "Expected 17 skills, found $SKILL_COUNT"
     fi
 else
     test_result "Skills directory exists" "fail" "skills/ directory not found"
@@ -312,10 +312,10 @@ if [ -f ".claude-plugin/marketplace.json" ]; then
             test_result "marketplace.json declares meta-cc plugin with agents" "fail" "Expected 5 agents in meta-cc plugin, found $AGENT_COUNT"
         fi
 
-        if [ "$SKILLS_COUNT" -eq 16 ]; then
-            test_result "marketplace.json declares meta-cc plugin with 16 skills" "pass"
+        if [ "$SKILLS_COUNT" -eq 17 ]; then
+            test_result "marketplace.json declares meta-cc plugin with 17 skills" "pass"
         else
-            test_result "marketplace.json declares meta-cc plugin with skills" "fail" "Expected 16 skills in meta-cc plugin, found $SKILLS_COUNT"
+            test_result "marketplace.json declares meta-cc plugin with skills" "fail" "Expected 17 skills in meta-cc plugin, found $SKILLS_COUNT"
         fi
     else
         test_result "marketplace.json declares meta-cc plugin" "fail" "meta-cc plugin not found in marketplace.json"
