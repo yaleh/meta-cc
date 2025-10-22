@@ -48,3 +48,4 @@ experiment_*.go
 # OS temporary files
 .DS_Store
 Thumbs.db
+/.gocache
