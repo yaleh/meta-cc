@@ -3,35 +3,35 @@
   "patterns": [
     {
       "name": "builder_map_decomposition",
-      "description": "\u2014 replace large dispatcher switches with map-driven builder functions (iteration-1.md)."
+      "description": "\u2014 Map tool/command identifiers to factory functions to eliminate switch ladders and ease extension (evidence: MCP server Iteration 1)."
     },
     {
       "name": "pipeline_config_struct",
-      "description": "\u2014 centralize shared parameter extraction into immutable config structs to shrink orchestration functions (iteration-1.md)."
+      "description": "\u2014 Gather shared parameters into immutable config structs so orchestration functions stay linear and testable (evidence: MCP server Iteration 1)."
     },
     {
       "name": "helper_specialization",
-      "description": "\u2014 move logging/metrics branches into dedicated helpers to keep main flow linear (iteration-1.md)."
+      "description": "\u2014 Push tracing/metrics/error branches into helpers to keep primary logic readable and reuse instrumentation (evidence: MCP server Iteration 1)."
     },
     {
       "name": "jq_pipeline_segmentation",
-      "description": "\u2014 split parsing, execution, and encoding into helpers to reduce panic surfaces and simplify testing (iteration-2.md)."
+      "description": "\u2014 Treat JSONL parsing, jq execution, and serialization as independent helpers to confine failure domains (evidence: MCP server Iteration 2)."
     },
     {
       "name": "automation_first_metrics",
-      "description": "\u2014 codify scripts/make targets for complexity & coverage snapshots; treat metrics as part of the refactor (iteration-2.md, iteration-3.md)."
+      "description": "\u2014 Bundle metrics capture in scripts/make targets so every iteration records complexity & coverage automatically (evidence: MCP server Iteration 2, CLI Iteration 3)."
     },
     {
       "name": "documentation_templates",
-      "description": "\u2014 generate iteration logs from templates to maintain V_meta_completeness \u2265 0.8 (iteration-3.md)."
+      "description": "\u2014 Use standardized iteration templates + generators to maintain BAIME completeness with minimal overhead (evidence: MCP server Iteration 3, CLI Iteration 3)."
     },
     {
       "name": "conversation_turn_builder",
-      "description": "\u2014 extract user/assistant maps and assemble turns via helper orchestration to keep conversation queries readable (cli iteration-3.md)."
+      "description": "\u2014 Extract user/assistant maps and assemble turns through helper orchestration to control complexity in conversation analytics (evidence: CLI Iteration 4)."
     },
     {
       "name": "prompt_outcome_analyzer",
-      "description": "\u2014 split outcome scanning into confirmation/error/deliverable helpers to evaluate user prompts predictably (cli iteration-3.md)."
+      "description": "\u2014 Split prompt outcome evaluation into dedicated helpers (confirmation, errors, deliverables, status) for predictable analytics (evidence: CLI Iteration 4)."
     }
   ]
 }

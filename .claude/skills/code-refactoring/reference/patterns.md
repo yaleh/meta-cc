@@ -1,10 +1,10 @@
 # Refactoring Pattern Set
 
-- **builder_map_decomposition** — replace large dispatcher switches with map-driven builder functions (iteration-1.md).
-- **pipeline_config_struct** — centralize shared parameter extraction into immutable config structs to shrink orchestration functions (iteration-1.md).
-- **helper_specialization** — move logging/metrics branches into dedicated helpers to keep main flow linear (iteration-1.md).
-- **jq_pipeline_segmentation** — split parsing, execution, and encoding into helpers to reduce panic surfaces and simplify testing (iteration-2.md).
-- **automation_first_metrics** — codify scripts/make targets for complexity & coverage snapshots; treat metrics as part of the refactor (iteration-2.md, iteration-3.md).
-- **documentation_templates** — generate iteration logs from templates to maintain V_meta_completeness ≥ 0.8 (iteration-3.md).
-- **conversation_turn_builder** — extract user/assistant maps and assemble turns via helper orchestration to keep conversation queries readable (cli iteration-3.md).
-- **prompt_outcome_analyzer** — split outcome scanning into confirmation/error/deliverable helpers to evaluate user prompts predictably (cli iteration-3.md).
+- **builder_map_decomposition** — Map tool/command identifiers to factory functions to eliminate switch ladders and ease extension (evidence: MCP server Iteration 1).
+- **pipeline_config_struct** — Gather shared parameters into immutable config structs so orchestration functions stay linear and testable (evidence: MCP server Iteration 1).
+- **helper_specialization** — Push tracing/metrics/error branches into helpers to keep primary logic readable and reuse instrumentation (evidence: MCP server Iteration 1).
+- **jq_pipeline_segmentation** — Treat JSONL parsing, jq execution, and serialization as independent helpers to confine failure domains (evidence: MCP server Iteration 2).
+- **automation_first_metrics** — Bundle metrics capture in scripts/make targets so every iteration records complexity & coverage automatically (evidence: MCP server Iteration 2, CLI Iteration 3).
+- **documentation_templates** — Use standardized iteration templates + generators to maintain BAIME completeness with minimal overhead (evidence: MCP server Iteration 3, CLI Iteration 3).
+- **conversation_turn_builder** — Extract user/assistant maps and assemble turns through helper orchestration to control complexity in conversation analytics (evidence: CLI Iteration 4).
+- **prompt_outcome_analyzer** — Split prompt outcome evaluation into dedicated helpers (confirmation, errors, deliverables, status) for predictable analytics (evidence: CLI Iteration 4).
