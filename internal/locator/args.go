@@ -11,12 +11,11 @@ import (
 // 遍历 ~/.claude/projects/*/，查找匹配的 {session-id}.jsonl
 // 如果找到多个（跨项目同名会话），返回最新的
 func (l *SessionLocator) FromSessionID(sessionID string) (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
+	projectsRoot := l.projectsRoot
+	if projectsRoot == "" {
+		return "", fmt.Errorf("Claude Code projects directory not configured")
 	}
 
-	projectsRoot := filepath.Join(homeDir, ".claude", "projects")
 	if _, err := os.Stat(projectsRoot); os.IsNotExist(err) {
 		return "", fmt.Errorf("Claude Code projects directory not found: %s", projectsRoot)
 	}
@@ -63,12 +62,12 @@ func (l *SessionLocator) FromProjectPath(projectPath string) (string, error) {
 	// 计算项目哈希
 	projectHash := pathToHash(absPath)
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
+	projectsRoot := l.projectsRoot
+	if projectsRoot == "" {
+		return "", fmt.Errorf("Claude Code projects directory not configured")
 	}
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if _, err := os.Stat(sessionDir); os.IsNotExist(err) {
 		return "", fmt.Errorf("no sessions found for project: %s (hash: %s)", projectPath, projectHash)
 	}
@@ -101,12 +100,12 @@ func (l *SessionLocator) AllSessionsFromProject(projectPath string) ([]string, e
 	// 计算项目哈希
 	projectHash := pathToHash(absPath)
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get home directory: %w", err)
+	projectsRoot := l.projectsRoot
+	if projectsRoot == "" {
+		return nil, fmt.Errorf("Claude Code projects directory not configured")
 	}
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if _, err := os.Stat(sessionDir); os.IsNotExist(err) {
 		return nil, fmt.Errorf("no sessions found for project: %s (hash: %s)", projectPath, projectHash)
 	}

@@ -40,7 +40,6 @@ func (l *SessionLocator) Locate(opts LocateOptions) (string, error) {
 		projectPath = cwd
 	}
 
-	// 策略2: --project 参数或默认项目路径
 	if projectPath != "" {
 		path, err := l.FromProjectPath(projectPath)
 		if err == nil {

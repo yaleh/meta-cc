@@ -178,82 +178,103 @@ func buildSuccessfulPrompts(entries []parser.SessionEntry, minQuality float64, l
 
 // analyzePromptOutcome analyzes the outcome of a user prompt
 func analyzePromptOutcome(entries []parser.SessionEntry, userEntryIdx int, turnIndex map[string]int) (PromptOutcome, int) {
-	outcome := PromptOutcome{
-		Status:       "unknown",
-		ErrorCount:   0,
-		Deliverables: []string{},
-	}
-
+	outcome := PromptOutcome{Status: "unknown", Deliverables: []string{}}
 	startTurn := turnIndex[entries[userEntryIdx].UUID]
 	endTurn := startTurn
 
-	// Look ahead for assistant responses and next user message
+	deliverables := make(map[string]struct{})
+
 	for i := userEntryIdx + 1; i < len(entries); i++ {
 		entry := entries[i]
 
-		// Stop at next user message
 		if entry.Type == "user" {
 			endTurn = turnIndex[entry.UUID] - 1
-
-			// Check if user confirmed success
-			if entry.Message != nil {
-				var content string
-				for _, block := range entry.Message.Content {
-					if block.Type == "text" {
-						content += block.Text
-					}
-				}
-
-				content = strings.ToLower(content)
-				if containsAny(content, []string{"good", "great", "perfect", "thanks", "好的", "很好", "完成", "通过"}) {
-					outcome.Status = "success"
-				}
+			if confirmsSuccess(entry) {
+				outcome.Status = "success"
 			}
 			break
 		}
 
-		// Count errors
 		if entry.Message != nil {
-			for _, block := range entry.Message.Content {
-				if block.Type == "tool_result" && block.ToolResult != nil {
-					if block.ToolResult.Status == "error" || block.ToolResult.Error != "" {
-						outcome.ErrorCount++
-					}
-				}
-			}
-		}
-
-		// Extract deliverables (files created/modified)
-		if entry.Message != nil {
-			for _, block := range entry.Message.Content {
-				if block.Type == "tool_use" && block.ToolUse != nil {
-					if block.ToolUse.Name == "Write" || block.ToolUse.Name == "Edit" {
-						if filePath, ok := block.ToolUse.Input["file_path"].(string); ok {
-							if !contains(outcome.Deliverables, filePath) {
-								outcome.Deliverables = append(outcome.Deliverables, filePath)
-							}
-						}
-					}
-				}
-			}
+			outcome.ErrorCount += countToolErrors(entry.Message.Content)
+			appendDeliverables(deliverables, entry.Message.Content)
 		}
 
 		endTurn = turnIndex[entry.UUID]
 	}
 
-	// Calculate turns to complete
+	outcome.Deliverables = mapKeys(deliverables)
 	outcome.TurnsToComplete = endTurn - startTurn + 1
+	finalizePromptStatus(&outcome)
+	return outcome, endTurn
+}
 
-	// Determine status if not already set
-	if outcome.Status == "unknown" {
-		if outcome.ErrorCount == 0 && len(outcome.Deliverables) > 0 {
-			outcome.Status = "success"
-		} else if outcome.ErrorCount > 0 {
-			outcome.Status = "partial"
+func confirmsSuccess(entry parser.SessionEntry) bool {
+	if entry.Message == nil {
+		return false
+	}
+
+	var content string
+	for _, block := range entry.Message.Content {
+		if block.Type == "text" {
+			content += block.Text
 		}
 	}
 
-	return outcome, endTurn
+	content = strings.ToLower(content)
+	return containsAny(content, []string{"good", "great", "perfect", "thanks", "好的", "很好", "完成", "通过"})
+}
+
+func countToolErrors(blocks []parser.ContentBlock) int {
+	errors := 0
+	for _, block := range blocks {
+		if block.Type == "tool_result" && block.ToolResult != nil {
+			if block.ToolResult.Status == "error" || block.ToolResult.Error != "" {
+				errors++
+			}
+		}
+	}
+	return errors
+}
+
+func appendDeliverables(dest map[string]struct{}, blocks []parser.ContentBlock) {
+	for _, block := range blocks {
+		if block.Type != "tool_use" || block.ToolUse == nil {
+			continue
+		}
+		if block.ToolUse.Name != "Write" && block.ToolUse.Name != "Edit" {
+			continue
+		}
+		if filePath, ok := block.ToolUse.Input["file_path"].(string); ok {
+			dest[filePath] = struct{}{}
+		}
+	}
+}
+
+func mapKeys(source map[string]struct{}) []string {
+	if len(source) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(source))
+	for key := range source {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func finalizePromptStatus(outcome *PromptOutcome) {
+	if outcome.Status != "unknown" {
+		return
+	}
+	if outcome.ErrorCount == 0 && len(outcome.Deliverables) > 0 {
+		outcome.Status = "success"
+		return
+	}
+	if outcome.ErrorCount > 0 {
+		outcome.Status = "partial"
+		return
+	}
+	outcome.Status = "unknown"
 }
 
 // calculateQualityScore calculates quality score for a prompt

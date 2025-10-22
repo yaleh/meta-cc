@@ -50,45 +50,85 @@ func init() {
 }
 
 func runQueryTools(cmd *cobra.Command, args []string) error {
-	// Step 1: Initialize and load session using pipeline
-	p := NewSessionPipeline(getGlobalOptions())
-	if err := p.Load(LoadOptions{AutoDetect: true}); err != nil {
-		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
-	}
-
-	// Step 2: Extract tool calls using pipeline
-	toolCalls := p.ExtractToolCalls()
-
-	// Step 3: Apply filters
-	filtered, err := applyToolFilters(toolCalls)
+	calls, err := loadToolCalls(getGlobalOptions())
 	if err != nil {
-		return internalOutput.OutputError(err, internalOutput.ErrFilterError, outputFormat)
+		return err
 	}
 
-	// Step 4: Apply default deterministic sorting (by timestamp)
-	// This ensures same query always produces same output order
-	output.SortByTimestamp(filtered)
+	calls, err = filterToolCalls(calls)
+	if err != nil {
+		return err
+	}
+	sortToolCallList(calls)
 
-	// Step 4b: Apply custom sort if requested (overrides default)
+	if handled, err := handleToolEstimate(cmd, calls); handled || err != nil {
+		return err
+	}
+
+	calls = paginateToolCalls(calls)
+
+	if handled, err := handleToolChunking(cmd, calls); handled || err != nil {
+		return err
+	}
+
+	if len(calls) == 0 {
+		return internalOutput.WarnNoResults(outputFormat)
+	}
+
+	if handled, err := handleToolSummaryFirst(cmd, calls); handled || err != nil {
+		return err
+	}
+
+	if handled, err := handleToolStreaming(cmd, calls); handled || err != nil {
+		return err
+	}
+
+	if handled, err := handleToolProjection(cmd, calls); handled || err != nil {
+		return err
+	}
+
+	return writeToolCalls(cmd, calls)
+}
+
+func loadToolCalls(opts GlobalOptions) ([]parser.ToolCall, error) {
+	pipeline := NewSessionPipeline(opts)
+	if err := pipeline.Load(LoadOptions{AutoDetect: true}); err != nil {
+		return nil, internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
+	}
+	return pipeline.ExtractToolCalls(), nil
+}
+
+func filterToolCalls(calls []parser.ToolCall) ([]parser.ToolCall, error) {
+	filtered, err := applyToolFilters(calls)
+	if err != nil {
+		return nil, internalOutput.OutputError(err, internalOutput.ErrFilterError, outputFormat)
+	}
+	return filtered, nil
+}
+
+func sortToolCallList(calls []parser.ToolCall) {
+	output.SortByTimestamp(calls)
 	if querySortBy != "" {
-		sortToolCalls(filtered, querySortBy, queryReverse)
+		sortToolCalls(calls, querySortBy, queryReverse)
+	}
+}
+
+func handleToolEstimate(cmd *cobra.Command, calls []parser.ToolCall) (bool, error) {
+	if !estimateSizeFlag {
+		return false, nil
 	}
 
-	// Step 5: Handle --estimate-size flag
-	if estimateSizeFlag {
-		estimate, err := output.EstimateToolCallsSize(filtered, outputFormat)
-		if err != nil {
-			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
-		}
-
-		// Output estimate as JSONL
-		estimateStr, _ := output.FormatJSONL(estimate)
-		fmt.Fprintln(cmd.OutOrStdout(), estimateStr)
-		return nil
+	estimate, err := output.EstimateToolCallsSize(calls, outputFormat)
+	if err != nil {
+		return true, internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 	}
 
-	// Step 6: Apply pagination using new filter package
-	// Use global flags (limitFlag, offsetFlag) if set, otherwise fall back to queryLimit/queryOffset
+	estimateStr, _ := output.FormatJSONL(estimate)
+	fmt.Fprintln(cmd.OutOrStdout(), estimateStr)
+	return true, nil
+}
+
+func paginateToolCalls(calls []parser.ToolCall) []parser.ToolCall {
 	limit := limitFlag
 	offset := offsetFlag
 	if limit == 0 && queryLimit > 0 {
@@ -98,180 +138,180 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 		offset = queryOffset
 	}
 
-	paginationConfig := filter.PaginationConfig{
-		Limit:  limit,
-		Offset: offset,
-	}
-	paginated := filter.ApplyPagination(filtered, paginationConfig)
+	config := filter.PaginationConfig{Limit: limit, Offset: offset}
+	return filter.ApplyPagination(calls, config)
+}
 
-	// Step 7: Handle chunking mode
-	if chunkSizeFlag > 0 {
-		// Validate output directory is specified
-		if outputDirFlag == "" {
-			return internalOutput.OutputError(
-				fmt.Errorf("--output-dir is required when using --chunk-size"),
-				internalOutput.ErrInvalidArgument,
-				outputFormat,
-			)
-		}
-
-		// Create chunks
-		metadata, err := output.ChunkToolCalls(paginated, chunkSizeFlag, outputDirFlag, outputFormat)
-		if err != nil {
-			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
-		}
-
-		// Output chunk summary to stderr (not stdout)
-		fmt.Fprintf(cmd.ErrOrStderr(), "Generated %d chunk(s)\n", len(metadata))
-		for _, meta := range metadata {
-			fmt.Fprintf(cmd.ErrOrStderr(), "  Chunk %d: %s (%d records, %d bytes)\n",
-				meta.Index, filepath.Base(meta.File), meta.Records, meta.SizeBytes)
-		}
-		fmt.Fprintf(cmd.ErrOrStderr(), "Manifest: %s\n", filepath.Join(outputDirFlag, "manifest.json"))
-
-		return nil
+func handleToolChunking(cmd *cobra.Command, calls []parser.ToolCall) (bool, error) {
+	if chunkSizeFlag <= 0 {
+		return false, nil
 	}
 
-	// Step 8: Handle summary-first mode
-	if summaryFirstFlag {
-		summaryOutput, err := output.FormatSummaryFirst(paginated, topNFlag, outputFormat)
-		if err != nil {
-			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
-		}
-
-		// Check for empty results first
-		if len(paginated) == 0 {
-			return internalOutput.WarnNoResults(outputFormat)
-		}
-
-		// Print summary followed by details
-		fmt.Fprintln(cmd.OutOrStdout(), summaryOutput.Summary)
-		fmt.Fprintln(cmd.OutOrStdout(), summaryOutput.Details)
-
-		return nil
+	if outputDirFlag == "" {
+		err := fmt.Errorf("--output-dir is required when using --chunk-size")
+		return true, internalOutput.OutputError(err, internalOutput.ErrInvalidArgument, outputFormat)
 	}
 
-	// Step 9: Handle streaming output if requested
-	if queryStream {
-		// Check for empty results first
-		if len(paginated) == 0 {
-			return internalOutput.WarnNoResults(outputFormat)
-		}
-
-		streamWriter := output.NewStreamWriter(cmd.OutOrStdout())
-		for _, tool := range paginated {
-			if err := streamWriter.WriteRecord(tool); err != nil {
-				return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
-			}
-		}
-		return nil
+	metadata, err := output.ChunkToolCalls(calls, chunkSizeFlag, outputDirFlag, outputFormat)
+	if err != nil {
+		return true, internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 	}
 
-	// Step 10: Apply field projection if requested
+	fmt.Fprintf(cmd.ErrOrStderr(), "Generated %d chunk(s)\n", len(metadata))
+	for _, meta := range metadata {
+		fmt.Fprintf(cmd.ErrOrStderr(), "  Chunk %d: %s (%d records, %d bytes)\n",
+			meta.Index, filepath.Base(meta.File), meta.Records, meta.SizeBytes)
+	}
+	fmt.Fprintf(cmd.ErrOrStderr(), "Manifest: %s\n", filepath.Join(outputDirFlag, "manifest.json"))
+	return true, nil
+}
+
+func handleToolSummaryFirst(cmd *cobra.Command, calls []parser.ToolCall) (bool, error) {
+	if !summaryFirstFlag {
+		return false, nil
+	}
+
+	summaryOutput, err := output.FormatSummaryFirst(calls, topNFlag, outputFormat)
+	if err != nil {
+		return true, internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
+	}
+
+	fmt.Fprintln(cmd.OutOrStdout(), summaryOutput.Summary)
+	fmt.Fprintln(cmd.OutOrStdout(), summaryOutput.Details)
+	return true, nil
+}
+
+func handleToolStreaming(cmd *cobra.Command, calls []parser.ToolCall) (bool, error) {
+	if !queryStream {
+		return false, nil
+	}
+
+	streamWriter := output.NewStreamWriter(cmd.OutOrStdout())
+	for _, tool := range calls {
+		if err := streamWriter.WriteRecord(tool); err != nil {
+			return true, internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
+		}
+	}
+	return true, nil
+}
+
+func handleToolProjection(cmd *cobra.Command, calls []parser.ToolCall) (bool, error) {
 	projectionConfig := output.ParseProjectionConfig(fieldsFlag, ifErrorIncludeFlag)
-
-	// If projection is requested, project the fields
-	if len(projectionConfig.Fields) > 0 {
-		// Check for empty results first
-		if len(paginated) == 0 {
-			return internalOutput.WarnNoResults(outputFormat)
-		}
-
-		projected, err := output.ProjectToolCalls(paginated, projectionConfig)
-		if err != nil {
-			return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
-		}
-
-		// Format projected output
-		outputStr, formatErr := output.FormatProjectedOutput(projected, outputFormat)
-		if formatErr != nil {
-			return internalOutput.OutputError(formatErr, internalOutput.ErrInternalError, outputFormat)
-		}
-
-		fmt.Fprintln(cmd.OutOrStdout(), outputStr)
-		return nil
+	if len(projectionConfig.Fields) == 0 {
+		return false, nil
 	}
 
-	// Step 11: Format output (non-chunked, non-projected, non-summary mode)
-	// Check for empty results first
-	if len(paginated) == 0 {
-		return internalOutput.WarnNoResults(outputFormat)
+	projected, err := output.ProjectToolCalls(calls, projectionConfig)
+	if err != nil {
+		return true, internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 	}
 
-	outputStr, formatErr := internalOutput.FormatOutput(paginated, outputFormat)
+	outputStr, formatErr := output.FormatProjectedOutput(projected, outputFormat)
 	if formatErr != nil {
-		return internalOutput.OutputError(formatErr, internalOutput.ErrInternalError, outputFormat)
+		return true, internalOutput.OutputError(formatErr, internalOutput.ErrInternalError, outputFormat)
 	}
 
+	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
+	return true, nil
+}
+
+func writeToolCalls(cmd *cobra.Command, calls []parser.ToolCall) error {
+	outputStr, err := internalOutput.FormatOutput(calls, outputFormat)
+	if err != nil {
+		return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
+	}
 	fmt.Fprintln(cmd.OutOrStdout(), outputStr)
 	return nil
 }
 
 func applyToolFilters(toolCalls []parser.ToolCall) ([]parser.ToolCall, error) {
-	// Apply --filter expression first (most powerful)
-	if queryToolsFilter != "" {
-		expr, err := filter.ParseExpression(queryToolsFilter)
-		if err != nil {
-			return nil, fmt.Errorf("invalid filter expression: %w", err)
-		}
-
-		var filtered []parser.ToolCall
-		for _, tc := range toolCalls {
-			// Convert ToolCall to map for expression evaluation
-			record := map[string]interface{}{
-				"tool":   tc.ToolName,
-				"status": tc.Status,
-				"uuid":   tc.UUID,
-				"error":  tc.Error,
-			}
-
-			match, err := expr.Evaluate(record)
-			if err != nil {
-				return nil, fmt.Errorf("filter evaluation error: %w", err)
-			}
-
-			if match {
-				filtered = append(filtered, tc)
-			}
-		}
-		toolCalls = filtered
+	filtered, err := applyExpressionFilter(toolCalls)
+	if err != nil {
+		return nil, err
 	}
 
-	// Apply --where filter (simple key=value pairs)
-	if queryToolsWhere != "" {
-		filtered, err := filter.ApplyWhere(toolCalls, queryToolsWhere, "tool_calls")
-		if err != nil {
-			return nil, fmt.Errorf("invalid where condition: %w", err)
-		}
-		toolCalls = filtered.([]parser.ToolCall)
+	filtered, err = applyWhereFilter(filtered)
+	if err != nil {
+		return nil, err
 	}
 
-	// Apply individual flag filters (for backwards compatibility)
-	var result []parser.ToolCall
+	return applyFlagFilters(filtered), nil
+}
+
+func applyExpressionFilter(toolCalls []parser.ToolCall) ([]parser.ToolCall, error) {
+	if queryToolsFilter == "" {
+		return toolCalls, nil
+	}
+
+	expr, err := filter.ParseExpression(queryToolsFilter)
+	if err != nil {
+		return nil, fmt.Errorf("invalid filter expression: %w", err)
+	}
+
+	var filtered []parser.ToolCall
 	for _, tc := range toolCalls {
-		// Apply status filter
-		if queryToolsStatus != "" {
-			if queryToolsStatus == "error" {
-				if tc.Status != "error" && tc.Error == "" {
-					continue
-				}
-			} else if queryToolsStatus == "success" {
-				if tc.Status == "error" || tc.Error != "" {
-					continue
-				}
-			}
+		record := map[string]interface{}{
+			"tool":   tc.ToolName,
+			"status": tc.Status,
+			"uuid":   tc.UUID,
+			"error":  tc.Error,
 		}
 
-		// Apply tool name filter
+		match, evalErr := expr.Evaluate(record)
+		if evalErr != nil {
+			return nil, fmt.Errorf("filter evaluation error: %w", evalErr)
+		}
+
+		if match {
+			filtered = append(filtered, tc)
+		}
+	}
+
+	return filtered, nil
+}
+
+func applyWhereFilter(toolCalls []parser.ToolCall) ([]parser.ToolCall, error) {
+	if queryToolsWhere == "" {
+		return toolCalls, nil
+	}
+
+	filtered, err := filter.ApplyWhere(toolCalls, queryToolsWhere, "tool_calls")
+	if err != nil {
+		return nil, fmt.Errorf("invalid where condition: %w", err)
+	}
+
+	return filtered.([]parser.ToolCall), nil
+}
+
+func applyFlagFilters(toolCalls []parser.ToolCall) []parser.ToolCall {
+	var result []parser.ToolCall
+
+	for _, tc := range toolCalls {
+		if !matchesStatus(tc) {
+			continue
+		}
 		if queryToolsTool != "" && tc.ToolName != queryToolsTool {
 			continue
 		}
-
-		// If all filters pass, include this tool call
 		result = append(result, tc)
 	}
 
-	return result, nil
+	return result
+}
+
+func matchesStatus(tc parser.ToolCall) bool {
+	if queryToolsStatus == "" {
+		return true
+	}
+
+	switch queryToolsStatus {
+	case "error":
+		return tc.Status == "error" || tc.Error != ""
+	case "success":
+		return tc.Status != "error" && tc.Error == ""
+	default:
+		return true
+	}
 }
 
 func sortToolCalls(toolCalls []parser.ToolCall, sortBy string, reverse bool) {

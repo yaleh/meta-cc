@@ -23,6 +23,13 @@ func NewReporter(quiet, jsonOutput bool) *Reporter {
 	}
 }
 
+// SetWriter allows overriding the output destination (primarily for testing/CLI integration).
+func (r *Reporter) SetWriter(w io.Writer) {
+	if w != nil {
+		r.writer = w
+	}
+}
+
 // Print outputs the validation report
 func (r *Reporter) Print(report *Report) {
 	if r.jsonOutput {

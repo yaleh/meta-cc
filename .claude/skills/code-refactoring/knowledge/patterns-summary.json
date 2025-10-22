@@ -1,5 +1,5 @@
 {
-  "pattern_count": 6,
+  "pattern_count": 8,
   "patterns": [
     {
       "name": "builder_map_decomposition",
@@ -24,6 +24,14 @@
     {
       "name": "documentation_templates",
       "description": "\u2014 generate iteration logs from templates to maintain V_meta_completeness \u2265 0.8 (iteration-3.md)."
+    },
+    {
+      "name": "conversation_turn_builder",
+      "description": "\u2014 extract user/assistant maps and assemble turns via helper orchestration to keep conversation queries readable (cli iteration-3.md)."
+    },
+    {
+      "name": "prompt_outcome_analyzer",
+      "description": "\u2014 split outcome scanning into confirmation/error/deliverable helpers to evaluate user prompts predictably (cli iteration-3.md)."
     }
   ]
 }

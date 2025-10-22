@@ -137,124 +137,17 @@ func runQueryConversation(cmd *cobra.Command, args []string) error {
 }
 
 func buildConversationTurns(entries []parser.SessionEntry, turnIndex map[string]int) []ConversationTurn {
-	// Build maps for user and assistant messages by turn
-	userByTurn := make(map[int]*UserMessage)
-	assistantByTurn := make(map[int]*AssistantMessage)
-	turnTimestamps := make(map[int]string)
+	userByTurn, turnTimestamps := conversationUserMessages(entries, turnIndex)
+	assistantByTurn := conversationAssistantMessages(entries, turnIndex)
+	turns := collectConversationTurns(userByTurn, assistantByTurn)
 
-	// Extract user messages
-	for _, entry := range entries {
-		if entry.Type != "user" || entry.Message == nil {
-			continue
-		}
-
-		// Extract text content
-		var content string
-		for _, block := range entry.Message.Content {
-			if block.Type == "text" {
-				content += block.Text
-			}
-		}
-
-		// Skip system messages
-		if content != "" && !isSystemMessage(content) {
-			turn := turnIndex[entry.UUID]
-			userByTurn[turn] = &UserMessage{
-				TurnSequence: turn,
-				UUID:         entry.UUID,
-				Timestamp:    entry.Timestamp,
-				Content:      content,
-			}
-			turnTimestamps[turn] = entry.Timestamp
-		}
-	}
-
-	// Extract assistant messages
-	for _, entry := range entries {
-		if entry.Type != "assistant" || entry.Message == nil {
-			continue
-		}
-
-		// Calculate metrics
-		var textLength int
-		var toolUseCount int
-		var contentBlocks []ContentBlock
-
-		for _, block := range entry.Message.Content {
-			switch block.Type {
-			case "text":
-				textLength += len(block.Text)
-				contentBlocks = append(contentBlocks, ContentBlock{
-					Type: "text",
-					Text: block.Text,
-				})
-			case "tool_use":
-				toolUseCount++
-				toolName := ""
-				if block.ToolUse != nil {
-					toolName = block.ToolUse.Name
-				}
-				contentBlocks = append(contentBlocks, ContentBlock{
-					Type:     "tool_use",
-					ToolName: toolName,
-				})
-			}
-		}
-
-		// Extract token counts
-		tokensInput := 0
-		tokensOutput := 0
-		if entry.Message.Usage != nil {
-			if val, ok := entry.Message.Usage["input_tokens"].(float64); ok {
-				tokensInput = int(val)
-			}
-			if val, ok := entry.Message.Usage["output_tokens"].(float64); ok {
-				tokensOutput = int(val)
-			}
-		}
-
-		turn := turnIndex[entry.UUID]
-		assistantByTurn[turn] = &AssistantMessage{
-			TurnSequence:  turn,
-			UUID:          entry.UUID,
-			Timestamp:     entry.Timestamp,
-			Model:         entry.Message.Model,
-			ContentBlocks: contentBlocks,
-			TextLength:    textLength,
-			ToolUseCount:  toolUseCount,
-			TokensInput:   tokensInput,
-			TokensOutput:  tokensOutput,
-			StopReason:    entry.Message.StopReason,
-		}
-	}
-
-	// Build conversation turns
-	turnSet := make(map[int]bool)
-	for turn := range userByTurn {
-		turnSet[turn] = true
-	}
-	for turn := range assistantByTurn {
-		turnSet[turn] = true
-	}
-
-	var turns []ConversationTurn
-	for turn := range turnSet {
+	var results []ConversationTurn
+	for _, turn := range turns {
 		user := userByTurn[turn]
 		assistant := assistantByTurn[turn]
-
-		// Calculate duration if both messages exist
-		duration := 0
-		if user != nil && assistant != nil {
-			duration = calculateDuration(user.Timestamp, assistant.Timestamp)
-		}
-
-		// Use user timestamp if available, else assistant timestamp
-		timestamp := turnTimestamps[turn]
-		if timestamp == "" && assistant != nil {
-			timestamp = assistant.Timestamp
-		}
-
-		turns = append(turns, ConversationTurn{
+		duration := calculateTurnDuration(user, assistant)
+		timestamp := firstTimestamp(user, assistant, turnTimestamps[turn])
+		results = append(results, ConversationTurn{
 			TurnSequence:     turn,
 			UserMessage:      user,
 			AssistantMessage: assistant,
@@ -263,7 +156,149 @@ func buildConversationTurns(entries []parser.SessionEntry, turnIndex map[string]
 		})
 	}
 
+	return results
+}
+
+func conversationUserMessages(entries []parser.SessionEntry, turnIndex map[string]int) (map[int]*UserMessage, map[int]string) {
+	userByTurn := make(map[int]*UserMessage)
+	turnTimestamps := make(map[int]string)
+
+	for _, entry := range entries {
+		if entry.Type != "user" || entry.Message == nil {
+			continue
+		}
+		content := aggregateUserContent(entry.Message.Content)
+		if content == "" || isSystemMessage(content) {
+			continue
+		}
+
+		turn := turnIndex[entry.UUID]
+		userByTurn[turn] = &UserMessage{
+			TurnSequence: turn,
+			UUID:         entry.UUID,
+			Timestamp:    entry.Timestamp,
+			Content:      content,
+		}
+		turnTimestamps[turn] = entry.Timestamp
+	}
+
+	return userByTurn, turnTimestamps
+}
+
+func aggregateUserContent(blocks []parser.ContentBlock) string {
+	var content string
+	for _, block := range blocks {
+		if block.Type == "text" {
+			content += block.Text
+		}
+	}
+	return content
+}
+
+func conversationAssistantMessages(entries []parser.SessionEntry, turnIndex map[string]int) map[int]*AssistantMessage {
+	assistantByTurn := make(map[int]*AssistantMessage)
+
+	for _, entry := range entries {
+		if entry.Type != "assistant" || entry.Message == nil {
+			continue
+		}
+
+		contentBlocks, textLength, toolCount := conversationAssistantBlocks(entry.Message.Content)
+		tokensInput, tokensOutput := conversationTokenUsage(entry.Message.Usage)
+		turn := turnIndex[entry.UUID]
+
+		assistantByTurn[turn] = &AssistantMessage{
+			TurnSequence:  turn,
+			UUID:          entry.UUID,
+			Timestamp:     entry.Timestamp,
+			Model:         entry.Message.Model,
+			ContentBlocks: contentBlocks,
+			TextLength:    textLength,
+			ToolUseCount:  toolCount,
+			TokensInput:   tokensInput,
+			TokensOutput:  tokensOutput,
+			StopReason:    entry.Message.StopReason,
+		}
+	}
+
+	return assistantByTurn
+}
+
+func conversationAssistantBlocks(blocks []parser.ContentBlock) ([]ContentBlock, int, int) {
+	var contentBlocks []ContentBlock
+	textLength := 0
+	toolUseCount := 0
+
+	for _, block := range blocks {
+		switch block.Type {
+		case "text":
+			textLength += len(block.Text)
+			contentBlocks = append(contentBlocks, ContentBlock{Type: "text", Text: block.Text})
+		case "tool_use":
+			toolUseCount++
+			toolName := ""
+			if block.ToolUse != nil {
+				toolName = block.ToolUse.Name
+			}
+			contentBlocks = append(contentBlocks, ContentBlock{Type: "tool_use", ToolName: toolName})
+		}
+	}
+
+	return contentBlocks, textLength, toolUseCount
+}
+
+func conversationTokenUsage(usage map[string]interface{}) (int, int) {
+	if usage == nil {
+		return 0, 0
+	}
+
+	input := 0
+	if val, ok := usage["input_tokens"].(float64); ok {
+		input = int(val)
+	}
+
+	outputTokens := 0
+	if val, ok := usage["output_tokens"].(float64); ok {
+		outputTokens = int(val)
+	}
+
+	return input, outputTokens
+}
+
+func collectConversationTurns(userByTurn map[int]*UserMessage, assistantByTurn map[int]*AssistantMessage) []int {
+	turnSet := make(map[int]struct{})
+	for turn := range userByTurn {
+		turnSet[turn] = struct{}{}
+	}
+	for turn := range assistantByTurn {
+		turnSet[turn] = struct{}{}
+	}
+
+	var turns []int
+	for turn := range turnSet {
+		turns = append(turns, turn)
+	}
 	return turns
+}
+
+func calculateTurnDuration(user *UserMessage, assistant *AssistantMessage) int {
+	if user == nil || assistant == nil {
+		return 0
+	}
+	return calculateDuration(user.Timestamp, assistant.Timestamp)
+}
+
+func firstTimestamp(user *UserMessage, assistant *AssistantMessage, defaultTimestamp string) string {
+	if defaultTimestamp != "" {
+		return defaultTimestamp
+	}
+	if assistant != nil {
+		return assistant.Timestamp
+	}
+	if user != nil {
+		return user.Timestamp
+	}
+	return ""
 }
 
 func calculateDuration(userTime, assistantTime string) int {

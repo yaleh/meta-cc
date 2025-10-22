@@ -49,3 +49,4 @@ experiment_*.go
 .DS_Store
 Thumbs.db
 /.gocache
+/.tmp/

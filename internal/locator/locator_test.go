@@ -8,11 +8,11 @@ import (
 
 func TestLocate_WithSessionID(t *testing.T) {
 	// 准备测试环境
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 	projectHash := "-test-locate-session"
 	sessionID := "test-session-123"
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -20,7 +20,6 @@ func TestLocate_WithSessionID(t *testing.T) {
 	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
 	opts := LocateOptions{
@@ -51,7 +50,7 @@ func TestLocate_SessionIDNotFound(t *testing.T) {
 
 func TestLocate_WithProjectPath(t *testing.T) {
 	// 准备测试环境
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 	// Use temp dir for cross-platform compatibility
 	tempDir, err := os.MkdirTemp("", "testproject")
 	if err != nil {
@@ -62,7 +61,7 @@ func TestLocate_WithProjectPath(t *testing.T) {
 	testProjectPath := tempDir
 	projectHash := pathToHash(testProjectPath)
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -70,7 +69,6 @@ func TestLocate_WithProjectPath(t *testing.T) {
 	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
 	opts := LocateOptions{
@@ -102,10 +100,10 @@ func TestLocate_ProjectPathNotFound(t *testing.T) {
 func TestLocate_DefaultCWD(t *testing.T) {
 	// 准备测试环境：使用当前工作目录
 	cwd, _ := os.Getwd()
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 	projectHash := pathToHash(cwd)
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -113,7 +111,6 @@ func TestLocate_DefaultCWD(t *testing.T) {
 	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
 	opts := LocateOptions{}
@@ -144,11 +141,11 @@ func TestLocate_SessionOnlyMode(t *testing.T) {
 func TestLocate_WithEnvVars(t *testing.T) {
 	// Test that environment variables are no longer used
 	// 准备测试环境
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 	sessionID := "env-session-123"
 	projectHash := "-test-env-project"
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -156,7 +153,6 @@ func TestLocate_WithEnvVars(t *testing.T) {
 	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	defer os.RemoveAll(sessionDir)
 
 	// 设置环境变量（应该被忽略）
 	os.Setenv("CC_SESSION_ID", sessionID)

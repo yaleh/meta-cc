@@ -8,13 +8,24 @@ import (
 	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
+func setupProjectsRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "meta-cc-projects-*")
+	if err != nil {
+		t.Fatalf("failed to create temp projects dir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	t.Setenv(projectsRootEnv, dir)
+	return dir
+}
+
 func TestFromSessionID_Success(t *testing.T) {
 	// 准备测试环境
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 	projectHash := "-test-project-session-id"
 	sessionID := "abc123-def456"
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create session dir: %v", err)
 	}
@@ -22,7 +33,6 @@ func TestFromSessionID_Success(t *testing.T) {
 	if err := os.WriteFile(sessionFile, []byte(`{"test":"data"}`), 0644); err != nil {
 		t.Fatalf("failed to write session file: %v", err)
 	}
-	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
 	path, err := locator.FromSessionID(sessionID)
@@ -47,11 +57,11 @@ func TestFromSessionID_NotFound(t *testing.T) {
 
 func TestFromSessionID_MultipleProjects(t *testing.T) {
 	// 准备：在多个项目目录中创建同名会话文件
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 	sessionID := "shared-session-id"
 
 	// 项目1（旧）
-	project1 := filepath.Join(homeDir, ".claude", "projects", "-project1")
+	project1 := filepath.Join(projectsRoot, "-project1")
 	if err := os.MkdirAll(project1, 0755); err != nil {
 		t.Fatalf("failed to create project1 dir: %v", err)
 	}
@@ -62,10 +72,8 @@ func TestFromSessionID_MultipleProjects(t *testing.T) {
 	if err := os.Chtimes(file1, testutil.TimeFromUnix(1000), testutil.TimeFromUnix(1000)); err != nil {
 		t.Fatalf("failed to set file1 times: %v", err)
 	}
-	defer os.RemoveAll(project1)
-
 	// 项目2（新）
-	project2 := filepath.Join(homeDir, ".claude", "projects", "-project2")
+	project2 := filepath.Join(projectsRoot, "-project2")
 	if err := os.MkdirAll(project2, 0755); err != nil {
 		t.Fatalf("failed to create project2 dir: %v", err)
 	}
@@ -76,7 +84,6 @@ func TestFromSessionID_MultipleProjects(t *testing.T) {
 	if err := os.Chtimes(file2, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000)); err != nil {
 		t.Fatalf("failed to set file2 times: %v", err)
 	}
-	defer os.RemoveAll(project2)
 
 	locator := NewSessionLocator()
 	path, err := locator.FromSessionID(sessionID)
@@ -93,7 +100,7 @@ func TestFromSessionID_MultipleProjects(t *testing.T) {
 
 func TestFromProjectPath_Success(t *testing.T) {
 	// 准备测试环境
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 	// Use temp dir for cross-platform compatibility
 	tempDir, err := os.MkdirTemp("", "testproject")
 	if err != nil {
@@ -104,7 +111,7 @@ func TestFromProjectPath_Success(t *testing.T) {
 	projectPath := tempDir
 	projectHash := pathToHash(projectPath)
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create session dir: %v", err)
 	}
@@ -124,7 +131,6 @@ func TestFromProjectPath_Success(t *testing.T) {
 	if err := os.Chtimes(newSession, testutil.TimeFromUnix(2000), testutil.TimeFromUnix(2000)); err != nil {
 		t.Fatalf("failed to set new session times: %v", err)
 	}
-	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
 	path, err := locator.FromProjectPath(projectPath)
@@ -149,7 +155,7 @@ func TestFromProjectPath_NoSessions(t *testing.T) {
 
 func TestFromProjectPath_RelativePath(t *testing.T) {
 	// Test that relative paths like "." are resolved to absolute paths
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 
 	// Get current working directory
 	cwd, err := os.Getwd()
@@ -159,7 +165,7 @@ func TestFromProjectPath_RelativePath(t *testing.T) {
 
 	// Create session directory for current working directory
 	projectHash := pathToHash(cwd)
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create session dir: %v", err)
 	}
@@ -169,7 +175,6 @@ func TestFromProjectPath_RelativePath(t *testing.T) {
 	if err := os.WriteFile(testSession, []byte("{}"), 0644); err != nil {
 		t.Fatalf("failed to write test session: %v", err)
 	}
-	defer os.RemoveAll(sessionDir)
 
 	locator := NewSessionLocator()
 
