@@ -135,6 +135,36 @@ func TestGenerateStats_EmptyData(t *testing.T) {
 	}
 }
 
+func TestParseJQExpressionQuotedError(t *testing.T) {
+	_, err := parseJQExpression(`'.[]'`)
+	if err == nil {
+		t.Fatal("expected quoted expression to return error")
+	}
+	if !strings.Contains(err.Error(), "appears to be quoted") {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}
+
+func TestParseJSONLRecordsInvalidJSON(t *testing.T) {
+	_, err := parseJSONLRecords("not-json\n")
+	if err == nil {
+		t.Fatal("expected invalid JSON error")
+	}
+	if !strings.Contains(err.Error(), "invalid JSON at line 1") {
+		t.Fatalf("unexpected error message: %v", err)
+	}
+}
+
+func TestEncodeJQResultsMarshalError(t *testing.T) {
+	result, err := encodeJQResults([]interface{}{make(chan int)})
+	if err == nil {
+		t.Fatal("expected marshal error for channel value")
+	}
+	if result != "" {
+		t.Fatalf("expected empty result string, got %q", result)
+	}
+}
+
 // TestApplyJQFilter_QuotedExpressionError verifies improved error message for quoted expressions
 func TestApplyJQFilter_QuotedExpressionError(t *testing.T) {
 	jsonlData := `{"tool":"Bash","status":"success"}

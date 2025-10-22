@@ -21,6 +21,99 @@ func TestNewToolExecutor(t *testing.T) {
 	}
 }
 
+func TestNewToolPipelineConfig(t *testing.T) {
+	args := map[string]interface{}{
+		"jq_filter":          ".[] | .name",
+		"stats_only":         true,
+		"stats_first":        false,
+		"output_format":      "json",
+		"max_message_length": float64(120),
+		"content_summary":    true,
+	}
+
+	config := newToolPipelineConfig(args)
+
+	if config.jqFilter != ".[] | .name" {
+		t.Fatalf("unexpected jqFilter: %s", config.jqFilter)
+	}
+	if !config.statsOnly {
+		t.Fatal("expected statsOnly to be true")
+	}
+	if config.statsFirst {
+		t.Fatal("expected statsFirst to be false")
+	}
+	if config.outputFormat != "json" {
+		t.Fatalf("unexpected outputFormat: %s", config.outputFormat)
+	}
+	if config.maxMessageLength != 120 {
+		t.Fatalf("expected maxMessageLength to be 120, got %d", config.maxMessageLength)
+	}
+	if !config.contentSummary {
+		t.Fatal("expected contentSummary to be true")
+	}
+
+	defaults := newToolPipelineConfig(map[string]interface{}{})
+	if defaults.jqFilter != ".[]" {
+		t.Fatalf("unexpected default jqFilter: %s", defaults.jqFilter)
+	}
+	if defaults.outputFormat != "jsonl" {
+		t.Fatalf("unexpected default outputFormat: %s", defaults.outputFormat)
+	}
+	if defaults.maxMessageLength != 0 {
+		t.Fatalf("expected default maxMessageLength to be 0, got %d", defaults.maxMessageLength)
+	}
+}
+
+func TestToolPipelineConfigRequiresMessageFilters(t *testing.T) {
+	cases := []struct {
+		name   string
+		cfg    toolPipelineConfig
+		expect bool
+	}{
+		{
+			name:   "no filters",
+			cfg:    toolPipelineConfig{},
+			expect: false,
+		},
+		{
+			name: "max length",
+			cfg: toolPipelineConfig{
+				maxMessageLength: 80,
+			},
+			expect: true,
+		},
+		{
+			name: "content summary",
+			cfg: toolPipelineConfig{
+				contentSummary: true,
+			},
+			expect: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.cfg.requiresMessageFilters(); got != tc.expect {
+				t.Fatalf("requiresMessageFilters() = %v, expect %v", got, tc.expect)
+			}
+		})
+	}
+}
+
+func TestScopeArgs(t *testing.T) {
+	if args := scopeArgs("project"); len(args) != 2 || args[0] != "--project" || args[1] != "." {
+		t.Fatalf("unexpected project scope args: %v", args)
+	}
+
+	if args := scopeArgs("session"); len(args) != 1 || args[0] != "--session-only" {
+		t.Fatalf("unexpected session scope args: %v", args)
+	}
+
+	if args := scopeArgs("unknown"); args != nil {
+		t.Fatalf("expected nil for unknown scope, got %v", args)
+	}
+}
+
 func TestGetStringParam(t *testing.T) {
 	tests := []struct {
 		name     string

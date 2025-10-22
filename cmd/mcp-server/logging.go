@@ -53,6 +53,17 @@ func LoggerFromContext(ctx context.Context) *slog.Logger {
 	return slog.Default()
 }
 
+var errorClassificationRules = []struct {
+	errorType string
+	patterns  []string
+}{
+	{errorType: "parse_error", patterns: []string{"parse", "unmarshal", "invalid JSON", "decode"}},
+	{errorType: "validation_error", patterns: []string{"validation", "invalid", "missing", "required"}},
+	{errorType: "io_error", patterns: []string{"no such file", "permission denied", "cannot open", "read", "write"}},
+	{errorType: "execution_error", patterns: []string{"execution", "command", "process"}},
+	{errorType: "network_error", patterns: []string{"network", "connection", "timeout", "http"}},
+}
+
 // classifyError classifies an error into a category for logging
 func classifyError(err error) string {
 	if err == nil {
@@ -60,38 +71,20 @@ func classifyError(err error) string {
 	}
 
 	errMsg := err.Error()
-
-	// Parse errors
-	if strings.Contains(errMsg, "parse") || strings.Contains(errMsg, "unmarshal") ||
-		strings.Contains(errMsg, "invalid JSON") || strings.Contains(errMsg, "decode") {
-		return "parse_error"
+	for _, rule := range errorClassificationRules {
+		if containsAny(errMsg, rule.patterns) {
+			return rule.errorType
+		}
 	}
 
-	// Validation errors
-	if strings.Contains(errMsg, "validation") || strings.Contains(errMsg, "invalid") ||
-		strings.Contains(errMsg, "missing") || strings.Contains(errMsg, "required") {
-		return "validation_error"
-	}
-
-	// I/O errors
-	if strings.Contains(errMsg, "no such file") || strings.Contains(errMsg, "permission denied") ||
-		strings.Contains(errMsg, "cannot open") || strings.Contains(errMsg, "read") ||
-		strings.Contains(errMsg, "write") {
-		return "io_error"
-	}
-
-	// Execution errors
-	if strings.Contains(errMsg, "execution") || strings.Contains(errMsg, "command") ||
-		strings.Contains(errMsg, "process") {
-		return "execution_error"
-	}
-
-	// Network errors
-	if strings.Contains(errMsg, "network") || strings.Contains(errMsg, "connection") ||
-		strings.Contains(errMsg, "timeout") || strings.Contains(errMsg, "http") {
-		return "network_error"
-	}
-
-	// Default: general error
 	return "general_error"
+}
+
+func containsAny(haystack string, needles []string) bool {
+	for _, needle := range needles {
+		if strings.Contains(haystack, needle) {
+			return true
+		}
+	}
+	return false
 }

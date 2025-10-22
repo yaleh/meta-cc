@@ -19,6 +19,30 @@ type ToolExecutor struct {
 	metaCCPath string
 }
 
+type toolPipelineConfig struct {
+	jqFilter         string
+	statsOnly        bool
+	statsFirst       bool
+	outputFormat     string
+	maxMessageLength int
+	contentSummary   bool
+}
+
+func newToolPipelineConfig(args map[string]interface{}) toolPipelineConfig {
+	return toolPipelineConfig{
+		jqFilter:         getStringParam(args, "jq_filter", ".[]"),
+		statsOnly:        getBoolParam(args, "stats_only", false),
+		statsFirst:       getBoolParam(args, "stats_first", false),
+		outputFormat:     getStringParam(args, "output_format", "jsonl"),
+		maxMessageLength: getIntParam(args, "max_message_length", 0),
+		contentSummary:   getBoolParam(args, "content_summary", false),
+	}
+}
+
+func (c toolPipelineConfig) requiresMessageFilters() bool {
+	return c.maxMessageLength > 0 || c.contentSummary
+}
+
 func NewToolExecutor() *ToolExecutor {
 	// Find meta-cc executable
 	metaCCPath, err := exec.LookPath("meta-cc")
@@ -32,120 +56,103 @@ func NewToolExecutor() *ToolExecutor {
 	}
 }
 
-// ExecuteTool executes a meta-cc command and applies jq filtering
-func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map[string]interface{}) (string, error) {
-	// Get scope for metrics (with tool-specific defaults)
+func determineScope(toolName string, args map[string]interface{}) string {
 	defaultScope := "project"
 	if toolName == "get_session_stats" {
 		defaultScope = "session"
 	}
-	scope := getStringParam(args, "scope", defaultScope)
+	return getStringParam(args, "scope", defaultScope)
+}
 
-	// Start timing for tool execution metrics
+func recordToolSuccess(toolName, scope string, start time.Time) {
+	elapsed := time.Since(start)
+	RecordToolCall(toolName, scope, "success")
+	RecordToolExecutionDuration(toolName, scope, elapsed)
+}
+
+func recordToolFailure(toolName, scope string, start time.Time, errorType string) {
+	elapsed := time.Since(start)
+	RecordToolCall(toolName, scope, "error")
+	RecordToolExecutionDuration(toolName, scope, elapsed)
+	RecordError(toolName, errorType, GetErrorSeverity(errorType))
+}
+
+func (e *ToolExecutor) executeSpecialTool(cfg *config.Config, toolName, scope string, args map[string]interface{}, start time.Time) (string, bool, error) {
+	switch toolName {
+	case "cleanup_temp_files":
+		output, err := executeCleanupTool(args)
+		if err != nil {
+			errorType := classifyError(err)
+			recordToolFailure(toolName, scope, start, errorType)
+			return "", true, err
+		}
+		recordToolSuccess(toolName, scope, start)
+		return output, true, nil
+
+	case "list_capabilities":
+		output, err := executeListCapabilitiesTool(cfg, args)
+		if err != nil {
+			errorType := classifyError(err)
+			recordToolFailure(toolName, scope, start, errorType)
+			return "", true, err
+		}
+		recordToolSuccess(toolName, scope, start)
+		return output, true, nil
+
+	case "get_capability":
+		output, err := executeGetCapabilityTool(cfg, args)
+		if err != nil {
+			errorType := classifyError(err)
+			recordToolFailure(toolName, scope, start, errorType)
+			return "", true, err
+		}
+		recordToolSuccess(toolName, scope, start)
+		return output, true, nil
+
+	default:
+		return "", false, nil
+	}
+}
+
+// ExecuteTool executes a meta-cc command and applies jq filtering
+func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map[string]interface{}) (string, error) {
+	scope := determineScope(toolName, args)
 	start := time.Now()
 
-	// Handle cleanup tool separately (no meta-cc command needed)
-	if toolName == "cleanup_temp_files" {
-		output, err := executeCleanupTool(args)
-		elapsed := time.Since(start)
-
-		if err != nil {
-			RecordToolCall(toolName, scope, "error")
-			RecordToolExecutionDuration(toolName, scope, elapsed)
-			RecordError(toolName, classifyError(err), GetErrorSeverity(classifyError(err)))
-			return "", err
-		}
-
-		RecordToolCall(toolName, scope, "success")
-		RecordToolExecutionDuration(toolName, scope, elapsed)
-		return output, nil
+	if output, handled, err := e.executeSpecialTool(cfg, toolName, scope, args, start); handled {
+		return output, err
 	}
 
-	// Handle list_capabilities tool separately (no meta-cc command needed)
-	if toolName == "list_capabilities" {
-		output, err := executeListCapabilitiesTool(cfg, args)
-		elapsed := time.Since(start)
-
-		if err != nil {
-			RecordToolCall(toolName, scope, "error")
-			RecordToolExecutionDuration(toolName, scope, elapsed)
-			RecordError(toolName, classifyError(err), GetErrorSeverity(classifyError(err)))
-			return "", err
-		}
-
-		RecordToolCall(toolName, scope, "success")
-		RecordToolExecutionDuration(toolName, scope, elapsed)
-		return output, nil
-	}
-
-	// Handle get_capability tool separately (no meta-cc command needed)
-	if toolName == "get_capability" {
-		output, err := executeGetCapabilityTool(cfg, args)
-		elapsed := time.Since(start)
-
-		if err != nil {
-			RecordToolCall(toolName, scope, "error")
-			RecordToolExecutionDuration(toolName, scope, elapsed)
-			RecordError(toolName, classifyError(err), GetErrorSeverity(classifyError(err)))
-			return "", err
-		}
-
-		RecordToolCall(toolName, scope, "success")
-		RecordToolExecutionDuration(toolName, scope, elapsed)
-		return output, nil
-	}
-
-	// Extract common parameters
-	jqFilter := getStringParam(args, "jq_filter", ".[]")
-	statsOnly := getBoolParam(args, "stats_only", false)
-	statsFirst := getBoolParam(args, "stats_first", false)
-	outputFormat := getStringParam(args, "output_format", "jsonl")
-
-	// Extract message truncation parameters (for query_user_messages)
-	// Default to 0 (no truncation) - rely on hybrid mode for large results
-	maxMessageLength := getIntParam(args, "max_message_length", 0)
-	contentSummary := getBoolParam(args, "content_summary", false)
-
-	// Build meta-cc command
-	cmdArgs := e.buildCommand(toolName, args, scope, outputFormat)
+	config := newToolPipelineConfig(args)
+	cmdArgs := e.buildCommand(toolName, args, scope, config.outputFormat)
 	if cmdArgs == nil {
-		elapsed := time.Since(start)
-		RecordToolCall(toolName, scope, "error")
-		RecordToolExecutionDuration(toolName, scope, elapsed)
-		RecordError(toolName, "validation_error", "error")
+		recordToolFailure(toolName, scope, start, "validation_error")
 		return "", fmt.Errorf("unknown tool %s in executor: %w", toolName, mcerrors.ErrUnknownTool)
 	}
 
-	// Execute meta-cc
 	rawOutput, err := e.executeMetaCC(cmdArgs)
 	if err != nil {
-		elapsed := time.Since(start)
 		errorType := classifyError(err)
 		slog.Error("meta-cc execution failed",
 			"tool_name", toolName,
 			"error", err.Error(),
 			"error_type", errorType,
 		)
-		RecordToolCall(toolName, scope, "error")
-		RecordToolExecutionDuration(toolName, scope, elapsed)
-		RecordError(toolName, errorType, GetErrorSeverity(errorType))
+		recordToolFailure(toolName, scope, start, errorType)
 		return "", err
 	}
 
-	// Apply jq filter
-	filtered, err := ApplyJQFilter(rawOutput, jqFilter)
+	filtered, err := ApplyJQFilter(rawOutput, config.jqFilter)
 	if err != nil {
 		slog.Error("jq filter application failed",
 			"tool_name", toolName,
-			"jq_filter", jqFilter,
+			"jq_filter", config.jqFilter,
 			"error", err.Error(),
 			"error_type", "execution_error",
 		)
-		// Preserve detailed error message from ApplyJQFilter
 		return "", fmt.Errorf("jq filter error for tool %s: %w", toolName, err)
 	}
 
-	// Parse JSONL to interface array for hybrid mode adaptation
 	parsedData, err := e.parseJSONL(filtered)
 	if err != nil {
 		slog.Error("JSONL parsing failed",
@@ -156,72 +163,96 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 		return "", fmt.Errorf("JSONL parse error for tool %s: %w", toolName, mcerrors.ErrParseError)
 	}
 
-	// Apply message filters for query_user_messages (only if explicitly requested)
-	// By default, rely on hybrid mode (no truncation)
-	if toolName == "query_user_messages" && (maxMessageLength > 0 || contentSummary) {
-		parsedData = e.applyMessageFiltersToData(parsedData, maxMessageLength, contentSummary)
+	if toolName == "query_user_messages" && config.requiresMessageFilters() {
+		parsedData = e.applyMessageFiltersToData(parsedData, config.maxMessageLength, config.contentSummary)
 	}
 
-	// Handle stats_only and stats_first modes
-	if statsOnly {
-		// Convert back to JSONL for stats generation
-		jsonlData, err := e.dataToJSONL(parsedData)
-		if err != nil {
-			slog.Error("dataToJSONL conversion failed (stats_only)",
-				"tool_name", toolName,
-				"error", err.Error(),
-				"error_type", "parse_error",
-			)
-			return "", err
-		}
-		output, err := GenerateStats(jsonlData)
-		if err != nil {
-			slog.Error("stats generation failed",
-				"tool_name", toolName,
-				"error", err.Error(),
-				"error_type", "execution_error",
-			)
-			return "", err
-		}
-		return output, nil
-	} else if statsFirst {
-		// Convert back to JSONL for stats generation
-		jsonlData, err := e.dataToJSONL(parsedData)
-		if err != nil {
-			slog.Error("dataToJSONL conversion failed (stats_first)",
-				"tool_name", toolName,
-				"error", err.Error(),
-				"error_type", "parse_error",
-			)
-			return "", err
-		}
-		stats, _ := GenerateStats(jsonlData)
-
-		// Adapt response for data portion
-		response, err := adaptResponse(cfg, parsedData, args, toolName)
-		if err != nil {
-			slog.Error("response adaptation failed (stats_first)",
-				"tool_name", toolName,
-				"error", err.Error(),
-				"error_type", "execution_error",
-			)
-			return "", err
-		}
-
-		// Serialize and prepend stats
-		serialized, err := serializeResponse(response)
-		if err != nil {
-			slog.Error("response serialization failed (stats_first)",
-				"tool_name", toolName,
-				"error", err.Error(),
-				"error_type", "parse_error",
-			)
-			return "", err
-		}
-
-		return stats + "\n---\n" + serialized, nil
+	output, err := e.buildResponse(cfg, parsedData, args, toolName, config)
+	if err != nil {
+		return "", err
 	}
 
+	slog.Debug("tool execution pipeline completed successfully",
+		"tool_name", toolName,
+		"output_length", len(output),
+	)
+
+	recordToolSuccess(toolName, scope, start)
+	return output, nil
+}
+
+func (e *ToolExecutor) buildResponse(cfg *config.Config, parsedData []interface{}, args map[string]interface{}, toolName string, pipeline toolPipelineConfig) (string, error) {
+	if pipeline.statsOnly {
+		return e.buildStatsOnlyResponse(parsedData, toolName)
+	}
+
+	if pipeline.statsFirst {
+		return e.buildStatsFirstResponse(cfg, parsedData, args, toolName)
+	}
+
+	return e.buildStandardResponse(cfg, parsedData, args, toolName)
+}
+
+func (e *ToolExecutor) buildStatsOnlyResponse(parsedData []interface{}, toolName string) (string, error) {
+	jsonlData, err := e.dataToJSONL(parsedData)
+	if err != nil {
+		slog.Error("dataToJSONL conversion failed (stats_only)",
+			"tool_name", toolName,
+			"error", err.Error(),
+			"error_type", "parse_error",
+		)
+		return "", err
+	}
+
+	output, err := GenerateStats(jsonlData)
+	if err != nil {
+		slog.Error("stats generation failed",
+			"tool_name", toolName,
+			"error", err.Error(),
+			"error_type", "execution_error",
+		)
+		return "", err
+	}
+
+	return output, nil
+}
+
+func (e *ToolExecutor) buildStatsFirstResponse(cfg *config.Config, parsedData []interface{}, args map[string]interface{}, toolName string) (string, error) {
+	jsonlData, err := e.dataToJSONL(parsedData)
+	if err != nil {
+		slog.Error("dataToJSONL conversion failed (stats_first)",
+			"tool_name", toolName,
+			"error", err.Error(),
+			"error_type", "parse_error",
+		)
+		return "", err
+	}
+
+	stats, _ := GenerateStats(jsonlData)
+	response, err := adaptResponse(cfg, parsedData, args, toolName)
+	if err != nil {
+		slog.Error("response adaptation failed (stats_first)",
+			"tool_name", toolName,
+			"error", err.Error(),
+			"error_type", "execution_error",
+		)
+		return "", err
+	}
+
+	serialized, err := serializeResponse(response)
+	if err != nil {
+		slog.Error("response serialization failed (stats_first)",
+			"tool_name", toolName,
+			"error", err.Error(),
+			"error_type", "parse_error",
+		)
+		return "", err
+	}
+
+	return stats + "\n---\n" + serialized, nil
+}
+
+func (e *ToolExecutor) buildStandardResponse(cfg *config.Config, parsedData []interface{}, args map[string]interface{}, toolName string) (string, error) {
 	response, err := adaptResponse(cfg, parsedData, args, toolName)
 	if err != nil {
 		slog.Error("response adaptation failed",
@@ -232,7 +263,6 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 		return "", fmt.Errorf("response adaptation error for tool %s: %w", toolName, err)
 	}
 
-	// Serialize response (no truncation - rely on hybrid mode)
 	output, err := serializeResponse(response)
 	if err != nil {
 		slog.Error("response serialization failed",
@@ -243,187 +273,216 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 		return "", err
 	}
 
-	slog.Debug("tool execution pipeline completed successfully",
-		"tool_name", toolName,
-		"output_length", len(output),
-	)
-
-	// Record successful tool execution metrics
-	elapsed := time.Since(start)
-	RecordToolCall(toolName, scope, "success")
-	RecordToolExecutionDuration(toolName, scope, elapsed)
-
 	return output, nil
 }
 
 func (e *ToolExecutor) buildCommand(toolName string, args map[string]interface{}, scope string, outputFormat string) []string {
-	cmdArgs := []string{}
-
-	// Add scope flags based on scope parameter
-	if scope == "project" {
-		// Project-level: explicitly set --project . to load all sessions
-		cmdArgs = append(cmdArgs, "--project", ".")
-	} else if scope == "session" {
-		// Session-level: use --session-only flag to load only current session
-		cmdArgs = append(cmdArgs, "--session-only")
-	}
-	// If scope is neither (shouldn't happen with default), CLI will use project-level default
-
-	// Map tool name to meta-cc command
-	switch toolName {
-	case "query_tools":
-		cmdArgs = append(cmdArgs, "query", "tools")
-		if tool := getStringParam(args, "tool", ""); tool != "" {
-			cmdArgs = append(cmdArgs, "--tool", tool)
-		}
-		if status := getStringParam(args, "status", ""); status != "" {
-			cmdArgs = append(cmdArgs, "--status", status)
-		}
-		if limit := getIntParam(args, "limit", 0); limit > 0 {
-			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
-		}
-
-	case "query_user_messages":
-		cmdArgs = append(cmdArgs, "query", "user-messages")
-		if pattern := getStringParam(args, "pattern", ""); pattern != "" {
-			cmdArgs = append(cmdArgs, "--pattern", pattern)
-		}
-		if limit := getIntParam(args, "limit", 0); limit > 0 {
-			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
-		}
-
-	case "get_session_stats":
-		cmdArgs = append(cmdArgs, "parse", "stats")
-
-	case "query_context":
-		cmdArgs = append(cmdArgs, "query", "context")
-		if errorSig := getStringParam(args, "error_signature", ""); errorSig != "" {
-			cmdArgs = append(cmdArgs, "--error-signature", errorSig)
-		}
-		if window := getIntParam(args, "window", 0); window > 0 {
-			cmdArgs = append(cmdArgs, "--window", strconv.Itoa(window))
-		}
-
-	case "query_tool_sequences":
-		cmdArgs = append(cmdArgs, "analyze", "sequences")
-		if pattern := getStringParam(args, "pattern", ""); pattern != "" {
-			cmdArgs = append(cmdArgs, "--pattern", pattern)
-		}
-		if minOccur := getIntParam(args, "min_occurrences", 0); minOccur > 0 {
-			cmdArgs = append(cmdArgs, "--min-occurrences", strconv.Itoa(minOccur))
-		}
-		// New parameter: include built-in tools (default: false for cleaner patterns)
-		if includeBuiltin := getBoolParam(args, "include_builtin_tools", false); includeBuiltin {
-			cmdArgs = append(cmdArgs, "--include-builtin-tools")
-		}
-
-	case "query_file_access":
-		cmdArgs = append(cmdArgs, "query", "file-access")
-		if file := getStringParam(args, "file", ""); file != "" {
-			cmdArgs = append(cmdArgs, "--file", file)
-		}
-
-	case "query_project_state":
-		cmdArgs = append(cmdArgs, "query", "project-state")
-
-	case "query_successful_prompts":
-		cmdArgs = append(cmdArgs, "query", "successful-prompts")
-		if limit := getIntParam(args, "limit", 0); limit > 0 {
-			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
-		}
-		if minQuality := getFloatParam(args, "min_quality_score", 0); minQuality > 0 {
-			cmdArgs = append(cmdArgs, "--min-quality-score", fmt.Sprintf("%.2f", minQuality))
-		}
-
-	case "query_tools_advanced":
-		cmdArgs = append(cmdArgs, "query", "tools")
-		if where := getStringParam(args, "where", ""); where != "" {
-			cmdArgs = append(cmdArgs, "--where", where)
-		}
-		if limit := getIntParam(args, "limit", 0); limit > 0 {
-			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
-		}
-
-	case "query_time_series":
-		cmdArgs = append(cmdArgs, "stats", "timeseries")
-		if interval := getStringParam(args, "interval", ""); interval != "" {
-			cmdArgs = append(cmdArgs, "--interval", interval)
-		}
-		if metric := getStringParam(args, "metric", ""); metric != "" {
-			cmdArgs = append(cmdArgs, "--metric", metric)
-		}
-		if where := getStringParam(args, "where", ""); where != "" {
-			cmdArgs = append(cmdArgs, "--where", where)
-		}
-
-	case "query_assistant_messages":
-		cmdArgs = append(cmdArgs, "query", "assistant-messages")
-		if pattern := getStringParam(args, "pattern", ""); pattern != "" {
-			cmdArgs = append(cmdArgs, "--pattern", pattern)
-		}
-		if minTools := getIntParam(args, "min_tools", 0); minTools > 0 {
-			cmdArgs = append(cmdArgs, "--min-tools", strconv.Itoa(minTools))
-		}
-		if maxTools := getIntParam(args, "max_tools", 0); maxTools > 0 {
-			cmdArgs = append(cmdArgs, "--max-tools", strconv.Itoa(maxTools))
-		}
-		if minTokens := getIntParam(args, "min_tokens_output", 0); minTokens > 0 {
-			cmdArgs = append(cmdArgs, "--min-tokens-output", strconv.Itoa(minTokens))
-		}
-		if minLength := getIntParam(args, "min_length", 0); minLength > 0 {
-			cmdArgs = append(cmdArgs, "--min-length", strconv.Itoa(minLength))
-		}
-		if maxLength := getIntParam(args, "max_length", 0); maxLength > 0 {
-			cmdArgs = append(cmdArgs, "--max-length", strconv.Itoa(maxLength))
-		}
-		if limit := getIntParam(args, "limit", 0); limit > 0 {
-			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
-		}
-
-	case "query_conversation":
-		cmdArgs = append(cmdArgs, "query", "conversation")
-		if startTurn := getIntParam(args, "start_turn", 0); startTurn > 0 {
-			cmdArgs = append(cmdArgs, "--start-turn", strconv.Itoa(startTurn))
-		}
-		if endTurn := getIntParam(args, "end_turn", 0); endTurn > 0 {
-			cmdArgs = append(cmdArgs, "--end-turn", strconv.Itoa(endTurn))
-		}
-		if pattern := getStringParam(args, "pattern", ""); pattern != "" {
-			cmdArgs = append(cmdArgs, "--pattern", pattern)
-		}
-		if target := getStringParam(args, "pattern_target", ""); target != "" {
-			cmdArgs = append(cmdArgs, "--pattern-target", target)
-		}
-		if minDuration := getIntParam(args, "min_duration", 0); minDuration > 0 {
-			cmdArgs = append(cmdArgs, "--min-duration", strconv.Itoa(minDuration))
-		}
-		if maxDuration := getIntParam(args, "max_duration", 0); maxDuration > 0 {
-			cmdArgs = append(cmdArgs, "--max-duration", strconv.Itoa(maxDuration))
-		}
-		if limit := getIntParam(args, "limit", 0); limit > 0 {
-			cmdArgs = append(cmdArgs, "--limit", strconv.Itoa(limit))
-		}
-
-	case "query_files":
-		cmdArgs = append(cmdArgs, "analyze", "file-churn")
-		// Only pass --threshold (data extraction parameter)
-		// Filtering (where), sorting (sort_by), and limiting (top) should be done via jq_filter
-		if threshold := getIntParam(args, "threshold", 0); threshold > 0 && threshold != 5 {
-			cmdArgs = append(cmdArgs, "--threshold", strconv.Itoa(threshold))
-		}
-
-	case "cleanup_temp_files":
-		// Handle cleanup tool directly (no meta-cc command)
+	builder, ok := toolCommandBuilders[toolName]
+	if !ok {
 		return nil
+	}
 
+	cmdArgs := make([]string, 0, 8)
+	cmdArgs = append(cmdArgs, scopeArgs(scope)...)
+	cmdArgs = append(cmdArgs, builder(args)...)
+
+	if len(cmdArgs) == 0 {
+		return nil
+	}
+
+	cmdArgs = append(cmdArgs, "--output", outputFormat)
+	return cmdArgs
+}
+
+type commandBuilder func(args map[string]interface{}) []string
+
+var toolCommandBuilders = map[string]commandBuilder{
+	"query_tools":              buildQueryToolsCommand,
+	"query_user_messages":      buildQueryUserMessagesCommand,
+	"get_session_stats":        buildGetSessionStatsCommand,
+	"query_context":            buildQueryContextCommand,
+	"query_tool_sequences":     buildQueryToolSequencesCommand,
+	"query_file_access":        buildQueryFileAccessCommand,
+	"query_project_state":      buildQueryProjectStateCommand,
+	"query_successful_prompts": buildQuerySuccessfulPromptsCommand,
+	"query_tools_advanced":     buildQueryToolsAdvancedCommand,
+	"query_time_series":        buildQueryTimeSeriesCommand,
+	"query_assistant_messages": buildQueryAssistantMessagesCommand,
+	"query_conversation":       buildQueryConversationCommand,
+	"query_files":              buildQueryFilesCommand,
+}
+
+func scopeArgs(scope string) []string {
+	switch scope {
+	case "project":
+		return []string{"--project", "."}
+	case "session":
+		return []string{"--session-only"}
 	default:
 		return nil
 	}
+}
 
-	// Always output JSONL (unless specified otherwise)
-	cmdArgs = append(cmdArgs, "--output", outputFormat)
+func buildQueryToolsCommand(args map[string]interface{}) []string {
+	cmd := []string{"query", "tools"}
+	if tool := getStringParam(args, "tool", ""); tool != "" {
+		cmd = append(cmd, "--tool", tool)
+	}
+	if status := getStringParam(args, "status", ""); status != "" {
+		cmd = append(cmd, "--status", status)
+	}
+	if limit := getIntParam(args, "limit", 0); limit > 0 {
+		cmd = append(cmd, "--limit", strconv.Itoa(limit))
+	}
+	return cmd
+}
 
-	return cmdArgs
+func buildQueryUserMessagesCommand(args map[string]interface{}) []string {
+	cmd := []string{"query", "user-messages"}
+	if pattern := getStringParam(args, "pattern", ""); pattern != "" {
+		cmd = append(cmd, "--pattern", pattern)
+	}
+	if limit := getIntParam(args, "limit", 0); limit > 0 {
+		cmd = append(cmd, "--limit", strconv.Itoa(limit))
+	}
+	return cmd
+}
+
+func buildGetSessionStatsCommand(args map[string]interface{}) []string {
+	return []string{"parse", "stats"}
+}
+
+func buildQueryContextCommand(args map[string]interface{}) []string {
+	cmd := []string{"query", "context"}
+	if errorSig := getStringParam(args, "error_signature", ""); errorSig != "" {
+		cmd = append(cmd, "--error-signature", errorSig)
+	}
+	if window := getIntParam(args, "window", 0); window > 0 {
+		cmd = append(cmd, "--window", strconv.Itoa(window))
+	}
+	return cmd
+}
+
+func buildQueryToolSequencesCommand(args map[string]interface{}) []string {
+	cmd := []string{"analyze", "sequences"}
+	if pattern := getStringParam(args, "pattern", ""); pattern != "" {
+		cmd = append(cmd, "--pattern", pattern)
+	}
+	if minOccur := getIntParam(args, "min_occurrences", 0); minOccur > 0 {
+		cmd = append(cmd, "--min-occurrences", strconv.Itoa(minOccur))
+	}
+	if includeBuiltin := getBoolParam(args, "include_builtin_tools", false); includeBuiltin {
+		cmd = append(cmd, "--include-builtin-tools")
+	}
+	return cmd
+}
+
+func buildQueryFileAccessCommand(args map[string]interface{}) []string {
+	cmd := []string{"query", "file-access"}
+	if file := getStringParam(args, "file", ""); file != "" {
+		cmd = append(cmd, "--file", file)
+	}
+	return cmd
+}
+
+func buildQueryProjectStateCommand(args map[string]interface{}) []string {
+	return []string{"query", "project-state"}
+}
+
+func buildQuerySuccessfulPromptsCommand(args map[string]interface{}) []string {
+	cmd := []string{"query", "successful-prompts"}
+	if limit := getIntParam(args, "limit", 0); limit > 0 {
+		cmd = append(cmd, "--limit", strconv.Itoa(limit))
+	}
+	if minQuality := getFloatParam(args, "min_quality_score", 0); minQuality > 0 {
+		cmd = append(cmd, "--min-quality-score", fmt.Sprintf("%.2f", minQuality))
+	}
+	return cmd
+}
+
+func buildQueryToolsAdvancedCommand(args map[string]interface{}) []string {
+	cmd := []string{"query", "tools"}
+	if where := getStringParam(args, "where", ""); where != "" {
+		cmd = append(cmd, "--where", where)
+	}
+	if limit := getIntParam(args, "limit", 0); limit > 0 {
+		cmd = append(cmd, "--limit", strconv.Itoa(limit))
+	}
+	return cmd
+}
+
+func buildQueryTimeSeriesCommand(args map[string]interface{}) []string {
+	cmd := []string{"stats", "timeseries"}
+	if interval := getStringParam(args, "interval", ""); interval != "" {
+		cmd = append(cmd, "--interval", interval)
+	}
+	if metric := getStringParam(args, "metric", ""); metric != "" {
+		cmd = append(cmd, "--metric", metric)
+	}
+	if where := getStringParam(args, "where", ""); where != "" {
+		cmd = append(cmd, "--where", where)
+	}
+	return cmd
+}
+
+func buildQueryAssistantMessagesCommand(args map[string]interface{}) []string {
+	cmd := []string{"query", "assistant-messages"}
+	if pattern := getStringParam(args, "pattern", ""); pattern != "" {
+		cmd = append(cmd, "--pattern", pattern)
+	}
+	if minTools := getIntParam(args, "min_tools", 0); minTools > 0 {
+		cmd = append(cmd, "--min-tools", strconv.Itoa(minTools))
+	}
+	if maxTools := getIntParam(args, "max_tools", 0); maxTools > 0 {
+		cmd = append(cmd, "--max-tools", strconv.Itoa(maxTools))
+	}
+	if minTokens := getIntParam(args, "min_tokens_output", 0); minTokens > 0 {
+		cmd = append(cmd, "--min-tokens-output", strconv.Itoa(minTokens))
+	}
+	if minLength := getIntParam(args, "min_length", 0); minLength > 0 {
+		cmd = append(cmd, "--min-length", strconv.Itoa(minLength))
+	}
+	if maxLength := getIntParam(args, "max_length", 0); maxLength > 0 {
+		cmd = append(cmd, "--max-length", strconv.Itoa(maxLength))
+	}
+	if limit := getIntParam(args, "limit", 0); limit > 0 {
+		cmd = append(cmd, "--limit", strconv.Itoa(limit))
+	}
+	return cmd
+}
+
+func buildQueryConversationCommand(args map[string]interface{}) []string {
+	cmd := []string{"query", "conversation"}
+	if startTurn := getIntParam(args, "start_turn", 0); startTurn > 0 {
+		cmd = append(cmd, "--start-turn", strconv.Itoa(startTurn))
+	}
+	if endTurn := getIntParam(args, "end_turn", 0); endTurn > 0 {
+		cmd = append(cmd, "--end-turn", strconv.Itoa(endTurn))
+	}
+	if pattern := getStringParam(args, "pattern", ""); pattern != "" {
+		cmd = append(cmd, "--pattern", pattern)
+	}
+	if target := getStringParam(args, "pattern_target", ""); target != "" {
+		cmd = append(cmd, "--pattern-target", target)
+	}
+	if minDuration := getIntParam(args, "min_duration", 0); minDuration > 0 {
+		cmd = append(cmd, "--min-duration", strconv.Itoa(minDuration))
+	}
+	if maxDuration := getIntParam(args, "max_duration", 0); maxDuration > 0 {
+		cmd = append(cmd, "--max-duration", strconv.Itoa(maxDuration))
+	}
+	if limit := getIntParam(args, "limit", 0); limit > 0 {
+		cmd = append(cmd, "--limit", strconv.Itoa(limit))
+	}
+	return cmd
+}
+
+func buildQueryFilesCommand(args map[string]interface{}) []string {
+	cmd := []string{"analyze", "file-churn"}
+	if threshold := getIntParam(args, "threshold", 0); threshold > 0 && threshold != 5 {
+		cmd = append(cmd, "--threshold", strconv.Itoa(threshold))
+	}
+	return cmd
 }
 
 func (e *ToolExecutor) executeMetaCC(cmdArgs []string) (string, error) {

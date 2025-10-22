@@ -12,25 +12,54 @@ import (
 
 // ApplyJQFilter applies a jq expression to JSONL data
 func ApplyJQFilter(jsonlData string, jqExpr string) (string, error) {
-	// Default expression: select all
-	if jqExpr == "" {
-		jqExpr = ".[]"
-	}
-
-	// Parse jq expression
-	query, err := gojq.Parse(jqExpr)
+	normalizedExpr := defaultJQExpression(jqExpr)
+	query, err := parseJQExpression(normalizedExpr)
 	if err != nil {
-		// Check if this is a common quote-wrapping mistake
-		if (strings.HasPrefix(jqExpr, "'") && strings.HasSuffix(jqExpr, "'") && len(jqExpr) > 2) ||
-			(strings.HasPrefix(jqExpr, `"`) && strings.HasSuffix(jqExpr, `"`) && len(jqExpr) > 2) {
-			return "", fmt.Errorf("jq filter error: '%s' appears to be quoted. Remove outer quotes: use '.[] | {field: .field}' not \"%s\"", jqExpr, jqExpr)
-		}
-		return "", fmt.Errorf("invalid jq expression '%s': %w", jqExpr, mcerrors.ErrParseError)
+		return "", err
 	}
 
-	// Parse JSONL data
+	records, err := parseJSONLRecords(jsonlData)
+	if err != nil {
+		return "", err
+	}
+
+	results, err := runJQQuery(query, records)
+	if err != nil {
+		return "", err
+	}
+
+	return encodeJQResults(results)
+}
+
+func defaultJQExpression(expr string) string {
+	if expr == "" {
+		return ".[]"
+	}
+	return expr
+}
+
+func parseJQExpression(expr string) (*gojq.Query, error) {
+	query, err := gojq.Parse(expr)
+	if err != nil {
+		if isLikelyQuoted(expr) {
+			return nil, fmt.Errorf("jq filter error: '%s' appears to be quoted. Remove outer quotes: use '.[] | {field: .field}' not \"%s\"", expr, expr)
+		}
+		return nil, fmt.Errorf("invalid jq expression '%s': %w", expr, mcerrors.ErrParseError)
+	}
+	return query, nil
+}
+
+func isLikelyQuoted(expr string) bool {
+	if len(expr) <= 2 {
+		return false
+	}
+	return (strings.HasPrefix(expr, "'") && strings.HasSuffix(expr, "'")) ||
+		(strings.HasPrefix(expr, `"`) && strings.HasSuffix(expr, `"`))
+}
+
+func parseJSONLRecords(jsonlData string) ([]interface{}, error) {
 	lines := strings.Split(strings.TrimSpace(jsonlData), "\n")
-	var data []interface{}
+	var records []interface{}
 
 	for lineNum, line := range lines {
 		if line == "" {
@@ -39,29 +68,35 @@ func ApplyJQFilter(jsonlData string, jqExpr string) (string, error) {
 
 		var obj interface{}
 		if err := json.Unmarshal([]byte(line), &obj); err != nil {
-			return "", fmt.Errorf("invalid JSON at line %d: %w", lineNum+1, mcerrors.ErrParseError)
+			return nil, fmt.Errorf("invalid JSON at line %d: %w", lineNum+1, mcerrors.ErrParseError)
 		}
-		data = append(data, obj)
+		records = append(records, obj)
 	}
 
-	// Apply jq filter
+	return records, nil
+}
+
+func runJQQuery(query *gojq.Query, data []interface{}) ([]interface{}, error) {
 	var results []interface{}
 	iter := query.Run(data)
 
 	for {
-		v, ok := iter.Next()
+		value, ok := iter.Next()
 		if !ok {
 			break
 		}
 
-		if err, ok := v.(error); ok {
-			return "", err
+		if err, ok := value.(error); ok {
+			return nil, err
 		}
 
-		results = append(results, v)
+		results = append(results, value)
 	}
 
-	// Convert results to JSONL
+	return results, nil
+}
+
+func encodeJQResults(results []interface{}) (string, error) {
 	var output strings.Builder
 	for _, result := range results {
 		jsonBytes, err := json.Marshal(result)
@@ -71,7 +106,6 @@ func ApplyJQFilter(jsonlData string, jqExpr string) (string, error) {
 		output.Write(jsonBytes)
 		output.WriteString("\n")
 	}
-
 	return output.String(), nil
 }
 

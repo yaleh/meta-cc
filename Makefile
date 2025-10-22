@@ -19,7 +19,7 @@ BINARY_NAME := meta-cc
 MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci
+.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp
 
 # ==============================================================================
 # Build Quality Gates (BAIME Experiment - Iteration 1)
@@ -131,6 +131,11 @@ test-coverage-full: build
 	@echo "Running tests with coverage (including E2E and slow tests)..."
 	$(GOTEST) -v -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
+
+metrics-mcp:
+	@echo "Capturing MCP server metrics snapshot..."
+	@./scripts/capture-mcp-metrics.sh
+	@echo "✅ MCP metrics snapshot complete"
 
 bundle-capabilities:
 	@echo "Creating capability package: $(CAPABILITIES_ARCHIVE)..."
