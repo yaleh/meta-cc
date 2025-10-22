@@ -1,0 +1,29 @@
+{
+  "pattern_count": 6,
+  "patterns": [
+    {
+      "name": "builder_map_decomposition",
+      "description": "\u2014 replace large dispatcher switches with map-driven builder functions (iteration-1.md)."
+    },
+    {
+      "name": "pipeline_config_struct",
+      "description": "\u2014 centralize shared parameter extraction into immutable config structs to shrink orchestration functions (iteration-1.md)."
+    },
+    {
+      "name": "helper_specialization",
+      "description": "\u2014 move logging/metrics branches into dedicated helpers to keep main flow linear (iteration-1.md)."
+    },
+    {
+      "name": "jq_pipeline_segmentation",
+      "description": "\u2014 split parsing, execution, and encoding into helpers to reduce panic surfaces and simplify testing (iteration-2.md)."
+    },
+    {
+      "name": "automation_first_metrics",
+      "description": "\u2014 codify scripts/make targets for complexity & coverage snapshots; treat metrics as part of the refactor (iteration-2.md, iteration-3.md)."
+    },
+    {
+      "name": "documentation_templates",
+      "description": "\u2014 generate iteration logs from templates to maintain V_meta_completeness \u2265 0.8 (iteration-3.md)."
+    }
+  ]
+}

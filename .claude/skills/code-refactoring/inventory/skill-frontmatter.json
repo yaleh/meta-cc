@@ -1,0 +1,5 @@
+{
+  "name": "Code Refactoring",
+  "description": "BAIME-aligned refactoring protocol for Go hotspots with automated metrics and documentation.",
+  "allowed-tools": "Read, Write, Edit, Bash, Grep, Glob"
+}
