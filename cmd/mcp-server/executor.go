@@ -121,6 +121,8 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 	var err error
 
 	switch toolName {
+	case "query":
+		rawOutput, err = e.executeQuery(scope, config, args)
 	case "query_tools":
 		rawOutput, err = e.executeQueryTools(scope, config, args)
 	case "query_tools_advanced":
@@ -764,4 +766,148 @@ func getFloatParam(args map[string]interface{}, key string, defaultVal float64) 
 		return v
 	}
 	return defaultVal
+}
+
+// executeQuery executes the unified query interface
+func (e *ToolExecutor) executeQuery(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	// Load entries
+	entries, err := loadEntries(scope, args)
+	if err != nil {
+		return "", err
+	}
+
+	// Parse QueryParams from args
+	params, err := parseQueryParams(args)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse query params: %w", err)
+	}
+
+	// Set scope
+	params.Scope = scope
+
+	// Execute unified query
+	results, err := querypkg.Query(entries, params)
+	if err != nil {
+		return "", fmt.Errorf("query execution failed: %w", err)
+	}
+
+	// Format output based on cfg.outputFormat
+	format := cfg.outputFormat
+	if format == "" {
+		format = "jsonl"
+	}
+
+	// Convert results to []interface{} for formatting
+	var resultSlice []interface{}
+	switch v := results.(type) {
+	case []interface{}:
+		resultSlice = v
+	case map[string]interface{}:
+		// Single result wrapped in array
+		resultSlice = []interface{}{v}
+	default:
+		resultSlice = []interface{}{v}
+	}
+
+	return internalOutput.FormatOutput(resultSlice, format)
+}
+
+// parseQueryParams converts MCP tool args to QueryParams
+func parseQueryParams(args map[string]interface{}) (querypkg.QueryParams, error) {
+	params := querypkg.QueryParams{
+		Resource: getStringParam(args, "resource", "entries"),
+	}
+
+	// Parse filter object
+	if filterArg, ok := args["filter"].(map[string]interface{}); ok {
+		params.Filter = parseFilterSpec(filterArg)
+	}
+
+	// Parse transform object
+	if transformArg, ok := args["transform"].(map[string]interface{}); ok {
+		params.Transform = parseTransformSpec(transformArg)
+	}
+
+	// Parse aggregate object
+	if aggregateArg, ok := args["aggregate"].(map[string]interface{}); ok {
+		params.Aggregate = parseAggregateSpec(aggregateArg)
+	}
+
+	// Parse output object (use standard params for now)
+	params.Output = querypkg.OutputSpec{
+		Format: getStringParam(args, "output_format", "jsonl"),
+		Limit:  getIntParam(args, "limit", 0),
+	}
+
+	// jq_filter passed through
+	params.JQFilter = getStringParam(args, "jq_filter", "")
+
+	return params, nil
+}
+
+// parseFilterSpec converts filter args to FilterSpec
+func parseFilterSpec(filterArgs map[string]interface{}) querypkg.FilterSpec {
+	spec := querypkg.FilterSpec{
+		Type:         getStringParam(filterArgs, "type", ""),
+		SessionID:    getStringParam(filterArgs, "session_id", ""),
+		UUID:         getStringParam(filterArgs, "uuid", ""),
+		ParentUUID:   getStringParam(filterArgs, "parent_uuid", ""),
+		GitBranch:    getStringParam(filterArgs, "git_branch", ""),
+		Role:         getStringParam(filterArgs, "role", ""),
+		ContentType:  getStringParam(filterArgs, "content_type", ""),
+		ContentMatch: getStringParam(filterArgs, "content_match", ""),
+		ToolName:     getStringParam(filterArgs, "tool_name", ""),
+		ToolStatus:   getStringParam(filterArgs, "tool_status", ""),
+	}
+
+	// Handle has_error pointer
+	if hasError, ok := filterArgs["has_error"].(bool); ok {
+		spec.HasError = &hasError
+	}
+
+	// Handle time_range
+	if timeRange, ok := filterArgs["time_range"].(map[string]interface{}); ok {
+		spec.TimeRange = &querypkg.TimeRange{
+			Start: getStringParam(timeRange, "start", ""),
+			End:   getStringParam(timeRange, "end", ""),
+		}
+	}
+
+	return spec
+}
+
+// parseTransformSpec converts transform args to TransformSpec
+func parseTransformSpec(transformArgs map[string]interface{}) querypkg.TransformSpec {
+	spec := querypkg.TransformSpec{
+		GroupBy: getStringParam(transformArgs, "group_by", ""),
+	}
+
+	// Handle extract array
+	if extractRaw, ok := transformArgs["extract"].([]interface{}); ok {
+		extract := make([]string, 0, len(extractRaw))
+		for _, e := range extractRaw {
+			if str, ok := e.(string); ok {
+				extract = append(extract, str)
+			}
+		}
+		spec.Extract = extract
+	}
+
+	// Handle join object
+	if joinArgs, ok := transformArgs["join"].(map[string]interface{}); ok {
+		spec.Join = &querypkg.JoinSpec{
+			Type: getStringParam(joinArgs, "type", ""),
+			On:   getStringParam(joinArgs, "on", ""),
+		}
+	}
+
+	return spec
+}
+
+// parseAggregateSpec converts aggregate args to AggregateSpec
+func parseAggregateSpec(aggregateArgs map[string]interface{}) querypkg.AggregateSpec {
+	return querypkg.AggregateSpec{
+		Function: getStringParam(aggregateArgs, "function", ""),
+		Field:    getStringParam(aggregateArgs, "field", ""),
+	}
 }

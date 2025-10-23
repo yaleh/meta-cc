@@ -50,3 +50,5 @@ experiment_*.go
 Thumbs.db
 /.gocache
 /.tmp/
+coverage_mcp.out
+coverage_parser.out

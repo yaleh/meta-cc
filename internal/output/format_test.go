@@ -163,14 +163,16 @@ func TestFormatOutput_TSV_NonToolCalls(t *testing.T) {
 func TestFormatOutput_EmptyArray(t *testing.T) {
 	tools := []parser.ToolCall{}
 
-	// JSONL should handle empty arrays (returns empty string)
+	// JSONL should handle empty arrays (returns empty JSON array)
 	output, err := FormatOutput(tools, "jsonl")
 	if err != nil {
 		t.Fatalf("FormatOutput failed for empty array: %v", err)
 	}
 
-	if strings.TrimSpace(output) != "" {
-		t.Errorf("expected empty string for empty array, got '%s'", output)
+	// Empty JSONL output should return empty JSON array (not empty string)
+	// This prevents "unexpected end of JSON input" errors when piped to jq
+	if output != "[]" {
+		t.Errorf("expected '[]' for empty array to avoid jq errors, got '%s'", output)
 	}
 
 	// TSV should handle empty arrays (returns empty string)

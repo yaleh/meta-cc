@@ -97,9 +97,9 @@ func TestHandleToolsList(t *testing.T) {
 		t.Fatalf("expected tools to be a slice, got %T", toolsInterface)
 	}
 
-	// Should have 16 tools after Phase 22 Stage 22.3 (14 existing + list_capabilities + get_capability)
-	if len(toolsSlice) != 16 {
-		t.Errorf("expected 16 tools, got %d", len(toolsSlice))
+	// Should have 17 tools after Phase 24 Stage 24.3 (16 existing + unified query tool)
+	if len(toolsSlice) != 17 {
+		t.Errorf("expected 17 tools, got %d", len(toolsSlice))
 	}
 }
 

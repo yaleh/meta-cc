@@ -101,9 +101,10 @@ func TestFormatJSONL_EmptyArray(t *testing.T) {
 		t.Fatalf("FormatJSONL failed: %v", err)
 	}
 
-	// Empty JSONL should be empty string
-	if strings.TrimSpace(output) != "" {
-		t.Errorf("expected empty string for empty array, got '%s'", output)
+	// Empty JSONL should return empty JSON array (not empty string)
+	// This prevents "unexpected end of JSON input" errors when piped to jq
+	if output != "[]" {
+		t.Errorf("expected '[]' for empty array to avoid jq errors, got '%s'", output)
 	}
 }
 

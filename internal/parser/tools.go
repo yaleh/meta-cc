@@ -1,14 +1,15 @@
 package parser
 
 // ToolCall represents a complete tool invocation (ToolUse + ToolResult)
+// All JSON tags use snake_case to match Claude Code JSONL schema
 type ToolCall struct {
-	UUID      string                 // UUID of the SessionEntry containing the tool_use
-	ToolName  string                 // Name of the tool
-	Input     map[string]interface{} // Tool input parameters
-	Output    string                 // Tool output (ToolResult.Content)
-	Status    string                 // Execution status (success/error)
-	Error     string                 // Error message (if any)
-	Timestamp string                 // Timestamp of the tool call (ISO 8601 format)
+	UUID      string                 `json:"uuid"`      // UUID of the SessionEntry containing the tool_use
+	ToolName  string                 `json:"tool_name"` // Name of the tool
+	Input     map[string]interface{} `json:"input"`     // Tool input parameters
+	Output    string                 `json:"output"`    // Tool output (ToolResult.Content)
+	Status    string                 `json:"status"`    // Execution status (success/error)
+	Error     string                 `json:"error"`     // Error message (if any)
+	Timestamp string                 `json:"timestamp"` // Timestamp of the tool call (ISO 8601 format)
 }
 
 // ExtractToolCalls extracts all tool calls from SessionEntry array

@@ -37,7 +37,7 @@ A: Maximum 500 lines per phase, 200 lines per stage. See [docs/core/principles.m
 A: Quick rule: Natural questions → MCP | Repeated workflows → Slash | Exploration → Subagent. See [docs/guides/integration.md](docs/guides/integration.md).
 
 **Q: How do I query session data?**
-A: Use MCP tools like `query_tools`, `query_user_messages`. See [docs/guides/mcp.md](docs/guides/mcp.md).
+A: Use the unified `query` tool (v2.0+) or specialized MCP tools like `query_tools`, `query_user_messages`. See [Unified Query API Guide](docs/guides/unified-query-api.md) or [MCP Guide](docs/guides/mcp.md).
 
 **Q: Why are my MCP query results in a temp file?**
 A: Results >8KB automatically use file_ref mode to avoid token limits. Read the file with the Read tool. See [docs/guides/mcp.md#hybrid-output-mode](docs/guides/mcp.md#hybrid-output-mode).
@@ -190,21 +190,27 @@ make all
 
 ### Query Session Data (via MCP)
 
-**Basic queries**:
+**NEW: Unified Query API (v2.0+)**:
+```javascript
+// Single composable tool
+query({
+  resource: "tools",
+  filter: {tool_name: "Read", tool_status: "error"}
+})
+```
+
+**Legacy queries** (backward compatible):
 ```
 get_session_stats()                      # Session statistics
 query_tools(status="error")              # Error tool calls
 query_user_messages(pattern="fix.*bug")  # Search user messages
 ```
 
-**Advanced queries**:
-```
-query_context(error_signature="...")     # Error context
-query_tool_sequences(min_occurrences=3)  # Workflow patterns
-query_time_series(metric="tool-calls")   # Metrics over time
-```
-
-**See**: [docs/guides/mcp.md](docs/guides/mcp.md) for complete MCP reference.
+**See**:
+- [Unified Query API Guide](docs/guides/unified-query-api.md) - New unified interface
+- [Migration Guide](docs/guides/migration-to-unified-query.md) - Migrate from legacy tools
+- [Query Cookbook](docs/examples/query-cookbook.md) - 10+ practical examples
+- [MCP Guide](docs/guides/mcp.md) - Complete MCP reference
 
 ### Update Plugin
 

@@ -47,6 +47,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - TBD
+
+### Added
+
+- **Unified Query API**: Single composable `query` tool consolidates 16 specialized MCP tools
+  - Resource-oriented design: Query "what" (entries/messages/tools) instead of "how"
+  - Composable pipeline: filter → transform → aggregate → output
+  - 94% reduction in tool count (16 → 1)
+  - 75% reduction in parameters (80+ → 20 core)
+  - See [Unified Query API Guide](docs/guides/unified-query-api.md)
+- **Schema Standardization**: All output fields now use consistent snake_case
+  - Matches JSONL source format 100%
+  - ToolCall struct updated: `ToolName` → `tool_name`, `SessionID` → `session_id`, etc.
+  - Complete field mapping documented in migration guide
+- **Comprehensive Documentation**:
+  - [Unified Query API Guide](docs/guides/unified-query-api.md) - Complete API reference
+  - [Migration Guide](docs/guides/migration-to-unified-query.md) - Migrate from legacy tools
+  - [Query Cookbook](docs/examples/query-cookbook.md) - 10+ practical examples
+
+### Changed
+
+- **MCP Tool Output**: All query results now use snake_case field names
+- **Query Interface**: New unified query interface with composable parameters
+- **Documentation**: Updated all guides to reference new unified query API
+
+### Deprecated
+
+- **Legacy MCP Tools**: 16 specialized tools marked deprecated (removal in v3.0.0)
+  - `query_tools`, `query_user_messages`, `query_assistant_messages`
+  - `query_conversation`, `query_files`, `query_context`
+  - `query_tool_sequences`, `query_file_access`, `query_project_state`
+  - `query_successful_prompts`, `query_tools_advanced`, `query_time_series`
+  - `get_session_stats`, etc.
+- **Deprecation Timeline**:
+  - v2.0.0: Tools available as backward-compatible aliases
+  - v2.1.0 (+3 months): Deprecation warnings added
+  - v3.0.0 (+6 months): Tools removed
+
+### Breaking Changes
+
+- **Field Names**: All output fields changed from PascalCase/camelCase to snake_case
+  - Old: `{"ToolName": "Read", "SessionID": "abc"}`
+  - New: `{"tool_name": "Read", "session_id": "abc"}`
+- **Migration Required**: See [Migration Guide](docs/guides/migration-to-unified-query.md) for detailed instructions
+- **Backward Compatibility**: Legacy tools remain functional during transition period (6 months)
+
+### Migration
+
+- **6-month transition period** with full backward compatibility
+- **Automatic conversion**: Legacy tools internally use unified query
+- **Migration guide**: Step-by-step instructions with examples
+- **Tool mapping table**: Direct equivalents for all 16 tools
+- See [docs/guides/migration-to-unified-query.md](docs/guides/migration-to-unified-query.md)
+
+### Performance
+
+- **No degradation**: Unified query uses same optimized extraction logic
+- **Potential improvements**: Avoids duplicate parsing for combined queries
+- **Hybrid output mode**: Automatic handling of large results (inline ≤8KB, file_ref >8KB)
+
+### Documentation
+
+- 3 new comprehensive guides (~500 lines total)
+- 10+ practical query examples in cookbook
+- Updated all existing documentation to reference unified query
+- Complete API reference with all parameters documented
+
+---
+
+## [0.33.0] - 2025-10-20
+
 ### Added
 - **Skills Distribution** - 15 validated methodologies now packaged with plugin
   - Testing Strategy (3.1x speedup, 89% transferable)

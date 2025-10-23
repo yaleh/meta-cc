@@ -1,5 +1,11 @@
 package main
 
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
 // Tool Description Template:
 // Format: "<action> <object>. Default scope: <project/session>."
 // Requirements:
@@ -21,7 +27,7 @@ func StandardToolParameters() map[string]Property {
 		},
 		"jq_filter": {
 			Type:        "string",
-			Description: "jq expression for filtering (default: '.[]'). IMPORTANT: Do NOT wrap in quotes - use raw jq expression like: .[] | {field: .field}",
+			Description: "jq expression for filtering. Defaults to '.[]' when omitted. IMPORTANT: Do NOT wrap in quotes - use raw jq expression like: .[] | {field: .field}",
 		},
 		"stats_only": {
 			Type:        "boolean",
@@ -39,6 +45,27 @@ func StandardToolParameters() map[string]Property {
 			Type:        "string",
 			Description: "Output format: jsonl or tsv (default: jsonl)",
 		},
+	}
+}
+
+// jqFilterWithSchema creates a jq_filter property with output schema documentation
+func jqFilterWithSchema(fields map[string]string, example string) Property {
+	var fieldDocs []string
+	for field, desc := range fields {
+		fieldDocs = append(fieldDocs, fmt.Sprintf("    %s: %s", field, desc))
+	}
+	sort.Strings(fieldDocs)
+
+	desc := fmt.Sprintf(`jq expression for filtering. Defaults to '.[]' when omitted. Do NOT wrap in quotes.
+
+Output schema:
+%s
+
+Example: %s`, strings.Join(fieldDocs, "\n"), example)
+
+	return Property{
+		Type:        "string",
+		Description: desc,
 	}
 }
 
@@ -82,6 +109,28 @@ func buildTool(name, description string, properties map[string]Property, require
 
 func getToolDefinitions() []Tool {
 	return []Tool{
+		buildTool("query", "Unified query interface for session data. Default scope: project.", map[string]Property{
+			// Tier 1: Resource Selection (required)
+			"resource": {
+				Type:        "string",
+				Description: "Resource type: 'entries' (raw JSONL), 'messages' (user/assistant), 'tools' (tool executions). Default: 'entries'",
+			},
+			// Tier 3: Filtering
+			"filter": {
+				Type:        "object",
+				Description: "Filter conditions: tool_name, tool_status, role, content_match, session_id, git_branch, time_range, etc.",
+			},
+			// Tier 4: Transformation
+			"transform": {
+				Type:        "object",
+				Description: "Transform operations: extract (JSONPath), group_by (field name), join (type + on)",
+			},
+			// Tier 5: Aggregation
+			"aggregate": {
+				Type:        "object",
+				Description: "Aggregation: function ('count'|'sum'|'avg'|'min'|'max'|'group'), field (optional)",
+			},
+		}),
 		buildTool("get_session_stats", "Get session statistics. Default scope: session.", map[string]Property{}),
 		buildTool("query_tools", "Query assistant's internal tool calls. Large output, not for user analysis. Default scope: project.", map[string]Property{
 			// Tier 2: Filtering
@@ -98,6 +147,16 @@ func getToolDefinitions() []Tool {
 				Type:        "number",
 				Description: "Max results (no limit by default, rely on hybrid output mode)",
 			},
+			// Override jq_filter with schema (snake_case fields)
+			"jq_filter": jqFilterWithSchema(map[string]string{
+				"tool_name": "string - Tool identifier (e.g., \"Bash\", \"Read\", \"mcp__meta-cc__query_tools\")",
+				"status":    "string - Execution status (\"success\" or \"error\")",
+				"timestamp": "string - ISO8601 timestamp",
+				"error":     "string - Error message if status is \"error\"",
+				"input":     "object - Tool input parameters",
+				"output":    "object - Tool output/result",
+				"uuid":      "string - Unique call identifier",
+			}, ".[] | select(.tool_name == \"Bash\" and .status == \"error\")"),
 		}),
 		buildTool("query_user_messages", "Search user messages with regex. May contain large outputs. Default scope: project.", map[string]Property{
 			// Tier 1: Required
@@ -119,6 +178,12 @@ func getToolDefinitions() []Tool {
 				Type:        "boolean",
 				Description: "Return only turn/timestamp/preview (100 chars), skip full content. Use hybrid mode instead for better information preservation.",
 			},
+			// Override jq_filter with schema
+			"jq_filter": jqFilterWithSchema(map[string]string{
+				"turn":      "number - Turn sequence number",
+				"timestamp": "string - ISO8601 timestamp",
+				"content":   "string - User message content",
+			}, ".[] | select(.content | test(\"error|bug\"; \"i\"))"),
 		}, "pattern"),
 		buildTool("query_context", "Query error context. Default scope: project.", map[string]Property{
 			"error_signature": {
@@ -145,14 +210,38 @@ func getToolDefinitions() []Tool {
 				Type:        "number",
 				Description: "Min occurrences (default: 3)",
 			},
+			// Override jq_filter with schema
+			"jq_filter": jqFilterWithSchema(map[string]string{
+				"pattern":              "string - Tool sequence pattern",
+				"count":                "number - Number of times pattern appeared",
+				"occurrences":          "array - Individual occurrence details (each with start_turn, end_turn)",
+				"time_span_minutes":    "number - Time span in minutes",
+				"length":               "number - Number of tools in pattern (optional)",
+				"success_rate":         "number - Success rate of sequence (optional)",
+				"avg_duration_minutes": "number - Average duration in minutes (optional)",
+			}, ".[] | select(.count > 5)"),
 		}),
 		buildTool("query_file_access", "Query file operation history. Default scope: project.", map[string]Property{
 			"file": {
 				Type:        "string",
 				Description: "File path (required)",
 			},
+			// Override jq_filter with schema
+			"jq_filter": jqFilterWithSchema(map[string]string{
+				"file":              "string - File path",
+				"total_accesses":    "number - Total access count",
+				"operations":        "object - Operation counts by type (Read/Edit/Write)",
+				"timeline":          "array - Chronological access events",
+				"time_span_minutes": "number - Time span in minutes",
+			}, "select(.total_accesses > 10)"),
 		}, "file"),
-		buildTool("query_project_state", "Query project state evolution. Default scope: project.", map[string]Property{}),
+		buildTool("query_project_state", "Query project state evolution. Default scope: project.", map[string]Property{
+			// Override jq_filter with schema
+			"jq_filter": jqFilterWithSchema(map[string]string{
+				"timestamp": "string - ISO8601 timestamp",
+				"type":      "string - State type (session_state, etc.)",
+			}, ".[] | select(.type == \"session_state\")"),
+		}),
 		buildTool("query_successful_prompts", "Query successful prompt patterns. Default scope: project.", map[string]Property{
 			// Tier 3: Range
 			"min_quality_score": {
@@ -164,6 +253,12 @@ func getToolDefinitions() []Tool {
 				Type:        "number",
 				Description: "Max results (no limit by default, rely on hybrid output mode)",
 			},
+			// Override jq_filter with schema
+			"jq_filter": jqFilterWithSchema(map[string]string{
+				"turn":          "number - Turn sequence number",
+				"content":       "string - Prompt content",
+				"quality_score": "number - Quality score (0.0-1.0)",
+			}, ".[] | select(.quality_score > 0.9)"),
 		}),
 		buildTool("query_tools_advanced", "Query assistant's tools with SQL. Large output, not for user analysis. Default scope: project.", map[string]Property{
 			"where": {
@@ -218,6 +313,19 @@ func getToolDefinitions() []Tool {
 				Type:        "number",
 				Description: "Max results (no limit by default, rely on hybrid output mode)",
 			},
+			// Override jq_filter with schema
+			"jq_filter": jqFilterWithSchema(map[string]string{
+				"turn_sequence":  "number - Turn sequence number",
+				"timestamp":      "string - ISO8601 timestamp",
+				"uuid":           "string - Message UUID",
+				"model":          "string - Model name",
+				"content_blocks": "array - Content blocks (text and tool_use)",
+				"text_length":    "number - Text content length",
+				"tool_use_count": "number - Number of tool uses",
+				"tokens_input":   "number - Input token count",
+				"tokens_output":  "number - Output token count",
+				"stop_reason":    "string - Stop reason (optional)",
+			}, ".[] | select(.tool_use_count > 5)"),
 		}),
 		buildTool("query_conversation", "Query conversation turns (user+assistant pairs). Default scope: project.", map[string]Property{
 			// Tier 2: Filtering
@@ -251,15 +359,29 @@ func getToolDefinitions() []Tool {
 				Type:        "number",
 				Description: "Max results (no limit by default, rely on hybrid output mode)",
 			},
+			// Override jq_filter with schema
+			"jq_filter": jqFilterWithSchema(map[string]string{
+				"turn":              "number - Turn sequence number",
+				"user_message":      "object - User message data",
+				"assistant_message": "object - Assistant message data",
+				"duration_ms":       "number - Response duration in milliseconds",
+			}, ".[] | select(.duration_ms > 5000)"),
 		}),
 		buildTool("query_files", "File operation stats (returns array). Use jq_filter for filtering. Default scope: project.", map[string]Property{
 			"threshold": {
 				Type:        "number",
 				Description: "Minimum access count to report (default: 5)",
 			},
-			// Note: Output is JSONL array (one file object per line)
-			// Fields: file, total_accesses, read_count, edit_count, write_count, time_span_minutes, first_access, last_access
-			// Example jq_filter: "select(.file | test(\"\\.go$\")) | select(.total_accesses > 10)"
+			// Override jq_filter with schema
+			"jq_filter": jqFilterWithSchema(map[string]string{
+				"file_path":   "string - File path",
+				"read_count":  "number - Number of Read operations",
+				"write_count": "number - Number of Write operations",
+				"edit_count":  "number - Number of Edit operations",
+				"error_count": "number - Number of errors",
+				"total_ops":   "number - Total operation count",
+				"error_rate":  "number - Error rate (0.0-1.0)",
+			}, ".[] | select(.file_path | test(\"\\\\.go$\")) | select(.total_ops > 10)"),
 		}),
 		{
 			Name:        "cleanup_temp_files",

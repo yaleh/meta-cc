@@ -5,6 +5,9 @@
 # Iteration: [P0/P1/P2]
 # Purpose: [What problems this prevents]
 # Historical Impact: [X% of errors this catches]
+#
+# shellcheck disable=SC2078,SC1073,SC1072,SC1123
+# Note: This is a template file with placeholder syntax, not meant to be executed as-is
 
 set -euo pipefail
 

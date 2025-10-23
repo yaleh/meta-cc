@@ -20,7 +20,7 @@
 - ✅ **Phase 21 已完成**（自托管插件市场）
 - ✅ **Phase 22 已完成**（统一 Meta 命令 + 多源能力发现）
 - ✅ **Phase 23 已完成**（查询能力函数库化 + MCP 完全去 CLI 依赖）
-- ⬜ **Phase 24 规划中**（查询参数简化 + CLI 退场准备）
+- ✅ **Phase 24 已完成**（统一查询接口设计与实现 - Schema 标准化 + 统一 Query API）
 - ✅ 单元测试全部通过（新增 assistant messages + conversation 测试）
 - ✅ 3 个真实项目验证通过（0% 错误率）
 - ✅ 11 个 Slash Commands 可用
@@ -168,7 +168,7 @@ card "Phase 22" as P22 #lightgreen {
   - 动态加载
 }
 
-card "Phase 23" as P23 #lightgray {
+card "Phase 23" as P23 #lightgreen {
   **查询能力函数库化**
   - 提取 query* 逻辑为库
   - CLI/MCP 共用函数
@@ -177,11 +177,11 @@ card "Phase 23" as P23 #lightgray {
 }
 
 card "Phase 24" as P24 #lightgray {
-  **查询参数简化**
-  - 统一 QueryOptions
-  - 标准化 jq 入口
-  - CLI 兼容层
-  - MCP 命令精简
+  **统一查询接口**
+  - 单一 query 工具
+  - 资源导向设计
+  - 可组合过滤器
+  - Schema 标准化
 }
 
 P0 -down-> P8
@@ -271,7 +271,7 @@ end note
 | 21 | 自托管插件市场 | ✅ | 市场配置、一键安装 | ~200 行 | [plans/21/](../plans/21-self-hosted-marketplace/) |
 | 22 | 统一 Meta 命令 | ✅ | 多源能力发现、语义匹配 | ~800 行 | [plans/22/](../plans/22-unified-meta-command/) |
 | 23 | 查询能力函数库化 | ✅ | `internal/query` 库、MCP 完全去 CLI 依赖 | ~350 行 | [plans/23/](../plans/23-query-library/) |
-| 24 | 查询参数简化与 CLI 退场 | ⬜ | 统一 `QueryOptions`、MCP 参数精简、CLI 兼容层 | ~500 行 | 规划中 |
+| 24 | 统一查询接口设计与实现 | ⬜ | 单一 `query` 工具、资源导向、可组合过滤 | ~800 行 | 规划中 |
 
 **注释**：
 - **状态标识**：✅ 已完成，🟡 部分实现
@@ -417,36 +417,114 @@ end note
 
 ---
 
-## Phase 24: 查询参数简化与 CLI 退场准备（规划）
+## Phase 24: 统一查询接口设计与实现（规划）
 
-**目标**：在库化基础上统一查询参数结构，鼓励 jq 作为高级过滤入口，并设计 CLI 退场兼容层。
+**目标**：基于实际 Claude Code JSONL schema，设计并实现统一的查询接口，将 16 个碎片化 MCP 工具简化为 1 个可组合的 `query` 工具。
 
-**关键依赖确认**：
-- `cmd/mcp-server/tools.go:18-189` 集中声明工具参数，为统一 `QueryOptions` 提供直接参照。
-- `cmd/query_messages.go` 与 `cmd/query_tools.go` 证明现有逻辑基于结构化参数，可映射到新的 opsi。
-- CLI 与 MCP 输出控制均委托 `internal/output`，可在不破坏现有行为的前提下统一 `output_mode`。
+**代码量**：~800 行（核心逻辑 + 测试 + 迁移支持）
+
+### 核心设计理念
+
+**从碎片化到统一**：
+- **当前**：16 个独立工具（query_tools, query_user_messages, query_conversation...）
+- **目标**：1 个统一 `query` 工具，通过参数化实现所有查询场景
+
+**资源导向设计**：
+- `entries`：原始 SessionEntry 流（完整信息）
+- `messages`：消息视图（user/assistant 对话）
+- `tools`：工具执行视图（tool_use + tool_result 配对）
+
+**可组合查询管道**：
+```
+filter → transform → aggregate → output
+```
+
+### 关键设计决策
+
+1. **Schema 统一为 snake_case**
+   - 理由：与 Claude Code JSONL 源文件完全一致
+   - 影响：需要修改 `ToolCall` 等结构体（破坏性变更）
+
+2. **统一查询参数结构**
+   - `resource`: 资源类型选择
+   - `filter`: 结构化过滤条件
+   - `transform`: 转换和分组逻辑
+   - `aggregate`: 聚合函数
+   - `output`: 输出控制
+
+3. **向后兼容策略**
+   - 保留旧工具作为 `query()` 的别名包装
+   - 提供迁移指南和自动转换工具
+   - 2-3 个版本的兼容期
 
 ### 阶段拆分
 
-**Stage 24.1: 统一 QueryOptions**
-- 在 `internal/query` 中定义 `QueryOptions` / `OutputConfig` 结构，涵盖 scope、分页、jq、preset 等字段。
-- 调整 CLI 与 MCP 调用方，将当前 flags/JSON 参数映射到新结构。
-- 保持回溯兼容，确保旧参数仍可解析到新的结构体。
+**Stage 24.1: Schema 标准化**
+- 统一所有结构体 JSON 标签为 snake_case
+- 修改 `ToolCall`, `SessionEntry`, `Message` 等结构
+- 更新所有相关测试用例
+- 验证与实际 JSONL 文件的完全一致性
 
-**Stage 24.2: 参数精简与 jq 标准化**
-- 在 MCP 工具输入 schema 中仅保留标准参数与少量 preset 字段，其他过滤通过 jq 提供。
-- 更新 CLI 帮助与 MCP 文档，提供 jq 示例与 preset 对照表。
-- 复用 `ApplyJQFilter` 作为唯一二次过滤入口，移除冗余的 flag-only 逻辑。
+**Stage 24.2: 统一查询接口实现**
+- 在 `internal/query` 中实现 `QueryParams` 结构
+- 实现资源选择器（entries/messages/tools）
+- 实现过滤引擎（结构化 filter）
+- 实现转换引擎（extract, group_by, join）
+- 实现聚合引擎（count, sum, avg, etc.）
 
-**Stage 24.3: CLI 兼容层与退场路径**
-- 为 CLI 提供薄包装（保持命令存在但转调库），记录已弃用 flags。
-- 在文档中标记 CLI 进入维护模式，指引用户迁移至 MCP / 函数库。
-- 制定 CLI 退场检查清单（迁移完成度、文档、自动化脚本更新）。
+**Stage 24.3: MCP 工具重构**
+- 在 `cmd/mcp-server` 中添加新的 `query` 工具
+- 实现旧工具的别名包装（向后兼容）
+- 更新工具定义和文档
+- 添加查询示例和 cookbook
 
-**完成标准**
-- ⬜ MCP 工具参数表精简且统一。
-- ⬜ CLI 与 MCP 共用 `QueryOptions` 并通过全套测试。
-- ⬜ CLI 退场路线发布，关键消费者已有迁移指引。
+**Stage 24.4: 测试与验证**
+- 单元测试：filter/transform/aggregate 逻辑
+- 集成测试：完整查询场景
+- 兼容性测试：旧工具别名功能
+- 性能测试：大数据集查询
+
+**Stage 24.5: 文档与迁移**
+- 编写统一查询 API 文档
+- 创建迁移指南（旧工具 → 新查询）
+- 提供查询示例库
+- 更新 CLAUDE.md 和 README.md
+
+### 完成标准
+
+- ⬜ Schema 完全统一为 snake_case
+- ⬜ 统一 `query` 工具实现并通过测试
+- ⬜ 所有旧工具功能可通过新接口实现
+- ⬜ 向后兼容别名工作正常
+- ⬜ 文档和迁移指南完整
+- ⬜ 所有测试通过（包括回归测试）
+
+### 预期收益
+
+| 维度 | 改善 |
+|-----|------|
+| 工具数量 | 16 → 1 (94% 减少) |
+| 参数数量 | 80+ → 20 (75% 减少) |
+| 命名一致性 | 混乱 → 统一 |
+| 可组合性 | 无 → 完整 |
+| 学习成本 | 高 → 低 |
+| 维护成本 | 高 → 低 |
+
+### 风险管理
+
+**风险 1: 破坏性变更**
+- 缓解：提供别名包装，2-3 版本兼容期
+- 缓解：提供迁移工具和详细文档
+
+**风险 2: 性能回退**
+- 缓解：查询计划优化
+- 缓解：性能基准测试和对比
+
+**风险 3: 学习曲线**
+- 缓解：渐进式文档（简单到复杂）
+- 缓解：丰富的示例库和 cookbook
+
+详细设计见 `/tmp/unified_query_api_proposal.md`
 
 ---
 

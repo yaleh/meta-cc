@@ -39,7 +39,9 @@ func FormatJSONL(data interface{}) (string, error) {
 // formatSliceJSONL formats []interface{} as JSONL
 func formatSliceJSONL(items []interface{}) (string, error) {
 	if len(items) == 0 {
-		return "", nil
+		// Return empty JSON array instead of empty string to avoid jq errors
+		// Empty string causes: "jq filter error: unexpected end of JSON input"
+		return "[]", nil
 	}
 
 	var lines []string
@@ -75,7 +77,8 @@ func formatGenericJSONL(data interface{}) (string, error) {
 		}
 
 		if len(items) == 0 {
-			return "", nil
+			// Return empty JSON array instead of empty string to avoid jq errors
+			return "[]", nil
 		}
 
 		var lines []string

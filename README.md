@@ -98,11 +98,19 @@ Just ask Claude naturally - MCP tools are invoked automatically:
 "Show me all Bash errors in this project"
 "Find user messages mentioning 'refactor'"
 "Which tools do I use most often?"
-"Analyze my workflow efficiency"
-"Compare error rates between sessions"
 ```
 
-**Available**: 16 MCP tools for comprehensive session analysis. See [MCP Guide](docs/guides/mcp.md) for complete reference.
+**NEW (v2.0+)**: Unified query interface consolidates 16 tools into 1 composable API:
+```javascript
+query({
+  resource: "tools",
+  filter: {tool_name: "Read", tool_status: "error"}
+})
+```
+
+See [Unified Query API Guide](docs/guides/unified-query-api.md) for complete details.
+
+**Available**: 16+ MCP tools for comprehensive session analysis. See [MCP Guide](docs/guides/mcp.md) for complete reference.
 
 ### 3. Interactive Coaching
 

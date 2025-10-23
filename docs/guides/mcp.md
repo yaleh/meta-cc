@@ -67,7 +67,18 @@ See `/home/yale/work/meta-cc/experiments/bootstrap-006-api-design/data/api-param
 
 ## Tool Catalog
 
-meta-cc-mcp provides **16 standardized tools** for analyzing Claude Code session history.
+meta-cc-mcp provides **16+ standardized tools** for analyzing Claude Code session history.
+
+### NEW: Unified Query Tool (v2.0+)
+
+**⚠️ Note**: A new unified `query` tool is available that consolidates the 16 specialized tools below into a single composable interface. See:
+- [Unified Query API Guide](unified-query-api.md) - Complete API reference
+- [Migration Guide](migration-to-unified-query.md) - Migration from specialized tools
+- [Query Cookbook](../examples/query-cookbook.md) - 10+ practical examples
+
+The specialized tools below remain available for backward compatibility but will be deprecated in v3.0.0.
+
+---
 
 ### 1. get_session_stats
 

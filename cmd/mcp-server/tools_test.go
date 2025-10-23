@@ -485,12 +485,13 @@ func TestToolCountIncreasedTo14(t *testing.T) {
 	// Phase 19 adds 2 new tools: query_assistant_messages, query_conversation
 	// Phase 22 Stage 22.2 adds 1 new tool: list_capabilities
 	// Phase 22 Stage 22.3 adds 1 new tool: get_capability
-	// Total should be 16 tools (was 15 after Stage 22.2)
-	expectedCount := 16
+	// Phase 24 Stage 24.3 adds 1 new tool: query (unified query interface)
+	// Total should be 17 tools (was 16 after Phase 22)
+	expectedCount := 17
 	actualCount := len(tools)
 
 	if actualCount != expectedCount {
-		t.Errorf("expected %d tools after Phase 22, got %d", expectedCount, actualCount)
+		t.Errorf("expected %d tools after Phase 24, got %d", expectedCount, actualCount)
 
 		// List all tool names for debugging
 		t.Log("Current tools:")
@@ -597,8 +598,9 @@ func TestJqFilterDescriptionImproved(t *testing.T) {
 		t.Errorf("jq_filter description should warn about quotes, got: %s", desc)
 	}
 
-	// Should still mention default value
-	if !strings.Contains(desc, "default") {
+	// Should still mention default value (case-insensitive)
+	descLower := strings.ToLower(desc)
+	if !strings.Contains(descLower, "default") {
 		t.Errorf("jq_filter description should still mention default value, got: %s", desc)
 	}
 

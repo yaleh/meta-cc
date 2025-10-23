@@ -120,8 +120,8 @@ func TestFormatSummaryFirstJSON(t *testing.T) {
 		t.Error("Details should be JSON array")
 	}
 
-	// Verify only 2 records in details
-	if strings.Count(output.Details, "\"UUID\"") != 2 {
+	// Verify only 2 records in details (checking for snake_case "uuid")
+	if strings.Count(output.Details, "\"uuid\"") != 2 {
 		t.Error("Details should contain only 2 records")
 	}
 }

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -274,5 +276,79 @@ func TestExtractToolCallsWithIsError(t *testing.T) {
 		t.Errorf("Expected Error field to be populated when is_error=true in JSONL, got empty string")
 		t.Logf("Current ToolCall: %+v", tc)
 		t.FailNow()
+	}
+}
+
+// TestToolCallJSONSchema verifies that ToolCall uses snake_case for all JSON fields
+// This ensures consistency with Claude Code JSONL schema (Phase 24, Stage 24.1)
+func TestToolCallJSONSchema(t *testing.T) {
+	toolCall := ToolCall{
+		UUID:      "test-uuid-123",
+		ToolName:  "Read",
+		Input:     map[string]interface{}{"file_path": "/test/file.go"},
+		Output:    "file content here",
+		Status:    "success",
+		Error:     "",
+		Timestamp: "2025-10-23T00:00:00Z",
+	}
+
+	// Serialize to JSON
+	data, err := json.Marshal(toolCall)
+	if err != nil {
+		t.Fatalf("Failed to marshal ToolCall: %v", err)
+	}
+
+	jsonStr := string(data)
+
+	// Verify all fields use snake_case (lowercase with underscores)
+	expectedFields := []string{
+		"uuid",
+		"tool_name",
+		"input",
+		"output",
+		"status",
+		"error",
+		"timestamp",
+	}
+
+	for _, field := range expectedFields {
+		if !strings.Contains(jsonStr, `"`+field+`"`) {
+			t.Errorf("Expected JSON to contain field %q with snake_case, but not found. JSON: %s", field, jsonStr)
+		}
+	}
+
+	// Verify NO PascalCase fields exist
+	forbiddenFields := []string{
+		"UUID",
+		"ToolName",
+		"Input",
+		"Output",
+		"Status",
+		"Error",
+		"Timestamp",
+	}
+
+	for _, field := range forbiddenFields {
+		if strings.Contains(jsonStr, `"`+field+`"`) {
+			t.Errorf("JSON should NOT contain PascalCase field %q. Found in: %s", field, jsonStr)
+		}
+	}
+
+	// Verify deserialization works with snake_case
+	var decoded ToolCall
+	err = json.Unmarshal(data, &decoded)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal ToolCall: %v", err)
+	}
+
+	// Verify values are preserved
+	if decoded.UUID != toolCall.UUID {
+		t.Errorf("UUID mismatch after unmarshal: got %q, want %q", decoded.UUID, toolCall.UUID)
+	}
+	if decoded.ToolName != toolCall.ToolName {
+		t.Errorf("ToolName mismatch after unmarshal: got %q, want %q", decoded.ToolName, toolCall.ToolName)
+	}
+	if decoded.Status != toolCall.Status {
+		t.Errorf("Status mismatch after unmarshal: got %q, want %q", decoded.Status, toolCall.Status)
 	}
 }

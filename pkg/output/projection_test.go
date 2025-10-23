@@ -30,7 +30,7 @@ func TestProjectToolCalls_BasicProjection(t *testing.T) {
 	}
 
 	config := ProjectionConfig{
-		Fields: []string{"UUID", "ToolName", "Status"},
+		Fields: []string{"uuid", "tool_name", "status"},
 	}
 
 	projected, err := ProjectToolCalls(tools, config)
@@ -48,23 +48,23 @@ func TestProjectToolCalls_BasicProjection(t *testing.T) {
 			t.Errorf("record %d: expected 3 fields, got %d", i, len(p))
 		}
 
-		// Verify expected fields exist
-		if _, ok := p["UUID"]; !ok {
-			t.Errorf("record %d: missing 'UUID' field", i)
+		// Verify expected fields exist (snake_case)
+		if _, ok := p["uuid"]; !ok {
+			t.Errorf("record %d: missing 'uuid' field", i)
 		}
-		if _, ok := p["ToolName"]; !ok {
-			t.Errorf("record %d: missing 'ToolName' field", i)
+		if _, ok := p["tool_name"]; !ok {
+			t.Errorf("record %d: missing 'tool_name' field", i)
 		}
-		if _, ok := p["Status"]; !ok {
-			t.Errorf("record %d: missing 'Status' field", i)
+		if _, ok := p["status"]; !ok {
+			t.Errorf("record %d: missing 'status' field", i)
 		}
 
 		// Verify unexpected fields don't exist
-		if _, ok := p["Input"]; ok {
-			t.Errorf("record %d: unexpected 'Input' field", i)
+		if _, ok := p["input"]; ok {
+			t.Errorf("record %d: unexpected 'input' field", i)
 		}
-		if _, ok := p["Output"]; ok {
-			t.Errorf("record %d: unexpected 'Output' field", i)
+		if _, ok := p["output"]; ok {
+			t.Errorf("record %d: unexpected 'output' field", i)
 		}
 	}
 }
@@ -93,8 +93,8 @@ func TestProjectToolCalls_WithErrorFields(t *testing.T) {
 	}
 
 	config := ProjectionConfig{
-		Fields:         []string{"UUID", "ToolName"},
-		IfErrorInclude: []string{"Error", "Status"},
+		Fields:         []string{"uuid", "tool_name"},
+		IfErrorInclude: []string{"error", "status"},
 	}
 
 	projected, err := ProjectToolCalls(tools, config)
@@ -111,11 +111,11 @@ func TestProjectToolCalls_WithErrorFields(t *testing.T) {
 	if len(projected[1]) != 4 {
 		t.Errorf("error record 1: expected 4 fields, got %d", len(projected[1]))
 	}
-	if _, ok := projected[1]["Error"]; !ok {
-		t.Error("error record 1: missing 'Error' field")
+	if _, ok := projected[1]["error"]; !ok {
+		t.Error("error record 1: missing 'error' field")
 	}
-	if _, ok := projected[1]["Status"]; !ok {
-		t.Error("error record 1: missing 'Status' field")
+	if _, ok := projected[1]["status"]; !ok {
+		t.Error("error record 1: missing 'status' field")
 	}
 
 	// Record 2: error - should have 4 fields (2 base + 2 error)
