@@ -4,20 +4,15 @@ import pipelinepkg "github.com/yaleh/meta-cc/pkg/pipeline"
 
 // ToolsQueryOptions configures RunToolsQuery behaviour.
 type ToolsQueryOptions struct {
-	Pipeline       pipelinepkg.GlobalOptions // Session/project scope configuration
-	Limit          int                       // Max records to return (0 = no limit)
-	Offset         int                       // Number of records to skip before returning results
-	SortBy         string                    // Sort field (timestamp, tool, status, uuid)
-	Reverse        bool                      // Reverse sort order
-	Status         string                    // Filter by status (success|error)
-	Tool           string                    // Filter by tool name
-	Where          string                    // Key=value filter expression
-	Expression     string                    // Advanced expression filter (SQL-like)
-	Metrics        string                    // Optional metric selection (for stats/time-series tools)
-	Interval       string                    // Optional interval parameter (time-series)
-	IncludeBuiltin bool                      // Include built-in tools in sequences
-	MinOccurrences int                       // Minimum sequence occurrences (sequences tool)
-	Pattern        string                    // Pattern string (sequences, advanced queries)
+	Pipeline   pipelinepkg.GlobalOptions // Session/project scope configuration
+	Limit      int                       // Max records to return (0 = no limit)
+	Offset     int                       // Number of records to skip before returning results
+	SortBy     string                    // Sort field (timestamp, tool, status, uuid)
+	Reverse    bool                      // Reverse sort order
+	Status     string                    // Filter by status (success|error)
+	Tool       string                    // Filter by tool name
+	Where      string                    // Key=value filter expression
+	Expression string                    // Advanced expression filter (SQL-like)
 }
 
 // UserMessagesQueryOptions configures RunUserMessagesQuery behaviour.

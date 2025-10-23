@@ -42,11 +42,15 @@ func setupLibraryFixture(t *testing.T) func() {
 	projectsRoot := t.TempDir()
 	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
 
-	fixture := `{"type":"assistant","timestamp":"2025-10-02T10:00:00Z","uuid":"uuid-1","sessionId":"` + testSessionID + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Bash","input":{"command":"ls"}}]}}
+	fixture := `{"type":"user","timestamp":"2025-10-02T09:59:59Z","uuid":"uuid-0","sessionId":"` + testSessionID + `","message":{"role":"user","content":[{"type":"text","text":"run analysis"}]}}
+{"type":"assistant","timestamp":"2025-10-02T10:00:00Z","uuid":"uuid-1","sessionId":"` + testSessionID + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Bash","input":{"command":"ls"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:00:01Z","uuid":"uuid-2","sessionId":"` + testSessionID + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"file.txt"}]}}
-{"type":"assistant","timestamp":"2025-10-02T10:00:02Z","uuid":"uuid-3","sessionId":"` + testSessionID + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"meta-cc-run","input":{"command":"meta"}}]}}
-{"type":"user","timestamp":"2025-10-02T10:00:03Z","uuid":"uuid-4","sessionId":"` + testSessionID + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","content":"ok"}]}}
-{"type":"user","timestamp":"2025-10-02T10:00:04Z","uuid":"uuid-5","sessionId":"` + testSessionID + `","message":{"role":"user","content":[{"type":"text","text":"test message with long content that should be truncated if max_message_length is set"}]}}
+{"type":"assistant","timestamp":"2025-10-02T10:00:02Z","uuid":"uuid-3","sessionId":"` + testSessionID + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Read","input":{"file_path":"/tmp/file.txt"}}]}}
+{"type":"user","timestamp":"2025-10-02T10:00:03Z","uuid":"uuid-4","sessionId":"` + testSessionID + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","content":"file contents"}]}}
+{"type":"assistant","timestamp":"2025-10-02T10:00:04Z","uuid":"uuid-5","sessionId":"` + testSessionID + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-3","name":"meta-cc-run","input":{"command":"meta"}}]}}
+{"type":"user","timestamp":"2025-10-02T10:00:05Z","uuid":"uuid-6","sessionId":"` + testSessionID + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-3","content":"ok"}]}}
+{"type":"assistant","timestamp":"2025-10-02T10:00:06Z","uuid":"uuid-7","sessionId":"` + testSessionID + `","message":{"role":"assistant","content":[{"type":"text","text":"Completed task"}]}}
+	{"type":"user","timestamp":"2025-10-02T10:00:07Z","uuid":"uuid-8","sessionId":"` + testSessionID + `","message":{"role":"user","content":[{"type":"text","text":"test message with long content that should be truncated if max_message_length is set"}]}}
 `
 
 	writeSessionFixture(t, projectDir, testSessionID, fixture)
@@ -1020,7 +1024,7 @@ func TestExecuteMetaCC(t *testing.T) {
 	// Create a temporary test script that simulates meta-cc
 	testScript := `#!/bin/bash
 if [[ "$1" == "parse" && "$2" == "stats" ]]; then
-	echo '{"total_turns":10,"tool_calls":25}'
+	echo '{"TurnCount":10,"ToolCallCount":25}'
 	exit 0
 elif [[ "$1" == "query" && "$2" == "tools" ]]; then
 	if [[ "$3" == "--status" && "$4" == "error" ]]; then
@@ -1067,7 +1071,7 @@ fi
 			name:        "successful parse stats command",
 			cmdArgs:     []string{"parse", "stats", "--output", "jsonl"},
 			expectError: false,
-			expectOut:   "total_turns",
+			expectOut:   "TurnCount",
 		},
 		{
 			name:        "successful query tools command",
@@ -1132,7 +1136,7 @@ if [[ "$1" == "--session-only" ]]; then
 fi
 
 if [[ "$1" == "parse" && "$2" == "stats" ]]; then
-	echo '{"total_turns":10,"tool_calls":25,"errors":2}'
+	echo '{"TurnCount":10,"ToolCallCount":25,"ErrorCount":2}'
 	exit 0
 elif [[ "$1" == "query" && "$2" == "tools" ]]; then
 	echo '{"tool":"Bash","status":"success","count":5}'
@@ -1177,7 +1181,7 @@ fi
 				"output_format": "jsonl",
 			},
 			expectError: false,
-			expectOut:   "total_turns",
+			expectOut:   "TurnCount",
 		},
 		{
 			name:     "get_session_stats with default scope",
@@ -1187,7 +1191,7 @@ fi
 				// Note: scope not specified - should default to "session"
 			},
 			expectError: false,
-			expectOut:   "total_turns",
+			expectOut:   "TurnCount",
 		},
 		{
 			name:     "query_tools with jq filter",
@@ -1223,6 +1227,64 @@ fi
 			},
 			expectError: false,
 			expectOut:   "content",
+		},
+		{
+			name:     "query_assistant_messages library path",
+			toolName: "query_assistant_messages",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"limit":         5,
+				"output_format": "jsonl",
+			},
+			expectError: false,
+			expectOut:   "Completed task",
+		},
+		{
+			name:     "query_conversation library path",
+			toolName: "query_conversation",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"start_turn":    0,
+				"end_turn":      5,
+				"output_format": "jsonl",
+			},
+			expectError: false,
+			expectOut:   "run analysis",
+		},
+		{
+			name:     "query_files library path",
+			toolName: "query_files",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"threshold":     1,
+				"output_format": "jsonl",
+			},
+			expectError: false,
+			expectOut:   "/tmp/file.txt",
+		},
+		{
+			name:     "query_tool_sequences library path",
+			toolName: "query_tool_sequences",
+			args: map[string]interface{}{
+				"scope":                 "project",
+				"pattern":               "Bash -> Read",
+				"min_occurrences":       1,
+				"include_builtin_tools": true,
+				"output_format":         "jsonl",
+			},
+			expectError: false,
+			expectOut:   "Bash",
+		},
+		{
+			name:     "query_file_access library path",
+			toolName: "query_file_access",
+			args: map[string]interface{}{
+				"scope":         "project",
+				"file":          "/tmp/file.txt",
+				"output_format": "jsonl",
+			},
+			expectError: false,
+			expectOut:   "/tmp/file.txt",
 		},
 		{
 			name:     "stats_only mode",
@@ -1282,64 +1344,5 @@ fi
 				}
 			}
 		})
-	}
-}
-
-func TestExecuteTool_UsesLibraryWithoutMetaCCBinary(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Skipping test on Windows - requires bash shell")
-	}
-
-	restore := setupLibraryFixture(t)
-	defer restore()
-
-	cfg, _ := config.Load()
-	executor := &ToolExecutor{metaCCPath: "/nonexistent-meta-cc"}
-
-	output, err := executor.ExecuteTool(cfg, "query_tools", map[string]interface{}{
-		"scope":         "project",
-		"output_format": "jsonl",
-	})
-	if err != nil {
-		t.Fatalf("expected library execution to succeed, got error: %v", err)
-	}
-	if !strings.Contains(output, "Bash") {
-		t.Fatalf("expected output to contain Bash tool call, got: %s", output)
-	}
-
-	output, err = executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
-		"scope":         "session",
-		"pattern":       "test",
-		"output_format": "jsonl",
-	})
-	if err != nil {
-		t.Fatalf("expected user messages execution to succeed, got error: %v", err)
-	}
-	if !strings.Contains(output, "test message") {
-		t.Fatalf("expected output to include message content, got: %s", output)
-	}
-
-	output, err = executor.ExecuteTool(cfg, "query_tools_advanced", map[string]interface{}{
-		"scope":         "project",
-		"where":         "tool=Bash",
-		"output_format": "jsonl",
-	})
-	if err != nil {
-		t.Fatalf("expected advanced tools execution to succeed, got error: %v", err)
-	}
-	if !strings.Contains(output, "Bash") {
-		t.Fatalf("expected output to contain Bash tool call, got: %s", output)
-	}
-
-	output, err = executor.ExecuteTool(cfg, "query_tools_advanced", map[string]interface{}{
-		"scope":         "project",
-		"where":         "tool LIKE 'meta-cc%'",
-		"output_format": "jsonl",
-	})
-	if err != nil {
-		t.Fatalf("expected LIKE filter to succeed, got error: %v", err)
-	}
-	if !strings.Contains(output, "meta-cc-run") {
-		t.Fatalf("expected output to contain meta-cc-run tool call, got: %s", output)
 	}
 }

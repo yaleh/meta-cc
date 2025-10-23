@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/yaleh/meta-cc/internal/analyzer"
 	mcerrors "github.com/yaleh/meta-cc/internal/errors"
+	"github.com/yaleh/meta-cc/internal/query"
 	"github.com/yaleh/meta-cc/pkg/output"
 )
 
@@ -47,10 +47,7 @@ func runAnalyzeFileChurn(cmd *cobra.Command, args []string) error {
 
 	// Step 2: Detect file churn
 	entries := p.GetEntries()
-	result := analyzer.DetectFileChurn(entries, fileChurnThreshold)
-
-	// Step 3: Unwrap files array (for consistent JSONL output)
-	files := result.HighChurnFiles
+	files := query.DetectFileChurn(entries, query.FileChurnOptions{Threshold: fileChurnThreshold})
 
 	// Step 4: Format and output
 	var outputStr string

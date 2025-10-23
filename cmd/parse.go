@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/yaleh/meta-cc/internal/analyzer"
 	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/filter"
 	internalOutput "github.com/yaleh/meta-cc/internal/output"
 	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/query"
 	"github.com/yaleh/meta-cc/pkg/output"
 )
 
@@ -200,7 +200,7 @@ func runParseStats(cmd *cobra.Command, args []string) error {
 	toolCalls := p.ExtractToolCalls()
 
 	// Step 4: Calculate statistics (using Stage 4.1 analyzer)
-	stats := analyzer.CalculateStats(entries, toolCalls)
+	stats := query.BuildSessionStats(entries, toolCalls)
 
 	// Step 4.5: Handle --estimate-size flag (Phase 9.1)
 	if estimateSizeFlag {

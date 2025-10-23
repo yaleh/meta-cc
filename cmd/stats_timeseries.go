@@ -5,10 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 	mcerrors "github.com/yaleh/meta-cc/internal/errors"
-	"github.com/yaleh/meta-cc/internal/filter"
 	internalOutput "github.com/yaleh/meta-cc/internal/output"
-	"github.com/yaleh/meta-cc/internal/parser"
-	"github.com/yaleh/meta-cc/internal/stats"
+	"github.com/yaleh/meta-cc/internal/query"
 	"github.com/yaleh/meta-cc/pkg/output"
 )
 
@@ -65,42 +63,8 @@ func runStatsTimeSeries(cmd *cobra.Command, args []string) error {
 	// Step 2: Extract tool calls
 	toolCalls := p.ExtractToolCalls()
 
-	// Step 3: Apply filter if provided
-	if timeSeriesFilter != "" {
-		expr, err := filter.ParseExpression(timeSeriesFilter)
-		if err != nil {
-			return fmt.Errorf("invalid filter: %w", err)
-		}
-
-		var filtered []parser.ToolCall
-		for _, tc := range toolCalls {
-			// Convert ToolCall to map for expression evaluation
-			record := map[string]interface{}{
-				"tool":   tc.ToolName,
-				"status": tc.Status,
-				"uuid":   tc.UUID,
-				"error":  tc.Error,
-			}
-
-			match, err := expr.Evaluate(record)
-			if err != nil {
-				return fmt.Errorf("filter evaluation error: %w", err)
-			}
-
-			if match {
-				filtered = append(filtered, tc)
-			}
-		}
-		toolCalls = filtered
-	}
-
-	// Step 4: Perform time series analysis
-	config := stats.TimeSeriesConfig{
-		Metric:   timeSeriesMetric,
-		Interval: timeSeriesInterval,
-	}
-
-	points, err := stats.AnalyzeTimeSeries(toolCalls, config)
+	// Step 3: Perform time series analysis via shared query helper
+	points, err := query.AnalyzeTimeSeries(toolCalls, timeSeriesMetric, timeSeriesInterval, timeSeriesFilter)
 	if err != nil {
 		return fmt.Errorf("time series analysis failed: %w", err)
 	}

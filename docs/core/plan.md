@@ -429,6 +429,15 @@ end note
   - 为 `query_tools_advanced` 添加库级单元测试与 CLI/MCP 对比测试，覆盖 `LIKE '%foo%'`、大小写、范围等场景。
 - 完成标准：高级 WHERE/LIKE 在 CLI 与 MCP 均可成功执行；回归测试展示库与 CLI 输出一致；文档更新描述受支持的过滤语法。
 
+**Stage 23.6: 剩余分析工具库化（规划）**
+- 目标：补齐 CLI 专用的统计/分析命令使其进入共享库，包括 `get_session_stats`、`parse stats`、`query_project_state`、`query_time_series`、`query_file_access` 等，保证 MCP 不再调用 CLI。
+- 关键依赖：`internal/stats`、`cmd/analyze_*`、`cmd/parse` 现有实现可下沉到 `internal/query` 或新建 `internal/analysis`；`pkg/pipeline` 已支持项目级多会话装载。
+- 工作项：
+  - 抽取统计与分析逻辑（如 `BuildSessionStats`、`BuildProjectState`）供 CLI/MCP 共用。
+  - 调整 CLI 命令调用库函数，MCP executor 添加相应分支并移除子进程调用。
+  - 补充 CLI/MCP 双端回归测试，覆盖 `stats_first`、`stats_only`、项目级默认等场景。
+- 完成标准：MCP 执行器在统计/分析类工具上不再调用 `executeMetaCC`；`go test ./cmd/...`、`go test ./cmd/mcp-server` 全部通过；文档记录新的分析库入口。
+
 ---
 
 ## Phase 24: 查询参数简化与 CLI 退场准备（规划）

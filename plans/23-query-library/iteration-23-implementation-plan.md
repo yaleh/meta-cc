@@ -151,6 +151,26 @@ The iteration is divided into three stages, each delivering runnable code and te
 
 **Dependencies**: Stage 23.4 complete (executor fully using library paths) to ensure advanced filter support hooks in once per-tool scaffolding exists.
 
+### Stage 23.6 — Analysis Commands Library Extraction
+
+**Objective**: Share the remaining statistics/analysis logic between CLI and MCP so no analytics tool invokes the CLI binary.
+
+**Implementation Scope** (~200 lines code + ~120 lines tests):
+- Extract session statistics, project state, file access, and time-series builders into reusable helpers (e.g., `internal/query/stats.go`, `project_state.go`).
+- Update `cmd/parse stats`, `cmd/analyze_sequences`, `cmd/analyze_file_churn`, etc., to call the shared helpers; mirror the same branches in `cmd/mcp-server/executor.go` (replacing `executeMetaCC` for `get_session_stats`, `query_project_state`, `query_time_series`, `query_file_access`, etc.).
+- Remove the corresponding entries from `toolCommandBuilders` once the executor uses the library for those tools.
+
+**Tests** (~120 lines):
+- Unit tests for the new helpers covering multiple sessions, thresholds, and error cases.
+- CLI vs library regression tests (extend `cmd/query_library_compare_test.go` or add new cases) ensuring outputs match for stats/time-series/project state.
+- Expanded MCP executor tests verifying no subprocess calls occur when these tools run.
+
+**Acceptance**:
+- `executeMetaCC` is only used for legacy maintenance tools (cleanup, capability management); all query/analysis commands execute via library paths.
+- `go test ./cmd/...` and `go test ./cmd/mcp-server` remain green; documentation references the new helpers.
+
+**Dependencies**: Stage 23.4/23.5 complete to ensure query infrastructure is stable before migrating analytics.
+
 ---
 
 ## Exit Criteria

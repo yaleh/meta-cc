@@ -14,7 +14,9 @@ import (
 
 	"github.com/yaleh/meta-cc/internal/config"
 	mcerrors "github.com/yaleh/meta-cc/internal/errors"
+	filterpkg "github.com/yaleh/meta-cc/internal/filter"
 	internalOutput "github.com/yaleh/meta-cc/internal/output"
+	"github.com/yaleh/meta-cc/internal/parser"
 	querypkg "github.com/yaleh/meta-cc/internal/query"
 	pkgoutput "github.com/yaleh/meta-cc/pkg/output"
 	pipelinepkg "github.com/yaleh/meta-cc/pkg/pipeline"
@@ -139,6 +141,26 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 		rawOutput, err = e.executeQueryTools(scope, config, args)
 	case "query_user_messages":
 		rawOutput, err = e.executeQueryUserMessages(scope, config, args)
+	case "query_assistant_messages":
+		rawOutput, err = e.executeQueryAssistantMessages(scope, config, args)
+	case "query_context":
+		rawOutput, err = e.executeQueryContext(scope, config, args)
+	case "query_tool_sequences":
+		rawOutput, err = e.executeQueryToolSequences(scope, config, args)
+	case "query_file_access":
+		rawOutput, err = e.executeQueryFileAccess(scope, config, args)
+	case "query_files":
+		rawOutput, err = e.executeQueryFiles(scope, config, args)
+	case "query_conversation":
+		rawOutput, err = e.executeQueryConversation(scope, config, args)
+	case "get_session_stats":
+		rawOutput, err = e.executeGetSessionStats(scope, config, args)
+	case "query_time_series":
+		rawOutput, err = e.executeQueryTimeSeries(scope, config, args)
+	case "query_project_state":
+		rawOutput, err = e.executeQueryProjectState(scope, config, args)
+	case "query_successful_prompts":
+		rawOutput, err = e.executeQuerySuccessfulPrompts(scope, config, args)
 	default:
 		cmdArgs := e.buildCommand(toolName, args, scope, config.outputFormat)
 		if cmdArgs == nil {
@@ -280,6 +302,273 @@ func (e *ToolExecutor) executeQueryUserMessages(scope string, cfg toolPipelineCo
 	default:
 		return "", fmt.Errorf("unsupported output format: %s", format)
 	}
+}
+
+func (e *ToolExecutor) executeQueryContext(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	entries, err := loadEntries(scope, args)
+	if err != nil {
+		return "", err
+	}
+
+	errorSig := getStringParam(args, "error_signature", "")
+	if errorSig == "" {
+		return "", fmt.Errorf("%w: error_signature", mcerrors.ErrMissingParameter)
+	}
+
+	window := getIntParam(args, "window", 3)
+	result, err := querypkg.BuildContextQuery(entries, errorSig, window)
+	if err != nil {
+		return "", err
+	}
+
+	return pkgoutput.FormatJSONL([]interface{}{result})
+}
+
+func (e *ToolExecutor) executeQueryToolSequences(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	entries, err := loadEntries(scope, args)
+	if err != nil {
+		return "", err
+	}
+
+	minOccurrences := getIntParam(args, "min_occurrences", 3)
+	pattern := getStringParam(args, "pattern", "")
+	includeBuiltin := getBoolParam(args, "include_builtin_tools", false)
+
+	result, err := querypkg.BuildToolSequenceQuery(entries, minOccurrences, pattern, includeBuiltin)
+	if err != nil {
+		return "", err
+	}
+
+	return pkgoutput.FormatJSONL(result.Sequences)
+}
+
+func (e *ToolExecutor) executeQueryFileAccess(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	entries, err := loadEntries(scope, args)
+	if err != nil {
+		return "", err
+	}
+
+	file := getStringParam(args, "file", "")
+	if file == "" {
+		return "", fmt.Errorf("%w: file", mcerrors.ErrMissingParameter)
+	}
+
+	result, err := querypkg.BuildFileAccessQuery(entries, file)
+	if err != nil {
+		return "", err
+	}
+
+	return pkgoutput.FormatJSONL([]interface{}{result})
+}
+
+func (e *ToolExecutor) executeQueryAssistantMessages(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	entries, err := loadEntries(scope, args)
+	if err != nil {
+		return "", err
+	}
+
+	options := querypkg.AssistantMessagesOptions{
+		Pattern:   getStringParam(args, "pattern", ""),
+		MinTools:  getIntParam(args, "min_tools", -1),
+		MaxTools:  getIntParam(args, "max_tools", -1),
+		MinTokens: getIntParam(args, "min_tokens_output", -1),
+		MinLength: getIntParam(args, "min_length", -1),
+		MaxLength: getIntParam(args, "max_length", -1),
+		Limit:     getIntParam(args, "limit", 0),
+		Offset:    getIntParam(args, "offset", 0),
+		SortBy:    getStringParam(args, "sort_by", ""),
+		Reverse:   getBoolParam(args, "reverse", false),
+	}
+
+	messages, err := querypkg.BuildAssistantMessages(entries, options)
+	if err != nil {
+		return "", err
+	}
+
+	switch cfg.outputFormat {
+	case "", "jsonl":
+		return pkgoutput.FormatJSONL(messages)
+	case "tsv":
+		return pkgoutput.FormatTSV(messages)
+	default:
+		return "", fmt.Errorf("unsupported output format: %s", cfg.outputFormat)
+	}
+}
+
+func (e *ToolExecutor) executeQueryConversation(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	entries, err := loadEntries(scope, args)
+	if err != nil {
+		return "", err
+	}
+
+	options := querypkg.ConversationOptions{
+		StartTurn:     getIntParam(args, "start_turn", -1),
+		EndTurn:       getIntParam(args, "end_turn", -1),
+		Pattern:       getStringParam(args, "pattern", ""),
+		PatternTarget: getStringParam(args, "pattern_target", "any"),
+		MinDuration:   getIntParam(args, "min_duration", -1),
+		MaxDuration:   getIntParam(args, "max_duration", -1),
+		Limit:         getIntParam(args, "limit", 0),
+		Offset:        getIntParam(args, "offset", 0),
+		SortBy:        getStringParam(args, "sort_by", ""),
+		Reverse:       getBoolParam(args, "reverse", false),
+	}
+
+	turns, err := querypkg.BuildConversationTurns(entries, options)
+	if err != nil {
+		return "", err
+	}
+
+	switch cfg.outputFormat {
+	case "", "jsonl":
+		return pkgoutput.FormatJSONL(turns)
+	case "tsv":
+		return pkgoutput.FormatTSV(turns)
+	default:
+		return "", fmt.Errorf("unsupported output format: %s", cfg.outputFormat)
+	}
+}
+
+func (e *ToolExecutor) executeQueryFiles(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	entries, err := loadEntries(scope, args)
+	if err != nil {
+		return "", err
+	}
+
+	threshold := getIntParam(args, "threshold", 5)
+	files := querypkg.DetectFileChurn(entries, querypkg.FileChurnOptions{Threshold: threshold})
+
+	switch cfg.outputFormat {
+	case "", "jsonl":
+		return pkgoutput.FormatJSONL(files)
+	case "tsv":
+		return pkgoutput.FormatTSV(files)
+	default:
+		return "", fmt.Errorf("unsupported output format: %s", cfg.outputFormat)
+	}
+}
+
+func (e *ToolExecutor) executeGetSessionStats(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	entries, err := loadEntries(scope, args)
+	if err != nil {
+		return "", err
+	}
+
+	toolCalls := parser.ExtractToolCalls(entries)
+	stats := querypkg.BuildSessionStats(entries, toolCalls)
+
+	format := cfg.outputFormat
+	if format == "" {
+		format = "jsonl"
+	}
+
+	formatted, err := internalOutput.FormatOutput(stats, format)
+	if err != nil {
+		return "", err
+	}
+	return formatted, nil
+}
+
+func (e *ToolExecutor) executeQueryTimeSeries(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	entries, err := loadEntries(scope, args)
+	if err != nil {
+		return "", err
+	}
+	toolCalls := parser.ExtractToolCalls(entries)
+
+	points, err := querypkg.AnalyzeTimeSeries(toolCalls, getStringParam(args, "metric", "tool-calls"), getStringParam(args, "interval", "hour"), getStringParam(args, "where", ""))
+	if err != nil {
+		return "", err
+	}
+
+	format := cfg.outputFormat
+	if format == "" {
+		format = "jsonl"
+	}
+
+	var outputStr string
+	if format == "jsonl" {
+		outputStr, err = pkgoutput.FormatJSONL(points)
+	} else if format == "tsv" {
+		outputStr, err = pkgoutput.FormatTSV(points)
+	} else {
+		return "", fmt.Errorf("unsupported output format: %s", format)
+	}
+	if err != nil {
+		return "", err
+	}
+	return outputStr, nil
+}
+
+func (e *ToolExecutor) executeQueryProjectState(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	entries, err := loadEntries(scope, args)
+	if err != nil {
+		return "", err
+	}
+
+	state := querypkg.BuildProjectState(entries, querypkg.ProjectStateOptions{IncludeIncomplete: getBoolParam(args, "include_incomplete_tasks", true)})
+
+	format := cfg.outputFormat
+	if format == "" || format == "jsonl" {
+		return pkgoutput.FormatJSONL([]interface{}{state})
+	}
+	return internalOutput.FormatOutput(state, format)
+}
+
+func (e *ToolExecutor) executeQuerySuccessfulPrompts(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	entries, err := loadEntries(scope, args)
+	if err != nil {
+		return "", err
+	}
+
+	minQuality := getFloatParam(args, "min_quality_score", 0)
+	limit := getIntParam(args, "limit", 0)
+	result := querypkg.BuildSuccessfulPrompts(entries, minQuality, limit)
+
+	format := cfg.outputFormat
+	if format == "" {
+		format = "jsonl"
+	}
+
+	if format == "jsonl" {
+		items := make([]interface{}, 0, len(result.Prompts))
+		for _, prompt := range result.Prompts {
+			items = append(items, prompt)
+		}
+		return pkgoutput.FormatJSONL(items)
+	}
+	return internalOutput.FormatOutput(result.Prompts, format)
+}
+
+func loadEntries(scope string, args map[string]interface{}) ([]parser.SessionEntry, error) {
+	opts := buildPipelineOptions(scope)
+	pipe := pipelinepkg.NewSessionPipeline(opts)
+	if err := pipe.Load(pipelinepkg.LoadOptions{AutoDetect: true}); err != nil {
+		return nil, fmt.Errorf("%w: %v", querypkg.ErrSessionLoad, err)
+	}
+
+	entries := pipe.Entries()
+	since := getStringParam(args, "since", "")
+	last := getIntParam(args, "last_n_turns", 0)
+	from := getIntParam(args, "from", 0)
+	to := getIntParam(args, "to", 0)
+
+	if since != "" || last > 0 || from > 0 || to > 0 {
+		timeFilter := filterpkg.TimeFilter{
+			Since:      since,
+			LastNTurns: last,
+			FromTs:     int64(from),
+			ToTs:       int64(to),
+		}
+
+		filteredEntries, err := timeFilter.Apply(entries)
+		if err != nil {
+			return nil, err
+		}
+		entries = filteredEntries
+	}
+
+	return entries, nil
 }
 
 func normalizeQueryError(err error) error {
