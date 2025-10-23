@@ -1,14 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,9 +19,7 @@ import (
 	pipelinepkg "github.com/yaleh/meta-cc/pkg/pipeline"
 )
 
-type ToolExecutor struct {
-	metaCCPath string
-}
+type ToolExecutor struct{}
 
 type toolPipelineConfig struct {
 	jqFilter         string
@@ -51,16 +46,7 @@ func (c toolPipelineConfig) requiresMessageFilters() bool {
 }
 
 func NewToolExecutor() *ToolExecutor {
-	// Find meta-cc executable
-	metaCCPath, err := exec.LookPath("meta-cc")
-	if err != nil {
-		// Assume meta-cc is in the same directory or current directory
-		metaCCPath = "./meta-cc"
-	}
-
-	return &ToolExecutor{
-		metaCCPath: metaCCPath,
-	}
+	return &ToolExecutor{}
 }
 
 func determineScope(toolName string, args map[string]interface{}) string {
@@ -162,12 +148,10 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 	case "query_successful_prompts":
 		rawOutput, err = e.executeQuerySuccessfulPrompts(scope, config, args)
 	default:
-		cmdArgs := e.buildCommand(toolName, args, scope, config.outputFormat)
-		if cmdArgs == nil {
-			recordToolFailure(toolName, scope, start, "validation_error")
-			return "", fmt.Errorf("unknown tool %s in executor: %w", toolName, mcerrors.ErrUnknownTool)
-		}
-		rawOutput, err = e.executeMetaCC(cmdArgs)
+		// All query tools must be handled explicitly above.
+		// No CLI fallback - all tools use internal/query library.
+		recordToolFailure(toolName, scope, start, "validation_error")
+		return "", fmt.Errorf("unknown tool %s in executor: %w", toolName, mcerrors.ErrUnknownTool)
 	}
 
 	if err != nil {
@@ -681,289 +665,6 @@ func (e *ToolExecutor) buildStandardResponse(cfg *config.Config, parsedData []in
 	}
 
 	return output, nil
-}
-
-func (e *ToolExecutor) buildCommand(toolName string, args map[string]interface{}, scope string, outputFormat string) []string {
-	builder, ok := toolCommandBuilders[toolName]
-	if !ok {
-		return nil
-	}
-
-	cmdArgs := make([]string, 0, 8)
-	cmdArgs = append(cmdArgs, scopeArgs(scope)...)
-	cmdArgs = append(cmdArgs, builder(args)...)
-
-	if len(cmdArgs) == 0 {
-		return nil
-	}
-
-	cmdArgs = append(cmdArgs, "--output", outputFormat)
-	return cmdArgs
-}
-
-type commandBuilder func(args map[string]interface{}) []string
-
-var toolCommandBuilders = map[string]commandBuilder{
-	"query_tools":              buildQueryToolsCommand,
-	"query_user_messages":      buildQueryUserMessagesCommand,
-	"get_session_stats":        buildGetSessionStatsCommand,
-	"query_context":            buildQueryContextCommand,
-	"query_tool_sequences":     buildQueryToolSequencesCommand,
-	"query_file_access":        buildQueryFileAccessCommand,
-	"query_project_state":      buildQueryProjectStateCommand,
-	"query_successful_prompts": buildQuerySuccessfulPromptsCommand,
-	"query_tools_advanced":     buildQueryToolsAdvancedCommand,
-	"query_time_series":        buildQueryTimeSeriesCommand,
-	"query_assistant_messages": buildQueryAssistantMessagesCommand,
-	"query_conversation":       buildQueryConversationCommand,
-	"query_files":              buildQueryFilesCommand,
-}
-
-func scopeArgs(scope string) []string {
-	switch scope {
-	case "project":
-		return []string{"--project", "."}
-	case "session":
-		return []string{"--session-only"}
-	default:
-		return nil
-	}
-}
-
-func buildQueryToolsCommand(args map[string]interface{}) []string {
-	cmd := []string{"query", "tools"}
-	if tool := getStringParam(args, "tool", ""); tool != "" {
-		cmd = append(cmd, "--tool", tool)
-	}
-	if status := getStringParam(args, "status", ""); status != "" {
-		cmd = append(cmd, "--status", status)
-	}
-	if limit := getIntParam(args, "limit", 0); limit > 0 {
-		cmd = append(cmd, "--limit", strconv.Itoa(limit))
-	}
-	return cmd
-}
-
-func buildQueryUserMessagesCommand(args map[string]interface{}) []string {
-	cmd := []string{"query", "user-messages"}
-	if pattern := getStringParam(args, "pattern", ""); pattern != "" {
-		cmd = append(cmd, "--pattern", pattern)
-	}
-	if limit := getIntParam(args, "limit", 0); limit > 0 {
-		cmd = append(cmd, "--limit", strconv.Itoa(limit))
-	}
-	return cmd
-}
-
-func buildGetSessionStatsCommand(args map[string]interface{}) []string {
-	return []string{"parse", "stats"}
-}
-
-func buildQueryContextCommand(args map[string]interface{}) []string {
-	cmd := []string{"query", "context"}
-	if errorSig := getStringParam(args, "error_signature", ""); errorSig != "" {
-		cmd = append(cmd, "--error-signature", errorSig)
-	}
-	if window := getIntParam(args, "window", 0); window > 0 {
-		cmd = append(cmd, "--window", strconv.Itoa(window))
-	}
-	return cmd
-}
-
-func buildQueryToolSequencesCommand(args map[string]interface{}) []string {
-	cmd := []string{"analyze", "sequences"}
-	if pattern := getStringParam(args, "pattern", ""); pattern != "" {
-		cmd = append(cmd, "--pattern", pattern)
-	}
-	if minOccur := getIntParam(args, "min_occurrences", 0); minOccur > 0 {
-		cmd = append(cmd, "--min-occurrences", strconv.Itoa(minOccur))
-	}
-	if includeBuiltin := getBoolParam(args, "include_builtin_tools", false); includeBuiltin {
-		cmd = append(cmd, "--include-builtin-tools")
-	}
-	return cmd
-}
-
-func buildQueryFileAccessCommand(args map[string]interface{}) []string {
-	cmd := []string{"query", "file-access"}
-	if file := getStringParam(args, "file", ""); file != "" {
-		cmd = append(cmd, "--file", file)
-	}
-	return cmd
-}
-
-func buildQueryProjectStateCommand(args map[string]interface{}) []string {
-	return []string{"query", "project-state"}
-}
-
-func buildQuerySuccessfulPromptsCommand(args map[string]interface{}) []string {
-	cmd := []string{"query", "successful-prompts"}
-	if limit := getIntParam(args, "limit", 0); limit > 0 {
-		cmd = append(cmd, "--limit", strconv.Itoa(limit))
-	}
-	if minQuality := getFloatParam(args, "min_quality_score", 0); minQuality > 0 {
-		cmd = append(cmd, "--min-quality-score", fmt.Sprintf("%.2f", minQuality))
-	}
-	return cmd
-}
-
-func buildQueryToolsAdvancedCommand(args map[string]interface{}) []string {
-	cmd := []string{"query", "tools"}
-	if where := getStringParam(args, "where", ""); where != "" {
-		cmd = append(cmd, "--where", where)
-	}
-	if limit := getIntParam(args, "limit", 0); limit > 0 {
-		cmd = append(cmd, "--limit", strconv.Itoa(limit))
-	}
-	return cmd
-}
-
-func buildQueryTimeSeriesCommand(args map[string]interface{}) []string {
-	cmd := []string{"stats", "timeseries"}
-	if interval := getStringParam(args, "interval", ""); interval != "" {
-		cmd = append(cmd, "--interval", interval)
-	}
-	if metric := getStringParam(args, "metric", ""); metric != "" {
-		cmd = append(cmd, "--metric", metric)
-	}
-	if where := getStringParam(args, "where", ""); where != "" {
-		cmd = append(cmd, "--where", where)
-	}
-	return cmd
-}
-
-func buildQueryAssistantMessagesCommand(args map[string]interface{}) []string {
-	cmd := []string{"query", "assistant-messages"}
-	if pattern := getStringParam(args, "pattern", ""); pattern != "" {
-		cmd = append(cmd, "--pattern", pattern)
-	}
-	if minTools := getIntParam(args, "min_tools", 0); minTools > 0 {
-		cmd = append(cmd, "--min-tools", strconv.Itoa(minTools))
-	}
-	if maxTools := getIntParam(args, "max_tools", 0); maxTools > 0 {
-		cmd = append(cmd, "--max-tools", strconv.Itoa(maxTools))
-	}
-	if minTokens := getIntParam(args, "min_tokens_output", 0); minTokens > 0 {
-		cmd = append(cmd, "--min-tokens-output", strconv.Itoa(minTokens))
-	}
-	if minLength := getIntParam(args, "min_length", 0); minLength > 0 {
-		cmd = append(cmd, "--min-length", strconv.Itoa(minLength))
-	}
-	if maxLength := getIntParam(args, "max_length", 0); maxLength > 0 {
-		cmd = append(cmd, "--max-length", strconv.Itoa(maxLength))
-	}
-	if limit := getIntParam(args, "limit", 0); limit > 0 {
-		cmd = append(cmd, "--limit", strconv.Itoa(limit))
-	}
-	return cmd
-}
-
-func buildQueryConversationCommand(args map[string]interface{}) []string {
-	cmd := []string{"query", "conversation"}
-	if startTurn := getIntParam(args, "start_turn", 0); startTurn > 0 {
-		cmd = append(cmd, "--start-turn", strconv.Itoa(startTurn))
-	}
-	if endTurn := getIntParam(args, "end_turn", 0); endTurn > 0 {
-		cmd = append(cmd, "--end-turn", strconv.Itoa(endTurn))
-	}
-	if pattern := getStringParam(args, "pattern", ""); pattern != "" {
-		cmd = append(cmd, "--pattern", pattern)
-	}
-	if target := getStringParam(args, "pattern_target", ""); target != "" {
-		cmd = append(cmd, "--pattern-target", target)
-	}
-	if minDuration := getIntParam(args, "min_duration", 0); minDuration > 0 {
-		cmd = append(cmd, "--min-duration", strconv.Itoa(minDuration))
-	}
-	if maxDuration := getIntParam(args, "max_duration", 0); maxDuration > 0 {
-		cmd = append(cmd, "--max-duration", strconv.Itoa(maxDuration))
-	}
-	if limit := getIntParam(args, "limit", 0); limit > 0 {
-		cmd = append(cmd, "--limit", strconv.Itoa(limit))
-	}
-	return cmd
-}
-
-func buildQueryFilesCommand(args map[string]interface{}) []string {
-	cmd := []string{"analyze", "file-churn"}
-	if threshold := getIntParam(args, "threshold", 0); threshold > 0 && threshold != 5 {
-		cmd = append(cmd, "--threshold", strconv.Itoa(threshold))
-	}
-	return cmd
-}
-
-func (e *ToolExecutor) executeMetaCC(cmdArgs []string) (string, error) {
-	cmd := exec.Command(e.metaCCPath, cmdArgs...)
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// Set current directory for meta-cc
-	dir, err := os.Getwd()
-	if err != nil {
-		slog.Error("failed to get working directory",
-			"error", err.Error(),
-			"error_type", "io_error",
-		)
-		return "", fmt.Errorf("failed to get working directory: %w", mcerrors.ErrFileIO)
-	}
-	cmd.Dir = dir
-
-	slog.Debug("executing meta-cc command",
-		"command", e.metaCCPath,
-		"args", strings.Join(cmdArgs, " "),
-		"working_dir", dir,
-	)
-
-	if err := cmd.Run(); err != nil {
-		// Check if this is an exit error with specific exit code
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode := exitErr.ExitCode()
-
-			// Exit code 2 means "no results found" - this is not an error
-			// Return stdout content (may be "[]" or empty string)
-			if exitCode == 2 {
-				slog.Debug("meta-cc returned no results",
-					"exit_code", exitCode,
-					"command", strings.Join(cmdArgs, " "),
-				)
-				return stdout.String(), nil
-			}
-
-			// For other exit codes, log as error
-			stderrMsg := strings.TrimSpace(stderr.String())
-			slog.Error("meta-cc command failed",
-				"exit_code", exitCode,
-				"stderr", stderrMsg,
-				"command", strings.Join(cmdArgs, " "),
-				"error_type", "execution_error",
-			)
-		} else {
-			slog.Error("meta-cc command execution error",
-				"error", err.Error(),
-				"command", strings.Join(cmdArgs, " "),
-				"error_type", classifyError(err),
-			)
-		}
-
-		// For exit code 1 or other errors, return error message
-		stderrMsg := strings.TrimSpace(stderr.String())
-		if stderrMsg == "" {
-			// If stderr is empty, include command details for debugging
-			return "", fmt.Errorf("meta-cc command '%s %s' failed with exit code (stderr empty): %w",
-				e.metaCCPath, strings.Join(cmdArgs, " "), mcerrors.ErrFileIO)
-		}
-		return "", fmt.Errorf("meta-cc command '%s %s' failed: %s: %w",
-			e.metaCCPath, strings.Join(cmdArgs, " "), stderrMsg, mcerrors.ErrFileIO)
-	}
-
-	slog.Debug("meta-cc command completed",
-		"output_length", len(stdout.String()),
-	)
-
-	return stdout.String(), nil
 }
 
 // parseJSONL parses JSONL string into array of interfaces

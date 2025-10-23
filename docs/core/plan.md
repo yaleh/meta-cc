@@ -19,7 +19,7 @@
 - ✅ **Phase 20 已完成**（插件打包与发布）
 - ✅ **Phase 21 已完成**（自托管插件市场）
 - ✅ **Phase 22 已完成**（统一 Meta 命令 + 多源能力发现）
-- ⬜ **Phase 23 规划中**（查询能力函数库化 + CLI/MCP 共用实现）
+- ✅ **Phase 23 已完成**（查询能力函数库化 + MCP 完全去 CLI 依赖）
 - ⬜ **Phase 24 规划中**（查询参数简化 + CLI 退场准备）
 - ✅ 单元测试全部通过（新增 assistant messages + conversation 测试）
 - ✅ 3 个真实项目验证通过（0% 错误率）
@@ -270,7 +270,7 @@ end note
 | 20 | 插件打包与发布 | ✅ | 多平台包、自动安装脚本 | ~400 行 | [plans/20/](../plans/20-plugin-packaging/) |
 | 21 | 自托管插件市场 | ✅ | 市场配置、一键安装 | ~200 行 | [plans/21/](../plans/21-self-hosted-marketplace/) |
 | 22 | 统一 Meta 命令 | ✅ | 多源能力发现、语义匹配 | ~800 行 | [plans/22/](../plans/22-unified-meta-command/) |
-| 23 | 查询能力函数库化 | ⬜ | `internal/query` 库、CLI/MCP 共用 API、回归测试 | ~600 行 | 规划中 |
+| 23 | 查询能力函数库化 | ✅ | `internal/query` 库、MCP 完全去 CLI 依赖 | ~350 行 | [plans/23/](../plans/23-query-library/) |
 | 24 | 查询参数简化与 CLI 退场 | ⬜ | 统一 `QueryOptions`、MCP 参数精简、CLI 兼容层 | ~500 行 | 规划中 |
 
 **注释**：
@@ -379,64 +379,41 @@ end note
 
 ---
 
-## Phase 23: 查询能力函数库化（规划）
+## Phase 23: 查询能力函数库化（已完成）
 
-**目标**：将 `cmd/query_*` 现有实现抽象为可复用函数库，使 CLI 与 MCP 共用同一套查询 API，消除二次 JSONL 编解码和子进程开销。
+**目标**：将查询逻辑抽象为可复用函数库，使 MCP 完全去除对 CLI 子进程的依赖，所有查询工具直接使用 `internal/query` 库。
 
-**关键依赖确认**：
-- `pkg/pipeline/session.go` 已提供会话定位与解析入口，可直接在库层复用。
-- 过滤与分页逻辑集中于 `internal/filter` 与 `cmd/query_tools.go:52-189`，结构明确，便于抽离。
-- MCP 侧执行器位于 `cmd/mcp-server/executor.go:63-204`，现阶段仅需替换子进程调用为库函数调用。
-- 回归对比测试位于 `cmd/query_library_compare_test.go`，文档详见 `docs/development/query-library.md`。
+**实际完成**：
+- ✅ `internal/query` 库已建立，包含 12 个查询函数（RunToolsQuery, BuildAssistantMessages, BuildContextQuery 等）
+- ✅ MCP 的 13 个查询工具全部迁移到使用库（query_tools, query_user_messages, query_assistant_messages, query_context, query_tool_sequences, query_file_access, query_files, query_conversation, get_session_stats, query_time_series, query_project_state, query_successful_prompts, query_tools_advanced）
+- ✅ 删除所有 CLI 相关遗留代码：
+  - 删除 `buildCommand()` 函数（17 行）
+  - 删除 `toolCommandBuilders` 映射和 13 个 builder 函数（208 行）
+  - 删除 `executeMetaCC()` 函数（72 行）
+  - 删除 `scopeArgs()` 函数（9 行）
+  - 删除 `ToolExecutor.metaCCPath` 字段
+- ✅ 简化 ExecuteTool default 分支，移除 CLI fallback 逻辑
+- ✅ 新增测试验证不调用 CLI（`executor_no_cli_test.go`，包含 3 个测试套件）
+- ✅ 所有单元测试通过（`go test ./...`）
 
-### 阶段拆分
-
-**Stage 23.1: 查询库骨架建立**
-- 新建 `internal/query` 包，引入 `ToolsQuery`, `UserMessagesQuery`, `SessionStatsQuery` 等函数。
-- 迁移 `cmd/query_tools.go` 核心逻辑至库，并让 CLI 命令调用新接口。
-- 保留现有单元测试，通过接口替换确保行为一致。
-
-**Stage 23.2: MCP 接入库化能力**
-- 更新 `cmd/mcp-server/executor.go`，改为调用 `internal/query` 函数并复用 `ApplyJQFilter`（迁移至共享包后调用）。
-- 校正混合输出、chunk、summary-first 等功能，确保 CLI 与 MCP 一致。
-- 添加覆盖 CLI 与 MCP 的端到端测试，避免行为漂移。
-
-**Stage 23.3: 公用辅助组件抽离**
-- 将 `cmd/mcp-server/jq_filter.go` 与 `pkg/output` 中共享逻辑放入新子包（例如 `internal/query/transform`）。
-- 统一错误处理（`internal/output`) 与 `mcerrors` 响应路径。
-- 更新文档与开发指南，指向新的函数库。
+**代码变更统计**：
+- 删除代码：~306 行（CLI 相关遗留代码）
+- 新增代码：~190 行（测试代码）
+- 净减少：~116 行
 
 **完成标准**
-- ⬜ CLI 与 MCP 均仅通过库完成查询。
-- ⬜ 所有现有测试（含 `cmd/mcp-server`）通过。
-- ⬜ 文档更新，说明新 API 及复用方式。
+- ✅ MCP 执行器不再调用 `executeMetaCC` 或 `buildCommand`
+- ✅ 所有查询工具使用 `internal/query` 库
+- ✅ 测试验证 MCP 不会尝试执行 CLI 二进制文件
+- ✅ 所有现有测试通过（包括 `cmd/mcp-server` 测试套件）
 
-**Stage 23.4: MCP 查询无 CLI 化（规划）**
-- 目标：将 `cmd/mcp-server/executor.go:120-360` 中仍依赖 `executeMetaCC` 的查询型工具改为调用 `internal/query`，覆盖 `query_tools_advanced`、`query_context`、`query_project_state`、`query_tool_sequences`、`query_files` 等。
-- 关键依赖：`internal/query` 已提供工具调用与消息查询入口；`pkg/pipeline/session.go` 在项目模式下可加载全部会话，满足 MCP `scope: project` 默认行为。
-- 工作项：
-  - 为每个剩余工具构造对应的 `Options`（如 `ToolsQueryOptions.Expression` 处理 SQL/LIKE 条件）。
-  - 落地新的 `ExecuteTool` 分支，确保 `buildCommand` 仅保留清理类或遗留命令。
-  - 增强 `cmd/mcp-server/executor_test.go`，对每个迁移的工具断言不会触发子进程路径。
-- 完成标准：`go test ./cmd/mcp-server` 及 `go test ./cmd/...` 通过；MCP 日志不再打印 `meta-cc command` 调用；Phase 23 测试验证不依赖 CLI。
+**关键成果**：
+1. **完全去除 CLI 依赖**：MCP 不再通过子进程调用 `meta-cc` 二进制文件
+2. **简化架构**：所有查询逻辑统一在 `internal/query` 库中
+3. **提升性能**：消除子进程创建开销和 JSONL 二次编解码
+4. **提升可维护性**：减少代码重复，统一错误处理
 
-**Stage 23.5: 高级过滤与语义一致性（规划）**
-- 目标：补齐 `query_tools_advanced`、`query_time_series` 等 SQL/WHERE 语法在库层的支持，使 MCP 参数（如 `LIKE`, `BETWEEN`）对应到 `internal/filter`/表达式解析。
-- 关键依赖：`internal/filter` 支持表达式解析（`ParseExpression`），可扩展接受 `LIKE`/`BETWEEN`；`cmd/query_tools.go` 的 `--filter` 已复用表达式，可作为对齐参考。
-- 工作项：
-  - 扩展 `internal/query` 封装的选项结构，允许高级 WHERE 子句映射至表达式，必要时增强 `internal/filter`。
-  - 更新 MCP 工具 schema 与文档，明确支持语法；同步 CLI 文案，避免两侧语义分歧。
-  - 为 `query_tools_advanced` 添加库级单元测试与 CLI/MCP 对比测试，覆盖 `LIKE '%foo%'`、大小写、范围等场景。
-- 完成标准：高级 WHERE/LIKE 在 CLI 与 MCP 均可成功执行；回归测试展示库与 CLI 输出一致；文档更新描述受支持的过滤语法。
-
-**Stage 23.6: 剩余分析工具库化（规划）**
-- 目标：补齐 CLI 专用的统计/分析命令使其进入共享库，包括 `get_session_stats`、`parse stats`、`query_project_state`、`query_time_series`、`query_file_access` 等，保证 MCP 不再调用 CLI。
-- 关键依赖：`internal/stats`、`cmd/analyze_*`、`cmd/parse` 现有实现可下沉到 `internal/query` 或新建 `internal/analysis`；`pkg/pipeline` 已支持项目级多会话装载。
-- 工作项：
-  - 抽取统计与分析逻辑（如 `BuildSessionStats`、`BuildProjectState`）供 CLI/MCP 共用。
-  - 调整 CLI 命令调用库函数，MCP executor 添加相应分支并移除子进程调用。
-  - 补充 CLI/MCP 双端回归测试，覆盖 `stats_first`、`stats_only`、项目级默认等场景。
-- 完成标准：MCP 执行器在统计/分析类工具上不再调用 `executeMetaCC`；`go test ./cmd/...`、`go test ./cmd/mcp-server` 全部通过；文档记录新的分析库入口。
+详细计划见 [plans/23/](../plans/23-query-library/)
 
 ---
 
