@@ -387,6 +387,7 @@ end note
 - `pkg/pipeline/session.go` 已提供会话定位与解析入口，可直接在库层复用。
 - 过滤与分页逻辑集中于 `internal/filter` 与 `cmd/query_tools.go:52-189`，结构明确，便于抽离。
 - MCP 侧执行器位于 `cmd/mcp-server/executor.go:63-204`，现阶段仅需替换子进程调用为库函数调用。
+- 回归对比测试位于 `cmd/query_library_compare_test.go`，文档详见 `docs/development/query-library.md`。
 
 ### 阶段拆分
 
@@ -409,6 +410,24 @@ end note
 - ⬜ CLI 与 MCP 均仅通过库完成查询。
 - ⬜ 所有现有测试（含 `cmd/mcp-server`）通过。
 - ⬜ 文档更新，说明新 API 及复用方式。
+
+**Stage 23.4: MCP 查询无 CLI 化（规划）**
+- 目标：将 `cmd/mcp-server/executor.go:120-360` 中仍依赖 `executeMetaCC` 的查询型工具改为调用 `internal/query`，覆盖 `query_tools_advanced`、`query_context`、`query_project_state`、`query_tool_sequences`、`query_files` 等。
+- 关键依赖：`internal/query` 已提供工具调用与消息查询入口；`pkg/pipeline/session.go` 在项目模式下可加载全部会话，满足 MCP `scope: project` 默认行为。
+- 工作项：
+  - 为每个剩余工具构造对应的 `Options`（如 `ToolsQueryOptions.Expression` 处理 SQL/LIKE 条件）。
+  - 落地新的 `ExecuteTool` 分支，确保 `buildCommand` 仅保留清理类或遗留命令。
+  - 增强 `cmd/mcp-server/executor_test.go`，对每个迁移的工具断言不会触发子进程路径。
+- 完成标准：`go test ./cmd/mcp-server` 及 `go test ./cmd/...` 通过；MCP 日志不再打印 `meta-cc command` 调用；Phase 23 测试验证不依赖 CLI。
+
+**Stage 23.5: 高级过滤与语义一致性（规划）**
+- 目标：补齐 `query_tools_advanced`、`query_time_series` 等 SQL/WHERE 语法在库层的支持，使 MCP 参数（如 `LIKE`, `BETWEEN`）对应到 `internal/filter`/表达式解析。
+- 关键依赖：`internal/filter` 支持表达式解析（`ParseExpression`），可扩展接受 `LIKE`/`BETWEEN`；`cmd/query_tools.go` 的 `--filter` 已复用表达式，可作为对齐参考。
+- 工作项：
+  - 扩展 `internal/query` 封装的选项结构，允许高级 WHERE 子句映射至表达式，必要时增强 `internal/filter`。
+  - 更新 MCP 工具 schema 与文档，明确支持语法；同步 CLI 文案，避免两侧语义分歧。
+  - 为 `query_tools_advanced` 添加库级单元测试与 CLI/MCP 对比测试，覆盖 `LIKE '%foo%'`、大小写、范围等场景。
+- 完成标准：高级 WHERE/LIKE 在 CLI 与 MCP 均可成功执行；回归测试展示库与 CLI 输出一致；文档更新描述受支持的过滤语法。
 
 ---
 

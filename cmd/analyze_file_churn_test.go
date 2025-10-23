@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,11 +15,22 @@ func TestAnalyzeFileChurnCommand_OutputFormat(t *testing.T) {
 		t.Skip("Skipping integration test in short mode - requires real session data")
 	}
 
+	projectPath := filepath.Join(t.TempDir(), "project")
+	sessionID := "file-churn-session"
+
+	fixture := `{"type":"assistant","timestamp":"2025-10-02T10:00:00Z","uuid":"uuid-1","sessionId":"` + sessionID + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/tmp/example.txt"}}]}}
+{"type":"user","timestamp":"2025-10-02T10:00:01Z","uuid":"uuid-2","sessionId":"` + sessionID + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"ok"}]}}
+{"type":"assistant","timestamp":"2025-10-02T10:00:02Z","uuid":"uuid-3","sessionId":"` + sessionID + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Edit","input":{"file_path":"/tmp/example.txt"}}]}}
+{"type":"user","timestamp":"2025-10-02T10:00:03Z","uuid":"uuid-4","sessionId":"` + sessionID + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","content":"done"}]}}
+`
+
+	writeSessionFixture(t, projectPath, sessionID, fixture)
+
 	// Test: verify that analyze file-churn outputs array of objects (not wrapped)
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"analyze", "file-churn", "--project", "/home/yale/work/meta-cc", "--threshold", "100", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"analyze", "file-churn", "--project", projectPath, "--threshold", "1", "--output", "jsonl"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -74,10 +86,20 @@ func TestAnalyzeFileChurnCommand_MatchesSequencesFormat(t *testing.T) {
 
 	var fileChurnBuf, sequencesBuf bytes.Buffer
 
+	projectPath := filepath.Join(t.TempDir(), "project")
+	sessionID := "file-churn-seq-session"
+
+	fixture := `{"type":"assistant","timestamp":"2025-10-02T10:00:00Z","uuid":"uuid-1","sessionId":"` + sessionID + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/tmp/a.txt"}}]}}
+{"type":"user","timestamp":"2025-10-02T10:00:01Z","uuid":"uuid-2","sessionId":"` + sessionID + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"ok"}]}}
+{"type":"assistant","timestamp":"2025-10-02T10:00:02Z","uuid":"uuid-3","sessionId":"` + sessionID + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Read","input":{"file_path":"/tmp/a.txt"}}]}}
+{"type":"user","timestamp":"2025-10-02T10:00:03Z","uuid":"uuid-4","sessionId":"` + sessionID + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","content":"ok"}]}}
+`
+	writeSessionFixture(t, projectPath, sessionID, fixture)
+
 	// Run file-churn
 	rootCmd.SetOut(&fileChurnBuf)
 	rootCmd.SetErr(&fileChurnBuf)
-	rootCmd.SetArgs([]string{"analyze", "file-churn", "--project", "/home/yale/work/meta-cc", "--threshold", "1", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"analyze", "file-churn", "--project", projectPath, "--threshold", "1", "--output", "jsonl"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Logf("file-churn command error: %v", err)
 	}
@@ -85,7 +107,7 @@ func TestAnalyzeFileChurnCommand_MatchesSequencesFormat(t *testing.T) {
 	// Run sequences
 	rootCmd.SetOut(&sequencesBuf)
 	rootCmd.SetErr(&sequencesBuf)
-	rootCmd.SetArgs([]string{"analyze", "sequences", "--project", "/home/yale/work/meta-cc", "--min-occurrences", "2", "--output", "jsonl"})
+	rootCmd.SetArgs([]string{"analyze", "sequences", "--project", projectPath, "--min-occurrences", "1", "--output", "jsonl"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Logf("sequences command error: %v", err)
 	}

@@ -1,4 +1,4 @@
-package main
+package query
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 )
 
-// ApplyJQFilter applies a jq expression to JSONL data
+// ApplyJQFilter applies a jq expression to JSONL data.
 func ApplyJQFilter(jsonlData string, jqExpr string) (string, error) {
 	normalizedExpr := defaultJQExpression(jqExpr)
 	query, err := parseJQExpression(normalizedExpr)
@@ -29,6 +29,45 @@ func ApplyJQFilter(jsonlData string, jqExpr string) (string, error) {
 	}
 
 	return encodeJQResults(results)
+}
+
+// GenerateStats generates simple statistics from JSONL data grouped by tool name.
+func GenerateStats(jsonlData string) (string, error) {
+	lines := strings.Split(strings.TrimSpace(jsonlData), "\n")
+	stats := make(map[string]int)
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		var obj map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+			continue
+		}
+
+		key := "unknown"
+		if tool, ok := obj["tool"].(string); ok {
+			key = tool
+		} else if toolName, ok := obj["ToolName"].(string); ok {
+			key = toolName
+		}
+
+		stats[key]++
+	}
+
+	var output strings.Builder
+	for key, count := range stats {
+		statObj := map[string]interface{}{
+			"key":   key,
+			"count": count,
+		}
+		jsonBytes, _ := json.Marshal(statObj)
+		output.Write(jsonBytes)
+		output.WriteString("\n")
+	}
+
+	return output.String(), nil
 }
 
 func defaultJQExpression(expr string) string {
@@ -106,49 +145,5 @@ func encodeJQResults(results []interface{}) (string, error) {
 		output.Write(jsonBytes)
 		output.WriteString("\n")
 	}
-	return output.String(), nil
-}
-
-// GenerateStats generates statistics from JSONL data
-func GenerateStats(jsonlData string) (string, error) {
-	// Parse JSONL
-	lines := strings.Split(strings.TrimSpace(jsonlData), "\n")
-
-	// Count by type (assuming objects have a "tool" or "ToolName" field)
-	stats := make(map[string]int)
-
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		var obj map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &obj); err != nil {
-			continue
-		}
-
-		// Determine stat key (tool name, error type, etc.)
-		key := "unknown"
-		if tool, ok := obj["tool"].(string); ok {
-			key = tool
-		} else if toolName, ok := obj["ToolName"].(string); ok {
-			key = toolName
-		}
-
-		stats[key]++
-	}
-
-	// Output stats as JSONL
-	var output strings.Builder
-	for key, count := range stats {
-		statObj := map[string]interface{}{
-			"key":   key,
-			"count": count,
-		}
-		jsonBytes, _ := json.Marshal(statObj)
-		output.Write(jsonBytes)
-		output.WriteString("\n")
-	}
-
 	return output.String(), nil
 }

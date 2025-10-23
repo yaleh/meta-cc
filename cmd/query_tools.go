@@ -1,14 +1,14 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
-	"sort"
 
 	"github.com/spf13/cobra"
-	"github.com/yaleh/meta-cc/internal/filter"
 	internalOutput "github.com/yaleh/meta-cc/internal/output"
 	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/query"
 	"github.com/yaleh/meta-cc/pkg/output"
 )
 
@@ -50,22 +50,14 @@ func init() {
 }
 
 func runQueryTools(cmd *cobra.Command, args []string) error {
-	calls, err := loadToolCalls(getGlobalOptions())
+	calls, err := query.RunToolsQuery(buildToolsQueryOptions(getGlobalOptions()))
 	if err != nil {
-		return err
+		return handleToolsQueryError(err)
 	}
-
-	calls, err = filterToolCalls(calls)
-	if err != nil {
-		return err
-	}
-	sortToolCallList(calls)
 
 	if handled, err := handleToolEstimate(cmd, calls); handled || err != nil {
 		return err
 	}
-
-	calls = paginateToolCalls(calls)
 
 	if handled, err := handleToolChunking(cmd, calls); handled || err != nil {
 		return err
@@ -90,29 +82,6 @@ func runQueryTools(cmd *cobra.Command, args []string) error {
 	return writeToolCalls(cmd, calls)
 }
 
-func loadToolCalls(opts GlobalOptions) ([]parser.ToolCall, error) {
-	pipeline := NewSessionPipeline(opts)
-	if err := pipeline.Load(LoadOptions{AutoDetect: true}); err != nil {
-		return nil, internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
-	}
-	return pipeline.ExtractToolCalls(), nil
-}
-
-func filterToolCalls(calls []parser.ToolCall) ([]parser.ToolCall, error) {
-	filtered, err := applyToolFilters(calls)
-	if err != nil {
-		return nil, internalOutput.OutputError(err, internalOutput.ErrFilterError, outputFormat)
-	}
-	return filtered, nil
-}
-
-func sortToolCallList(calls []parser.ToolCall) {
-	output.SortByTimestamp(calls)
-	if querySortBy != "" {
-		sortToolCalls(calls, querySortBy, queryReverse)
-	}
-}
-
 func handleToolEstimate(cmd *cobra.Command, calls []parser.ToolCall) (bool, error) {
 	if !estimateSizeFlag {
 		return false, nil
@@ -128,18 +97,28 @@ func handleToolEstimate(cmd *cobra.Command, calls []parser.ToolCall) (bool, erro
 	return true, nil
 }
 
-func paginateToolCalls(calls []parser.ToolCall) []parser.ToolCall {
+func buildToolsQueryOptions(globalOpts GlobalOptions) query.ToolsQueryOptions {
 	limit := limitFlag
-	offset := offsetFlag
 	if limit == 0 && queryLimit > 0 {
 		limit = queryLimit
 	}
+
+	offset := offsetFlag
 	if offset == 0 && queryOffset > 0 {
 		offset = queryOffset
 	}
 
-	config := filter.PaginationConfig{Limit: limit, Offset: offset}
-	return filter.ApplyPagination(calls, config)
+	return query.ToolsQueryOptions{
+		Pipeline:   toPipelineOptions(globalOpts),
+		Limit:      limit,
+		Offset:     offset,
+		SortBy:     querySortBy,
+		Reverse:    queryReverse,
+		Status:     queryToolsStatus,
+		Tool:       queryToolsTool,
+		Where:      queryToolsWhere,
+		Expression: queryToolsFilter,
+	}
 }
 
 func handleToolChunking(cmd *cobra.Command, calls []parser.ToolCall) (bool, error) {
@@ -224,118 +203,13 @@ func writeToolCalls(cmd *cobra.Command, calls []parser.ToolCall) error {
 	return nil
 }
 
-func applyToolFilters(toolCalls []parser.ToolCall) ([]parser.ToolCall, error) {
-	filtered, err := applyExpressionFilter(toolCalls)
-	if err != nil {
-		return nil, err
-	}
-
-	filtered, err = applyWhereFilter(filtered)
-	if err != nil {
-		return nil, err
-	}
-
-	return applyFlagFilters(filtered), nil
-}
-
-func applyExpressionFilter(toolCalls []parser.ToolCall) ([]parser.ToolCall, error) {
-	if queryToolsFilter == "" {
-		return toolCalls, nil
-	}
-
-	expr, err := filter.ParseExpression(queryToolsFilter)
-	if err != nil {
-		return nil, fmt.Errorf("invalid filter expression: %w", err)
-	}
-
-	var filtered []parser.ToolCall
-	for _, tc := range toolCalls {
-		record := map[string]interface{}{
-			"tool":   tc.ToolName,
-			"status": tc.Status,
-			"uuid":   tc.UUID,
-			"error":  tc.Error,
-		}
-
-		match, evalErr := expr.Evaluate(record)
-		if evalErr != nil {
-			return nil, fmt.Errorf("filter evaluation error: %w", evalErr)
-		}
-
-		if match {
-			filtered = append(filtered, tc)
-		}
-	}
-
-	return filtered, nil
-}
-
-func applyWhereFilter(toolCalls []parser.ToolCall) ([]parser.ToolCall, error) {
-	if queryToolsWhere == "" {
-		return toolCalls, nil
-	}
-
-	filtered, err := filter.ApplyWhere(toolCalls, queryToolsWhere, "tool_calls")
-	if err != nil {
-		return nil, fmt.Errorf("invalid where condition: %w", err)
-	}
-
-	return filtered.([]parser.ToolCall), nil
-}
-
-func applyFlagFilters(toolCalls []parser.ToolCall) []parser.ToolCall {
-	var result []parser.ToolCall
-
-	for _, tc := range toolCalls {
-		if !matchesStatus(tc) {
-			continue
-		}
-		if queryToolsTool != "" && tc.ToolName != queryToolsTool {
-			continue
-		}
-		result = append(result, tc)
-	}
-
-	return result
-}
-
-func matchesStatus(tc parser.ToolCall) bool {
-	if queryToolsStatus == "" {
-		return true
-	}
-
-	switch queryToolsStatus {
-	case "error":
-		return tc.Status == "error" || tc.Error != ""
-	case "success":
-		return tc.Status != "error" && tc.Error == ""
+func handleToolsQueryError(err error) error {
+	switch {
+	case errors.Is(err, query.ErrSessionLoad):
+		return internalOutput.OutputError(err, internalOutput.ErrSessionNotFound, outputFormat)
+	case errors.Is(err, query.ErrFilterInvalid):
+		return internalOutput.OutputError(err, internalOutput.ErrFilterError, outputFormat)
 	default:
-		return true
+		return internalOutput.OutputError(err, internalOutput.ErrInternalError, outputFormat)
 	}
-}
-
-func sortToolCalls(toolCalls []parser.ToolCall, sortBy string, reverse bool) {
-	// Use stable sort to preserve relative order for equal values
-	sort.SliceStable(toolCalls, func(i, j int) bool {
-		var less bool
-
-		switch sortBy {
-		case "timestamp":
-			less = toolCalls[i].Timestamp < toolCalls[j].Timestamp
-		case "tool":
-			less = toolCalls[i].ToolName < toolCalls[j].ToolName
-		case "status":
-			less = toolCalls[i].Status < toolCalls[j].Status
-		case "uuid":
-			less = toolCalls[i].UUID < toolCalls[j].UUID
-		default:
-			// Default: sort by timestamp (deterministic)
-			less = toolCalls[i].Timestamp < toolCalls[j].Timestamp
-		}
-
-		if reverse {
-			return !less
-		}
-		return less
-	})
 }

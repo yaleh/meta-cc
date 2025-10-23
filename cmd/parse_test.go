@@ -120,10 +120,10 @@ func TestParseExtractCommand_MissingSessionFile(t *testing.T) {
 	}()
 
 	// Reset rootCmd flags to clean state
-	if err := rootCmd.Flags().Set("session", ""); err != nil {
+	if err := rootCmd.PersistentFlags().Set("session", ""); err != nil {
 		t.Fatalf("Failed to reset session flag: %v", err)
 	}
-	if err := rootCmd.Flags().Set("project", ""); err != nil {
+	if err := rootCmd.PersistentFlags().Set("project", ""); err != nil {
 		t.Fatalf("Failed to reset project flag: %v", err)
 	}
 

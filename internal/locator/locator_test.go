@@ -178,7 +178,7 @@ func TestLocate_EnvVarsIgnoredInProjectMode(t *testing.T) {
 	defer os.Unsetenv("CC_SESSION_ID")
 
 	// 准备项目路径的会话
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 	// Use temp dir for cross-platform compatibility
 	tempDir, err := os.MkdirTemp("", "testproject")
 	if err != nil {
@@ -189,7 +189,7 @@ func TestLocate_EnvVarsIgnoredInProjectMode(t *testing.T) {
 	testProjectPath := tempDir
 	projectHash := pathToHash(testProjectPath)
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -218,11 +218,11 @@ func TestLocate_EnvVarsIgnoredInProjectMode(t *testing.T) {
 
 func TestLocate_SessionIDPriority(t *testing.T) {
 	// 准备多个选项，验证 SessionID 优先级最高
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 	sessionID := "priority-test-session"
 	projectHash := "-test-priority"
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}

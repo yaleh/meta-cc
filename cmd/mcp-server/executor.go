@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,6 +14,10 @@ import (
 
 	"github.com/yaleh/meta-cc/internal/config"
 	mcerrors "github.com/yaleh/meta-cc/internal/errors"
+	internalOutput "github.com/yaleh/meta-cc/internal/output"
+	querypkg "github.com/yaleh/meta-cc/internal/query"
+	pkgoutput "github.com/yaleh/meta-cc/pkg/output"
+	pipelinepkg "github.com/yaleh/meta-cc/pkg/pipeline"
 )
 
 type ToolExecutor struct {
@@ -124,16 +129,28 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 	}
 
 	config := newToolPipelineConfig(args)
-	cmdArgs := e.buildCommand(toolName, args, scope, config.outputFormat)
-	if cmdArgs == nil {
-		recordToolFailure(toolName, scope, start, "validation_error")
-		return "", fmt.Errorf("unknown tool %s in executor: %w", toolName, mcerrors.ErrUnknownTool)
+	var rawOutput string
+	var err error
+
+	switch toolName {
+	case "query_tools":
+		rawOutput, err = e.executeQueryTools(scope, config, args)
+	case "query_tools_advanced":
+		rawOutput, err = e.executeQueryTools(scope, config, args)
+	case "query_user_messages":
+		rawOutput, err = e.executeQueryUserMessages(scope, config, args)
+	default:
+		cmdArgs := e.buildCommand(toolName, args, scope, config.outputFormat)
+		if cmdArgs == nil {
+			recordToolFailure(toolName, scope, start, "validation_error")
+			return "", fmt.Errorf("unknown tool %s in executor: %w", toolName, mcerrors.ErrUnknownTool)
+		}
+		rawOutput, err = e.executeMetaCC(cmdArgs)
 	}
 
-	rawOutput, err := e.executeMetaCC(cmdArgs)
 	if err != nil {
 		errorType := classifyError(err)
-		slog.Error("meta-cc execution failed",
+		slog.Error("tool execution failed",
 			"tool_name", toolName,
 			"error", err.Error(),
 			"error_type", errorType,
@@ -142,7 +159,7 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 		return "", err
 	}
 
-	filtered, err := ApplyJQFilter(rawOutput, config.jqFilter)
+	filtered, err := querypkg.ApplyJQFilter(rawOutput, config.jqFilter)
 	if err != nil {
 		slog.Error("jq filter application failed",
 			"tool_name", toolName,
@@ -181,6 +198,107 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 	return output, nil
 }
 
+func buildPipelineOptions(scope string) pipelinepkg.GlobalOptions {
+	cwd, err := os.Getwd()
+	if err != nil {
+		cwd = "."
+	}
+
+	opts := pipelinepkg.GlobalOptions{
+		ProjectPath: cwd,
+	}
+
+	if scope == "session" {
+		opts.SessionOnly = true
+	}
+
+	return opts
+}
+
+func (e *ToolExecutor) executeQueryTools(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	options := querypkg.ToolsQueryOptions{
+		Pipeline:   buildPipelineOptions(scope),
+		Limit:      getIntParam(args, "limit", 0),
+		Offset:     getIntParam(args, "offset", 0),
+		SortBy:     getStringParam(args, "sort_by", ""),
+		Reverse:    getBoolParam(args, "reverse", false),
+		Status:     getStringParam(args, "status", ""),
+		Tool:       getStringParam(args, "tool", ""),
+		Where:      getStringParam(args, "where", ""),
+		Expression: getStringParam(args, "filter", ""),
+	}
+
+	results, err := querypkg.RunToolsQuery(options)
+	if err != nil {
+		return "", normalizeQueryError(err)
+	}
+
+	format := cfg.outputFormat
+	if format == "" {
+		format = "jsonl"
+	}
+
+	formatted, err := internalOutput.FormatOutput(results, format)
+	if err != nil {
+		return "", err
+	}
+
+	return formatted, nil
+}
+
+func (e *ToolExecutor) executeQueryUserMessages(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
+	contextWindow := getIntParam(args, "with_context", 0)
+	if contextWindow == 0 {
+		contextWindow = getIntParam(args, "context", 0)
+	}
+
+	options := querypkg.UserMessagesQueryOptions{
+		Pipeline: buildPipelineOptions(scope),
+		Pattern:  getStringParam(args, "pattern", ""),
+		Context:  contextWindow,
+		Limit:    getIntParam(args, "limit", 0),
+		Offset:   getIntParam(args, "offset", 0),
+		SortBy:   getStringParam(args, "sort_by", ""),
+		Reverse:  getBoolParam(args, "reverse", false),
+	}
+
+	messages, err := querypkg.RunUserMessagesQuery(options)
+	if err != nil {
+		return "", normalizeQueryError(err)
+	}
+
+	format := cfg.outputFormat
+	if format == "" {
+		format = "jsonl"
+	}
+
+	switch format {
+	case "jsonl":
+		return pkgoutput.FormatJSONL(messages)
+	case "tsv":
+		return pkgoutput.FormatTSV(messages)
+	default:
+		return "", fmt.Errorf("unsupported output format: %s", format)
+	}
+}
+
+func normalizeQueryError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	switch {
+	case errors.Is(err, querypkg.ErrSessionLoad):
+		return fmt.Errorf("failed to load session: %w", err)
+	case errors.Is(err, querypkg.ErrFilterInvalid):
+		return fmt.Errorf("invalid filter: %w", err)
+	case errors.Is(err, querypkg.ErrInvalidPattern):
+		return fmt.Errorf("invalid regex pattern: %w", err)
+	default:
+		return err
+	}
+}
+
 func (e *ToolExecutor) buildResponse(cfg *config.Config, parsedData []interface{}, args map[string]interface{}, toolName string, pipeline toolPipelineConfig) (string, error) {
 	if pipeline.statsOnly {
 		return e.buildStatsOnlyResponse(parsedData, toolName)
@@ -204,7 +322,7 @@ func (e *ToolExecutor) buildStatsOnlyResponse(parsedData []interface{}, toolName
 		return "", err
 	}
 
-	output, err := GenerateStats(jsonlData)
+	output, err := querypkg.GenerateStats(jsonlData)
 	if err != nil {
 		slog.Error("stats generation failed",
 			"tool_name", toolName,
@@ -228,7 +346,7 @@ func (e *ToolExecutor) buildStatsFirstResponse(cfg *config.Config, parsedData []
 		return "", err
 	}
 
-	stats, _ := GenerateStats(jsonlData)
+	stats, _ := querypkg.GenerateStats(jsonlData)
 	response, err := adaptResponse(cfg, parsedData, args, toolName)
 	if err != nil {
 		slog.Error("response adaptation failed (stats_first)",

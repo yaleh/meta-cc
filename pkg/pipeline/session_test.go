@@ -11,13 +11,22 @@ import (
 func createTestSession(t *testing.T, sessionID, projectPath string) string {
 	t.Helper()
 
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := os.Getenv("META_CC_PROJECTS_ROOT")
+	if projectsRoot == "" {
+		var err error
+		projectsRoot, err = os.MkdirTemp("", "meta-cc-projects-*")
+		if err != nil {
+			t.Fatalf("failed to create temp projects dir: %v", err)
+		}
+		// Ensure cleanup when helper creates the directory
+		t.Cleanup(func() { os.RemoveAll(projectsRoot) })
+	}
 	// Generate project hash using same logic as pathToHash in locator
 	// Replace both / and \ with -, then replace : (Windows drive letters)
 	projectHash := strings.ReplaceAll(projectPath, "\\", "-")
 	projectHash = strings.ReplaceAll(projectHash, "/", "-")
 	projectHash = strings.ReplaceAll(projectHash, ":", "-")
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create session dir: %v", err)
 	}
@@ -60,6 +69,7 @@ func TestNewSessionPipeline(t *testing.T) {
 }
 
 func TestSessionPipeline_Load_ExplicitSessionID(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	sessionID := "test-explicit-session"
 	projectPath := "/test/project"
 	sessionFile := createTestSession(t, sessionID, projectPath)
@@ -83,6 +93,7 @@ func TestSessionPipeline_Load_ExplicitSessionID(t *testing.T) {
 }
 
 func TestSessionPipeline_Load_ProjectPath(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	sessionID := "test-project-session"
 	// Use temp dir for cross-platform compatibility
 	tempDir, err := os.MkdirTemp("", "testproject2")
@@ -109,6 +120,7 @@ func TestSessionPipeline_Load_ProjectPath(t *testing.T) {
 }
 
 func TestSessionPipeline_Load_AutoDetect(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	// Create a session in a test directory and set it as ProjectPath
 	// (AutoDetect relies on the locator's default behavior which uses project path)
 	// Use temp dir for cross-platform compatibility
@@ -137,6 +149,7 @@ func TestSessionPipeline_Load_AutoDetect(t *testing.T) {
 }
 
 func TestSessionPipeline_Load_NoSessionSpecified(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	p := NewSessionPipeline(GlobalOptions{})
 
 	err := p.Load(LoadOptions{AutoDetect: false})
@@ -146,6 +159,7 @@ func TestSessionPipeline_Load_NoSessionSpecified(t *testing.T) {
 }
 
 func TestSessionPipeline_Load_SessionNotFound(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	p := NewSessionPipeline(GlobalOptions{
 		SessionID: "nonexistent-session-id",
 	})
@@ -157,11 +171,12 @@ func TestSessionPipeline_Load_SessionNotFound(t *testing.T) {
 }
 
 func TestSessionPipeline_Load_InvalidJSONL(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	// Create a session file with invalid JSONL
-	homeDir, _ := os.UserHomeDir()
 	sessionID := "invalid-jsonl-session"
 	projectHash := "-test-invalid"
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	projectsRoot := os.Getenv("META_CC_PROJECTS_ROOT")
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create session dir: %v", err)
 	}
@@ -182,6 +197,7 @@ func TestSessionPipeline_Load_InvalidJSONL(t *testing.T) {
 }
 
 func TestSessionPipeline_ExtractToolCalls(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	sessionID := "test-tools-session"
 	projectPath := "/test/tools"
 	createTestSession(t, sessionID, projectPath)
@@ -195,10 +211,7 @@ func TestSessionPipeline_ExtractToolCalls(t *testing.T) {
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	tools, err := p.ExtractToolCalls()
-	if err != nil {
-		t.Fatalf("ExtractToolCalls failed: %v", err)
-	}
+	tools := p.ExtractToolCalls()
 
 	if len(tools) == 0 {
 		t.Error("Expected at least one tool call")
@@ -213,14 +226,10 @@ func TestSessionPipeline_ExtractToolCalls(t *testing.T) {
 }
 
 func TestSessionPipeline_ExtractToolCalls_BeforeLoad(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	p := NewSessionPipeline(GlobalOptions{})
 
-	tools, err := p.ExtractToolCalls()
-
-	// Should return empty slice when no entries loaded
-	if err != nil {
-		t.Errorf("ExtractToolCalls should not error when no entries loaded, got: %v", err)
-	}
+	tools := p.ExtractToolCalls()
 
 	if len(tools) != 0 {
 		t.Error("Expected zero tools before Load")
@@ -228,6 +237,7 @@ func TestSessionPipeline_ExtractToolCalls_BeforeLoad(t *testing.T) {
 }
 
 func TestSessionPipeline_BuildTurnIndex(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	sessionID := "test-index-session"
 	projectPath := "/test/index"
 	createTestSession(t, sessionID, projectPath)
@@ -267,6 +277,7 @@ func TestSessionPipeline_BuildTurnIndex(t *testing.T) {
 }
 
 func TestSessionPipeline_BuildTurnIndex_Idempotent(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	sessionID := "test-idempotent-session"
 	projectPath := "/test/idempotent"
 	createTestSession(t, sessionID, projectPath)
@@ -295,6 +306,7 @@ func TestSessionPipeline_BuildTurnIndex_Idempotent(t *testing.T) {
 }
 
 func TestSessionPipeline_SessionPath(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	sessionID := "test-path-session"
 	projectPath := "/test/path"
 	sessionFile := createTestSession(t, sessionID, projectPath)
@@ -317,6 +329,7 @@ func TestSessionPipeline_SessionPath(t *testing.T) {
 }
 
 func TestSessionPipeline_EntryCount(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	sessionID := "test-count-session"
 	projectPath := "/test/count"
 	createTestSession(t, sessionID, projectPath)
@@ -340,6 +353,7 @@ func TestSessionPipeline_EntryCount(t *testing.T) {
 }
 
 func TestSessionPipeline_Load_WithSessionOnly(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	// This tests the SessionOnly flag behavior
 	sessionID := "test-session-only"
 	projectPath := "/test/session-only"
@@ -361,6 +375,7 @@ func TestSessionPipeline_Load_WithSessionOnly(t *testing.T) {
 }
 
 func TestSessionPipeline_Load_WithValidation(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	sessionID := "test-validation-session"
 	projectPath := "/test/validation"
 	createTestSession(t, sessionID, projectPath)
@@ -383,6 +398,7 @@ func TestSessionPipeline_Load_WithValidation(t *testing.T) {
 }
 
 func TestSessionPipeline_Entries(t *testing.T) {
+	t.Setenv("META_CC_PROJECTS_ROOT", t.TempDir())
 	sessionID := "test-entries-session"
 	projectPath := "/test/entries"
 	createTestSession(t, sessionID, projectPath)

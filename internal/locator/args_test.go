@@ -203,7 +203,7 @@ func TestFromProjectPath_RelativePath(t *testing.T) {
 
 func TestAllSessionsFromProject_Success(t *testing.T) {
 	// Test that AllSessionsFromProject returns all session files for a project
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 	// Use temp dir for cross-platform compatibility
 	tempDir, err := os.MkdirTemp("", "testproject")
 	if err != nil {
@@ -214,11 +214,10 @@ func TestAllSessionsFromProject_Success(t *testing.T) {
 	projectPath := tempDir
 	projectHash := pathToHash(projectPath)
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create session dir: %v", err)
 	}
-	defer os.RemoveAll(sessionDir)
 
 	// Create multiple session files
 	session1 := filepath.Join(sessionDir, "session-1.jsonl")
@@ -277,15 +276,14 @@ func TestAllSessionsFromProject_NoSessions(t *testing.T) {
 
 func TestAllSessionsFromProject_RelativePath(t *testing.T) {
 	// Test that relative paths are resolved to absolute paths
-	homeDir, _ := os.UserHomeDir()
+	projectsRoot := setupProjectsRoot(t)
 	cwd, _ := os.Getwd()
 
 	projectHash := pathToHash(cwd)
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create session dir: %v", err)
 	}
-	defer os.RemoveAll(sessionDir)
 
 	// Create test sessions
 	session1 := filepath.Join(sessionDir, "test1.jsonl")

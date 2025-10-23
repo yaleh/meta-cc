@@ -113,6 +113,44 @@ The iteration is divided into three stages, each delivering runnable code and te
 
 **Dependencies**: Stages 23.1 and 23.2 complete; regression harness relies on final APIs.
 
+### Stage 23.4 — MCP Executor Library Adoption
+
+**Objective**: Remove remaining CLI subprocess usage from the MCP executor by routing additional tools through `internal/query`.
+
+**Implementation Scope** (~160 lines code + ~80 lines tests):
+- Expand `cmd/mcp-server/executor.go:120-360` to recognize tools such as `query_tools_advanced`, `query_context`, `query_project_state`, `query_tool_sequences`, `query_files`, etc., constructing the appropriate `query.ToolsQueryOptions`/`UserMessagesQueryOptions`/future option types instead of calling `executeMetaCC`.
+- Introduce helper builders for shared scope handling (`buildPipelineOptions`) and advanced argument mapping (e.g., `where` → expression) and prune the now-unused entries from `toolCommandBuilders`.
+- Augment `cmd/mcp-server/executor_test.go` to cover each migrated tool, asserting that `ToolExecutor` succeeds even when `metaCCPath` is non-existent (proving no exec invocation) and that outputs align with current behaviour.
+
+**Tests** (~80 lines):
+- Unit/integration cases per tool verifying library output and error paths (`SESSION_NOT_FOUND`, invalid filters) mirror the previous CLI responses.
+- Re-run existing MCP suites (`go test ./cmd/mcp-server`) and regression harness (`go test ./cmd -run QueryLibrary`).
+
+**Acceptance**:
+- `executeMetaCC` is no longer invoked for query-oriented MCP tools (only retained for cleanup/legacy operations).
+- `go test ./cmd/mcp-server` passes with the new branches; staged tooling logs confirm the executor does not spawn `meta-cc` binaries during tests.
+
+**Dependencies**: Stage 23.2 complete (library APIs available for reuse).
+
+### Stage 23.5 — Advanced Filter & Expression Parity
+
+**Objective**: Align advanced filtering semantics (e.g., SQL-like `LIKE`, range filters) between MCP and CLI by enhancing library support.
+
+**Implementation Scope** (~140 lines code + ~100 lines tests):
+- Extend `internal/filter` / `ToolsQueryOptions` handling to parse `LIKE`, `BETWEEN`, and other MCP-advertised filters (e.g., map `where` arguments onto `filter.ParseExpression` or add new translation helpers).
+- Update MCP parameter handling for `query_tools_advanced`, `query_time_series`, etc., and mirror the capability in CLI flag parsing where gaps exist.
+- Document supported syntax in `docs/development/query-library.md` and MCP tool schemas, ensuring users understand any constraints.
+
+**Tests** (~100 lines):
+- New unit tests for the filter translation layer covering `LIKE '%foo%'`, numeric ranges, and invalid syntax fallbacks.
+- Regression tests comparing CLI vs library outputs for `query_tools_advanced` and time-series queries to guarantee parity.
+
+**Acceptance**:
+- MCP invocations using SQL-like filters succeed without CLI fallback; error messages remain descriptive (e.g., invalid pattern → `ErrFilterInvalid`).
+- Documentation and schema updates merged; `go test ./cmd/...`, `go test ./internal/query`, and targeted regression suites pass.
+
+**Dependencies**: Stage 23.4 complete (executor fully using library paths) to ensure advanced filter support hooks in once per-tool scaffolding exists.
+
 ---
 
 ## Exit Criteria

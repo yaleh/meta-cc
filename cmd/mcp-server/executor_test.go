@@ -2,12 +2,67 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/yaleh/meta-cc/internal/config"
 )
+
+const testSessionID = "test-session"
+
+func writeSessionFixture(t *testing.T, projectPath, sessionID, content string) {
+	t.Helper()
+
+	projectsRoot := os.Getenv("META_CC_PROJECTS_ROOT")
+	if projectsRoot == "" {
+		t.Fatal("META_CC_PROJECTS_ROOT must be set for tests")
+	}
+
+	hash := strings.ReplaceAll(projectPath, "\\", "-")
+	hash = strings.ReplaceAll(hash, "/", "-")
+	hash = strings.ReplaceAll(hash, ":", "-")
+
+	sessionDir := filepath.Join(projectsRoot, hash)
+	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
+
+	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	if err := os.WriteFile(sessionFile, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write session fixture: %v", err)
+	}
+
+	t.Cleanup(func() { _ = os.RemoveAll(sessionDir) })
+}
+
+func setupLibraryFixture(t *testing.T) func() {
+	projectDir := t.TempDir()
+	projectsRoot := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
+
+	fixture := `{"type":"assistant","timestamp":"2025-10-02T10:00:00Z","uuid":"uuid-1","sessionId":"` + testSessionID + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Bash","input":{"command":"ls"}}]}}
+{"type":"user","timestamp":"2025-10-02T10:00:01Z","uuid":"uuid-2","sessionId":"` + testSessionID + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"file.txt"}]}}
+{"type":"assistant","timestamp":"2025-10-02T10:00:02Z","uuid":"uuid-3","sessionId":"` + testSessionID + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"meta-cc-run","input":{"command":"meta"}}]}}
+{"type":"user","timestamp":"2025-10-02T10:00:03Z","uuid":"uuid-4","sessionId":"` + testSessionID + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","content":"ok"}]}}
+{"type":"user","timestamp":"2025-10-02T10:00:04Z","uuid":"uuid-5","sessionId":"` + testSessionID + `","message":{"role":"user","content":[{"type":"text","text":"test message with long content that should be truncated if max_message_length is set"}]}}
+`
+
+	writeSessionFixture(t, projectDir, testSessionID, fixture)
+
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(projectDir); err != nil {
+		t.Fatalf("failed to chdir to project dir: %v", err)
+	}
+
+	return func() {
+		_ = os.Chdir(oldWd)
+	}
+}
 
 func TestNewToolExecutor(t *testing.T) {
 	executor := NewToolExecutor()
@@ -1061,6 +1116,9 @@ func TestExecuteTool(t *testing.T) {
 		t.Skip("Skipping test on Windows - requires bash shell")
 	}
 
+	restore := setupLibraryFixture(t)
+	defer restore()
+
 	// Create mock meta-cc script
 	testScript := `#!/bin/bash
 # Handle both session and project scopes
@@ -1224,5 +1282,64 @@ fi
 				}
 			}
 		})
+	}
+}
+
+func TestExecuteTool_UsesLibraryWithoutMetaCCBinary(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping test on Windows - requires bash shell")
+	}
+
+	restore := setupLibraryFixture(t)
+	defer restore()
+
+	cfg, _ := config.Load()
+	executor := &ToolExecutor{metaCCPath: "/nonexistent-meta-cc"}
+
+	output, err := executor.ExecuteTool(cfg, "query_tools", map[string]interface{}{
+		"scope":         "project",
+		"output_format": "jsonl",
+	})
+	if err != nil {
+		t.Fatalf("expected library execution to succeed, got error: %v", err)
+	}
+	if !strings.Contains(output, "Bash") {
+		t.Fatalf("expected output to contain Bash tool call, got: %s", output)
+	}
+
+	output, err = executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+		"scope":         "session",
+		"pattern":       "test",
+		"output_format": "jsonl",
+	})
+	if err != nil {
+		t.Fatalf("expected user messages execution to succeed, got error: %v", err)
+	}
+	if !strings.Contains(output, "test message") {
+		t.Fatalf("expected output to include message content, got: %s", output)
+	}
+
+	output, err = executor.ExecuteTool(cfg, "query_tools_advanced", map[string]interface{}{
+		"scope":         "project",
+		"where":         "tool=Bash",
+		"output_format": "jsonl",
+	})
+	if err != nil {
+		t.Fatalf("expected advanced tools execution to succeed, got error: %v", err)
+	}
+	if !strings.Contains(output, "Bash") {
+		t.Fatalf("expected output to contain Bash tool call, got: %s", output)
+	}
+
+	output, err = executor.ExecuteTool(cfg, "query_tools_advanced", map[string]interface{}{
+		"scope":         "project",
+		"where":         "tool LIKE 'meta-cc%'",
+		"output_format": "jsonl",
+	})
+	if err != nil {
+		t.Fatalf("expected LIKE filter to succeed, got error: %v", err)
+	}
+	if !strings.Contains(output, "meta-cc-run") {
+		t.Fatalf("expected output to contain meta-cc-run tool call, got: %s", output)
 	}
 }
