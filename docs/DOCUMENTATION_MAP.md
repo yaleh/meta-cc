@@ -25,6 +25,7 @@ docs/
 │   ├── cli.md              # CLI commands (renamed from cli-reference.md)
 │   ├── features.md         # Advanced features
 │   ├── jsonl.md            # Output format (renamed from jsonl-reference.md)
+│   ├── jsonl-schema.md     # JSONL session file schema
 │   ├── repository-structure.md
 │   └── unified-meta-command.md
 │
@@ -77,6 +78,7 @@ graph TD
   %% Reference Docs
   docs_cli_reference_md["cli.md<br/>(CLI Commands)"]:::reference
   docs_jsonl_reference_md["jsonl.md<br/>(Output Format)"]:::reference
+  docs_jsonl_schema_md["jsonl-schema.md<br/>(Session Schema)"]:::reference
   docs_features_md["features.md<br/>(Advanced Features)"]:::reference
   docs_examples_usage_md["examples.md<br/>(Tutorials)"]:::reference
   docs_cookbook_md["cookbook.md<br/>(Advanced Use Cases)"]:::reference
@@ -141,8 +143,9 @@ graph TD
 
 1. **CLI Reference**: [docs/reference/cli.md](reference/cli.md) - Complete command reference
 2. **JSONL Reference**: [docs/reference/jsonl.md](reference/jsonl.md) - Output format and jq patterns
-3. **Features**: [docs/reference/features.md](reference/features.md) - Advanced capabilities
-4. **CLI Composability**: [docs/tutorials/cli-composability.md](tutorials/cli-composability.md) - Unix pipeline patterns
+3. **JSONL Schema**: [docs/reference/jsonl-schema.md](reference/jsonl-schema.md) - Session file structure specification
+4. **Features**: [docs/reference/features.md](reference/features.md) - Advanced capabilities
+5. **CLI Composability**: [docs/tutorials/cli-composability.md](tutorials/cli-composability.md) - Unix pipeline patterns
 
 ### For Claude Code Development
 
@@ -206,6 +209,7 @@ See [Role-Based Documentation Architecture](methodology/role-based-documentation
 | **docs/tutorials/examples.md** | Step-by-step tutorials | New users | When features added |
 | **docs/reference/cli.md** | Complete CLI command reference | Advanced users | When commands added |
 | **docs/reference/jsonl.md** | Output format and jq patterns | Advanced users | Rarely (stable) |
+| **docs/reference/jsonl-schema.md** | JSONL session file schema specification | Developers & Analysts | When schema changes |
 | **docs/reference/features.md** | Advanced features overview | Advanced users | When features added |
 | **docs/architecture/adr/** | Architecture decisions | Architects | Per decision |
 
