@@ -36,6 +36,12 @@ docs/
 │   ├── github-setup.md
 │   └── installation.md
 │
+├── examples/                # Query examples and patterns
+│   ├── frequent-jsonl-queries.md  # Most frequently used JSONL queries
+│   ├── jq-query-examples.md       # Single-file query patterns (19 examples)
+│   ├── multi-file-jsonl-queries.md # Multi-file queries with results (100 records)
+│   └── query-cookbook.md          # Practical query cookbook
+│
 ├── architecture/            # Architecture & design
 │   ├── adr/                # Architecture Decision Records
 │   └── proposals/          # Technical proposals
@@ -144,8 +150,12 @@ graph TD
 1. **CLI Reference**: [docs/reference/cli.md](reference/cli.md) - Complete command reference
 2. **JSONL Reference**: [docs/reference/jsonl.md](reference/jsonl.md) - Output format and jq patterns
 3. **JSONL Schema**: [docs/reference/jsonl-schema.md](reference/jsonl-schema.md) - Session file structure specification
-4. **Features**: [docs/reference/features.md](reference/features.md) - Advanced capabilities
-5. **CLI Composability**: [docs/tutorials/cli-composability.md](tutorials/cli-composability.md) - Unix pipeline patterns
+4. **Query Examples**:
+   - [docs/examples/jq-query-examples.md](examples/jq-query-examples.md) - Single-file query patterns (19 examples)
+   - [docs/examples/multi-file-jsonl-queries.md](examples/multi-file-jsonl-queries.md) - Multi-file queries with results
+   - [docs/examples/frequent-jsonl-queries.md](examples/frequent-jsonl-queries.md) - Most frequently used queries
+5. **Features**: [docs/reference/features.md](reference/features.md) - Advanced capabilities
+6. **CLI Composability**: [docs/tutorials/cli-composability.md](tutorials/cli-composability.md) - Unix pipeline patterns
 
 ### For Claude Code Development
 
@@ -211,6 +221,9 @@ See [Role-Based Documentation Architecture](methodology/role-based-documentation
 | **docs/reference/jsonl.md** | Output format and jq patterns | Advanced users | Rarely (stable) |
 | **docs/reference/jsonl-schema.md** | JSONL session file schema specification | Developers & Analysts | When schema changes |
 | **docs/reference/features.md** | Advanced features overview | Advanced users | When features added |
+| **docs/examples/jq-query-examples.md** | Single-file JSONL query patterns | Advanced users & Analysts | Rarely (stable patterns) |
+| **docs/examples/multi-file-jsonl-queries.md** | Multi-file JSONL query results | Advanced users & Analysts | Rarely (reference examples) |
+| **docs/examples/frequent-jsonl-queries.md** | Most frequently used JSONL queries | Advanced users & Analysts | Rarely (usage patterns) |
 | **docs/architecture/adr/** | Architecture decisions | Architects | Per decision |
 
 ## Most Accessed Documents (from meta-cc analysis)
