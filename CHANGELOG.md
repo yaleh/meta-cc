@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.1] - 2025-10-25
 
 
+### Changed
+
+- Documentation: update CHANGELOG for v2.0.1 with CI-derived local checks
+
+## [2.0.1] - 2025-10-25
+
+
 ### Added
 
 - Add CI-derived local quality checks to Makefile for faster feedback:
