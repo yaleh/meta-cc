@@ -9,7 +9,7 @@ import (
 var projectLevelTools = map[string]*ToolDefinition{
 	"query_tools": {
 		Name:        "query_tools",
-		Description: "Query tool calls across all sessions in the project. Returns tool execution history, status, duration, and errors.",
+		Description: "Query tool calls across all sessions in the project. Returns tool execution history with fields: 'tool_name' (not 'tool'), 'status', 'error', 'timestamp'. See docs/guides/mcp-jq-quick-reference.md for jq syntax.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -40,7 +40,7 @@ var projectLevelTools = map[string]*ToolDefinition{
 	},
 	"query_user_messages": {
 		Name:        "query_user_messages",
-		Description: "Search user messages across all sessions in the project using regex pattern matching.",
+		Description: "Search user messages across all sessions in the project using regex pattern matching. Returns messages with 'content' field (not 'message_content'). See docs/guides/mcp-jq-quick-reference.md for field names and jq syntax.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{

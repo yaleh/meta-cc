@@ -16,7 +16,7 @@ type ToolDefinition struct {
 var sessionLevelTools = map[string]*ToolDefinition{
 	"query_tools_session": {
 		Name:        "query_tools_session",
-		Description: "Query tool calls in the current session only. For project-level queries, use query_tools.",
+		Description: "Query tool calls in the current session only. Returns tool execution history with fields: 'tool_name' (not 'tool'), 'status', 'error', 'timestamp'. See docs/guides/mcp-jq-quick-reference.md for jq syntax.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -43,7 +43,7 @@ var sessionLevelTools = map[string]*ToolDefinition{
 	},
 	"query_user_messages_session": {
 		Name:        "query_user_messages_session",
-		Description: "Search user messages in the current session only using regex pattern matching.",
+		Description: "Search user messages in the current session only using regex pattern matching. Returns messages with 'content' field (not 'message_content'). See docs/guides/mcp-jq-quick-reference.md for field names and jq syntax.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{

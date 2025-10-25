@@ -19,6 +19,26 @@ Project-wide task tracking and future improvements.
   - **Related**: docs restructuring completed in branch `docs/restructure-directories`
   - **Files affected**: See [Link Test Report](#link-test-report) below
 
+### High Priority
+
+- [ ] **Create documentation structure validator (Capability)**
+  - **Phase**: Documentation Management Phase 3
+  - **Purpose**: Final component of documentation management toolchain
+  - **Implementation**: Capability `meta-doc-structure` (via `/meta`)
+  - **Scope**:
+    - DRY principle validation (detect duplicate content)
+    - Progressive Disclosure compliance (README → guides → reference hierarchy)
+    - Task-Oriented organization check (docs/guides/ structure)
+    - Document size validation (per methodology guidelines)
+    - Core document existence check (plan.md, principles.md)
+  - **Use cases**:
+    - Quarterly documentation health assessment
+    - New project methodology compliance
+    - Documentation refactoring guidance
+    - CI/CD automated validation
+  - **Requirements**: LLM-powered semantic analysis
+  - **Priority**: Completes documentation management toolchain (last missing component)
+
 ### Medium Priority
 
 - [x] **Create documentation synchronization checker (Capability)** ✅ **COMPLETED: 2025-10-12**
@@ -76,22 +96,21 @@ Project-wide task tracking and future improvements.
   - **Usage**: `/meta project-bootstrap` in new project directory
   - **Output**: Complete Phase 0 documentation structure ready for Claude Code assistance
 
-- [ ] **Create documentation structure validator (Capability)**
-  - **Phase**: Documentation Management Phase 3
-  - **Purpose**: Long-term documentation health monitoring
-  - **Implementation**: Capability `meta-doc-structure` (via `/meta`)
-  - **Scope**:
-    - DRY principle validation (detect duplicate content)
-    - Progressive Disclosure compliance (README → guides → reference hierarchy)
-    - Task-Oriented organization check (docs/guides/ structure)
-    - Document size validation (per methodology guidelines)
-    - Core document existence check (plan.md, principles.md)
-  - **Use cases**:
-    - Quarterly documentation health assessment
-    - New project methodology compliance
-    - Documentation refactoring guidance
-  - **Requirements**: LLM-powered semantic analysis
-  - **Priority**: Completes documentation management toolchain
+- [x] **Create comprehensive documentation health and analysis capabilities** ✅ **COMPLETED: 2025-10-25**
+  - **Phase**: Documentation Management Phase 3 Completion
+  - **Implementation**: Created 5 additional documentation analysis capabilities:
+    - `capabilities/commands/meta-doc-evolution.md` (3,426 bytes) - Documentation evolution tracking
+    - `capabilities/commands/meta-doc-gaps.md` (3,954 bytes) - Content gap analysis
+    - `capabilities/commands/meta-doc-health.md` (3,738 bytes) - Overall health assessment
+    - `capabilities/commands/meta-doc-usage.md` (4,501 bytes) - Usage pattern analysis
+  - **Access**: Via `/meta doc-evolution`, `/meta doc-gaps`, `/meta doc-health`, `/meta doc-usage`
+  - **Features**:
+    - Complete documentation management toolchain now available
+    - Complements existing link validation, sync checking, and bootstrap capabilities
+    - Provides comprehensive documentation lifecycle management
+  - **Usage**: `/meta "analyze documentation health"` or specific capability names
+  - **Impact**: Full documentation methodology implementation across all phases
+
 
 - [x] **Fix internal documentation links** ✅ **COMPLETED: 2025-10-12**
   - Fixed 70+ broken internal links across 18 files
@@ -115,10 +134,22 @@ Project-wide task tracking and future improvements.
 
 ## Infrastructure
 
+### Completed
+
+- [x] **Add comprehensive documentation management capabilities** ✅ **COMPLETED: 2025-10-25**
+  - Complete documentation management toolchain now available
+  - 9 documentation-related capabilities covering full lifecycle:
+    - Link validation (`meta-doc-links`)
+    - Sync checking (`meta-doc-sync`)
+    - Project bootstrap (`meta-project-bootstrap`)
+    - Health analysis (`meta-doc-health`, `meta-doc-evolution`, `meta-doc-gaps`, `meta-doc-usage`)
+  - Only `meta-doc-structure` remains to be implemented
+
 ### Planned
 
 - [ ] Add markdown linting to CI/CD pipeline
-- [ ] Automate documentation structure validation
+- [ ] Automate documentation structure validation (add meta-doc-structure to CI)
+- [ ] Remove CLI-related code (MCP now operates independently)
 
 ---
 
@@ -150,11 +181,26 @@ Project-wide task tracking and future improvements.
 
 ### Regular Tasks
 
-- [ ] Review and update TODO.md quarterly
+- [x] Review and update TODO.md ✅ **COMPLETED: 2025-10-25**
 - [ ] Archive completed tasks to preserve history
 - [ ] Link TODO items to GitHub Issues when applicable
 
+### Code Modernization
+
+- [ ] **Remove CLI-related code (MCP Independence)**
+  - **Rationale**: MCP server now operates independently without CLI dependency
+  - **Scope**:
+    - Remove obsolete CLI code from `cmd/` directory
+    - Update build scripts to exclude CLI components
+    - Update documentation to reflect MCP-only architecture
+    - Preserve MCP server functionality (16 tools)
+  - **Impact**:
+    - Reduced codebase complexity
+    - Cleaner architecture (MCP-only)
+    - Simplified build and deployment
+  - **Priority**: Medium (architectural cleanup)
+
 ---
 
-**Last Updated**: 2025-10-12
+**Last Updated**: 2025-10-25
 **Maintainers**: Project team
