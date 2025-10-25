@@ -19,14 +19,17 @@ func setupTestProject(t *testing.T, prefix string) (projectPath string, projectH
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 
-	projectPath = tempDir
-
-	// Resolve symlinks for consistent hashing on macOS (/var -> /private/var)
-	resolvedPath, err := filepath.EvalSymlinks(projectPath)
+	// Resolve symlinks and short paths for consistent hashing
+	// On macOS: /var -> /private/var
+	// On Windows: C:\Users\RUNNER~1 -> C:\Users\runneradmin
+	resolvedPath, err := filepath.EvalSymlinks(tempDir)
 	if err != nil {
 		// If path doesn't exist yet, use original path
-		resolvedPath = projectPath
+		resolvedPath = tempDir
 	}
+
+	// Return resolved path to ensure consistency with hash calculation
+	projectPath = resolvedPath
 
 	// Convert to forward slashes for consistency across platforms
 	projectHash = filepath.ToSlash(resolvedPath)
