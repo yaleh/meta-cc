@@ -54,10 +54,10 @@ docs_dir = Path('docs')
 
 for md_file in docs_dir.rglob('*.md'):
     rel_path = md_file.relative_to(docs_dir)
-    
+
     with open(md_file, 'r', encoding='utf-8') as f:
         content = f.read()
-    
+
     entry = {
         'title': extract_title(content),
         'path': str(rel_path),
@@ -67,7 +67,7 @@ for md_file in docs_dir.rglob('*.md'):
         'keywords': extract_keywords(content),
         'size': len(content)
     }
-    
+
     index.append(entry)
 
 # Sort by importance (core first, then guides, then others)

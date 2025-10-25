@@ -22,7 +22,7 @@ detect_drift(P) = {
     ls capabilities/commands/*.md,
     grep "^func [A-Z]" internal/ pkg/
   ]),
-  
+
   {
     undocumented: actual - documented → severity(critical|high|medium),
     obsolete: documented - actual → severity(medium|low),
@@ -33,11 +33,11 @@ detect_drift(P) = {
 analyze_questions :: Project → QuestionGaps
 analyze_questions(P) = {
   questions = query_user_messages(pattern="(how|what|why).*\\?"),
-  
+
   categorize(questions) → {
     getting_started, troubleshooting, how_to, concepts, reference, design
   },
-  
+
   for each category where unanswered > 2:
     {category, count, examples, suggested_doc, priority}
 }
@@ -55,15 +55,15 @@ detect_silos(P) = {
   hidden = query_assistant_messages(min_len=100, pattern="because|reason|need to")
     → cluster_by_similarity()
     → filter(not_in_docs AND count > 3),
-  
+
   # Tribal: design decisions only in commits
   tribal = git log --grep="why|because|rationale"
     → filter(not_in_docs AND contains_decision),
-  
+
   # Contextual: undocumented error solutions
   contextual = query_context(min_occur=2)
     → filter(not_in_docs AND attempts > 2)
-  
+
   {hidden, tribal, contextual}
 }
 

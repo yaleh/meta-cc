@@ -31,13 +31,13 @@ package "命令行分析工具 (cc-meta-cli)" {
     [Multi-Dimension Search] as Search
     [Statistics Generator] as Stats
   }
-  
+
   component "Analysis Engine" as AnalysisEngine {
     [Pattern Detector] as Pattern
     [Suggestion Generator] as SugGen
     [Config Diff Generator] as ConfigGen
   }
-  
+
   database "Local Cache" as Cache {
     [SQLite Index] as SQLite
     [JSON Summaries] as JSON
@@ -48,7 +48,7 @@ package "数据源" {
   folder "~/.claude/projects/" as Projects {
     file "[hash]/session.jsonl" as JSONL
   }
-  
+
   [Settings] --> JSONL : reads
 }
 
@@ -166,55 +166,55 @@ deactivate CC
 !theme plain
 
 package "cc-meta-cli" {
-  
+
   component "CLI Interface" as CLI {
     [Argument Parser] as ArgParser
     [Output Formatter] as Formatter
     [Config Loader] as ConfigLoader
   }
-  
+
   component "Query Engine" as QueryEngine {
-    
+
     component "Indexers" {
       [Time Indexer] as TimeIdx
       [Tool Indexer] as ToolIdx
       [Role Indexer] as RoleIdx
       [Semantic Indexer] as SemanticIdx
     }
-    
+
     component "Search Strategies" {
       [Temporal Search] as TempSearch
       [Tool Pattern Search] as ToolSearch
       [Semantic Search] as SemSearch
       [Composite Search] as CompSearch
     }
-    
+
     component "Aggregators" {
       [Statistics Aggregator] as StatsAgg
       [Pattern Aggregator] as PatternAgg
       [Timeline Aggregator] as TimelineAgg
     }
   }
-  
+
   component "Analysis Engine" as Analysis {
     [Pattern Recognizer] as Recognizer
     [Suggestion Generator] as Generator
     [Config Validator] as Validator
   }
-  
+
   component "Storage Layer" as Storage {
     [SQLite Handler] as SQLiteH
     [JSONL Parser] as JSONLParser
     [Cache Manager] as CacheM
   }
-  
+
   ' Connections
   CLI --> QueryEngine
   CLI --> Analysis
   QueryEngine --> Storage
   Analysis --> Storage
   Analysis --> QueryEngine
-  
+
 }
 
 note right of Indexers
@@ -654,7 +654,7 @@ note bottom of BaseSubagent
   - cc-meta-cli query
   - cc-meta-cli analyze
   - cc-meta-cli suggest
-  
+
   via call_cli() method
 end note
 
@@ -670,7 +670,7 @@ end note
 !theme plain
 
 package "meta-cc MCP Server" {
-  
+
   interface MCPServer {
     + name: string
     + version: string
@@ -681,7 +681,7 @@ package "meta-cc MCP Server" {
     + list_resources(): Resource[]
     + read_resource(uri: string): ResourceContent
   }
-  
+
   class MetaInsightMCP implements MCPServer {
     - cli_wrapper: CLIWrapper
     - cache: QueryCache
@@ -690,7 +690,7 @@ package "meta-cc MCP Server" {
     + list_resources(): Resource[]
     + read_resource(uri: string): ResourceContent
   }
-  
+
   class CLIWrapper {
     - cli_path: string
     - timeout: int
@@ -699,7 +699,7 @@ package "meta-cc MCP Server" {
     + parse_output(output: string): JSON
     + handle_error(error: Error): ErrorResponse
   }
-  
+
   class QueryCache {
     - ttl: int
     - max_size: int
@@ -873,11 +873,11 @@ MetaInsightMCP ..> Resource_PatternDatabase : exposes
 
 note right of MetaInsightMCP
   **MCP Server 配置:**
-  
+
   # 添加到 Claude Code
   claude mcp add meta-cc \\
     npx cc-meta-mcp-server
-  
+
   **使用示例:**
   > Use meta-cc MCP to
     search for similar debugging
@@ -1110,20 +1110,20 @@ stop
 
 if (是否应用?) then (yes)
   :用户调用\n/meta-apply <id>;
-  
+
   |Application Engine|
-  
+
   :加载建议详情;
-  
+
   :执行安全检查;
   note right
     - 备份原配置
     - 验证语法
     - 检查权限
   end note
-  
+
   if (检查通过?) then (yes)
-    
+
     switch (建议类型)
     case (Config Modification)
       :读取 settings.json;
@@ -1141,18 +1141,18 @@ if (是否应用?) then (yes)
       :追加到 CLAUDE.md;
       :或创建独立文档;
     endswitch
-    
+
     :标记建议为已应用;
-    
+
     :记录应用日志;
-    
+
     :返回成功消息;
-    
+
   else (no)
     :返回错误信息;
     :建议手动操作;
   endif
-  
+
 else (no)
   :标记为已查看;
 endif
@@ -1173,7 +1173,7 @@ stop
 !theme plain
 
 node "开发者机器" {
-  
+
   frame "Claude Code 环境" {
     component [Claude Code Process] as CC
     folder ".claude/" {
@@ -1193,7 +1193,7 @@ node "开发者机器" {
       }
     }
   }
-  
+
   frame "cc-meta-cli 工具" {
     component [CLI Binary] as CLI
     database "index.db" {
@@ -1209,7 +1209,7 @@ node "开发者机器" {
       file "summaries.json"
     }
   }
-  
+
   frame "MCP Server (可选)" {
     component [meta-cc-mcp] as MCP
   }
@@ -1225,9 +1225,9 @@ CLI --> "vector.db" : reads/writes
 note right of CLI
   **安装:**
   npm install -g cc-meta-cli
-  
+
   或
-  
+
   brew install cc-meta-cli
 end note
 
@@ -1251,33 +1251,33 @@ end note
 config:
   version: "1.0.0"
   cli_path: "/usr/local/bin/cc-meta-cli"
-  
+
   indexing:
     enabled: true
     mode: "incremental"  # or "full"
     watch_mode: true
     watch_interval: 5  # seconds
-    
+
     indices:
       - name: "timeline"
         enabled: true
         fields: ["timestamp", "session_id", "turn_id", "role"]
-      
+
       - name: "tool_calls"
         enabled: true
         fields: ["tool_name", "input_hash", "exit_code", "duration"]
-      
+
       - name: "semantic"
         enabled: true
         model: "text-embedding-3-small"
         dimension: 1536
-        
+
   analysis:
     auto_trigger:
       enabled: true
       tactical_interval: 5  # every 5 turns
       strategic_interval: 20  # every 20 turns
-    
+
     pattern_detection:
       min_frequency: 3
       time_window: "7d"
@@ -1286,35 +1286,35 @@ config:
         - "tool_misuse"
         - "inefficient_workflow"
         - "prompt_ambiguity"
-    
+
     suggestion_generation:
       max_suggestions: 10
       priority_threshold: 0.7
       auto_apply_safe: false
-      
+
   storage:
     database: "sqlite"
     path: "~/.cc-meta/index.db"
     vector_store: "chromadb"
     vector_path: "~/.cc-meta/vectors"
     cache_ttl: 3600  # seconds
-    
+
   mcp_server:
     enabled: true
     port: 9001
     transport: "stdio"  # or "sse"
-    
+
   privacy:
     anonymize_prompts: false
     exclude_patterns:
       - "*.env"
       - "*.key"
       - "secrets/**"
-      
+
   logging:
     level: "info"
     path: "~/.cc-meta/logs/"
-    
+
 @endyaml
 ```
 
@@ -1327,7 +1327,7 @@ config:
 !theme plain
 
 package "CLI Output Formats" {
-  
+
   class JSONOutput {
     + version: string = "1.0"
     + timestamp: string
@@ -1349,7 +1349,7 @@ package "CLI Output Formats" {
       }
     }
   }
-  
+
   class MarkdownOutput {
     + header: string
     + sections: Section[]
@@ -1357,18 +1357,18 @@ package "CLI Output Formats" {
     --
     **Example:**
     # Session Analysis Report
-    
+
     ## Overview
     - Total turns: 42
     - Duration: 1h 23m
-    
+
     ## Tool Usage
     | Tool | Count |
     |------|-------|
     | Edit | 15    |
     | Bash | 8     |
   }
-  
+
   class TableOutput {
     + headers: string[]
     + rows: string[][]
@@ -1385,7 +1385,7 @@ package "CLI Output Formats" {
 }
 
 package "MCP Protocol Messages" {
-  
+
   class ToolCallRequest {
     + jsonrpc: "2.0"
     + id: string
@@ -1395,7 +1395,7 @@ package "MCP Protocol Messages" {
         arguments: JSON
       }
   }
-  
+
   class ToolCallResponse {
     + jsonrpc: "2.0"
     + id: string
@@ -1404,7 +1404,7 @@ package "MCP Protocol Messages" {
         isError: boolean
       }
   }
-  
+
   class ResourceReadRequest {
     + jsonrpc: "2.0"
     + id: string
@@ -1413,7 +1413,7 @@ package "MCP Protocol Messages" {
         uri: string
       }
   }
-  
+
   class ResourceReadResponse {
     + jsonrpc: "2.0"
     + id: string
@@ -1424,7 +1424,7 @@ package "MCP Protocol Messages" {
 }
 
 package "Internal Data Transfer" {
-  
+
   class CLIResult {
     + success: boolean
     + exit_code: int
@@ -1435,7 +1435,7 @@ package "Internal Data Transfer" {
     + parse_json(): JSON
     + is_error(): boolean
   }
-  
+
   class QueryResult {
     + total: int
     + items: JSON[]
@@ -1446,7 +1446,7 @@ package "Internal Data Transfer" {
       }
     + execution_time_ms: int
   }
-  
+
   class SuggestionPayload {
     + id: string
     + priority: "high" | "medium" | "low"
@@ -1468,7 +1468,7 @@ package "Internal Data Transfer" {
 
 note right of JSONOutput
   **CLI 输出格式:**
-  
+
   默认使用 JSON (--output json)
   可通过 --output 参数切换:
   - json
@@ -1479,10 +1479,10 @@ end note
 
 note right of ToolCallRequest
   **MCP 工具调用:**
-  
+
   Claude Code 通过 MCP 协议
   调用 meta-cc 服务器的工具
-  
+
   服务器委托给 cc-meta-cli
 end note
 
@@ -1592,7 +1592,7 @@ note right of Coach
   1. 当前会话分析
   2. 历史模式检索
   3. 预生成建议库
-  
+
   提供上下文相关的
   对话式指导
 end note
@@ -1645,7 +1645,7 @@ note right of Dev
   1. 语义搜索能力
   2. 跨会话检索
   3. 结构化结果
-  
+
   Claude 可以基于这些
   数据进行推理和综合
 end note
@@ -1671,27 +1671,27 @@ package "Core System" {
 }
 
 package "Extension Points" {
-  
+
   interface IIndexer {
     + index_turn(turn: Turn): void
     + build_index(session: Session): void
   }
-  
+
   interface ISearchStrategy {
     + search(query: Query): Result[]
     + supports(query_type: string): boolean
   }
-  
+
   interface IPatternDetector {
     + detect(session: Session): Pattern[]
     + get_pattern_type(): string
   }
-  
+
   interface ISuggestionGenerator {
     + generate(patterns: Pattern[]): Suggestion[]
     + get_category(): string
   }
-  
+
   interface IOutputFormatter {
     + format(data: JSON): string
     + get_format_type(): string
@@ -1702,17 +1702,17 @@ package "Built-in Implementations" {
   [TimeIndexer] as TimeIdx
   [ToolIndexer] as ToolIdx
   [SemanticIndexer] as SemIdx
-  
+
   [TemporalSearch] as TempSearch
   [ToolPatternSearch] as ToolSearch
   [SemanticSearch] as SemSearch
-  
+
   [ErrorRepetitionDetector] as ErrDet
   [ToolMisuseDetector] as ToolDet
-  
+
   [ConfigSuggestionGen] as ConfigGen
   [PromptSuggestionGen] as PromptGen
-  
+
   [JSONFormatter] as JSON
   [MarkdownFormatter] as MD
 }
@@ -1721,10 +1721,10 @@ package "Custom Extensions" {
   [CustomIndexer] as CustomIdx
   [CustomDetector] as CustomDet
   [CustomGenerator] as CustomGen
-  
+
   note right of CustomIdx
     **用户可以实现:**
-    
+
     例如：索引特定领域数据
     - Git commit 关联
     - Issue tracker 集成

@@ -161,9 +161,9 @@ All three core experiment files updated to reflect inherited state:
 experiments/bootstrap-007-cicd-pipeline/meta-agents/meta-agent-m0.md
 
 # Copied
-experiments/bootstrap-006-api-design/agents/* 
+experiments/bootstrap-006-api-design/agents/*
   → experiments/bootstrap-007-cicd-pipeline/agents/
-experiments/bootstrap-006-api-design/meta-agents/* 
+experiments/bootstrap-006-api-design/meta-agents/*
   → experiments/bootstrap-007-cicd-pipeline/meta-agents/
 
 # Updated

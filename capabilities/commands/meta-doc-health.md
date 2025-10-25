@@ -23,7 +23,7 @@ classify :: Metrics → Roles
 classify(M) = for each file {
   RE = reads / max(edits, 1),
   density = accesses / max(time_span_min, 1),
-  
+
   role = match {
     (path == "CLAUDE.md") → 'context_base',
     (RE > 2.0 AND span > 10k) → 'specification',

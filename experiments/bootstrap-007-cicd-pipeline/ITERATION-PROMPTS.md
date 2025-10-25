@@ -430,7 +430,7 @@ layers:
 ```yaml
 M_{N-1} → M_N:
   evolution: [evolved / unchanged]
-  
+
   IF evolved:
     new_capabilities: [list new capabilities added]
     evolution_reason: "Why was this capability needed?"

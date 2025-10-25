@@ -8,7 +8,7 @@ This document records the recommended GitHub repository configuration for meta-c
 
 - **Description**: Meta-Cognition tool for Claude Code - analyze session history for workflow optimization
 - **Website**: https://github.com/yaleh/meta-cc
-- **Topics**: 
+- **Topics**:
   - `go`
   - `claude-code`
   - `meta-cognition`

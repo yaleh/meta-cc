@@ -16,14 +16,14 @@ analyze(S, T) = collect_events(S, T) ∧ classify_tasks(E) ∧ measure_effective
 collect_events :: (Scope, Timespan) → Events
 collect_events(S, T) = {
   accesses = query_file_access(scope=S),
-  
+
   for each access {
     context = {
       user_msg: query_user_messages(turn-1),
       tools_before: query_tools(turn-1),
       tools_after: query_tools(turn+1)
     },
-    
+
     purpose = infer({
       task = match user_msg {
         "error|fail" → troubleshooting,
@@ -33,16 +33,16 @@ collect_events(S, T) = {
         docs/ AND edit|write → writing_docs,
         CLAUDE.md|plan.md → planning
       },
-      
+
       intent = match {
         tools_before(Grep|Read) → understanding,
         tools_after(Edit|Write) → validation,
         "what is|explain" → understanding,
         "example" → example
       },
-      
+
       role = infer_from_session(questions, commits, doc_edits, tests),
-      
+
       outcome = match {
         no_followup_? AND tools_after → resolved,
         followup_? AND tools_after → partial,
@@ -57,12 +57,12 @@ measure_effectiveness(E) = for each doc {
   resolution_rate = resolved / total,
   avg_time = time_to_next_task,
   followup_rate = followup_questions / total,
-  
+
   task_alignment = cosine_similarity(
     expected_tasks[doc.role],
     actual_tasks[doc]
   ),
-  
+
   {
     high_performers: resolution > 0.8,
     low_performers: resolution < 0.5,
@@ -73,17 +73,17 @@ measure_effectiveness(E) = for each doc {
 find_patterns :: Events → Patterns
 find_patterns(E) = {
   temporal: group_by(hour, dow) → peak_windows,
-  
+
   navigation: extract_sequences(E) → {
     common_flows: sequences with freq > 3,
     missing_flows: expected - actual
   },
-  
+
   task_doc_matrix: for each task → {
     primary_docs: top_n(5),
     success_rate
   },
-  
+
   role_patterns: for each role → {
     most_accessed, typical_tasks, success_rate, learning_curve
   }

@@ -29,7 +29,7 @@ detect_phases(T) = for each window {
     < 0.001 AND accesses > 0 → 'declining',
     == 0 AND days_since > 30 → 'dormant'
   },
-  
+
   detect_transition(prev_phase, phase) → {
     timestamp, from, to,
     trigger: infer_trigger(from, to),
@@ -41,14 +41,14 @@ predict :: (Phases, Timeline) → Prediction
 predict(P, T) = {
   current = P[-1],
   trend = linear_regression(T[-14:]) → {access, density, edit_ratio},
-  
+
   next_phase = match {
     (current == creation AND trend.density ↓) → active(conf=0.8),
     (current == active AND trend.edit_ratio ↓↓) → stable(conf=0.7),
     (current == stable AND trend.access ↓↓) → declining(conf=0.6),
     (current == declining AND trend.access < 0.5) → dormant(conf=0.8)
   },
-  
+
   archive_prob = score([
     0.3 if access < 1.0/day,
     0.3 if trend ↓,
