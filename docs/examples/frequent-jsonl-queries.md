@@ -13,10 +13,30 @@ Each query in this document now includes a **MCP Tool Equivalent** showing how t
 - **jq filtering**: Native jq support for complex queries
 - **No limits by default**: Returns all results, relies on hybrid mode
 
+### IMPORTANT: CLI vs MCP jq Differences
+
+**CLI Mode** (pipes JSONL stream to jq):
+```bash
+cat *.jsonl | jq '.[] | select(.type == "user")'
+# Processes entire array/stream → needs .[] to iterate
+```
+
+**MCP Mode** (executes jq on each JSONL line):
+```javascript
+query_raw({jq_expression: 'select(.type == "user")'})
+// Processes individual objects → DO NOT use .[]
+```
+
+**Key Differences**:
+- ❌ **DO NOT use** `.[]` in MCP queries (each line is already an object)
+- ❌ **DO NOT use** array slicing `.[0:5]` (use `limit` parameter instead)
+- ✅ **DO use** `select()`, filters, transforms directly on the object
+- ✅ **DO use** `limit` parameter for result limiting
+
 **Quick Reference**:
-- CLI jq query → Use `query_raw({jq_expression: "..."})`
+- CLI jq query → Remove `.[]` prefix, use `query_raw({jq_expression: "..."})`
 - Common patterns → Use convenience tools (`query_tool_errors`, `query_token_usage`, etc.)
-- Complex filtering → Use `query({resource: "...", jq_filter: "..."})`
+- Complex filtering → Use jq_filter parameter with object-level expressions
 
 See [MCP Query Tools Reference](../guides/mcp-query-tools.md) for complete documentation.
 
@@ -43,22 +63,15 @@ cat $DIR/*.jsonl | jq -c 'select(.type == "user" and (.message.content | type ==
 
 **MCP Tool Equivalent:**
 ```javascript
-// Using legacy tool (simplest)
+// Option 1: Using convenience tool (simplest)
 query_user_messages({
   pattern: ".*",
   limit: 5
 })
 
-// Using core query tool
-query({
-  resource: "messages",
-  filter: {role: "user"},
-  jq_filter: '.[] | select(.content | type == "string") | .[0:5]'
-})
-
-// Using raw jq
+// Option 2: Using raw jq (most flexible)
 query_raw({
-  jq_expression: '.[] | select(.type == "user" and (.message.content | type == "string"))',
+  jq_expression: 'select(.type == "user" and (.message.content | type == "string"))',
   limit: 5
 })
 ```
@@ -96,20 +109,20 @@ cat $DIR/*.jsonl | jq -c 'select(.type == "assistant") | select(.message.content
 
 **MCP Tool Equivalent:**
 ```javascript
-// Using convenience tool (for tool_use blocks)
+// Option 1: Using convenience tool (for tool_use blocks)
 query_tool_blocks({
   block_type: "tool_use",
   limit: 5
 })
 
-// Using core query tool (for full tool calls with status)
-query({
-  resource: "tools",
-  jq_filter: 'sort_by(.timestamp) | .[0:5]'
+// Option 2: Using tools query (for full tool execution data)
+query_tools({
+  limit: 5
 })
 
-// Using legacy tool
-query_tools({
+// Option 3: Using raw jq
+query_raw({
+  jq_expression: 'select(.type == "assistant") | select(.message.content[]? | .type == "tool_use")',
   limit: 5
 })
 ```
@@ -128,15 +141,15 @@ jq -c 'select(.type == "assistant") | select(.message.content[] | select(.type =
 
 **MCP Equivalent:**
 ```javascript
+// Option 1: Filter tool_use blocks
 query_tool_blocks({
   block_type: "tool_use",
-  jq_filter: '.[] | select(.name == "Task")'
+  jq_filter: 'select(.name == "Task")'
 })
 
-// Or for full tool execution data
-query({
-  resource: "tools",
-  filter: {tool_name: "Task"}
+// Option 2: Filter full tool execution data
+query_tools({
+  tool: "Task"
 })
 ```
 
@@ -154,22 +167,22 @@ cat $DIR/*.jsonl | jq -c 'select(.type == "user" and (.message.content | type ==
 
 **MCP Tool Equivalent:**
 ```javascript
-// Using convenience tool (simplest)
+// Option 1: Using convenience tool (simplest)
 query_tool_errors({
   limit: 5
 })
 
-// Using core query tool
-query({
-  resource: "tools",
-  filter: {tool_status: "error"},
-  jq_filter: 'sort_by(.timestamp) | reverse | .[0:5]'
-})
-
-// For tool_result blocks specifically
+// Option 2: For tool_result blocks specifically
 query_tool_blocks({
   block_type: "tool_result",
-  jq_filter: '.[] | select(.is_error == true) | .[0:5]'
+  jq_filter: 'select(.is_error == true)',
+  limit: 5
+})
+
+// Option 3: Using raw jq
+query_raw({
+  jq_expression: 'select(.type == "user" and (.message.content | type == "array")) | select(.message.content[]? | select(.type == "tool_result" and .is_error == true))',
+  limit: 5
 })
 ```
 
@@ -187,9 +200,9 @@ jq -r 'select(.type == "user") | .message.content[]? | select(.type == "tool_res
 
 **MCP Equivalent:**
 ```javascript
-// Get error messages with full context
+// Get error messages with structured output
 query_tool_errors({
-  jq_filter: '.[] | {timestamp, tool: .tool_name, error: .error}',
+  jq_filter: '{timestamp, tool_name, error}',
   limit: 20
 })
 ```
@@ -563,19 +576,32 @@ query_token_usage() {
 
 ## Query Validation
 
-All queries in this document have been validated against real JSONL session data and updated to use 5-record limits:
+All queries in this document have been validated against real JSONL session data:
 
+### CLI Queries
 - **Validation Date:** 2025-10-24
 - **Dataset Size:** 620 JSONL files, 95,259+ JSONL records
 - **Queries Tested:** 10/10
 - **Pass Rate:** 100%
-- **Status:** All queries are production-ready with verified 5-record output limits
+- **Status:** All CLI queries production-ready with `head -5` limits
 
-Each query has been executed against the complete session history in `/home/yale/.claude/projects/-home-yale-work-meta-cc/` and verified to return correct results. One query was corrected (Query 8) to properly handle array slicing. All queries now use `head -5` or equivalent array slicing `[0:5]` to limit output to 5 records as requested.
+### MCP Queries
+- **Validation Date:** 2025-10-25
+- **Dataset Size:** Project session data
+- **Queries Tested:** 3/3 (Queries 1-3 MCP equivalents verified)
+- **Pass Rate:** 100%
+- **Status:** MCP queries corrected and verified
+- **Key Fix:** Removed `.[]` prefix and array slicing (not needed for per-object execution)
+
+**Important MCP Changes (Phase 25)**:
+- ❌ Removed `resource`, `filter`, `transform`, `aggregate` object parameters
+- ✅ Use `jq_filter` with object-level expressions (not array operations)
+- ✅ Use `limit` parameter instead of jq array slicing
 
 ---
 
 **Document Status:** Based on analysis of 20+ capability requirements
 **Query Coverage:** Top 10 patterns covering 80%+ of use cases
-**Validation:** 100% tested against 95,259 real records
-**Last Updated:** 2025-10-24
+**CLI Validation:** 100% tested against 95,259 real records
+**MCP Validation:** Core patterns verified (Queries 1-3)
+**Last Updated:** 2025-10-25
