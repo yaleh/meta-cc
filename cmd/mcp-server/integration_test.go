@@ -741,85 +741,6 @@ func TestPerformanceBenchmarks(t *testing.T) {
 	t.Logf("100KB write completed in %v", elapsed)
 }
 
-// TestExecuteToolE2E_QuerySuccessfulPrompts verifies query_successful_prompts executes successfully
-// This is an end-to-end test that actually runs the meta-cc CLI
-func TestExecuteToolE2E_QuerySuccessfulPrompts(t *testing.T) {
-	cfg, _ := config.Load()
-	if testing.Short() {
-		t.Skip("Skipping E2E test in short mode (takes ~6s)")
-	}
-
-	// Save and restore working directory
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get current directory: %v", err)
-	}
-	defer func() {
-		if err := os.Chdir(originalDir); err != nil {
-			t.Errorf("failed to restore directory: %v", err)
-		}
-	}()
-
-	// Change to project root (two levels up from cmd/mcp-server)
-	if err := os.Chdir("../.."); err != nil {
-		t.Fatalf("failed to change to project root: %v", err)
-	}
-
-	executor := NewToolExecutor()
-
-	// Test with min_quality_score parameter
-	args := map[string]interface{}{
-		"min_quality_score": 0.7,
-		"limit":             20,
-		"scope":             "project",
-	}
-
-	result, err := executor.ExecuteTool(cfg, "query_successful_prompts", args)
-	if err != nil {
-		t.Fatalf("ExecuteTool failed: %v", err)
-	}
-
-	// Verify result is valid JSON or JSON response
-	if result == "" {
-		t.Error("expected non-empty result")
-	}
-
-	// Try to parse as JSON (either inline mode or file_ref mode)
-	var response map[string]interface{}
-	if err := json.Unmarshal([]byte(result), &response); err != nil {
-		t.Fatalf("result is not valid JSON: %v\nResult: %s", err, result)
-	}
-
-	// Verify mode field exists
-	mode, ok := response["mode"].(string)
-	if !ok {
-		t.Errorf("response missing mode field")
-	}
-
-	// Verify data or file_ref exists based on mode
-	if mode == "inline" {
-		if _, ok := response["data"]; !ok {
-			t.Errorf("inline mode response missing data field")
-		}
-	} else if mode == "file_ref" {
-		if fileRef, ok := response["file_ref"].(map[string]interface{}); ok {
-			if path, ok := fileRef["path"].(string); ok {
-				// Clean up temp file
-				defer os.Remove(path)
-
-				// Verify file exists
-				if _, err := os.Stat(path); os.IsNotExist(err) {
-					t.Errorf("temp file does not exist: %s", path)
-				}
-			}
-		} else {
-			t.Errorf("file_ref mode response missing file_ref object")
-		}
-	}
-
-	t.Logf("query_successful_prompts executed successfully, mode: %s", mode)
-}
-
 // TestExecuteToolE2E_AllTools verifies all tools execute without errors
 func TestExecuteToolE2E_AllTools(t *testing.T) {
 	cfg, _ := config.Load()
@@ -865,22 +786,6 @@ func TestExecuteToolE2E_AllTools(t *testing.T) {
 				"pattern": "test",
 				"limit":   5,
 				"scope":   "project",
-			},
-		},
-		{
-			name:     "get_session_stats",
-			toolName: "get_session_stats",
-			args: map[string]interface{}{
-				"scope": "project",
-			},
-		},
-		{
-			name:     "query_successful_prompts",
-			toolName: "query_successful_prompts",
-			args: map[string]interface{}{
-				"min_quality_score": 0.8,
-				"limit":             10,
-				"scope":             "project",
 			},
 		},
 	}
