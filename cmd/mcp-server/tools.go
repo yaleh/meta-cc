@@ -110,13 +110,32 @@ func buildTool(name, description string, properties map[string]Property, require
 func getToolDefinitions() []Tool {
 	return []Tool{
 		// Phase 25: query tool uses jq-based interface (jq_filter, jq_transform)
-		// All standard parameters (scope, jq_filter, stats_only, etc.) are provided by StandardToolParameters()
-		// No tool-specific parameters needed beyond the standard ones
-		buildTool("query", "Execute jq query on session data. Default scope: project.", map[string]Property{}),
+		// Standard parameters (scope, jq_filter, stats_only, etc.) provided by StandardToolParameters()
+		buildTool("query", "Execute jq query on session data. Default scope: project.", map[string]Property{
+			"jq_transform": {
+				Type: "string",
+				Description: `jq transform expression (optional). Applied after filtering.
+
+Examples:
+  - {type, timestamp}
+  - {timestamp, content: .message.content}
+  - {type, tools: [.message.content[]? | select(.type == "tool_use") | .name]}
+
+Use transform to extract specific fields or reshape results.`,
+			},
+		}),
 		buildTool("query_raw", "Execute raw jq expression. For power users. Default scope: project.", map[string]Property{
 			"jq_expression": {
-				Type:        "string",
-				Description: "Complete jq expression (required). Maximum flexibility.",
+				Type: "string",
+				Description: `Complete jq expression (required). Maximum flexibility.
+
+Examples:
+  - select(.type == "user")
+  - select(.type == "assistant") | {timestamp, tools: [.message.content[]? | select(.type == "tool_use") | .name]}
+  - select(.type == "user" and (.message.content | type == "string"))
+
+Note: Expressions operate on individual JSONL objects, not arrays.
+Do NOT use .[] prefix - each line is already an object.`,
 			},
 			"limit": {
 				Type:        "number",

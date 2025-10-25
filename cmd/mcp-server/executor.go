@@ -177,15 +177,24 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 		return "", err
 	}
 
-	filtered, err := querypkg.ApplyJQFilter(rawOutput, config.jqFilter)
-	if err != nil {
-		slog.Error("jq filter application failed",
-			"tool_name", toolName,
-			"jq_filter", config.jqFilter,
-			"error", err.Error(),
-			"error_type", "execution_error",
-		)
-		return "", fmt.Errorf("jq filter error for tool %s: %w", toolName, err)
+	// Phase 25 Fix: query and query_raw tools already execute jq internally,
+	// so we should NOT apply jq_filter again to avoid double application.
+	// Only convenience tools need post-processing jq filter.
+	filtered := rawOutput
+	shouldApplyJQFilter := toolName != "query" && toolName != "query_raw"
+
+	if shouldApplyJQFilter {
+		var err error
+		filtered, err = querypkg.ApplyJQFilter(rawOutput, config.jqFilter)
+		if err != nil {
+			slog.Error("jq filter application failed",
+				"tool_name", toolName,
+				"jq_filter", config.jqFilter,
+				"error", err.Error(),
+				"error_type", "execution_error",
+			)
+			return "", fmt.Errorf("jq filter error for tool %s: %w", toolName, err)
+		}
 	}
 
 	parsedData, err := e.parseJSONL(filtered)
