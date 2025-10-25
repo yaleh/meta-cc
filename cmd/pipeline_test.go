@@ -20,8 +20,16 @@ func setupTestProject(t *testing.T, prefix string) (projectPath string, projectH
 	}
 
 	projectPath = tempDir
+
+	// Resolve symlinks for consistent hashing on macOS (/var -> /private/var)
+	resolvedPath, err := filepath.EvalSymlinks(projectPath)
+	if err != nil {
+		// If path doesn't exist yet, use original path
+		resolvedPath = projectPath
+	}
+
 	// Convert to forward slashes for consistency across platforms
-	projectHash = filepath.ToSlash(projectPath)
+	projectHash = filepath.ToSlash(resolvedPath)
 	// Replace both / and : (Windows drive letter) with -
 	projectHash = strings.ReplaceAll(projectHash, "/", "-")
 	projectHash = strings.ReplaceAll(projectHash, ":", "-")
