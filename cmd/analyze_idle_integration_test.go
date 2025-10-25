@@ -2,26 +2,14 @@ package cmd
 
 import (
 	"bytes"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestAnalyzeIdleCommand_Integration(t *testing.T) {
 	// Prepare test environment
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("failed to get home dir: %v", err)
-	}
-	projectHash := "-home-yale-work-test-analyze-idle-integration"
 	testSessionID := "test-session-analyze-idle-integration"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, testSessionID+".jsonl")
+	projectPath := "/home/yale/work/test-analyze-idle-integration"
 
 	// Create fixture with idle periods (10+ minute gaps)
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/test.txt"}}]}}
@@ -29,17 +17,14 @@ func TestAnalyzeIdleCommand_Integration(t *testing.T) {
 {"type":"assistant","timestamp":"2025-10-02T10:15:00.000Z","uuid":"uuid-3","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Edit","input":{"file_path":"/test.txt"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:16:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","content":"edited"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, testSessionID, fixtureContent)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
 	rootCmd.SetArgs([]string{"analyze", "idle-periods", "--session", testSessionID, "--output", "jsonl", "--threshold", "5"})
 
-	err = rootCmd.Execute()
+	err := rootCmd.Execute()
 	if err != nil {
 		t.Fatalf("Command execution failed: %v", err)
 	}
@@ -55,18 +40,8 @@ func TestAnalyzeIdleCommand_Integration(t *testing.T) {
 
 func TestAnalyzeIdleCommand_WithThreshold(t *testing.T) {
 	// Prepare test environment
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("failed to get home dir: %v", err)
-	}
-	projectHash := "-home-yale-work-test-analyze-idle-threshold"
 	testSessionID := "test-session-analyze-idle-threshold"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, testSessionID+".jsonl")
+	projectPath := "/home/yale/work/test-analyze-idle-threshold"
 
 	// Create fixture with varying gap sizes
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/test.txt"}}]}}
@@ -75,10 +50,7 @@ func TestAnalyzeIdleCommand_WithThreshold(t *testing.T) {
 {"type":"user","timestamp":"2025-10-02T10:05:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","content":"edited"}]}}
 {"type":"assistant","timestamp":"2025-10-02T10:20:00.000Z","uuid":"uuid-5","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-3","name":"Read","input":{"file_path":"/test2.txt"}}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, testSessionID, fixtureContent)
 
 	// Reset flags from previous tests
 	if err := analyzeIdleCmd.Flags().Set("threshold", "5"); err != nil {
@@ -90,7 +62,7 @@ func TestAnalyzeIdleCommand_WithThreshold(t *testing.T) {
 	rootCmd.SetErr(&buf)
 	rootCmd.SetArgs([]string{"analyze", "idle-periods", "--session", testSessionID, "--output", "jsonl", "--threshold", "10"})
 
-	err = rootCmd.Execute()
+	err := rootCmd.Execute()
 	if err != nil {
 		t.Fatalf("Command execution failed: %v", err)
 	}
