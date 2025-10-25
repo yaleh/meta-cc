@@ -59,8 +59,15 @@ func (l *SessionLocator) FromProjectPath(projectPath string) (string, error) {
 		return "", fmt.Errorf("failed to resolve project path: %w", err)
 	}
 
+	// 解析符号链接以确保在 macOS 上一致性（/var -> /private/var）
+	resolvedPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		// 如果路径不存在，使用原始绝对路径（允许查询不存在的项目）
+		resolvedPath = absPath
+	}
+
 	// 计算项目哈希
-	projectHash := pathToHash(absPath)
+	projectHash := pathToHash(resolvedPath)
 
 	projectsRoot := l.projectsRoot
 	if projectsRoot == "" {
@@ -97,8 +104,15 @@ func (l *SessionLocator) AllSessionsFromProject(projectPath string) ([]string, e
 		return nil, fmt.Errorf("failed to resolve project path: %w", err)
 	}
 
+	// 解析符号链接以确保在 macOS 上一致性（/var -> /private/var）
+	resolvedPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		// 如果路径不存在，使用原始绝对路径（允许查询不存在的项目）
+		resolvedPath = absPath
+	}
+
 	// 计算项目哈希
-	projectHash := pathToHash(absPath)
+	projectHash := pathToHash(resolvedPath)
 
 	projectsRoot := l.projectsRoot
 	if projectsRoot == "" {

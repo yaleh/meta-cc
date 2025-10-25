@@ -19,7 +19,14 @@ func writeSessionFixture(t *testing.T, projectPath, sessionID, content string) {
 		t.Fatal("META_CC_PROJECTS_ROOT must be set for tests")
 	}
 
-	hash := strings.ReplaceAll(projectPath, "\\", "-")
+	// Resolve symlinks for consistent hashing on macOS (/var -> /private/var)
+	resolvedPath, err := filepath.EvalSymlinks(projectPath)
+	if err != nil {
+		// If path doesn't exist yet, use original path
+		resolvedPath = projectPath
+	}
+
+	hash := strings.ReplaceAll(resolvedPath, "\\", "-")
 	hash = strings.ReplaceAll(hash, "/", "-")
 	hash = strings.ReplaceAll(hash, ":", "-")
 

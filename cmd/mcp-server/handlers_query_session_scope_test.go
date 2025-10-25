@@ -38,7 +38,12 @@ func TestGetQueryBaseDirSessionScope(t *testing.T) {
 	homeDir := tempDir
 	// Use actual path hashing logic (path.Join(...) -> "/-" replacement)
 	absProjectDir, _ := filepath.Abs(projectDir)
-	projectHash := pathToHash(absProjectDir)
+	// Resolve symlinks for consistent hashing on macOS (/var -> /private/var)
+	resolvedProjectDir, err := filepath.EvalSymlinks(absProjectDir)
+	if err != nil {
+		resolvedProjectDir = absProjectDir
+	}
+	projectHash := pathToHash(resolvedProjectDir)
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create session directory: %v", err)
@@ -158,7 +163,12 @@ func TestGetQueryBaseDirSessionScopeSingleSession(t *testing.T) {
 	// Setup session directory
 	homeDir := tempDir
 	absProjectDir, _ := filepath.Abs(projectDir)
-	projectHash := pathToHash(absProjectDir)
+	// Resolve symlinks for consistent hashing on macOS (/var -> /private/var)
+	resolvedProjectDir, err := filepath.EvalSymlinks(absProjectDir)
+	if err != nil {
+		resolvedProjectDir = absProjectDir
+	}
+	projectHash := pathToHash(resolvedProjectDir)
 	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create session directory: %v", err)

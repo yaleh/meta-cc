@@ -31,12 +31,19 @@ func setupTestSessionDir(t *testing.T, testData string) string {
 	// Create temp directory as project path
 	projectPath := t.TempDir()
 
+	// Resolve symlinks for consistent hashing on macOS (/var -> /private/var)
+	resolvedPath, err := filepath.EvalSymlinks(projectPath)
+	if err != nil {
+		// If path doesn't exist yet, use original path
+		resolvedPath = projectPath
+	}
+
 	// Calculate project hash (same logic as SessionLocator)
-	projectHash := pathToHash(projectPath)
+	projectHash := pathToHash(resolvedPath)
 
 	// Create session directory: {projectsRoot}/{hash}/
 	sessionDir := filepath.Join(projectsRoot, projectHash)
-	err := os.MkdirAll(sessionDir, 0755)
+	err = os.MkdirAll(sessionDir, 0755)
 	require.NoError(t, err)
 
 	// Create session file
