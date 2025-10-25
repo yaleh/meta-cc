@@ -1,0 +1,171 @@
+# CLI Removal - Files to Delete
+# Phase 26, Stage 26.2 and 26.3
+# Total: 52 CLI files + 6 orphaned internal packages
+# Generated: 2025-10-25
+
+## Category 1: CLI Command Files (cmd/ directory)
+## Total: 52 files, ~6,922 lines
+## Action: DELETE in Stage 26.2
+
+### Core CLI Commands (9 files)
+cmd/root.go                                    # Cobra root command
+cmd/parse.go                                   # parse command
+cmd/analyze.go                                 # analyze parent command
+cmd/query.go                                   # query parent command
+cmd/stats_aggregate.go                         # stats aggregate
+cmd/stats_files.go                             # stats files
+cmd/stats_timeseries.go                        # stats timeseries
+cmd/validate.go                                # validate command
+cmd/pipeline.go                                # CLI pipeline mode
+
+### Analyze Subcommands (3 files)
+cmd/analyze_file_churn.go                      # File churn analysis
+cmd/analyze_idle.go                            # Idle time analysis
+cmd/analyze_sequences.go                       # Sequence analysis
+
+### Query Subcommands (11 files)
+cmd/query_assistant_messages.go                # Query assistant messages
+cmd/query_context.go                           # Query context
+cmd/query_conversation.go                      # Query conversation
+cmd/query_errors.go                            # Query errors
+cmd/query_file_access.go                       # Query file access
+cmd/query_helpers.go                           # Query helper functions
+cmd/query_messages.go                          # Query messages
+cmd/query_project_state.go                     # Query project state
+cmd/query_sequences.go                         # Query sequences
+cmd/query_successful_prompts.go                # Query successful prompts
+cmd/query_tools.go                             # Query tools
+
+### Unit Tests (10 files)
+cmd/analyze_test.go
+cmd/analyze_file_churn_test.go
+cmd/parse_test.go
+cmd/pipeline_test.go
+cmd/query_test.go
+cmd/query_assistant_messages_test.go
+cmd/query_conversation_test.go
+cmd/query_errors_test.go
+cmd/query_messages_test.go
+cmd/query_tools_test.go
+cmd/query_library_compare_test.go
+cmd/root_test.go
+cmd/validate_test.go
+cmd/refactor_test.go
+cmd/main_test.go
+
+### Integration Tests (10 files)
+cmd/analyze_idle_integration_test.go
+cmd/query_assistant_messages_integration_test.go
+cmd/query_context_integration_test.go
+cmd/query_conversation_integration_test.go
+cmd/query_errors_integration_test.go
+cmd/query_file_access_integration_test.go
+cmd/query_messages_integration_test.go
+cmd/query_project_state_integration_test.go
+cmd/query_sequences_integration_test.go
+cmd/query_successful_prompts_integration_test.go
+cmd/stats_aggregate_integration_test.go
+cmd/stats_files_integration_test.go
+cmd/stats_timeseries_integration_test.go
+
+### Test Helpers (1 file)
+cmd/fixtures_helpers_test.go                   # Shared test helpers
+
+## Category 2: Orphaned Internal Packages
+## Action: DELETE in Stage 26.3 (after CLI removal verified)
+
+### internal/output (CLI output formatting)
+## Lines: ~978 | Usage: 8 CLI files | MCP Usage: None
+internal/output/json.go
+internal/output/json_test.go
+internal/output/table.go
+internal/output/table_test.go
+internal/output/writer.go
+internal/output/writer_test.go
+
+### internal/validation (CLI input validation)
+## Lines: ~1,635 | Usage: 1 CLI file | MCP Usage: None
+internal/validation/file.go
+internal/validation/file_test.go
+internal/validation/format.go
+internal/validation/format_test.go
+internal/validation/schema.go
+internal/validation/schema_test.go
+
+### internal/githelper (Git operations)
+## Lines: ~100 | Usage: 0 files | MCP Usage: None
+internal/githelper/githelper.go
+internal/githelper/githelper_test.go
+
+### internal/aggregator (Empty/orphaned)
+## Lines: 0 | Usage: 0 files | MCP Usage: None
+internal/aggregator/                           # Verify if empty directory
+
+### internal/mcp (Legacy MCP tool builders)
+## Lines: ~300 | Usage: 0 files | MCP Usage: None (obsolete)
+internal/mcp/builder.go
+internal/mcp/session_tools.go
+internal/mcp/tools_project.go
+# Note: MCP tool schemas now defined in cmd/mcp-server/tools.go
+
+### internal/testutil (CLI test fixtures)
+## Lines: ~200 | Usage: 1 CLI test | MCP Usage: None
+internal/testutil/fixtures.go
+internal/testutil/fixtures_test.go
+internal/testutil/time.go
+
+## Category 3: Documentation to Delete/Update
+## Action: Handle in Stage 26.5
+
+### Delete entirely:
+docs/reference/cli.md                          # CLI reference documentation
+
+### Update (remove CLI sections):
+README.md                                      # Remove CLI installation/usage
+CLAUDE.md                                      # Remove CLI quick start
+docs/guides/integration.md                     # Remove CLI integration method
+docs/tutorials/examples.md                     # Remove CLI examples
+
+## Summary Statistics
+
+### Files to Delete:
+- CLI command files: 52 files (~6,922 lines)
+- Orphaned internal packages: 6 packages (~3,213 lines)
+- Total code deletion: ~10,135 lines
+
+### Expected Impact:
+- cmd/ directory: Only cmd/mcp-server/ remains
+- internal/ directory: 9 packages remain (MCP dependencies)
+- Build time: Reduced (single binary)
+- Maintenance burden: Significantly reduced
+
+## Deletion Order (Safety)
+
+1. Stage 26.2: Delete all cmd/*.go files (CLI commands and tests)
+2. Stage 26.3: Delete orphaned internal packages (one by one, verify after each)
+3. Stage 26.4: Update Makefile (remove CLI targets)
+4. Stage 26.5: Update documentation
+5. Stage 26.6: Update CI/CD
+
+## Verification Commands
+
+After each deletion batch:
+```bash
+go mod tidy                    # Clean up dependencies
+make build-mcp                 # Verify MCP builds
+make test-all                  # Verify MCP tests pass
+make lint                      # Verify linting passes
+go build ./...                 # Verify no import errors
+```
+
+## Rollback Plan
+
+If issues arise:
+```bash
+git checkout HEAD -- cmd/             # Restore CLI files
+git checkout HEAD -- internal/        # Restore internal packages
+go mod tidy                           # Restore dependencies
+```
+
+---
+End of deletion manifest

@@ -1,0 +1,335 @@
+# CLI Removal - Files to Keep
+# Phase 26 - Complete retention manifest
+# Generated: 2025-10-25
+
+## Category 1: MCP Server (cmd/mcp-server/)
+## Reason: Core application - provides all functionality
+## Total: 38 files (production code + tests)
+
+### Production Code (17 files)
+cmd/mcp-server/main.go                         # MCP server entry point
+cmd/mcp-server/server.go                       # MCP server core
+cmd/mcp-server/tools.go                        # Tool definitions
+cmd/mcp-server/handlers_query.go               # Query tool handlers
+cmd/mcp-server/handlers_convenience.go         # Convenience tool handlers
+cmd/mcp-server/executor.go                     # Query executor
+cmd/mcp-server/query_executor.go               # Query execution logic
+cmd/mcp-server/response_adapter.go             # Response formatting
+cmd/mcp-server/output_mode.go                  # Output mode handling
+cmd/mcp-server/file_reference.go               # File reference mode
+cmd/mcp-server/temp_file_manager.go            # Temp file management
+cmd/mcp-server/filters.go                      # jq filter helpers
+cmd/mcp-server/logging.go                      # Structured logging
+cmd/mcp-server/tracing.go                      # Distributed tracing
+cmd/mcp-server/metrics.go                      # Metrics collection
+cmd/mcp-server/capabilities.go                 # Capability source loading
+# Note: MCP server is standalone executable (meta-cc-mcp)
+
+### Test Files (21 files)
+cmd/mcp-server/capabilities_cache_test.go
+cmd/mcp-server/capabilities_http_test.go
+cmd/mcp-server/capabilities_integration_test.go
+cmd/mcp-server/capabilities_test.go
+cmd/mcp-server/executor_benchmark_test.go
+cmd/mcp-server/executor_jq_filter_test.go
+cmd/mcp-server/executor_no_cli_test.go
+cmd/mcp-server/executor_phase25_cleanup_test.go
+cmd/mcp-server/executor_test.go
+cmd/mcp-server/file_reference_test.go
+cmd/mcp-server/filters_test.go
+cmd/mcp-server/handle_tools_call_test.go
+cmd/mcp-server/handlers_convenience_test.go
+cmd/mcp-server/handlers_query.go
+cmd/mcp-server/handlers_query_session_scope_test.go
+cmd/mcp-server/handlers_query_test.go
+cmd/mcp-server/integration_test.go
+cmd/mcp-server/output_mode_test.go
+cmd/mcp-server/query_executor_test.go
+cmd/mcp-server/response_adapter_test.go
+cmd/mcp-server/server_test.go
+cmd/mcp-server/temp_file_manager_test.go
+cmd/mcp-server/tools_schema_test.go
+cmd/mcp-server/tools_test.go
+
+## Category 2: Core Internal Packages (MCP Dependencies)
+## Reason: Required by MCP server (direct or transitive)
+## Total: 9 packages (~8,304 lines)
+
+### Layer 0: Direct MCP Dependencies (4 packages)
+
+#### internal/config
+## Reason: Configuration management (direct import by main.go)
+## Dependencies: None (stdlib only)
+internal/config/config.go                      # Config types and loading
+internal/config/config_test.go
+internal/config/validation.go                  # Config validation
+internal/config/validation_test.go
+# Used by: cmd/mcp-server/main.go (direct)
+
+#### internal/errors
+## Reason: Error handling utilities (direct import)
+## Dependencies: None (stdlib only)
+internal/errors/errors.go                      # Error types
+internal/errors/errors_test.go
+# Used by: internal/query, cmd/mcp-server/* (multiple)
+
+#### internal/locator
+## Reason: Session file location (direct import by main.go)
+## Dependencies: None (stdlib only)
+internal/locator/locator.go                    # Session locator
+internal/locator/locator_test.go
+internal/locator/strategies.go                 # Location strategies
+internal/locator/strategies_test.go
+# Used by: cmd/mcp-server/handlers_query.go (direct)
+
+#### internal/query
+## Reason: Core query engine (direct import, central to MCP)
+## Dependencies: parser, types, analyzer, stats, filter
+internal/query/query.go                        # Query engine
+internal/query/query_test.go
+internal/query/executor.go                     # Query executor
+internal/query/executor_test.go
+internal/query/builders.go                     # Query builders
+internal/query/builders_test.go
+internal/query/jq.go                           # jq integration
+internal/query/jq_test.go
+# Used by: cmd/mcp-server/handlers_query.go (direct)
+
+### Layer 1: Transitive MCP Dependencies (5 packages)
+
+#### internal/parser
+## Reason: JSONL parsing (used by internal/query)
+## Dependencies: types
+internal/parser/parser.go                      # JSONL parser
+internal/parser/parser_test.go
+internal/parser/event.go                       # Event parsing
+internal/parser/event_test.go
+internal/parser/session.go                     # Session parsing
+internal/parser/session_test.go
+# Used by: internal/query, internal/analyzer, internal/filter, internal/stats
+
+#### internal/types
+## Reason: Shared type definitions (used by analyzer, filter)
+## Dependencies: None (stdlib only)
+internal/types/sequence.go                     # Sequence types
+# Used by: internal/analyzer, internal/filter
+
+#### internal/analyzer
+## Reason: Session analysis (used by internal/query)
+## Dependencies: parser, types
+internal/analyzer/file_churn.go                # File churn analysis
+internal/analyzer/file_churn_test.go
+internal/analyzer/idle.go                      # Idle time detection
+internal/analyzer/idle_test.go
+internal/analyzer/sequences.go                 # Sequence detection
+internal/analyzer/sequences_test.go
+internal/analyzer/cache.go                     # Analysis caching
+internal/analyzer/cache_test.go
+# Used by: internal/query (for analysis queries)
+
+#### internal/stats
+## Reason: Statistics computation (used by internal/query)
+## Dependencies: parser
+internal/stats/aggregate.go                    # Aggregate stats
+internal/stats/aggregate_test.go
+internal/stats/timeseries.go                   # Time series stats
+internal/stats/timeseries_test.go
+internal/stats/files.go                        # File statistics
+internal/stats/files_test.go
+# Used by: internal/query (for stats queries)
+
+#### internal/filter
+## Reason: Event filtering (used by internal/query)
+## Dependencies: parser, types
+internal/filter/filter.go                      # Filter engine
+internal/filter/filter_test.go
+internal/filter/predicates.go                  # Filter predicates
+internal/filter/predicates_test.go
+internal/filter/time.go                        # Time filters
+internal/filter/time_test.go
+# Used by: internal/query (for filtered queries)
+
+## Category 3: Build and Configuration Files
+## Reason: Essential for project build and development
+
+### Build System
+Makefile                                       # Build targets (update: remove CLI targets)
+go.mod                                         # Go module definition
+go.sum                                         # Dependency checksums
+
+### Git Configuration
+.gitignore                                     # Git ignore rules
+.git/                                          # Git repository
+
+### CI/CD
+.github/workflows/ci.yml                       # GitHub Actions (update: remove CLI tests)
+.github/workflows/release.yml                  # Release workflow (update: MCP-only)
+
+### Scripts
+scripts/release.sh                             # Release script (update: MCP-only)
+scripts/install-hooks.sh                       # Git hooks installer
+scripts/bump-plugin-version.sh                 # Version bumper
+scripts/git-hooks/pre-commit                   # Pre-commit hook
+
+## Category 4: Documentation (Core)
+## Reason: Essential project documentation (may need updates)
+
+### Core Documentation
+README.md                                      # Project overview (UPDATE: remove CLI sections)
+CLAUDE.md                                      # Claude Code integration guide (UPDATE)
+LICENSE                                        # MIT license
+CHANGELOG.md                                   # Change history
+
+### Architecture
+docs/core/plan.md                              # Implementation plan
+docs/core/principles.md                        # Design principles
+docs/core/phase-26-cli-removal-plan.md         # This phase plan
+docs/architecture/                             # Architecture docs
+docs/architecture/proposals/                   # Architecture proposals
+docs/architecture/adr/                         # Architecture Decision Records
+
+### Guides
+docs/guides/mcp.md                             # MCP server guide (KEEP: primary integration)
+docs/guides/integration.md                     # Integration guide (UPDATE: remove CLI)
+docs/guides/plugin-development.md              # Plugin development
+docs/guides/capabilities.md                    # Capabilities guide
+docs/guides/troubleshooting.md                 # Troubleshooting
+docs/guides/release-process.md                 # Release process
+docs/guides/git-hooks.md                       # Git hooks guide
+docs/guides/unified-query-api.md               # Query API guide
+docs/guides/migration-to-unified-query.md      # Migration guide
+
+### Reference
+docs/reference/repository-structure.md         # Repo structure
+docs/reference/unified-meta-command.md         # /meta command
+docs/reference/jsonl.md                        # JSONL format
+docs/reference/features.md                     # Features overview
+
+### Tutorials
+docs/tutorials/examples.md                     # Examples (UPDATE: remove CLI examples)
+
+### Examples
+docs/examples/mcp-query-cookbook.md            # MCP query examples (KEEP)
+docs/examples/query-cookbook.md                # Query cookbook
+
+## Category 5: Plugin Files (.claude/)
+## Reason: Claude Code integration (slash commands, subagents, skills)
+
+### Plugin Entry Point
+.claude/plugin.json                            # Plugin metadata
+.claude-plugin/                                # Plugin configuration
+
+### Slash Commands
+.claude/commands/meta.md                       # /meta unified command
+
+### Subagents
+.claude/subagents/meta-errors.md               # Error analysis subagent
+.claude/subagents/meta-quality-scan.md         # Quality scan subagent
+.claude/subagents/meta-timeline.md             # Timeline subagent
+# ... (and other subagents)
+
+### Skills
+.claude/skills/                                # Reusable methodologies (15 skills)
+.claude/skills/testing-strategy.md
+.claude/skills/methodology-bootstrapping.md
+# ... (other skill files)
+
+## Category 6: Capability Sources
+## Reason: Content for /meta command and subagents
+
+capabilities/                                  # Capability source files
+capabilities/commands/                         # Command capabilities
+capabilities/commands/meta-errors.md
+capabilities/commands/meta-quality-scan.md
+# ... (other capability files)
+
+## Category 7: Supporting Files
+
+### Go Package Files
+pkg/pipeline/                                  # Pipeline utilities (if used by query)
+pkg/output/                                    # Output utilities (if used by query)
+# Note: Verify these are not CLI-only
+
+### Test Data
+testdata/                                      # Test fixtures for MCP tests
+
+## Summary Statistics
+
+### Files to Keep:
+- MCP server: 38 files
+- Internal packages: 9 packages (~50 files, ~8,304 lines)
+- Build/config: ~15 files
+- Documentation: ~30 files (with updates)
+- Plugin: ~20 files
+- Total: ~153 files
+
+### Key Retention Principles:
+1. All MCP server code (cmd/mcp-server/)
+2. All internal packages used by MCP (9 packages)
+3. All build and configuration files
+4. All plugin and capability files
+5. Core documentation (with CLI sections removed)
+
+## Verification Commands
+
+Verify retained code integrity:
+```bash
+# Build succeeds
+make build-mcp
+
+# Tests pass
+make test-all
+
+# Linting passes
+make lint
+
+# No import errors
+go build ./...
+
+# Dependencies clean
+go mod tidy
+```
+
+## Dependency Verification
+
+Verify each retained internal package:
+```bash
+# config
+go mod why github.com/yaleh/meta-cc/internal/config
+# → cmd/mcp-server/main.go
+
+# errors
+go mod why github.com/yaleh/meta-cc/internal/errors
+# → internal/query, cmd/mcp-server/*
+
+# locator
+go mod why github.com/yaleh/meta-cc/internal/locator
+# → cmd/mcp-server/handlers_query.go
+
+# query
+go mod why github.com/yaleh/meta-cc/internal/query
+# → cmd/mcp-server/handlers_query.go
+
+# parser (transitive via query)
+go mod why github.com/yaleh/meta-cc/internal/parser
+# → internal/query
+
+# types (transitive via analyzer)
+go mod why github.com/yaleh/meta-cc/internal/types
+# → internal/analyzer, internal/filter
+
+# analyzer (transitive via query)
+go mod why github.com/yaleh/meta-cc/internal/analyzer
+# → internal/query
+
+# stats (transitive via query)
+go mod why github.com/yaleh/meta-cc/internal/stats
+# → internal/query
+
+# filter (transitive via query)
+go mod why github.com/yaleh/meta-cc/internal/filter
+# → internal/query
+```
+
+---
+End of retention manifest
