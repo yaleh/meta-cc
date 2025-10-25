@@ -19,7 +19,7 @@ BINARY_NAME := meta-cc
 MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp metrics-cli
+.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp metrics-cli check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full
 
 # ==============================================================================
 # Build Quality Gates (BAIME Experiment - Iteration 1)
@@ -39,8 +39,165 @@ check-debug:
 check-go-quality:
 	@bash scripts/check-go-quality.sh
 
+# ==============================================================================
+# CI-Derived Local Checks (从CI迁移的本地检查)
+# ==============================================================================
+
+check-test-quality:
+	@echo "=== Test Quality Check ==="
+	@echo ""
+	@echo "[1/2] Checking for hardcoded project hashes in new tests..."
+	@# Only check for hardcoded strings starting with - or / (the problematic pattern)
+	@# Pattern matches: projectHash := "-fixed" or projectHash := "/fixed"
+	@PROBLEM_FILES=$$(grep -rn -E 'projectHash[[:space:]]*:=[[:space:]]*"[/-]' --include="*_test.go" cmd/ pkg/ 2>/dev/null | \
+		grep -v writeSessionFixture || true); \
+	if [ -n "$$PROBLEM_FILES" ]; then \
+		echo "⚠️  WARNING: Hardcoded project hash detected:"; \
+		echo "$$PROBLEM_FILES" | sed 's/^/  /'; \
+		echo "   Consider using writeSessionFixture() for better cross-platform compatibility."; \
+		echo "   (Non-blocking warning)"; \
+	else \
+		echo "✓ No problematic project hashes found"; \
+	fi
+	@echo ""
+	@echo "[2/2] Checking for os.UserHomeDir() in tests..."
+	@FILES=$$(grep -rl 'os\.UserHomeDir' --include="*_test.go" . 2>/dev/null || true); \
+	if [ -n "$$FILES" ]; then \
+		echo "⚠️  WARNING: os.UserHomeDir() found in tests:"; \
+		echo "$$FILES" | sed 's/^/  - /'; \
+		echo "   Consider using META_CC_PROJECTS_ROOT instead."; \
+	else \
+		echo "✓ No os.UserHomeDir() usage in tests"; \
+	fi
+	@echo ""
+	@echo "✅ Test quality check passed"
+
+check-formatting:
+	@echo "=== Code Formatting Check ==="
+	@echo ""
+	@echo "[1/3] Checking Go formatting..."
+	@UNFORMATTED=$$(gofmt -l . 2>/dev/null | grep -v vendor || true); \
+	if [ -n "$$UNFORMATTED" ]; then \
+		echo "❌ ERROR: Unformatted Go files:"; \
+		echo "$$UNFORMATTED" | sed 's/^/  - /'; \
+		echo "Run 'make fmt' to fix"; \
+		exit 1; \
+	else \
+		echo "✓ Go formatting is correct"; \
+	fi
+	@echo ""
+	@echo "✅ Formatting check passed"
+
+fix-formatting:
+	@echo "Auto-fixing formatting issues..."
+	@gofmt -w .
+	@echo "✓ Formatting fixed"
+
+check-plugin-sync:
+	@echo "=== Plugin File Sync Verification ==="
+	@echo ""
+	@echo "[1/3] Running sync script..."
+	@bash scripts/sync-plugin-files.sh
+	@echo ""
+	@echo "[2/3] Verifying dist/ structure..."
+	@if [ ! -d "dist/commands" ] || [ ! -d "dist/agents" ]; then \
+		echo "❌ ERROR: Plugin file sync failed - dist/ directory not created"; \
+		exit 1; \
+	fi
+	@echo "✓ dist/ structure verified"
+	@echo ""
+	@echo "[3/3] Checking file count..."
+	@DIST_CMD_COUNT=$$(find dist/commands -name "*.md" 2>/dev/null | wc -l); \
+	EXPECTED_COUNT=1; \
+	if [ "$$DIST_CMD_COUNT" -ne "$$EXPECTED_COUNT" ]; then \
+		echo "❌ ERROR: Command file count mismatch: expected $$EXPECTED_COUNT, got $$DIST_CMD_COUNT"; \
+		exit 1; \
+	fi
+	@echo "✓ File count verified: $$DIST_CMD_COUNT command file(s)"
+	@echo ""
+	@echo "✅ Plugin file sync verification passed"
+
+check-mod-tidy:
+	@echo "=== Go Module Tidy Check ==="
+	@echo ""
+	@echo "Checking go.mod and go.sum are tidy..."
+	@cp go.mod go.mod.bak 2>/dev/null || true
+	@cp go.sum go.sum.bak 2>/dev/null || true
+	@go mod tidy
+	@if ! diff -q go.mod go.mod.bak >/dev/null 2>&1 || ! diff -q go.sum go.sum.bak >/dev/null 2>&1; then \
+		echo "❌ ERROR: go.mod or go.sum not tidy"; \
+		echo ""; \
+		echo "Run 'go mod tidy' and commit changes"; \
+		rm -f go.mod.bak go.sum.bak; \
+		exit 1; \
+	fi
+	@rm -f go.mod.bak go.sum.bak
+	@echo "✓ go.mod and go.sum are tidy"
+	@echo ""
+	@echo "✅ Module tidy check passed"
+
+test-bats:
+	@echo "=== Bats Pipeline Tests ==="
+	@echo ""
+	@if ! command -v bats >/dev/null 2>&1; then \
+		echo "⚠️  WARNING: bats not installed"; \
+		echo ""; \
+		echo "Install with:"; \
+		echo "  Ubuntu/Debian: sudo apt-get install bats"; \
+		echo "  macOS: brew install bats-core"; \
+		echo ""; \
+		echo "Skipping Bats tests..."; \
+		exit 0; \
+	fi
+	@echo "Running Bats tests..."
+	@bats tests/scripts/*.bats
+	@echo ""
+	@echo "✅ Bats tests passed"
+
+check-release-ready:
+	@echo "=== Release Readiness Check ==="
+	@echo ""
+	@echo "[1/2] Checking git tag exists..."
+	@LATEST_TAG=$$(git describe --tags --abbrev=0 2>/dev/null || echo "none"); \
+	if [ "$$LATEST_TAG" = "none" ]; then \
+		echo "❌ ERROR: No git tags found"; \
+		echo "Run 'git tag v0.1.0' or similar first"; \
+		exit 1; \
+	fi; \
+	echo "✓ Latest tag: $$LATEST_TAG"
+	@echo ""
+	@echo "[2/2] Verifying marketplace.json version matches tag..."
+	@LATEST_TAG=$$(git describe --tags --abbrev=0); \
+	VERSION_NUM=$${LATEST_TAG#v}; \
+	MARKETPLACE_VERSION=$$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json); \
+	if [ "$$MARKETPLACE_VERSION" != "$$VERSION_NUM" ]; then \
+		echo "❌ ERROR: Version mismatch!"; \
+		echo "  Git tag: $$LATEST_TAG ($$VERSION_NUM)"; \
+		echo "  marketplace.json: $$MARKETPLACE_VERSION"; \
+		echo ""; \
+		echo "Run './scripts/release.sh $$LATEST_TAG' to fix"; \
+		exit 1; \
+	fi; \
+	echo "✓ marketplace.json version verified: $$MARKETPLACE_VERSION"
+	@echo ""
+	@echo "✅ Release ready"
+
+test-all-local: test-all test-bats
+	@echo "✅ All tests passed (including Bats)"
+
+pre-commit-full: check-workspace-full check-plugin-sync check-test-quality test lint
+	@echo ""
+	@echo "✅ Full pre-commit validation passed"
+	@echo ""
+	@echo "All checks complete:"
+	@echo "  ✓ Workspace validation"
+	@echo "  ✓ Plugin file sync"
+	@echo "  ✓ Test quality"
+	@echo "  ✓ Tests passed"
+	@echo "  ✓ Lint checks passed"
+
 # P0 + P1 + P2: Complete workspace validation
-check-workspace-full: check-workspace check-scripts check-debug check-go-quality
+check-workspace-full: check-workspace check-scripts check-debug check-go-quality check-test-quality check-formatting
 	@echo "✅ Full workspace validation passed"
 
 check-temp-files:

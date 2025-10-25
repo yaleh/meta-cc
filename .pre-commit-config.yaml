@@ -97,6 +97,15 @@ repos:
         files: '_test\.go$'
         verbose: true
 
+      # Error handling quality check (from CI - full check: make lint-error-handling)
+      - id: check-error-handling
+        name: Check error handling quality
+        description: Verify proper sentinel error usage and error wrapping
+        entry: make lint-error-handling
+        language: system
+        pass_filenames: false
+        files: \.go$
+
   # Check for merge conflicts
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
