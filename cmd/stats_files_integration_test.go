@@ -2,23 +2,14 @@ package cmd
 
 import (
 	"bytes"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestStatsFilesCommand_Integration(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-stats-files-integration"
 	sessionID := "test-session-stats-files-integration"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-stats-files-integration"
 
 	// Create fixture with file operations
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/test.txt"}}]}}
@@ -30,10 +21,7 @@ func TestStatsFilesCommand_Integration(t *testing.T) {
 {"type":"assistant","timestamp":"2025-10-02T10:06:00.000Z","uuid":"uuid-7","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-4","name":"Write","input":{"file_path":"/test2.txt","content":"data"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:07:00.000Z","uuid":"uuid-8","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-4","content":"written"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -60,15 +48,8 @@ func TestStatsFilesCommand_Integration(t *testing.T) {
 
 func TestStatsFilesCommand_SortByEditCount(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-stats-files-sort"
 	sessionID := "test-session-stats-files-sort"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-stats-files-sort"
 
 	// test.txt: 2 edits
 	// test2.txt: 1 edit
@@ -79,10 +60,7 @@ func TestStatsFilesCommand_SortByEditCount(t *testing.T) {
 {"type":"assistant","timestamp":"2025-10-02T10:04:00.000Z","uuid":"uuid-5","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-3","name":"Edit","input":{"file_path":"/test2.txt","old_string":"x","new_string":"y"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:05:00.000Z","uuid":"uuid-6","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-3","content":"edited"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	// Reset flags
 	if err := statsFilesCmd.Flags().Set("sort-by", "total_ops"); err != nil {
@@ -109,15 +87,8 @@ func TestStatsFilesCommand_SortByEditCount(t *testing.T) {
 
 func TestStatsFilesCommand_TopN(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-stats-files-top"
 	sessionID := "test-session-stats-files-top"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-stats-files-top"
 
 	// 3 different files
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/test1.txt"}}]}}
@@ -127,10 +98,7 @@ func TestStatsFilesCommand_TopN(t *testing.T) {
 {"type":"assistant","timestamp":"2025-10-02T10:04:00.000Z","uuid":"uuid-5","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-3","name":"Read","input":{"file_path":"/test3.txt"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:05:00.000Z","uuid":"uuid-6","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-3","content":"content"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	// Reset flags
 	if err := statsFilesCmd.Flags().Set("top", "0"); err != nil {

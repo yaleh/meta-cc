@@ -2,23 +2,14 @@ package cmd
 
 import (
 	"bytes"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestQueryProjectStateCommand_Integration(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-query-project-state-integration"
 	sessionID := "test-session-query-project-state-integration"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-query-project-state-integration"
 
 	// Create fixture with various tool calls
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/test.txt"}}]}}
@@ -28,10 +19,7 @@ func TestQueryProjectStateCommand_Integration(t *testing.T) {
 {"type":"assistant","timestamp":"2025-10-02T10:04:00.000Z","uuid":"uuid-5","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-3","name":"Bash","input":{"command":"ls"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:05:00.000Z","uuid":"uuid-6","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-3","content":"output"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -53,22 +41,12 @@ func TestQueryProjectStateCommand_Integration(t *testing.T) {
 
 func TestQueryProjectStateCommand_EmptySession(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-query-project-state-empty"
 	sessionID := "test-session-query-project-state-empty"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-query-project-state-empty"
 
 	// Create empty fixture
 	fixtureContent := ""
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)

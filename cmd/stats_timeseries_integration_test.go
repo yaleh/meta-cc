@@ -2,23 +2,14 @@ package cmd
 
 import (
 	"bytes"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestStatsTimeSeriesCommand_Integration(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-stats-timeseries-integration"
 	sessionID := "test-session-stats-timeseries-integration"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-stats-timeseries-integration"
 
 	// Create fixture with timestamps across multiple hours
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/test.txt"}}]}}
@@ -28,10 +19,7 @@ func TestStatsTimeSeriesCommand_Integration(t *testing.T) {
 {"type":"assistant","timestamp":"2025-10-02T11:30:00.000Z","uuid":"uuid-5","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-3","name":"Read","input":{"file_path":"/test2.txt"}}]}}
 {"type":"user","timestamp":"2025-10-02T11:31:00.000Z","uuid":"uuid-6","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-3","content":"content"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -54,15 +42,8 @@ func TestStatsTimeSeriesCommand_Integration(t *testing.T) {
 
 func TestStatsTimeSeriesCommand_ErrorRate(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-stats-timeseries-error"
 	sessionID := "test-session-stats-timeseries-error"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-stats-timeseries-error"
 
 	// Create fixture with errors
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/test.txt"}}]}}
@@ -70,10 +51,7 @@ func TestStatsTimeSeriesCommand_ErrorRate(t *testing.T) {
 {"type":"assistant","timestamp":"2025-10-02T10:30:00.000Z","uuid":"uuid-3","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Read","input":{"file_path":"/missing.txt"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:31:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","is_error":true,"content":"not found"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	// Reset flags
 	if err := statsTimeSeriesCmd.Flags().Set("metric", "tool-calls"); err != nil {
@@ -100,15 +78,8 @@ func TestStatsTimeSeriesCommand_ErrorRate(t *testing.T) {
 
 func TestStatsTimeSeriesCommand_DayInterval(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-stats-timeseries-day"
 	sessionID := "test-session-stats-timeseries-day"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-stats-timeseries-day"
 
 	// Create fixture with timestamps across multiple days
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Read","input":{"file_path":"/test.txt"}}]}}
@@ -116,10 +87,7 @@ func TestStatsTimeSeriesCommand_DayInterval(t *testing.T) {
 {"type":"assistant","timestamp":"2025-10-03T10:00:00.000Z","uuid":"uuid-3","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Edit","input":{"file_path":"/test.txt"}}]}}
 {"type":"user","timestamp":"2025-10-03T10:01:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","content":"edited"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	// Reset flags
 	if err := statsTimeSeriesCmd.Flags().Set("interval", "hour"); err != nil {

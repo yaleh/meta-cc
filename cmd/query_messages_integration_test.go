@@ -2,23 +2,14 @@ package cmd
 
 import (
 	"bytes"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestQueryUserMessagesCommand_Integration(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-query-user-messages-integration"
 	sessionID := "test-session-query-user-messages-integration"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-query-user-messages-integration"
 
 	// Create fixture with user messages
 	fixtureContent := `{"type":"user","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"fix the bug in parser"}]}}
@@ -26,10 +17,7 @@ func TestQueryUserMessagesCommand_Integration(t *testing.T) {
 {"type":"user","timestamp":"2025-10-02T10:02:00.000Z","uuid":"uuid-3","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"add error handling"}]}}
 {"type":"assistant","timestamp":"2025-10-02T10:03:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"assistant","content":[{"type":"text","text":"done"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	// Reset flags
 	if err := queryUserMessagesCmd.Flags().Set("pattern", ""); err != nil {
@@ -56,25 +44,15 @@ func TestQueryUserMessagesCommand_Integration(t *testing.T) {
 
 func TestQueryUserMessagesCommand_PatternFilter(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-query-user-messages-pattern"
 	sessionID := "test-session-query-user-messages-pattern"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-query-user-messages-pattern"
 
 	fixtureContent := `{"type":"user","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"debug this error"}]}}
 {"type":"assistant","timestamp":"2025-10-02T10:01:00.000Z","uuid":"uuid-2","sessionId":"test","message":{"role":"assistant","content":[{"type":"text","text":"ok"}]}}
 {"type":"user","timestamp":"2025-10-02T10:02:00.000Z","uuid":"uuid-3","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"hello world"}]}}
 {"type":"assistant","timestamp":"2025-10-02T10:03:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"assistant","content":[{"type":"text","text":"hi"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	// Reset flags
 	if err := queryUserMessagesCmd.Flags().Set("pattern", ""); err != nil {
@@ -104,23 +82,13 @@ func TestQueryUserMessagesCommand_PatternFilter(t *testing.T) {
 
 func TestQueryUserMessagesCommand_NoMatches(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-query-user-messages-no-matches"
 	sessionID := "test-session-query-user-messages-no-matches"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-query-user-messages-no-matches"
 
 	fixtureContent := `{"type":"user","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"hello world"}]}}
-{"type":"assistant","timestamp":"2025-10-02T10:01:00.000Z","uuid":"uuid-2","sessionId":"test","message":{"role":"assistant","content":[{"type":"text","text":"hi"}]}}
+{"type":"assistant","timestamp":"2025-10-02T10:01:00.000Z","uuid":"uuid-2","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"hi"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	// Reset flags
 	if err := queryUserMessagesCmd.Flags().Set("pattern", ""); err != nil {

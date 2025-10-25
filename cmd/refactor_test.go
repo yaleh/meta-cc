@@ -2,23 +2,14 @@ package cmd
 
 import (
 	"bytes"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 // setupTestSessionForRefactor creates a test session with sample data
-func setupTestSessionForRefactor(t *testing.T) (cleanup func()) {
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-refactor"
+func setupTestSessionForRefactor(t *testing.T) {
 	sessionID := "test-session-refactor"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-refactor"
 
 	// Sample session with user message, tool use, and tool result
 	fixtureContent := `{"type":"user","timestamp":"2025-10-02T06:07:13.673Z","uuid":"uuid-1","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"Hello, please run ls"}]}}
@@ -26,19 +17,12 @@ func setupTestSessionForRefactor(t *testing.T) (cleanup func()) {
 {"type":"user","timestamp":"2025-10-02T06:07:15.673Z","uuid":"uuid-3","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"file1.txt\nfile2.txt"}]}}
 {"type":"user","timestamp":"2025-10-02T06:07:16.673Z","uuid":"uuid-4","sessionId":"test","message":{"role":"user","content":[{"type":"text","text":"Thanks"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-
-	return func() {
-		os.RemoveAll(sessionDir)
-	}
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 }
 
 // TestRefactored_QueryTools verifies that query tools command works correctly after refactoring
 func TestRefactored_QueryTools(t *testing.T) {
-	cleanup := setupTestSessionForRefactor(t)
-	defer cleanup()
+	setupTestSessionForRefactor(t)
 
 	sessionID := "test-session-refactor"
 
@@ -86,8 +70,7 @@ func TestRefactored_QueryTools(t *testing.T) {
 
 // TestRefactored_ParseStats verifies that parse stats command works correctly after refactoring
 func TestRefactored_ParseStats(t *testing.T) {
-	cleanup := setupTestSessionForRefactor(t)
-	defer cleanup()
+	setupTestSessionForRefactor(t)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -111,8 +94,7 @@ func TestRefactored_ParseStats(t *testing.T) {
 
 // TestRefactored_QueryMessages verifies that query user-messages command works correctly
 func TestRefactored_QueryMessages(t *testing.T) {
-	cleanup := setupTestSessionForRefactor(t)
-	defer cleanup()
+	setupTestSessionForRefactor(t)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -133,8 +115,7 @@ func TestRefactored_QueryMessages(t *testing.T) {
 
 // TestRefactored_ParseExtract verifies that parse extract command works correctly
 func TestRefactored_ParseExtract(t *testing.T) {
-	cleanup := setupTestSessionForRefactor(t)
-	defer cleanup()
+	setupTestSessionForRefactor(t)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -154,8 +135,7 @@ func TestRefactored_ParseExtract(t *testing.T) {
 func TestPipelineUsage(t *testing.T) {
 	// This test verifies the refactoring by checking that pipeline is used consistently
 	// All commands should successfully execute using the pipeline abstraction
-	cleanup := setupTestSessionForRefactor(t)
-	defer cleanup()
+	setupTestSessionForRefactor(t)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -171,8 +151,7 @@ func TestPipelineUsage(t *testing.T) {
 // TestDeterministicOutput verifies that commands produce deterministic output
 // This test confirms the Stage 14.2 requirement that outputs are stable and sorted
 func TestDeterministicOutput(t *testing.T) {
-	cleanup := setupTestSessionForRefactor(t)
-	defer cleanup()
+	setupTestSessionForRefactor(t)
 
 	// Run parse stats twice - should produce identical output
 	var output1, output2 string

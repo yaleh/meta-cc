@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -34,25 +32,15 @@ func TestQueryToolsCommand_Help(t *testing.T) {
 
 func TestQueryToolsCommand_NoFilters(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-query-tools"
 	sessionID := "test-session-query-tools"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-query-tools"
 
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Grep","input":{"pattern":"test"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:01:00.000Z","uuid":"uuid-2","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"match found"}]}}
 {"type":"assistant","timestamp":"2025-10-02T10:02:00.000Z","uuid":"uuid-3","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Read","input":{"file_path":"/test.txt"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:03:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","is_error":true,"content":"file not found"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	// Reset global variables from previous tests
 	queryToolsStatus = ""
@@ -88,25 +76,15 @@ func TestQueryToolsCommand_NoFilters(t *testing.T) {
 
 func TestQueryToolsCommand_FilterByStatus(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-query-tools-status"
 	sessionID := "test-session-query-tools-status"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-query-tools-status"
 
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Grep","input":{"pattern":"test"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:01:00.000Z","uuid":"uuid-2","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"match found"}]}}
 {"type":"assistant","timestamp":"2025-10-02T10:02:00.000Z","uuid":"uuid-3","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Read","input":{"file_path":"/test.txt"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:03:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","is_error":true,"content":"file not found"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -128,25 +106,15 @@ func TestQueryToolsCommand_FilterByStatus(t *testing.T) {
 
 func TestQueryToolsCommand_FilterByTool(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-query-tools-tool"
 	sessionID := "test-session-query-tools-tool"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-query-tools-tool"
 
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Grep","input":{"pattern":"test"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:01:00.000Z","uuid":"uuid-2","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"match found"}]}}
 {"type":"assistant","timestamp":"2025-10-02T10:02:00.000Z","uuid":"uuid-3","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Read","input":{"file_path":"/test.txt"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:03:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","content":"file content"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	// Reset flags from previous tests
 	if err := queryToolsCmd.Flags().Set("status", ""); err != nil {
@@ -176,15 +144,8 @@ func TestQueryToolsCommand_FilterByTool(t *testing.T) {
 
 func TestQueryToolsCommand_Limit(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-query-tools-limit"
 	sessionID := "test-session-query-tools-limit"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-query-tools-limit"
 
 	// Create multiple tool calls
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Grep","input":{"pattern":"test"}}]}}
@@ -194,10 +155,7 @@ func TestQueryToolsCommand_Limit(t *testing.T) {
 {"type":"assistant","timestamp":"2025-10-02T10:04:00.000Z","uuid":"uuid-5","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-3","name":"Edit","input":{"file_path":"/test.txt"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:05:00.000Z","uuid":"uuid-6","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-3","content":"edited"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	// Reset flags from previous tests
 	if err := queryToolsCmd.Flags().Set("status", ""); err != nil {
@@ -231,25 +189,15 @@ func TestQueryToolsCommand_Limit(t *testing.T) {
 
 func TestQueryToolsCommand_CombinedFilters(t *testing.T) {
 	// Prepare test environment
-	homeDir, _ := os.UserHomeDir()
-	projectHash := "-home-yale-work-test-query-tools-combined"
 	sessionID := "test-session-query-tools-combined"
-
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	projectPath := "/home/yale/work/test-query-tools-combined"
 
 	fixtureContent := `{"type":"assistant","timestamp":"2025-10-02T10:00:00.000Z","uuid":"uuid-1","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-1","name":"Grep","input":{"pattern":"test"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:01:00.000Z","uuid":"uuid-2","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-1","content":"match found"}]}}
 {"type":"assistant","timestamp":"2025-10-02T10:02:00.000Z","uuid":"uuid-3","sessionId":"test","message":{"role":"assistant","content":[{"type":"tool_use","id":"tool-2","name":"Read","input":{"file_path":"/test.txt"}}]}}
 {"type":"user","timestamp":"2025-10-02T10:03:00.000Z","uuid":"uuid-4","sessionId":"test","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tool-2","is_error":true,"content":"file not found"}]}}
 `
-	if err := os.WriteFile(sessionFile, []byte(fixtureContent), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
-	}
-	defer os.RemoveAll(sessionDir)
+	writeSessionFixture(t, projectPath, sessionID, fixtureContent)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
