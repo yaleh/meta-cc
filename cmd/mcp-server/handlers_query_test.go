@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -565,4 +566,139 @@ func TestQueryWithTransform(t *testing.T) {
 			t.Error("unexpected content field in transformed result (should be filtered out)")
 		}
 	}
+}
+
+// TestGetQueryBaseDir tests that getQueryBaseDir correctly locates session directories
+func TestGetQueryBaseDir(t *testing.T) {
+	// Save and restore original CLAUDE_PROJECT_DIR
+	originalDir := os.Getenv("CLAUDE_PROJECT_DIR")
+	defer func() {
+		if originalDir != "" {
+			os.Setenv("CLAUDE_PROJECT_DIR", originalDir)
+		} else {
+			os.Unsetenv("CLAUDE_PROJECT_DIR")
+		}
+	}()
+
+	tests := []struct {
+		name              string
+		scope             string
+		claudeProjectDir  string
+		expectedBehavior  string // "use_locator" or "direct_path"
+		shouldContainHash bool   // For project scope, should return path with hash
+	}{
+		{
+			name:             "session scope with CLAUDE_PROJECT_DIR",
+			scope:            "session",
+			claudeProjectDir: "/home/user/.claude/projects/abc123def456",
+			expectedBehavior: "direct_path",
+		},
+		{
+			name:              "project scope with CLAUDE_PROJECT_DIR",
+			scope:             "project",
+			claudeProjectDir:  "/home/user/.claude/projects/abc123def456",
+			expectedBehavior:  "use_locator",
+			shouldContainHash: true,
+		},
+		{
+			name:              "project scope without CLAUDE_PROJECT_DIR",
+			scope:             "project",
+			claudeProjectDir:  "",
+			expectedBehavior:  "use_locator",
+			shouldContainHash: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup environment
+			if tt.claudeProjectDir != "" {
+				os.Setenv("CLAUDE_PROJECT_DIR", tt.claudeProjectDir)
+			} else {
+				os.Unsetenv("CLAUDE_PROJECT_DIR")
+			}
+
+			baseDir, err := getQueryBaseDir(tt.scope)
+
+			// For project scope, we expect "no sessions found" error in test environment
+			// The important part is that it's using SessionLocator (not returning cwd)
+			if tt.scope == "project" && tt.shouldContainHash {
+				// We expect an error because no sessions exist
+				if err == nil {
+					t.Fatalf("expected error for project scope (no sessions), got baseDir: %s", baseDir)
+				}
+
+				// The error should be about sessions not found
+				errMsg := err.Error()
+				if errMsg == "" || !strings.Contains(errMsg, "no sessions found") {
+					t.Errorf("expected 'no sessions found' error, got: %v", err)
+				}
+
+				t.Logf("Got expected error (SessionLocator used): %v", err)
+				return // Test passed - SessionLocator was used
+			}
+
+			// For session scope, should not error
+			if err != nil {
+				t.Fatalf("getQueryBaseDir() error = %v", err)
+			}
+
+			// For session scope with CLAUDE_PROJECT_DIR, should return that directory
+			if tt.scope == "session" && tt.claudeProjectDir != "" {
+				if baseDir != tt.claudeProjectDir {
+					t.Errorf("session scope: expected %s, got %s", tt.claudeProjectDir, baseDir)
+				}
+			}
+		})
+	}
+}
+
+// TestGetQueryBaseDirIntegration tests getQueryBaseDir with actual SessionLocator
+func TestGetQueryBaseDirIntegration(t *testing.T) {
+	// This test verifies that project scope uses SessionLocator.AllSessionsFromProject
+	// Setup: Create a fake .claude/projects structure
+	homeDir := t.TempDir()
+	_ = filepath.Join(homeDir, ".claude", "projects") // projectsDir for future use
+
+	// Save original HOME
+	originalHome := os.Getenv("HOME")
+	defer os.Setenv("HOME", originalHome)
+	os.Setenv("HOME", homeDir)
+
+	// Create project directory structure
+	projectPath := t.TempDir()
+
+	// Calculate project hash (same logic as locator)
+	// Note: This requires access to internal/locator logic
+	// For now, we'll test the behavior indirectly
+
+	t.Run("project scope should use SessionLocator", func(t *testing.T) {
+		// Unset CLAUDE_PROJECT_DIR to force discovery
+		os.Unsetenv("CLAUDE_PROJECT_DIR")
+
+		// Change to project directory
+		originalWd, _ := os.Getwd()
+		defer os.Chdir(originalWd)
+		os.Chdir(projectPath)
+
+		baseDir, err := getQueryBaseDir("project")
+
+		// We expect this to fail with "no sessions found" because we haven't
+		// created the session directory structure. But it should NOT fail with
+		// "no JSONL files found in <project_root>"
+		if err != nil {
+			// The error should be about sessions not found, not about JSONL files
+			errMsg := err.Error()
+			if errMsg == "no JSONL files found in "+projectPath {
+				t.Errorf("getQueryBaseDir returned project root path error, should use SessionLocator: %v", err)
+			}
+			// Expected error: no sessions found (this is OK for this test)
+			t.Logf("Expected error (no sessions setup): %v", err)
+		}
+
+		// If no error, baseDir should NOT be the project root
+		if err == nil && baseDir == projectPath {
+			t.Errorf("project scope returned project root (%s), should use SessionLocator", projectPath)
+		}
+	})
 }

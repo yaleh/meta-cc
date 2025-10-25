@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/yaleh/meta-cc/internal/config"
+	"github.com/yaleh/meta-cc/internal/locator"
 )
 
 // handleQuery implements the Layer 2 query tool with jq_filter and jq_transform
@@ -107,16 +108,16 @@ func (e *ToolExecutor) handleQueryRaw(cfg *config.Config, scope string, args map
 }
 
 // getQueryBaseDir returns the base directory for the given scope
+// For session scope: returns CLAUDE_PROJECT_DIR if set, otherwise cwd
+// For project scope: uses SessionLocator to find ~/.claude/projects/{hash}/
 func getQueryBaseDir(scope string) (string, error) {
-	// Use current working directory as project path (same as buildPipelineOptions)
+	// Get current working directory
 	cwd, err := os.Getwd()
 	if err != nil {
 		cwd = "."
 	}
 
-	// Get base directory from environment
-	// For session scope, we need to use CLAUDE_PROJECT_DIR
-	// For project scope, we use the parent directory
+	// Session scope: return the session directory directly
 	if scope == "session" {
 		claudeProjectDir := os.Getenv("CLAUDE_PROJECT_DIR")
 		if claudeProjectDir != "" {
@@ -126,14 +127,27 @@ func getQueryBaseDir(scope string) (string, error) {
 		return cwd, nil
 	}
 
-	// Project scope: use parent directory of session dir
-	claudeProjectDir := os.Getenv("CLAUDE_PROJECT_DIR")
-	if claudeProjectDir != "" {
-		return filepath.Dir(claudeProjectDir), nil
+	// Project scope: use SessionLocator to find all session files
+	// This matches the behavior of buildPipelineOptions + SessionPipeline.Load
+	loc := locator.NewSessionLocator()
+
+	// Determine project path (same logic as buildPipelineOptions)
+	projectPath := cwd
+
+	// AllSessionsFromProject returns the list of session files
+	// We need to return the directory containing those files
+	sessionFiles, err := loc.AllSessionsFromProject(projectPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to locate project sessions: %w", err)
 	}
 
-	// Fall back to current directory if env not set
-	return cwd, nil
+	if len(sessionFiles) == 0 {
+		return "", fmt.Errorf("no sessions found for project: %s", projectPath)
+	}
+
+	// All session files should be in the same directory
+	// Return the directory of the first session file
+	return filepath.Dir(sessionFiles[0]), nil
 }
 
 // getJSONLFiles returns all .jsonl files in a directory (non-recursive)
