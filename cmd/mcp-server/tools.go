@@ -109,28 +109,10 @@ func buildTool(name, description string, properties map[string]Property, require
 
 func getToolDefinitions() []Tool {
 	return []Tool{
-		buildTool("query", "Unified query interface for session data. Default scope: project.", map[string]Property{
-			// Tier 1: Resource Selection (required)
-			"resource": {
-				Type:        "string",
-				Description: "Resource type: 'entries' (raw JSONL), 'messages' (user/assistant), 'tools' (tool executions). Default: 'entries'",
-			},
-			// Tier 3: Filtering
-			"filter": {
-				Type:        "object",
-				Description: "Filter conditions: tool_name, tool_status, role, content_match, session_id, git_branch, time_range, etc.",
-			},
-			// Tier 4: Transformation
-			"transform": {
-				Type:        "object",
-				Description: "Transform operations: extract (JSONPath), group_by (field name), join (type + on)",
-			},
-			// Tier 5: Aggregation
-			"aggregate": {
-				Type:        "object",
-				Description: "Aggregation: function ('count'|'sum'|'avg'|'min'|'max'|'group'), field (optional)",
-			},
-		}),
+		// Phase 25: query tool uses jq-based interface (jq_filter, jq_transform)
+		// All standard parameters (scope, jq_filter, stats_only, etc.) are provided by StandardToolParameters()
+		// No tool-specific parameters needed beyond the standard ones
+		buildTool("query", "Execute jq query on session data. Default scope: project.", map[string]Property{}),
 		buildTool("query_raw", "Execute raw jq expression. For power users. Default scope: project.", map[string]Property{
 			"jq_expression": {
 				Type:        "string",
