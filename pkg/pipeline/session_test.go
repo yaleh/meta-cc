@@ -22,8 +22,14 @@ func createTestSession(t *testing.T, sessionID, projectPath string) string {
 		t.Cleanup(func() { os.RemoveAll(projectsRoot) })
 	}
 	// Generate project hash using same logic as pathToHash in locator
+	// First resolve symlinks for consistent hashing on macOS (/var -> /private/var)
+	resolvedPath, err := filepath.EvalSymlinks(projectPath)
+	if err != nil {
+		// If resolution fails (e.g., path doesn't exist), use original path
+		resolvedPath = projectPath
+	}
 	// Replace both / and \ with -, then replace : (Windows drive letters)
-	projectHash := strings.ReplaceAll(projectPath, "\\", "-")
+	projectHash := strings.ReplaceAll(resolvedPath, "\\", "-")
 	projectHash = strings.ReplaceAll(projectHash, "/", "-")
 	projectHash = strings.ReplaceAll(projectHash, ":", "-")
 	sessionDir := filepath.Join(projectsRoot, projectHash)
