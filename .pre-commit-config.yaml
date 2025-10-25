@@ -71,6 +71,32 @@ repos:
         always_run: false
         files: \.go$
 
+      # Plugin version management
+      - id: plugin-version-bump
+        name: Auto-bump plugin version
+        description: Auto-increment plugin version when .claude/ files change
+        entry: .githooks/pre-commit
+        language: script
+        files: '^\.claude/(commands|agents)/.*\.md$'
+        pass_filenames: false
+
+      # Detect hardcoded project hash (prevents 30% of CI errors!)
+      - id: detect-hardcoded-hash
+        name: Detect hardcoded project hash
+        description: Prevent hardcoded project hashes in tests
+        entry: "bash -c 'if git diff --cached | grep -qE \"projectHash\\s*:=\\s*\\\"[/-]\"; then echo \"ERROR: Hardcoded project hash detected! Use writeSessionFixture() instead.\"; exit 1; fi'"
+        language: system
+        files: '_test\.go$'
+
+      # Detect os.UserHomeDir() usage in tests
+      - id: detect-userhomedir
+        name: Detect os.UserHomeDir in tests
+        description: Warn about os.UserHomeDir usage in tests
+        entry: "bash -c 'if git diff --cached --name-only | grep \"_test\\.go$\" | xargs grep -l \"os\\.UserHomeDir()\" 2>/dev/null; then echo \"Warning: os.UserHomeDir() in tests. Consider using META_CC_PROJECTS_ROOT.\"; exit 0; fi'"
+        language: system
+        files: '_test\.go$'
+        verbose: true
+
   # Check for merge conflicts
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
