@@ -256,34 +256,6 @@ func TestAdaptOutputModeOverride(t *testing.T) {
 	}
 }
 
-// TestBackwardCompatibility tests that existing clients are unaffected
-func TestBackwardCompatibility(t *testing.T) {
-	data := []interface{}{
-		map[string]interface{}{"tool": "Read", "status": "success"},
-	}
-
-	// Legacy mode (no hybrid output)
-	params := map[string]interface{}{
-		"output_mode": "legacy",
-	}
-
-	cfg, _ := config.Load()
-	response, err := adaptResponse(cfg, data, params, "query_tools")
-	if err != nil {
-		t.Fatalf("adaptResponse failed: %v", err)
-	}
-
-	// Should return raw data array for legacy mode
-	respArray, ok := response.([]interface{})
-	if !ok {
-		t.Errorf("expected raw array for legacy mode, got %T", response)
-	}
-
-	if len(respArray) != 1 {
-		t.Errorf("expected 1 item in legacy response, got %d", len(respArray))
-	}
-}
-
 // TestBuildInlineResponse tests inline response formatting
 func TestBuildInlineResponse(t *testing.T) {
 	data := []interface{}{

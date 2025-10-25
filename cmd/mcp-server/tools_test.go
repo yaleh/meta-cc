@@ -300,7 +300,6 @@ func TestLimitParameterBehavior(t *testing.T) {
 	limitTools := []string{
 		"query_tools",
 		"query_user_messages",
-		"query_successful_prompts",
 	}
 
 	for _, toolName := range limitTools {
@@ -342,154 +341,6 @@ func TestLimitParameterBehavior(t *testing.T) {
 	}
 }
 
-// TestQueryToolSequencesToolDefinition verifies the query_tool_sequences tool is correctly defined
-func TestQueryToolSequencesToolDefinition(t *testing.T) {
-	tools := getToolDefinitions()
-
-	var tool *Tool
-	for i := range tools {
-		if tools[i].Name == "query_tool_sequences" {
-			tool = &tools[i]
-			break
-		}
-	}
-
-	if tool == nil {
-		t.Fatal("query_tool_sequences tool not found")
-	}
-
-	// Verify description
-	if !strings.Contains(tool.Description, "tool sequences") {
-		t.Errorf("description should mention 'tool sequences', got: %s", tool.Description)
-	}
-
-	if !strings.HasSuffix(tool.Description, "Default scope: project.") {
-		t.Errorf("description should end with 'Default scope: project.', got: %s", tool.Description)
-	}
-
-	// Verify required parameters exist
-	props := tool.InputSchema.Properties
-	requiredParams := []string{
-		"pattern", "include_builtin_tools", "min_occurrences",
-	}
-
-	for _, param := range requiredParams {
-		if _, exists := props[param]; !exists {
-			t.Errorf("query_tool_sequences missing parameter: %s", param)
-		}
-	}
-
-	// Verify parameter types
-	if props["pattern"].Type != "string" {
-		t.Errorf("pattern should be string, got %s", props["pattern"].Type)
-	}
-	if props["include_builtin_tools"].Type != "boolean" {
-		t.Errorf("include_builtin_tools should be boolean, got %s", props["include_builtin_tools"].Type)
-	}
-	if props["min_occurrences"].Type != "number" {
-		t.Errorf("min_occurrences should be number, got %s", props["min_occurrences"].Type)
-	}
-
-	// Verify standard parameters exist
-	standardParams := []string{"scope", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes", "output_format"}
-	for _, param := range standardParams {
-		if _, exists := props[param]; !exists {
-			t.Errorf("query_tool_sequences missing standard parameter: %s", param)
-		}
-	}
-}
-
-// TestQueryFileAccessToolDefinition verifies the query_file_access tool is correctly defined
-func TestQueryFileAccessToolDefinition(t *testing.T) {
-	tools := getToolDefinitions()
-
-	var tool *Tool
-	for i := range tools {
-		if tools[i].Name == "query_file_access" {
-			tool = &tools[i]
-			break
-		}
-	}
-
-	if tool == nil {
-		t.Fatal("query_file_access tool not found")
-	}
-
-	// Verify description
-	if !strings.Contains(tool.Description, "file") {
-		t.Errorf("description should mention 'file', got: %s", tool.Description)
-	}
-
-	if !strings.HasSuffix(tool.Description, "Default scope: project.") {
-		t.Errorf("description should end with 'Default scope: project.', got: %s", tool.Description)
-	}
-
-	// Verify required parameters exist
-	props := tool.InputSchema.Properties
-	requiredParams := []string{
-		"file",
-	}
-
-	for _, param := range requiredParams {
-		if _, exists := props[param]; !exists {
-			t.Errorf("query_file_access missing parameter: %s", param)
-		}
-	}
-
-	// Verify parameter types
-	if props["file"].Type != "string" {
-		t.Errorf("file should be string, got %s", props["file"].Type)
-	}
-
-	// Verify required field
-	if len(tool.InputSchema.Required) < 1 || tool.InputSchema.Required[0] != "file" {
-		t.Errorf("file should be required parameter, got: %v", tool.InputSchema.Required)
-	}
-
-	// Verify standard parameters exist
-	standardParams := []string{"scope", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes", "output_format"}
-	for _, param := range standardParams {
-		if _, exists := props[param]; !exists {
-			t.Errorf("query_file_access missing standard parameter: %s", param)
-		}
-	}
-}
-
-// TestQueryProjectStateToolDefinition verifies the query_project_state tool is correctly defined
-func TestQueryProjectStateToolDefinition(t *testing.T) {
-	tools := getToolDefinitions()
-
-	var tool *Tool
-	for i := range tools {
-		if tools[i].Name == "query_project_state" {
-			tool = &tools[i]
-			break
-		}
-	}
-
-	if tool == nil {
-		t.Fatal("query_project_state tool not found")
-	}
-
-	// Verify description
-	if !strings.Contains(tool.Description, "project state") {
-		t.Errorf("description should mention 'project state', got: %s", tool.Description)
-	}
-
-	if !strings.HasSuffix(tool.Description, "Default scope: project.") {
-		t.Errorf("description should end with 'Default scope: project.', got: %s", tool.Description)
-	}
-
-	// Verify standard parameters exist (this tool has no specific parameters)
-	props := tool.InputSchema.Properties
-	standardParams := []string{"scope", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes", "output_format"}
-	for _, param := range standardParams {
-		if _, exists := props[param]; !exists {
-			t.Errorf("query_project_state missing standard parameter: %s", param)
-		}
-	}
-}
-
 // TestToolCountIncreasedTo14 verifies that the tool count has increased from 12 to 14
 func TestToolCountIncreasedTo14(t *testing.T) {
 	tools := getToolDefinitions()
@@ -503,8 +354,11 @@ func TestToolCountIncreasedTo14(t *testing.T) {
 	// Phase 25 Stage 25.4 removes 6 deprecated tools (26 -> 20)
 	// Removed: query_context, query_tools_advanced, query_time_series,
 	// query_assistant_messages, query_conversation, query_files
-	// New target: 20 tools (1 core + 1 raw + 8 convenience + 7 legacy + 3 utility)
-	expectedCount := 20
+	// Phase 25 cleanup removes 5 legacy tools (20 -> 15)
+	// Removed: query_tool_sequences, query_file_access, get_session_stats,
+	// query_project_state, query_successful_prompts
+	// New target: 15 tools (1 query + 1 query_raw + 10 convenience + 3 utility)
+	expectedCount := 15
 	actualCount := len(tools)
 
 	if actualCount != expectedCount {

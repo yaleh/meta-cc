@@ -8,11 +8,6 @@ import (
 	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 )
 
-const (
-	// OutputModeLegacy returns raw data array (backward compatibility)
-	OutputModeLegacy = "legacy"
-)
-
 // adaptResponse adapts CLI output to hybrid mode format (inline or file_ref).
 // No data truncation occurs - all data is preserved via inline or file_ref mode.
 //
@@ -24,12 +19,7 @@ const (
 // Returns:
 //   - Inline mode: {"mode": "inline", "data": [...]}
 //   - File ref mode: {"mode": "file_ref", "file_ref": {...}}
-//   - Legacy mode: [...] (raw array)
 func adaptResponse(cfg *config.Config, data []interface{}, params map[string]interface{}, toolName string) (interface{}, error) {
-	// Check for legacy mode (backward compatibility)
-	if outputMode := getStringParam(params, "output_mode", ""); outputMode == OutputModeLegacy {
-		return data, nil
-	}
 
 	// Determine output mode (no truncation - rely on hybrid mode)
 	size := calculateOutputSize(data)

@@ -206,7 +206,6 @@ Do NOT use .[] prefix - each line is already an object.`,
 			},
 		}, "block_type"),
 
-		buildTool("get_session_stats", "Get session statistics. Default scope: session.", map[string]Property{}),
 		buildTool("query_tools", "Query assistant's internal tool calls. Large output, not for user analysis. Default scope: project.", map[string]Property{
 			// Tier 2: Filtering
 			"tool": {
@@ -260,71 +259,6 @@ Do NOT use .[] prefix - each line is already an object.`,
 				"content":   "string - User message content",
 			}, ".[] | select(.content | test(\"error|bug\"; \"i\"))"),
 		}, "pattern"),
-		buildTool("query_tool_sequences", "Query assistant's tool sequences. Large output, not for user analysis. Default scope: project.", map[string]Property{
-			// Tier 2: Filtering
-			"pattern": {
-				Type:        "string",
-				Description: "Sequence pattern to match",
-			},
-			"include_builtin_tools": {
-				Type:        "boolean",
-				Description: "Include built-in tools (Bash, Read, Edit, etc.). Default: false (cleaner workflow patterns, 35x faster)",
-			},
-			// Tier 3: Range
-			"min_occurrences": {
-				Type:        "number",
-				Description: "Min occurrences (default: 3)",
-			},
-			// Override jq_filter with schema
-			"jq_filter": jqFilterWithSchema(map[string]string{
-				"pattern":              "string - Tool sequence pattern",
-				"count":                "number - Number of times pattern appeared",
-				"occurrences":          "array - Individual occurrence details (each with start_turn, end_turn)",
-				"time_span_minutes":    "number - Time span in minutes",
-				"length":               "number - Number of tools in pattern (optional)",
-				"success_rate":         "number - Success rate of sequence (optional)",
-				"avg_duration_minutes": "number - Average duration in minutes (optional)",
-			}, ".[] | select(.count > 5)"),
-		}),
-		buildTool("query_file_access", "Query file operation history. Default scope: project.", map[string]Property{
-			"file": {
-				Type:        "string",
-				Description: "File path (required)",
-			},
-			// Override jq_filter with schema
-			"jq_filter": jqFilterWithSchema(map[string]string{
-				"file":              "string - File path",
-				"total_accesses":    "number - Total access count",
-				"operations":        "object - Operation counts by type (Read/Edit/Write)",
-				"timeline":          "array - Chronological access events",
-				"time_span_minutes": "number - Time span in minutes",
-			}, "select(.total_accesses > 10)"),
-		}, "file"),
-		buildTool("query_project_state", "Query project state evolution. Default scope: project.", map[string]Property{
-			// Override jq_filter with schema
-			"jq_filter": jqFilterWithSchema(map[string]string{
-				"timestamp": "string - ISO8601 timestamp",
-				"type":      "string - State type (session_state, etc.)",
-			}, ".[] | select(.type == \"session_state\")"),
-		}),
-		buildTool("query_successful_prompts", "Query successful prompt patterns. Default scope: project.", map[string]Property{
-			// Tier 3: Range
-			"min_quality_score": {
-				Type:        "number",
-				Description: "Min quality score (default: 0.8)",
-			},
-			// Tier 4: Output Control
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			// Override jq_filter with schema
-			"jq_filter": jqFilterWithSchema(map[string]string{
-				"turn":          "number - Turn sequence number",
-				"content":       "string - Prompt content",
-				"quality_score": "number - Quality score (0.0-1.0)",
-			}, ".[] | select(.quality_score > 0.9)"),
-		}),
 		{
 			Name:        "cleanup_temp_files",
 			Description: "Remove old temporary MCP files. Default scope: none.",

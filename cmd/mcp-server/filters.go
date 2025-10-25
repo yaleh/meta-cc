@@ -1,11 +1,9 @@
 package main
 
 const (
-	// DefaultMaxMessageLength is the legacy default for max_message_length parameter.
-	// DEPRECATED: As of Phase 16+, the default is 0 (no truncation).
-	// Hybrid output mode (inline/file_ref) handles large results automatically.
-	// This constant is kept for backward compatibility with existing code.
-	DefaultMaxMessageLength = 500
+	// DefaultMaxMessageLength is the default for max_message_length parameter.
+	// Set to 0 to disable truncation (use hybrid output mode for large results).
+	DefaultMaxMessageLength = 0
 
 	DefaultPreviewLength = 100
 )
@@ -13,11 +11,7 @@ const (
 // TruncateMessageContent truncates the 'content' field in user messages
 // to prevent context overflow from large session summaries.
 //
-// DEPRECATED: As of Phase 16+, use hybrid output mode instead of truncation.
-// Hybrid mode preserves complete data (no information loss) and uses file_ref
-// mode for large results. This function is kept for backward compatibility.
-//
-// Migration: Remove max_message_length parameter and rely on hybrid mode.
+// Use hybrid output mode instead of truncation for complete data preservation.
 //
 // Parameters:
 //   - messages: Array of message objects (maps)
@@ -69,11 +63,7 @@ func TruncateMessageContent(messages []interface{}, maxLen int) []interface{} {
 // ApplyContentSummary returns only message metadata (no full content).
 // Useful for pattern matching without needing full message text.
 //
-// DEPRECATED: As of Phase 16+, use hybrid output mode instead of content_summary.
-// Hybrid mode preserves complete data and uses file_ref mode for large results.
-// This function is kept for backward compatibility.
-//
-// Migration: Remove content_summary parameter and rely on hybrid mode.
+// Use hybrid output mode instead for complete data preservation.
 //
 // Parameters:
 //   - messages: Array of message objects (maps)

@@ -147,18 +147,6 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 		rawOutput, err = e.handleQuerySummaries(cfg, scope, args)
 	case "query_tool_blocks":
 		rawOutput, err = e.handleQueryToolBlocks(cfg, scope, args)
-
-	// Legacy tools (to be deprecated)
-	case "query_tool_sequences":
-		rawOutput, err = e.executeQueryToolSequences(scope, config, args)
-	case "query_file_access":
-		rawOutput, err = e.executeQueryFileAccess(scope, config, args)
-	case "get_session_stats":
-		rawOutput, err = e.executeGetSessionStats(scope, config, args)
-	case "query_project_state":
-		rawOutput, err = e.executeQueryProjectState(scope, config, args)
-	case "query_successful_prompts":
-		rawOutput, err = e.executeQuerySuccessfulPrompts(scope, config, args)
 	default:
 		// All query tools must be handled explicitly above.
 		// No CLI fallback - all tools use internal/query library.
@@ -177,11 +165,25 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 		return "", err
 	}
 
-	// Phase 25 Fix: query and query_raw tools already execute jq internally,
-	// so we should NOT apply jq_filter again to avoid double application.
-	// Only convenience tools need post-processing jq filter.
+	// Phase 25 Fix: All Phase 25 tools execute jq internally, so we should
+	// NOT apply jq_filter again to avoid double application.
+	//
+	// Phase 25 tools (12 total):
+	// - query, query_raw: Execute jq in handleQuery/handleQueryRaw
+	// - 10 convenience tools: Call handleQuery internally, which executes jq
+	//
+	// Therefore, NO Phase 25 tool should have jq_filter applied post-processing.
+	phase25Tools := map[string]bool{
+		"query": true, "query_raw": true,
+		"query_user_messages": true, "query_tools": true, "query_tool_errors": true,
+		"query_token_usage": true, "query_conversation_flow": true, "query_system_errors": true,
+		"query_file_snapshots": true, "query_timestamps": true, "query_summaries": true,
+		"query_tool_blocks": true,
+	}
+
 	filtered := rawOutput
-	shouldApplyJQFilter := toolName != "query" && toolName != "query_raw"
+	isPhase25Tool := phase25Tools[toolName]
+	shouldApplyJQFilter := !isPhase25Tool
 
 	if shouldApplyJQFilter {
 		var err error
@@ -329,43 +331,6 @@ func (e *ToolExecutor) executeQueryContext(scope string, cfg toolPipelineConfig,
 	return pkgoutput.FormatJSONL([]interface{}{result})
 }
 
-func (e *ToolExecutor) executeQueryToolSequences(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
-	entries, err := loadEntries(scope, args)
-	if err != nil {
-		return "", err
-	}
-
-	minOccurrences := getIntParam(args, "min_occurrences", 3)
-	pattern := getStringParam(args, "pattern", "")
-	includeBuiltin := getBoolParam(args, "include_builtin_tools", false)
-
-	result, err := querypkg.BuildToolSequenceQuery(entries, minOccurrences, pattern, includeBuiltin)
-	if err != nil {
-		return "", err
-	}
-
-	return pkgoutput.FormatJSONL(result.Sequences)
-}
-
-func (e *ToolExecutor) executeQueryFileAccess(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
-	entries, err := loadEntries(scope, args)
-	if err != nil {
-		return "", err
-	}
-
-	file := getStringParam(args, "file", "")
-	if file == "" {
-		return "", fmt.Errorf("%w: file", mcerrors.ErrMissingParameter)
-	}
-
-	result, err := querypkg.BuildFileAccessQuery(entries, file)
-	if err != nil {
-		return "", err
-	}
-
-	return pkgoutput.FormatJSONL([]interface{}{result})
-}
-
 func (e *ToolExecutor) executeQueryAssistantMessages(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
 	entries, err := loadEntries(scope, args)
 	if err != nil {
@@ -453,27 +418,6 @@ func (e *ToolExecutor) executeQueryFiles(scope string, cfg toolPipelineConfig, a
 	}
 }
 
-func (e *ToolExecutor) executeGetSessionStats(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
-	entries, err := loadEntries(scope, args)
-	if err != nil {
-		return "", err
-	}
-
-	toolCalls := parser.ExtractToolCalls(entries)
-	stats := querypkg.BuildSessionStats(entries, toolCalls)
-
-	format := cfg.outputFormat
-	if format == "" {
-		format = "jsonl"
-	}
-
-	formatted, err := internalOutput.FormatOutput(stats, format)
-	if err != nil {
-		return "", err
-	}
-	return formatted, nil
-}
-
 func (e *ToolExecutor) executeQueryTimeSeries(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
 	entries, err := loadEntries(scope, args)
 	if err != nil {
@@ -503,46 +447,6 @@ func (e *ToolExecutor) executeQueryTimeSeries(scope string, cfg toolPipelineConf
 		return "", err
 	}
 	return outputStr, nil
-}
-
-func (e *ToolExecutor) executeQueryProjectState(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
-	entries, err := loadEntries(scope, args)
-	if err != nil {
-		return "", err
-	}
-
-	state := querypkg.BuildProjectState(entries, querypkg.ProjectStateOptions{IncludeIncomplete: getBoolParam(args, "include_incomplete_tasks", true)})
-
-	format := cfg.outputFormat
-	if format == "" || format == "jsonl" {
-		return pkgoutput.FormatJSONL([]interface{}{state})
-	}
-	return internalOutput.FormatOutput(state, format)
-}
-
-func (e *ToolExecutor) executeQuerySuccessfulPrompts(scope string, cfg toolPipelineConfig, args map[string]interface{}) (string, error) {
-	entries, err := loadEntries(scope, args)
-	if err != nil {
-		return "", err
-	}
-
-	minQuality := getFloatParam(args, "min_quality_score", 0)
-	limit := getIntParam(args, "limit", 0)
-	result := querypkg.BuildSuccessfulPrompts(entries, minQuality, limit)
-
-	format := cfg.outputFormat
-	if format == "" {
-		format = "jsonl"
-	}
-
-	if format == "jsonl" {
-		items := make([]interface{}, 0, len(result.Prompts))
-		for _, prompt := range result.Prompts {
-			items = append(items, prompt)
-		}
-		return pkgoutput.FormatJSONL(items)
-	}
-	return internalOutput.FormatOutput(result.Prompts, format)
 }
 
 func loadEntries(scope string, args map[string]interface{}) ([]parser.SessionEntry, error) {

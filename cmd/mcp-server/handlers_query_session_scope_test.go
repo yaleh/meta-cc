@@ -3,19 +3,9 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
-
-// pathToHash converts a file path to a hash string for session directory names
-// This must match the logic in internal/locator/args.go
-func pathToHash(path string) string {
-	hash := strings.ReplaceAll(path, "\\", "-")
-	hash = strings.ReplaceAll(hash, "/", "-")
-	hash = strings.ReplaceAll(hash, ":", "-")
-	return hash
-}
 
 // TestGetQueryBaseDirSessionScope tests that session scope returns the directory
 // containing the most recently modified session file
