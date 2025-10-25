@@ -5,6 +5,32 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2025-10-25
+
+
+### Added
+
+- integrate .githooks/pre-commit into pre-commit framework
+
+### Changed
+
+- Refactoring: remove obsolete .githooks/ directory
+- Refactoring: migrate hook scripts from .githooks/ to scripts/hooks/
+- Maintenance: apply pre-commit auto-fixes
+
+### Fixed
+
+- complete integration test migration to writeSessionFixture
+- migrate integration tests to use writeSessionFixture helper
+- resolve symlinks in TestMain for cross-platform test consistency
+- use META_CC_PROJECTS_ROOT env var instead of UserHomeDir in tests
+- resolve Windows UserHomeDir short paths in all pipeline tests
+- resolve Windows short path issue in setupTestProject helper
+- add symlink resolution to cmd/pipeline_test.go setupTestProject
+- add symlink resolution to pkg/pipeline test helper
+- add symlink resolution directly to pathToHash function
+- add symlink resolution to cmd/fixtures_helpers_test.go
+
 ## [0.33.0] - 2025-10-20
 
 
