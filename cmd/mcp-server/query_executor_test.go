@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -449,16 +448,4 @@ func TestContextCancellation(t *testing.T) {
 	if len(results) > 100 {
 		t.Errorf("expected few results due to cancellation, got %d", len(results))
 	}
-}
-
-// Helper function to count JSONL lines
-func countJSONLLines(data string) int {
-	lines := strings.Split(strings.TrimSpace(data), "\n")
-	count := 0
-	for _, line := range lines {
-		if strings.TrimSpace(line) != "" {
-			count++
-		}
-	}
-	return count
 }

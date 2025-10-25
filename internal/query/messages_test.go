@@ -54,7 +54,7 @@ func TestRunUserMessagesQuery_PatternAndContext(t *testing.T) {
 		t.Fatalf("expected 1 user message, got %d", len(msgs))
 	}
 
-	if msgs[0].ContextAfter == nil || len(msgs[0].ContextAfter) == 0 {
+	if len(msgs[0].ContextAfter) == 0 {
 		t.Fatalf("expected context after message")
 	}
 
