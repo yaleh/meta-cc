@@ -75,7 +75,7 @@ repos:
       - id: plugin-version-bump
         name: Auto-bump plugin version
         description: Auto-increment plugin version when .claude/ files change
-        entry: .githooks/pre-commit
+        entry: scripts/hooks/plugin-version-bump.sh
         language: script
         files: '^\.claude/(commands|agents)/.*\.md$'
         pass_filenames: false
