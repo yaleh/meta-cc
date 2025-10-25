@@ -47,16 +47,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0] - TBD
+## [2.0.0] - 2025-10-25
 
 ### Added
 
 - **jq-based Query Interface** (Phase 25): Complete refactoring with native jq integration
   - **QueryExecutor**: Streaming jq execution with file processing pipeline
-  - **20 MCP Tools**: Unified 3-layer architecture
+  - **15 MCP Tools**: Unified 3-layer architecture
     - **Core Tools** (2): `query`, `query_raw` - Unified interface with jq filtering
-    - **Convenience Tools** (8): `query_tool_errors`, `query_token_usage`, `query_conversation_flow`, etc.
-    - **Legacy Tools** (7): Backward-compatible specialized tools
+    - **Convenience Tools** (10): `query_tool_errors`, `query_token_usage`, `query_conversation_flow`, `query_user_messages`, `query_tools`, `query_file_snapshots`, `query_timestamps`, `query_summaries`, `query_tool_blocks`, `query_system_errors`
     - **Utility Tools** (3): `cleanup_temp_files`, `list_capabilities`, `get_capability`
   - **Hybrid Output Mode**: Auto-switches between inline (<8KB) and file_ref (≥8KB)
   - **No Limits by Default**: Returns all results, relies on hybrid mode
@@ -97,36 +96,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No need for explicit limit parameters
 - **Documentation**: Updated all guides to reference v2.0 query interface
 
-### Removed (Phase 25.4)
+### Removed
 
-- **6 Specialized MCP Tools**: Removed in favor of unified `query` tool
-  - `query_context` - Use `query` with custom jq instead
-  - `query_tools_advanced` - Use `query` with jq filtering
-  - `query_time_series` - Use `query` + jq grouping instead
-  - `query_assistant_messages` - Use `query_token_usage` or `query` with jq
-  - `query_conversation` - Use `query_conversation_flow` instead
-  - `query_files` - Use `query_file_snapshots` or jq filtering instead
-
-### Deprecated
-
-- **Legacy MCP Tools** (7 remaining): Will be removed in v3.0.0
-  - `query_tools`, `query_user_messages`, `query_tool_sequences`
-  - `query_file_access`, `query_project_state`, `query_successful_prompts`
-  - `get_session_stats`
-- **Deprecation Timeline**:
-  - v2.0.0: Tools available as backward-compatible
-  - v2.1.0 (+3 months): Deprecation warnings added
-  - v3.0.0 (+6 months): Tools removed
+- **5 Legacy MCP Tools**: Removed to simplify architecture and eliminate backward compatibility code
+  - `query_tool_sequences` - Use `query` with jq filtering for tool sequences
+  - `query_file_access` - Use `query_file_snapshots` or `query` with jq filtering
+  - `get_session_stats` - Use `query_token_usage` with stats_only=true
+  - `query_project_state` - Use `query` with custom jq expressions
+  - `query_successful_prompts` - Use `query` with jq filtering for quality analysis
+- **Backward Compatibility Code**: All adapter and compatibility layer code removed
+  - OutputModeLegacy mode removed
+  - Legacy parameter mapping removed
+  - FilterMessages and FilterMessagesSummary functions removed
 
 ### Breaking Changes
 
-- **Tool Removal**: 6 specialized tools removed (see Removed section)
-  - Use `query` with jq filtering as replacement
+- **Tool Removal**: 5 legacy tools removed (see Removed section)
+  - Use `query` with jq filtering as replacement for removed tools
   - Use convenience tools for common patterns
   - Use `query_raw` for maximum flexibility
 - **Field Names**: All output fields changed from PascalCase/camelCase to snake_case
   - Old: `{"ToolName": "Read", "SessionID": "abc"}`
   - New: `{"tool_name": "Read", "session_id": "abc"}`
+- **Double JQ Application Bug Fixed**: All Phase 25 tools (12 tools) now correctly apply jq filters only once
+  - Previously: Convenience tools applied jq twice, causing "expected an object but got: array" errors
+  - Now: Executor recognizes Phase 25 tools and skips redundant jq application
 - **Migration Required**: See [MCP v2.0 Migration Guide](docs/guides/mcp-v2-migration.md) for detailed instructions
 
 ### Migration
