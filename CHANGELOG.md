@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add CI-derived local quality checks to Makefile for faster feedback:
+  - check-test-quality: Detect hardcoded project hashes and os.UserHomeDir() usage
+  - check-formatting: Verify Go code formatting
+  - fix-formatting: Auto-fix formatting issues
+  - check-plugin-sync: Verify plugin file synchronization
+  - check-mod-tidy: Verify go.mod/go.sum are tidy
+  - test-bats: Run Bats pipeline tests locally
+  - check-release-ready: Verify CHANGELOG and release readiness
+  - test-all-local: Run all tests including Bats
+  - pre-commit-full: Full pre-commit validation
+- Add error-handling quality check to pre-commit hooks
 - integrate .githooks/pre-commit into pre-commit framework
 
 ### Changed
