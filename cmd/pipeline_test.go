@@ -47,10 +47,15 @@ func setupTestProject(t *testing.T, prefix string) (projectPath string, projectH
 func TestSessionPipeline_LoadProjectLevel(t *testing.T) {
 	// Test that SessionPipeline loads all sessions when ProjectPath is set
 	homeDir, _ := os.UserHomeDir()
+	// Resolve short paths on Windows (C:\Users\RUNNER~1 -> C:\Users\runneradmin)
+	resolvedHomeDir, _ := filepath.EvalSymlinks(homeDir)
+	if resolvedHomeDir == "" {
+		resolvedHomeDir = homeDir
+	}
 	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject")
 	defer cleanupProject()
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(resolvedHomeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -131,10 +136,15 @@ func TestSessionPipeline_LoadProjectLevel(t *testing.T) {
 func TestSessionPipeline_LoadSessionOnly(t *testing.T) {
 	// Test that SessionPipeline loads only latest session when SessionOnly is true
 	homeDir, _ := os.UserHomeDir()
+	// Resolve short paths on Windows (C:\Users\RUNNER~1 -> C:\Users\runneradmin)
+	resolvedHomeDir, _ := filepath.EvalSymlinks(homeDir)
+	if resolvedHomeDir == "" {
+		resolvedHomeDir = homeDir
+	}
 	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject2")
 	defer cleanupProject()
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(resolvedHomeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -241,10 +251,15 @@ func TestNewSessionPipeline(t *testing.T) {
 // TestSessionPipeline_SessionPath verifies SessionPath accessor
 func TestSessionPipeline_SessionPath(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
+	// Resolve short paths on Windows (C:\Users\RUNNER~1 -> C:\Users\runneradmin)
+	resolvedHomeDir, _ := filepath.EvalSymlinks(homeDir)
+	if resolvedHomeDir == "" {
+		resolvedHomeDir = homeDir
+	}
 	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-sessionpath")
 	defer cleanupProject()
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(resolvedHomeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -283,10 +298,15 @@ func TestSessionPipeline_SessionPath(t *testing.T) {
 // TestSessionPipeline_EntryCount verifies EntryCount accessor
 func TestSessionPipeline_EntryCount(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
+	// Resolve short paths on Windows (C:\Users\RUNNER~1 -> C:\Users\runneradmin)
+	resolvedHomeDir, _ := filepath.EvalSymlinks(homeDir)
+	if resolvedHomeDir == "" {
+		resolvedHomeDir = homeDir
+	}
 	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-entrycount")
 	defer cleanupProject()
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(resolvedHomeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -329,10 +349,15 @@ func TestSessionPipeline_EntryCount(t *testing.T) {
 // TestSessionPipeline_GetEntries verifies GetEntries accessor
 func TestSessionPipeline_GetEntries(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
+	// Resolve short paths on Windows (C:\Users\RUNNER~1 -> C:\Users\runneradmin)
+	resolvedHomeDir, _ := filepath.EvalSymlinks(homeDir)
+	if resolvedHomeDir == "" {
+		resolvedHomeDir = homeDir
+	}
 	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-getentries")
 	defer cleanupProject()
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(resolvedHomeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -373,10 +398,15 @@ func TestSessionPipeline_GetEntries(t *testing.T) {
 // TestSessionPipeline_BuildTurnIndex verifies BuildTurnIndex method
 func TestSessionPipeline_BuildTurnIndex(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
+	// Resolve short paths on Windows (C:\Users\RUNNER~1 -> C:\Users\runneradmin)
+	resolvedHomeDir, _ := filepath.EvalSymlinks(homeDir)
+	if resolvedHomeDir == "" {
+		resolvedHomeDir = homeDir
+	}
 	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-turnindex")
 	defer cleanupProject()
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(resolvedHomeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -430,10 +460,15 @@ func TestSessionPipeline_BuildTurnIndex(t *testing.T) {
 // TestSessionPipeline_ExtractToolCalls verifies ExtractToolCalls method
 func TestSessionPipeline_ExtractToolCalls(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
+	// Resolve short paths on Windows (C:\Users\RUNNER~1 -> C:\Users\runneradmin)
+	resolvedHomeDir, _ := filepath.EvalSymlinks(homeDir)
+	if resolvedHomeDir == "" {
+		resolvedHomeDir = homeDir
+	}
 	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-toolcalls")
 	defer cleanupProject()
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(resolvedHomeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -493,11 +528,16 @@ func TestSessionPipeline_LoadError(t *testing.T) {
 // TestSessionPipeline_LoadWithSessionID verifies loading specific session by ID
 func TestSessionPipeline_LoadWithSessionID(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
+	// Resolve short paths on Windows (C:\Users\RUNNER~1 -> C:\Users\runneradmin)
+	resolvedHomeDir, _ := filepath.EvalSymlinks(homeDir)
+	if resolvedHomeDir == "" {
+		resolvedHomeDir = homeDir
+	}
 	sessionID := "test-session-specific-id"
 
 	// Create session file in a project directory (FromSessionID searches ~/.claude/projects/*/)
 	projectHash := "test-project-hash"
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(resolvedHomeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
@@ -530,10 +570,15 @@ func TestSessionPipeline_LoadWithSessionID(t *testing.T) {
 // TestSessionPipeline_ProjectLevelSessionPath verifies session path in project mode
 func TestSessionPipeline_ProjectLevelSessionPath(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
+	// Resolve short paths on Windows (C:\Users\RUNNER~1 -> C:\Users\runneradmin)
+	resolvedHomeDir, _ := filepath.EvalSymlinks(homeDir)
+	if resolvedHomeDir == "" {
+		resolvedHomeDir = homeDir
+	}
 	projectPath, projectHash, cleanupProject := setupTestProject(t, "testproject-projpath")
 	defer cleanupProject()
 
-	sessionDir := filepath.Join(homeDir, ".claude", "projects", projectHash)
+	sessionDir := filepath.Join(resolvedHomeDir, ".claude", "projects", projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
