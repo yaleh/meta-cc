@@ -108,8 +108,8 @@ func (e *ToolExecutor) handleQueryRaw(cfg *config.Config, scope string, args map
 }
 
 // getQueryBaseDir returns the base directory for the given scope
-// For session scope: returns CLAUDE_PROJECT_DIR if set, otherwise cwd
-// For project scope: uses SessionLocator to find ~/.claude/projects/{hash}/
+// For session scope: returns directory of most recently modified session file
+// For project scope: returns directory containing all session files
 func getQueryBaseDir(scope string) (string, error) {
 	// Get current working directory
 	cwd, err := os.Getwd()
@@ -117,19 +117,22 @@ func getQueryBaseDir(scope string) (string, error) {
 		cwd = "."
 	}
 
-	// Session scope: return the session directory directly
+	loc := locator.NewSessionLocator()
+
+	// Session scope: return directory of most recently modified session file
 	if scope == "session" {
-		claudeProjectDir := os.Getenv("CLAUDE_PROJECT_DIR")
-		if claudeProjectDir != "" {
-			return claudeProjectDir, nil
+		// Use FromProjectPath to find the newest session file
+		sessionFile, err := loc.FromProjectPath(cwd)
+		if err != nil {
+			return "", fmt.Errorf("failed to locate current session: %w", err)
 		}
-		// Fall back to current directory if env not set
-		return cwd, nil
+
+		// Return the directory containing the session file
+		return filepath.Dir(sessionFile), nil
 	}
 
 	// Project scope: use SessionLocator to find all session files
 	// This matches the behavior of buildPipelineOptions + SessionPipeline.Load
-	loc := locator.NewSessionLocator()
 
 	// Determine project path (same logic as buildPipelineOptions)
 	projectPath := cwd

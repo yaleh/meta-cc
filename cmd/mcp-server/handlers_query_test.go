@@ -570,40 +570,20 @@ func TestQueryWithTransform(t *testing.T) {
 
 // TestGetQueryBaseDir tests that getQueryBaseDir correctly locates session directories
 func TestGetQueryBaseDir(t *testing.T) {
-	// Save and restore original CLAUDE_PROJECT_DIR
-	originalDir := os.Getenv("CLAUDE_PROJECT_DIR")
-	defer func() {
-		if originalDir != "" {
-			os.Setenv("CLAUDE_PROJECT_DIR", originalDir)
-		} else {
-			os.Unsetenv("CLAUDE_PROJECT_DIR")
-		}
-	}()
-
 	tests := []struct {
 		name              string
 		scope             string
-		claudeProjectDir  string
-		expectedBehavior  string // "use_locator" or "direct_path"
+		expectedBehavior  string // "use_locator"
 		shouldContainHash bool   // For project scope, should return path with hash
 	}{
 		{
-			name:             "session scope with CLAUDE_PROJECT_DIR",
+			name:             "session scope uses FromProjectPath",
 			scope:            "session",
-			claudeProjectDir: "/home/user/.claude/projects/abc123def456",
-			expectedBehavior: "direct_path",
+			expectedBehavior: "use_locator",
 		},
 		{
-			name:              "project scope with CLAUDE_PROJECT_DIR",
+			name:              "project scope uses AllSessionsFromProject",
 			scope:             "project",
-			claudeProjectDir:  "/home/user/.claude/projects/abc123def456",
-			expectedBehavior:  "use_locator",
-			shouldContainHash: true,
-		},
-		{
-			name:              "project scope without CLAUDE_PROJECT_DIR",
-			scope:             "project",
-			claudeProjectDir:  "",
 			expectedBehavior:  "use_locator",
 			shouldContainHash: true,
 		},
@@ -611,44 +591,37 @@ func TestGetQueryBaseDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup environment
-			if tt.claudeProjectDir != "" {
-				os.Setenv("CLAUDE_PROJECT_DIR", tt.claudeProjectDir)
-			} else {
-				os.Unsetenv("CLAUDE_PROJECT_DIR")
-			}
-
 			baseDir, err := getQueryBaseDir(tt.scope)
 
-			// For project scope, we expect "no sessions found" error in test environment
+			// Both session and project scope use SessionLocator
+			// We expect "no sessions found" error in test environment
 			// The important part is that it's using SessionLocator (not returning cwd)
-			if tt.scope == "project" && tt.shouldContainHash {
-				// We expect an error because no sessions exist
-				if err == nil {
-					t.Fatalf("expected error for project scope (no sessions), got baseDir: %s", baseDir)
-				}
 
-				// The error should be about sessions not found
-				errMsg := err.Error()
-				if errMsg == "" || !strings.Contains(errMsg, "no sessions found") {
-					t.Errorf("expected 'no sessions found' error, got: %v", err)
-				}
-
-				t.Logf("Got expected error (SessionLocator used): %v", err)
-				return // Test passed - SessionLocator was used
+			// We expect an error because no sessions exist in test environment
+			if err == nil {
+				t.Fatalf("expected error for %s scope (no sessions), got baseDir: %s", tt.scope, baseDir)
 			}
 
-			// For session scope, should not error
-			if err != nil {
-				t.Fatalf("getQueryBaseDir() error = %v", err)
+			// The error should be about sessions not found or unable to locate
+			errMsg := err.Error()
+			if errMsg == "" {
+				t.Errorf("expected error message, got empty")
 			}
 
-			// For session scope with CLAUDE_PROJECT_DIR, should return that directory
-			if tt.scope == "session" && tt.claudeProjectDir != "" {
-				if baseDir != tt.claudeProjectDir {
-					t.Errorf("session scope: expected %s, got %s", tt.claudeProjectDir, baseDir)
+			expectedErrors := []string{"no sessions found", "failed to locate"}
+			hasExpectedError := false
+			for _, expectedErr := range expectedErrors {
+				if strings.Contains(errMsg, expectedErr) {
+					hasExpectedError = true
+					break
 				}
 			}
+
+			if !hasExpectedError {
+				t.Errorf("expected error containing 'no sessions found' or 'failed to locate', got: %v", err)
+			}
+
+			t.Logf("Got expected error (SessionLocator used): %v", err)
 		})
 	}
 }

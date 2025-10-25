@@ -12,6 +12,30 @@ Each query in this document now includes a **MCP Tool Equivalent** showing how t
 - **Hybrid output mode**: Auto-switches between inline and file_ref based on result size
 - **jq filtering**: Native jq support for complex queries
 - **No limits by default**: Returns all results, relies on hybrid mode
+- **Scope parameter**: Control query scope (session vs project)
+
+### Query Scope: session vs project
+
+All MCP query tools support a `scope` parameter:
+
+- **`scope: "session"`** (current session only)
+  - Queries the **most recently modified** session file
+  - Use for analyzing current conversation context
+  - Example: "What errors happened in this session?"
+
+- **`scope: "project"`** (all sessions, **default**)
+  - Queries **all session files** for the current project
+  - Use for cross-session analysis and trends
+  - Example: "What are common errors across all sessions?"
+
+**Examples:**
+```javascript
+// Current session only
+query_tool_errors({scope: "session", limit: 5})
+
+// All sessions (default)
+query_tool_errors({limit: 5})  // same as scope: "project"
+```
 
 ### IMPORTANT: CLI vs MCP jq Differences
 
@@ -597,6 +621,13 @@ All queries in this document have been validated against real JSONL session data
 - ❌ Removed `resource`, `filter`, `transform`, `aggregate` object parameters
 - ✅ Use `jq_filter` with object-level expressions (not array operations)
 - ✅ Use `limit` parameter instead of jq array slicing
+
+**MCP Query Interface Verification (2025-10-25)**:
+All query patterns tested and working:
+- **Convenience tools**: `query_user_messages`, `query_tools`, `query_tool_errors`, `query_tool_blocks`
+- **Raw jq interface**: `query_raw` with direct `select()` expressions (no `.[]` prefix)
+- **Hybrid output**: Small results inline, large results as file references (8KB threshold)
+- **Unified query**: Works but may generate large results for complex filters
 
 ---
 
