@@ -59,15 +59,8 @@ func (l *SessionLocator) FromProjectPath(projectPath string) (string, error) {
 		return "", fmt.Errorf("failed to resolve project path: %w", err)
 	}
 
-	// 解析符号链接以确保在 macOS 上一致性（/var -> /private/var）
-	resolvedPath, err := filepath.EvalSymlinks(absPath)
-	if err != nil {
-		// 如果路径不存在，使用原始绝对路径（允许查询不存在的项目）
-		resolvedPath = absPath
-	}
-
-	// 计算项目哈希
-	projectHash := pathToHash(resolvedPath)
+	// 计算项目哈希 (pathToHash now handles symlink resolution)
+	projectHash := pathToHash(absPath)
 
 	projectsRoot := l.projectsRoot
 	if projectsRoot == "" {
@@ -104,15 +97,8 @@ func (l *SessionLocator) AllSessionsFromProject(projectPath string) ([]string, e
 		return nil, fmt.Errorf("failed to resolve project path: %w", err)
 	}
 
-	// 解析符号链接以确保在 macOS 上一致性（/var -> /private/var）
-	resolvedPath, err := filepath.EvalSymlinks(absPath)
-	if err != nil {
-		// 如果路径不存在，使用原始绝对路径（允许查询不存在的项目）
-		resolvedPath = absPath
-	}
-
-	// 计算项目哈希
-	projectHash := pathToHash(resolvedPath)
+	// 计算项目哈希 (pathToHash now handles symlink resolution)
+	projectHash := pathToHash(absPath)
 
 	projectsRoot := l.projectsRoot
 	if projectsRoot == "" {
@@ -141,10 +127,25 @@ func (l *SessionLocator) AllSessionsFromProject(projectPath string) ([]string, e
 // pathToHash 将项目路径转换为哈希目录名
 // 例如：/home/yale/work/myproject → -home-yale-work-myproject
 // Windows: C:/Users/yale/work/myproject → C--Users-yale-work-myproject
+//
+// Note: Resolves symlinks to ensure consistent hashing across platforms.
+// On macOS, /var is a symlink to /private/var, so we resolve it before hashing.
 func pathToHash(path string) string {
+	// Handle empty path edge case
+	if path == "" {
+		return ""
+	}
+
+	// Resolve symlinks for consistent hashing (e.g., /var -> /private/var on macOS)
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		// If resolution fails (e.g., path doesn't exist), use original path
+		resolved = path
+	}
+
 	// Normalize path separators (both forward slash and backslash) to -
 	// First replace backslashes (Windows paths)
-	hash := strings.ReplaceAll(path, "\\", "-")
+	hash := strings.ReplaceAll(resolved, "\\", "-")
 	// Then replace forward slashes (Unix paths and normalized Windows paths)
 	hash = strings.ReplaceAll(hash, "/", "-")
 	// Finally replace colons (Windows drive letters like C:)
