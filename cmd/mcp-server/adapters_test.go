@@ -154,56 +154,6 @@ func TestAdaptQueryUserMessages(t *testing.T) {
 	}
 }
 
-// TestAdaptQueryAssistantMessages verifies query_assistant_messages adapter
-func TestAdaptQueryAssistantMessages(t *testing.T) {
-	args := map[string]interface{}{
-		"pattern":   ".*",
-		"min_tools": float64(5),
-		"limit":     float64(10),
-	}
-
-	result := adaptQueryAssistantMessages(args)
-
-	if result.Resource != "messages" {
-		t.Errorf("Resource: got %s, want messages", result.Resource)
-	}
-
-	if result.Filter.Role != "assistant" {
-		t.Errorf("Filter.Role: got %s, want assistant", result.Filter.Role)
-	}
-
-	if result.Filter.ContentMatch != ".*" {
-		t.Errorf("Filter.ContentMatch: got %s, want .*", result.Filter.ContentMatch)
-	}
-
-	// Note: min_tools is not mapped to FilterSpec (would need custom post-processing)
-}
-
-// TestAdaptQueryFiles verifies query_files adapter
-func TestAdaptQueryFiles(t *testing.T) {
-	args := map[string]interface{}{
-		"threshold": float64(5),
-	}
-
-	result := adaptQueryFiles(args)
-
-	if result.Resource != "tools" {
-		t.Errorf("Resource: got %s, want tools", result.Resource)
-	}
-
-	if result.Filter.ToolName != "Read|Edit|Write" {
-		t.Errorf("Filter.ToolName: got %s, want Read|Edit|Write", result.Filter.ToolName)
-	}
-
-	if result.Aggregate.Function != "count" {
-		t.Errorf("Aggregate.Function: got %s, want count", result.Aggregate.Function)
-	}
-
-	if result.Aggregate.Field != "file_path" {
-		t.Errorf("Aggregate.Field: got %s, want file_path", result.Aggregate.Field)
-	}
-}
-
 // TestCanAdaptToUnifiedQuery verifies adapter registry
 func TestCanAdaptToUnifiedQuery(t *testing.T) {
 	tests := []struct {
@@ -212,12 +162,15 @@ func TestCanAdaptToUnifiedQuery(t *testing.T) {
 	}{
 		{"query_tools", true},
 		{"query_user_messages", true},
-		{"query_assistant_messages", true},
-		{"query_files", true},
 		{"get_session_stats", true},
-		{"query_conversation", false},   // Not yet implemented
-		{"query_tool_sequences", false}, // Not yet implemented
-		{"cleanup_temp_files", false},   // Not adaptable (special tool)
+		{"query_assistant_messages", false}, // Removed in Phase 25.4
+		{"query_files", false},              // Removed in Phase 25.4
+		{"query_conversation", false},       // Removed in Phase 25.4
+		{"query_context", false},            // Removed in Phase 25.4
+		{"query_tools_advanced", false},     // Removed in Phase 25.4
+		{"query_time_series", false},        // Removed in Phase 25.4
+		{"query_tool_sequences", false},     // Not yet implemented
+		{"cleanup_temp_files", false},       // Not adaptable (special tool)
 		{"nonexistent_tool", false},
 	}
 

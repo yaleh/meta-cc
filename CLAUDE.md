@@ -36,14 +36,48 @@ A: Maximum 500 lines per phase, 200 lines per stage. See [docs/core/principles.m
 **Q: Should I use MCP, Slash Commands, or Subagent?**
 A: Quick rule: Natural questions → MCP | Repeated workflows → Slash | Exploration → Subagent. See [docs/guides/integration.md](docs/guides/integration.md).
 
-**Q: How do I query session data?**
-A: Use the unified `query` tool (v2.0+) or specialized MCP tools like `query_tools`, `query_user_messages`. See [Unified Query API Guide](docs/guides/unified-query-api.md) or [MCP Guide](docs/guides/mcp.md).
+**Q: How do I query session data (v2.0)?**
+A: Use the unified `query` tool with jq filtering or convenience tools:
+```javascript
+// Unified interface
+query({resource: "tools", filter: {tool_status: "error"}})
+
+// Convenience tools
+query_tool_errors({limit: 10})
+query_token_usage({stats_first: true})
+
+// Raw jq for power users
+query_raw({jq_expression: '.[] | select(.tool_name == "Bash")'})
+```
+See [MCP Query Tools Reference](docs/guides/mcp-query-tools.md) for complete tool documentation and [MCP Query Cookbook](docs/examples/mcp-query-cookbook.md) for 25+ examples.
 
 **Q: Why are my MCP query results in a temp file?**
-A: Results >8KB automatically use file_ref mode to avoid token limits. Read the file with the Read tool. See [docs/guides/mcp.md#hybrid-output-mode](docs/guides/mcp.md#hybrid-output-mode).
+A: Results >8KB automatically use file_ref mode to avoid token limits. Read the file with the Read tool. This is **hybrid output mode** - queries return inline for small results (<8KB) and file_ref for large results (≥8KB). See [MCP Query Tools Reference](docs/guides/mcp-query-tools.md#hybrid-output-mode).
 
 **Q: Do I need to set `limit` parameter for MCP queries?**
-A: No, by default queries return all results (hybrid mode handles large data). Only use `limit` when user explicitly requests a specific number.
+A: No, by default queries return all results (hybrid mode handles large data). Only use `limit` when user explicitly requests a specific number. The system automatically switches to file_ref mode for large result sets.
+
+**Q: Which MCP query tool should I use?**
+A: Follow this decision tree:
+- **Common queries** → Use convenience tools (`query_tool_errors`, `query_token_usage`, etc.)
+- **Complex filtering** → Use `query` with `jq_filter`
+- **Maximum flexibility** → Use `query_raw` with raw jq expressions
+- **Backward compatibility** → Legacy tools still work (`query_tools`, `query_user_messages`, etc.)
+See [MCP Query Tools Reference](docs/guides/mcp-query-tools.md#best-practices) for detailed guidance.
+
+**Q: How do I write jq expressions for MCP queries?**
+A: Start simple and add complexity:
+```javascript
+// Step 1: Get all tools
+query({resource: "tools"})
+
+// Step 2: Filter by name
+query({resource: "tools", jq_filter: '.[] | select(.tool_name == "Bash")'})
+
+// Step 3: Add error filtering
+query({resource: "tools", jq_filter: '.[] | select(.tool_name == "Bash" and .status == "error")'})
+```
+Test jq locally first: `echo '[{"tool":"Bash"}]' | jq '.[]'`. See [MCP Query Tools Reference](docs/guides/mcp-query-tools.md#jq-syntax-quick-reference) for common patterns.
 
 **Q: How do I update plugin version?**
 A: Install git hooks (`./scripts/install-hooks.sh`) for automatic bumping, or use `./scripts/bump-plugin-version.sh [patch|minor|major]`. See [docs/guides/git-hooks.md](docs/guides/git-hooks.md).

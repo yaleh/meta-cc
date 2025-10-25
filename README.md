@@ -35,7 +35,7 @@ The meta-cc plugin includes everything you need:
 - **Unified /meta command** - Natural language interface for session analysis
 - **5 Specialized Agents** - Project planning, iteration management, knowledge extraction
 - **13 Capabilities** - Error analysis, quality scanning, workflow optimization
-- **16 MCP Tools** - Autonomous session data queries
+- **20 MCP Tools** - Autonomous session data queries (v2.0 unified query interface)
 - **16 Validated Methodology Skills**:
   - **BAIME** (Bootstrapped AI Methodology Engineering) - Framework for developing methodologies
   - **Testing Strategy** - TDD, coverage-driven gap closure (3.1x speedup)
@@ -100,17 +100,37 @@ Just ask Claude naturally - MCP tools are invoked automatically:
 "Which tools do I use most often?"
 ```
 
-**NEW (v2.0+)**: Unified query interface consolidates 16 tools into 1 composable API:
+**NEW (v2.0+)**: Unified query interface with 20 MCP tools and jq filtering:
+
 ```javascript
+// Core query tool - unified interface
 query({
   resource: "tools",
-  filter: {tool_name: "Read", tool_status: "error"}
+  filter: {tool_status: "error"},
+  jq_filter: '.[] | select(.tool_name == "Bash")'
+})
+
+// Convenience tools - optimized for common queries
+query_tool_errors({limit: 10})
+query_token_usage({stats_first: true})
+query_conversation_flow({scope: "session"})
+
+// Raw jq - maximum flexibility for power users
+query_raw({
+  jq_expression: '.[] | group_by(.tool_name) | map({tool: .[0].tool_name, count: length})'
 })
 ```
 
-See [Unified Query API Guide](docs/guides/unified-query-api.md) for complete details.
+**Key Features**:
+- **Hybrid Output Mode**: Auto-switches between inline (<8KB) and file_ref (≥8KB)
+- **jq Integration**: Native jq filtering for complex queries
+- **No Limits by Default**: Returns all results, relies on hybrid mode
+- **20 Tools**: 2 core + 8 convenience + 7 legacy + 3 utility tools
 
-**Available**: 16+ MCP tools for comprehensive session analysis. See [MCP Guide](docs/guides/mcp.md) for complete reference.
+**Resources**:
+- [MCP Query Tools Reference](docs/guides/mcp-query-tools.md) - Complete tool documentation
+- [MCP Query Cookbook](docs/examples/mcp-query-cookbook.md) - 25+ practical examples
+- [MCP v2.0 Migration Guide](docs/guides/mcp-v2-migration.md) - Upgrade from v1.x
 
 ### 3. Interactive Coaching
 

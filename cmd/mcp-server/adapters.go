@@ -55,52 +55,6 @@ func adaptQueryUserMessages(args map[string]interface{}) querypkg.QueryParams {
 	return params
 }
 
-// adaptQueryAssistantMessages converts query_assistant_messages parameters to QueryParams
-// Example mapping: query_assistant_messages(pattern=".*", min_tools=5) →
-//
-//	query(resource="messages", filter={role:"assistant", content_match:".*"})
-//	Note: min_tools/max_tools filtering happens post-query in legacy implementation
-func adaptQueryAssistantMessages(args map[string]interface{}) querypkg.QueryParams {
-	params := querypkg.QueryParams{
-		Resource: "messages",
-		Filter: querypkg.FilterSpec{
-			Role:         "assistant",
-			ContentMatch: getStringParam(args, "pattern", ""),
-		},
-		Output: querypkg.OutputSpec{
-			Limit: getIntParam(args, "limit", 0),
-		},
-	}
-
-	// Note: min_tools, max_tools, min_length, max_length would need
-	// custom post-processing or extension to FilterSpec
-	return params
-}
-
-// adaptQueryFiles converts query_files parameters to QueryParams
-// Example mapping: query_files(threshold=5) →
-//
-//	query(resource="tools", filter={tool_name:"Read|Edit|Write"},
-//	      aggregate={function:"count", field:"file_path"})
-func adaptQueryFiles(args map[string]interface{}) querypkg.QueryParams {
-	params := querypkg.QueryParams{
-		Resource: "tools",
-		Filter: querypkg.FilterSpec{
-			// Match file operation tools
-			ToolName: "Read|Edit|Write",
-		},
-		Aggregate: querypkg.AggregateSpec{
-			Function: "count",
-			Field:    "file_path",
-		},
-	}
-
-	// Note: threshold filtering would need post-processing
-	_ = getIntParam(args, "threshold", 5)
-
-	return params
-}
-
 // adaptGetSessionStats converts get_session_stats parameters to QueryParams
 // Example mapping: get_session_stats() →
 //
@@ -119,20 +73,14 @@ func adaptGetSessionStats(args map[string]interface{}) querypkg.QueryParams {
 
 // Legacy tool name to adapter mapping (for documentation/future use)
 var legacyToolAdapters = map[string]func(map[string]interface{}) querypkg.QueryParams{
-	"query_tools":              adaptQueryTools,
-	"query_user_messages":      adaptQueryUserMessages,
-	"query_assistant_messages": adaptQueryAssistantMessages,
-	"query_files":              adaptQueryFiles,
-	"get_session_stats":        adaptGetSessionStats,
+	"query_tools":         adaptQueryTools,
+	"query_user_messages": adaptQueryUserMessages,
+	"get_session_stats":   adaptGetSessionStats,
 	// Additional adapters can be added here:
-	// "query_conversation": adaptQueryConversation,
 	// "query_tool_sequences": adaptQueryToolSequences,
 	// "query_file_access": adaptQueryFileAccess,
-	// "query_context": adaptQueryContext,
 	// "query_project_state": adaptQueryProjectState,
 	// "query_successful_prompts": adaptQuerySuccessfulPrompts,
-	// "query_tools_advanced": adaptQueryToolsAdvanced,
-	// "query_time_series": adaptQueryTimeSeries,
 }
 
 // canAdaptToUnifiedQuery checks if a legacy tool can be adapted to unified query

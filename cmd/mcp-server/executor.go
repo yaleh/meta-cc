@@ -122,29 +122,39 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 
 	switch toolName {
 	case "query":
-		rawOutput, err = e.executeQuery(scope, config, args)
-	case "query_tools":
-		rawOutput, err = e.executeQueryTools(scope, config, args)
-	case "query_tools_advanced":
-		rawOutput, err = e.executeQueryTools(scope, config, args)
+		rawOutput, err = e.handleQuery(cfg, scope, args)
+	case "query_raw":
+		rawOutput, err = e.handleQueryRaw(cfg, scope, args)
+
+	// Layer 1: Convenience Tools (10 high-frequency queries)
 	case "query_user_messages":
-		rawOutput, err = e.executeQueryUserMessages(scope, config, args)
-	case "query_assistant_messages":
-		rawOutput, err = e.executeQueryAssistantMessages(scope, config, args)
-	case "query_context":
-		rawOutput, err = e.executeQueryContext(scope, config, args)
+		rawOutput, err = e.handleQueryUserMessages(cfg, scope, args)
+	case "query_tools":
+		rawOutput, err = e.handleQueryTools(cfg, scope, args)
+	case "query_tool_errors":
+		rawOutput, err = e.handleQueryToolErrors(cfg, scope, args)
+	case "query_token_usage":
+		rawOutput, err = e.handleQueryTokenUsage(cfg, scope, args)
+	case "query_conversation_flow":
+		rawOutput, err = e.handleQueryConversationFlow(cfg, scope, args)
+	case "query_system_errors":
+		rawOutput, err = e.handleQuerySystemErrors(cfg, scope, args)
+	case "query_file_snapshots":
+		rawOutput, err = e.handleQueryFileSnapshots(cfg, scope, args)
+	case "query_timestamps":
+		rawOutput, err = e.handleQueryTimestamps(cfg, scope, args)
+	case "query_summaries":
+		rawOutput, err = e.handleQuerySummaries(cfg, scope, args)
+	case "query_tool_blocks":
+		rawOutput, err = e.handleQueryToolBlocks(cfg, scope, args)
+
+	// Legacy tools (to be deprecated)
 	case "query_tool_sequences":
 		rawOutput, err = e.executeQueryToolSequences(scope, config, args)
 	case "query_file_access":
 		rawOutput, err = e.executeQueryFileAccess(scope, config, args)
-	case "query_files":
-		rawOutput, err = e.executeQueryFiles(scope, config, args)
-	case "query_conversation":
-		rawOutput, err = e.executeQueryConversation(scope, config, args)
 	case "get_session_stats":
 		rawOutput, err = e.executeGetSessionStats(scope, config, args)
-	case "query_time_series":
-		rawOutput, err = e.executeQueryTimeSeries(scope, config, args)
 	case "query_project_state":
 		rawOutput, err = e.executeQueryProjectState(scope, config, args)
 	case "query_successful_prompts":

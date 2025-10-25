@@ -131,6 +131,80 @@ func getToolDefinitions() []Tool {
 				Description: "Aggregation: function ('count'|'sum'|'avg'|'min'|'max'|'group'), field (optional)",
 			},
 		}),
+		buildTool("query_raw", "Execute raw jq expression. For power users. Default scope: project.", map[string]Property{
+			"jq_expression": {
+				Type:        "string",
+				Description: "Complete jq expression (required). Maximum flexibility.",
+			},
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}, "jq_expression"),
+
+		// Layer 1: NEW Convenience Tools (8 high-frequency queries)
+		// Note: query_user_messages and query_tools already exist above
+		buildTool("query_tool_errors", "Query tool execution errors. Default scope: project.", map[string]Property{
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}),
+		buildTool("query_token_usage", "Query assistant messages with token usage stats. Default scope: project.", map[string]Property{
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}),
+		buildTool("query_conversation_flow", "Query user and assistant conversation flow. Default scope: project.", map[string]Property{
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+			"transform": {
+				Type:        "string",
+				Description: "Optional jq transform for parent-child relationships",
+			},
+		}),
+		buildTool("query_system_errors", "Query system API errors. Default scope: project.", map[string]Property{
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}),
+		buildTool("query_file_snapshots", "Query file history snapshots. Default scope: project.", map[string]Property{
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}),
+		buildTool("query_timestamps", "Query all entries with timestamps. Default scope: project.", map[string]Property{
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}),
+		buildTool("query_summaries", "Query session summaries. Default scope: project.", map[string]Property{
+			"keyword": {
+				Type:        "string",
+				Description: "Keyword to search in summary (case-insensitive)",
+			},
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}),
+		buildTool("query_tool_blocks", "Query tool use or tool result blocks. Default scope: project.", map[string]Property{
+			"block_type": {
+				Type:        "string",
+				Description: "Block type: 'tool_use' or 'tool_result' (required)",
+			},
+			"limit": {
+				Type:        "number",
+				Description: "Max results (no limit by default, rely on hybrid output mode)",
+			},
+		}, "block_type"),
+
 		buildTool("get_session_stats", "Get session statistics. Default scope: session.", map[string]Property{}),
 		buildTool("query_tools", "Query assistant's internal tool calls. Large output, not for user analysis. Default scope: project.", map[string]Property{
 			// Tier 2: Filtering
@@ -185,16 +259,6 @@ func getToolDefinitions() []Tool {
 				"content":   "string - User message content",
 			}, ".[] | select(.content | test(\"error|bug\"; \"i\"))"),
 		}, "pattern"),
-		buildTool("query_context", "Query error context. Default scope: project.", map[string]Property{
-			"error_signature": {
-				Type:        "string",
-				Description: "Error pattern ID (required)",
-			},
-			"window": {
-				Type:        "number",
-				Description: "Context window size (default: 3)",
-			},
-		}, "error_signature"),
 		buildTool("query_tool_sequences", "Query assistant's tool sequences. Large output, not for user analysis. Default scope: project.", map[string]Property{
 			// Tier 2: Filtering
 			"pattern": {
@@ -259,129 +323,6 @@ func getToolDefinitions() []Tool {
 				"content":       "string - Prompt content",
 				"quality_score": "number - Quality score (0.0-1.0)",
 			}, ".[] | select(.quality_score > 0.9)"),
-		}),
-		buildTool("query_tools_advanced", "Query assistant's tools with SQL. Large output, not for user analysis. Default scope: project.", map[string]Property{
-			"where": {
-				Type:        "string",
-				Description: "SQL-like filter expression (required)",
-			},
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-		}, "where"),
-		buildTool("query_time_series", "Analyze metrics over time. Default scope: project.", map[string]Property{
-			"interval": {
-				Type:        "string",
-				Description: "Time interval (hour/day/week, default: hour)",
-			},
-			"metric": {
-				Type:        "string",
-				Description: "Metric to analyze (default: tool-calls)",
-			},
-			"where": {
-				Type:        "string",
-				Description: "Optional filter expression",
-			},
-		}),
-		buildTool("query_assistant_messages", "Query assistant messages with pattern matching and filtering. Default scope: project.", map[string]Property{
-			"pattern": {
-				Type:        "string",
-				Description: "Regex pattern to match text content",
-			},
-			"min_tools": {
-				Type:        "number",
-				Description: "Minimum tool use count",
-			},
-			"max_tools": {
-				Type:        "number",
-				Description: "Maximum tool use count",
-			},
-			"min_tokens_output": {
-				Type:        "number",
-				Description: "Minimum output tokens",
-			},
-			"min_length": {
-				Type:        "number",
-				Description: "Minimum text length",
-			},
-			"max_length": {
-				Type:        "number",
-				Description: "Maximum text length",
-			},
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			// Override jq_filter with schema
-			"jq_filter": jqFilterWithSchema(map[string]string{
-				"turn_sequence":  "number - Turn sequence number",
-				"timestamp":      "string - ISO8601 timestamp",
-				"uuid":           "string - Message UUID",
-				"model":          "string - Model name",
-				"content_blocks": "array - Content blocks (text and tool_use)",
-				"text_length":    "number - Text content length",
-				"tool_use_count": "number - Number of tool uses",
-				"tokens_input":   "number - Input token count",
-				"tokens_output":  "number - Output token count",
-				"stop_reason":    "string - Stop reason (optional)",
-			}, ".[] | select(.tool_use_count > 5)"),
-		}),
-		buildTool("query_conversation", "Query conversation turns (user+assistant pairs). Default scope: project.", map[string]Property{
-			// Tier 2: Filtering
-			"pattern": {
-				Type:        "string",
-				Description: "Regex pattern (user or assistant content)",
-			},
-			"pattern_target": {
-				Type:        "string",
-				Description: "Pattern target: user, assistant, any (default: any)",
-			},
-			// Tier 3: Range (turn ranges, then duration ranges)
-			"start_turn": {
-				Type:        "number",
-				Description: "Starting turn sequence",
-			},
-			"end_turn": {
-				Type:        "number",
-				Description: "Ending turn sequence",
-			},
-			"min_duration": {
-				Type:        "number",
-				Description: "Minimum response duration (ms)",
-			},
-			"max_duration": {
-				Type:        "number",
-				Description: "Maximum response duration (ms)",
-			},
-			// Tier 4: Output Control
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			// Override jq_filter with schema
-			"jq_filter": jqFilterWithSchema(map[string]string{
-				"turn":              "number - Turn sequence number",
-				"user_message":      "object - User message data",
-				"assistant_message": "object - Assistant message data",
-				"duration_ms":       "number - Response duration in milliseconds",
-			}, ".[] | select(.duration_ms > 5000)"),
-		}),
-		buildTool("query_files", "File operation stats (returns array). Use jq_filter for filtering. Default scope: project.", map[string]Property{
-			"threshold": {
-				Type:        "number",
-				Description: "Minimum access count to report (default: 5)",
-			},
-			// Override jq_filter with schema
-			"jq_filter": jqFilterWithSchema(map[string]string{
-				"file_path":   "string - File path",
-				"read_count":  "number - Number of Read operations",
-				"write_count": "number - Number of Write operations",
-				"edit_count":  "number - Number of Edit operations",
-				"error_count": "number - Number of errors",
-				"total_ops":   "number - Total operation count",
-				"error_rate":  "number - Error rate (0.0-1.0)",
-			}, ".[] | select(.file_path | test(\"\\\\.go$\")) | select(.total_ops > 10)"),
 		}),
 		{
 			Name:        "cleanup_temp_files",

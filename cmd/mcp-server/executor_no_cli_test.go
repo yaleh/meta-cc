@@ -28,30 +28,10 @@ func TestQueryToolsDoNotUseCLI(t *testing.T) {
 			},
 		},
 		{
-			name: "query_tools_advanced",
-			args: map[string]interface{}{
-				"scope": "session",
-				"where": "tool = \"Bash\"",
-			},
-		},
-		{
 			name: "query_user_messages",
 			args: map[string]interface{}{
 				"scope":   "session",
 				"pattern": "test",
-			},
-		},
-		{
-			name: "query_assistant_messages",
-			args: map[string]interface{}{
-				"scope": "session",
-			},
-		},
-		{
-			name: "query_context",
-			args: map[string]interface{}{
-				"scope":           "session",
-				"error_signature": "test_error",
 			},
 		},
 		{
@@ -68,25 +48,7 @@ func TestQueryToolsDoNotUseCLI(t *testing.T) {
 			},
 		},
 		{
-			name: "query_files",
-			args: map[string]interface{}{
-				"scope": "session",
-			},
-		},
-		{
-			name: "query_conversation",
-			args: map[string]interface{}{
-				"scope": "session",
-			},
-		},
-		{
 			name: "get_session_stats",
-			args: map[string]interface{}{
-				"scope": "session",
-			},
-		},
-		{
-			name: "query_time_series",
 			args: map[string]interface{}{
 				"scope": "session",
 			},

@@ -67,16 +67,36 @@ See `/home/yale/work/meta-cc/experiments/bootstrap-006-api-design/data/api-param
 
 ## Tool Catalog
 
-meta-cc-mcp provides **16+ standardized tools** for analyzing Claude Code session history.
+meta-cc-mcp provides **20 standardized tools** for analyzing Claude Code session history.
 
-### NEW: Unified Query Tool (v2.0+)
+### Tool Architecture (v2.0)
 
-**⚠️ Note**: A new unified `query` tool is available that consolidates the 16 specialized tools below into a single composable interface. See:
-- [Unified Query API Guide](unified-query-api.md) - Complete API reference
-- [Migration Guide](migration-to-unified-query.md) - Migration from specialized tools
-- [Query Cookbook](../examples/query-cookbook.md) - 10+ practical examples
+**Core Tools (2)**:
+- `query` - Unified query interface with composable filtering
+- `query_raw` - Raw jq expressions for power users
 
-The specialized tools below remain available for backward compatibility but will be deprecated in v3.0.0.
+**Convenience Tools (8)**:
+- `query_tool_errors`, `query_token_usage`, `query_conversation_flow`, `query_system_errors`
+- `query_file_snapshots`, `query_timestamps`, `query_summaries`, `query_tool_blocks`
+
+**Legacy Tools (7)**:
+- `query_tools`, `query_user_messages`, `query_tool_sequences`, `query_file_access`
+- `query_project_state`, `query_successful_prompts`, `get_session_stats`
+
+**Utility Tools (3)**:
+- `cleanup_temp_files`, `list_capabilities`, `get_capability`
+
+### Migration from v1.x
+
+**⚠️ Breaking Changes (v2.0)**: The following tools have been removed:
+- `query_context` - Use `query` with jq filtering
+- `query_tools_advanced` - Use `query` with filter parameters
+- `query_time_series` - Use `query` with jq grouping
+- `query_assistant_messages` - Use `query_token_usage` + jq
+- `query_conversation` - Use `query_conversation_flow`
+- `query_files` - Use `query_file_snapshots` + jq
+
+See [MCP v2.0 Migration Guide](mcp-v2-migration.md) for complete migration instructions with 20+ examples.
 
 ---
 

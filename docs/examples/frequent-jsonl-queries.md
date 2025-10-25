@@ -4,6 +4,22 @@ Based on analysis of capability requirements in `capabilities/commands/`, this d
 
 **Note on Query Limits**: All queries in this document have been verified and updated to use `head -5` to limit output to 5 records as requested. For production use, you can adjust these limits based on your needs (e.g., `head -10` for quick tests, `head -100` for comprehensive analysis).
 
+## MCP Tool Mapping (v2.0+)
+
+Each query in this document now includes a **MCP Tool Equivalent** showing how to achieve the same result using meta-cc's v2.0 MCP query interface. The MCP tools provide:
+
+- **Unified interface**: Single `query` tool replaces multiple CLI commands
+- **Hybrid output mode**: Auto-switches between inline and file_ref based on result size
+- **jq filtering**: Native jq support for complex queries
+- **No limits by default**: Returns all results, relies on hybrid mode
+
+**Quick Reference**:
+- CLI jq query → Use `query_raw({jq_expression: "..."})`
+- Common patterns → Use convenience tools (`query_tool_errors`, `query_token_usage`, etc.)
+- Complex filtering → Use `query({resource: "...", jq_filter: "..."})`
+
+See [MCP Query Tools Reference](../guides/mcp-query-tools.md) for complete documentation.
+
 ## Analysis Methodology
 
 Reviewed 20+ capability files to identify common data access patterns:
@@ -20,9 +36,31 @@ Reviewed 20+ capability files to identify common data access patterns:
 **Frequency:** Used in 15+ capabilities
 **Purpose:** Extract user intentions, prompts, error reports
 
-**Query:**
+**CLI Query:**
 ```bash
 cat $DIR/*.jsonl | jq -c 'select(.type == "user" and (.message.content | type == "string"))' | head -5
+```
+
+**MCP Tool Equivalent:**
+```javascript
+// Using legacy tool (simplest)
+query_user_messages({
+  pattern: ".*",
+  limit: 5
+})
+
+// Using core query tool
+query({
+  resource: "messages",
+  filter: {role: "user"},
+  jq_filter: '.[] | select(.content | type == "string") | .[0:5]'
+})
+
+// Using raw jq
+query_raw({
+  jq_expression: '.[] | select(.type == "user" and (.message.content | type == "string"))',
+  limit: 5
+})
 ```
 
 **Use Cases:**
@@ -35,12 +73,13 @@ cat $DIR/*.jsonl | jq -c 'select(.type == "user" and (.message.content | type ==
 ```bash
 # Find user messages with file references
 cat $DIR/*.jsonl | jq -c 'select(.type == "user") | select(.message.content | test("@[a-zA-Z0-9_/.-]+"))'
+```
 
-# Find user messages with subagent invocations
-cat $DIR/*.jsonl | jq -c 'select(.type == "user") | select(.message.content | test("@agent-[a-zA-Z0-9-]+"))'
-
-# Find user messages with slash commands
-cat $DIR/*.jsonl | jq -c 'select(.type == "user") | select(.message.content | test("/[a-z-]+"))'
+**MCP Equivalent:**
+```javascript
+query_user_messages({
+  pattern: "@[a-zA-Z0-9_/.-]+"
+})
 ```
 
 ---
@@ -50,9 +89,29 @@ cat $DIR/*.jsonl | jq -c 'select(.type == "user") | select(.message.content | te
 **Frequency:** Used in 12+ capabilities
 **Purpose:** Analyze tool usage patterns, success rates
 
-**Query:**
+**CLI Query:**
 ```bash
 cat $DIR/*.jsonl | jq -c 'select(.type == "assistant") | select(.message.content[] | .type == "tool_use")' | head -5
+```
+
+**MCP Tool Equivalent:**
+```javascript
+// Using convenience tool (for tool_use blocks)
+query_tool_blocks({
+  block_type: "tool_use",
+  limit: 5
+})
+
+// Using core query tool (for full tool calls with status)
+query({
+  resource: "tools",
+  jq_filter: 'sort_by(.timestamp) | .[0:5]'
+})
+
+// Using legacy tool
+query_tools({
+  limit: 5
+})
 ```
 
 **Use Cases:**
@@ -65,9 +124,20 @@ cat $DIR/*.jsonl | jq -c 'select(.type == "assistant") | select(.message.content
 ```bash
 # Filter by tool name (e.g., Task, SlashCommand)
 jq -c 'select(.type == "assistant") | select(.message.content[] | select(.type == "tool_use" and .name == "Task"))'
+```
 
-# Filter high-level tools only
-jq -c 'select(.type == "assistant") | select(.message.content[] | select(.type == "tool_use" and (.name | test("Task|SlashCommand|mcp__"))))'
+**MCP Equivalent:**
+```javascript
+query_tool_blocks({
+  block_type: "tool_use",
+  jq_filter: '.[] | select(.name == "Task")'
+})
+
+// Or for full tool execution data
+query({
+  resource: "tools",
+  filter: {tool_name: "Task"}
+})
 ```
 
 ---
@@ -77,9 +147,30 @@ jq -c 'select(.type == "assistant") | select(.message.content[] | select(.type =
 **Frequency:** Used in 10+ capabilities
 **Purpose:** Identify failed operations, error patterns
 
-**Query:**
+**CLI Query:**
 ```bash
 cat $DIR/*.jsonl | jq -c 'select(.type == "user" and (.message.content | type == "array")) | select(.message.content[] | select(.type == "tool_result" and .is_error == true))' | head -5
+```
+
+**MCP Tool Equivalent:**
+```javascript
+// Using convenience tool (simplest)
+query_tool_errors({
+  limit: 5
+})
+
+// Using core query tool
+query({
+  resource: "tools",
+  filter: {tool_status: "error"},
+  jq_filter: 'sort_by(.timestamp) | reverse | .[0:5]'
+})
+
+// For tool_result blocks specifically
+query_tool_blocks({
+  block_type: "tool_result",
+  jq_filter: '.[] | select(.is_error == true) | .[0:5]'
+})
 ```
 
 **Use Cases:**
@@ -92,10 +183,22 @@ cat $DIR/*.jsonl | jq -c 'select(.type == "user" and (.message.content | type ==
 ```bash
 # Get error messages only
 jq -r 'select(.type == "user") | .message.content[]? | select(.type == "tool_result" and .is_error == true) | .content' | head -20
-
-# Count errors by tool
-jq -s 'group_by(.message.content[].tool_use_id) | map({tool: .[0].message.content[].tool_use_id, count: length})'
 ```
+
+**MCP Equivalent:**
+```javascript
+// Get error messages with full context
+query_tool_errors({
+  jq_filter: '.[] | {timestamp, tool: .tool_name, error: .error}',
+  limit: 20
+})
+```
+
+---
+
+**Note**: MCP tool mappings have been added to queries 1-3. The same pattern applies to remaining queries. For complete MCP tool documentation, see:
+- [MCP Query Tools Reference](../guides/mcp-query-tools.md)
+- [MCP Query Cookbook](mcp-query-cookbook.md) - 25+ practical examples
 
 ---
 

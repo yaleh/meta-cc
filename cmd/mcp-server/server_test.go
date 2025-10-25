@@ -97,9 +97,15 @@ func TestHandleToolsList(t *testing.T) {
 		t.Fatalf("expected tools to be a slice, got %T", toolsInterface)
 	}
 
-	// Should have 17 tools after Phase 24 Stage 24.3 (16 existing + unified query tool)
-	if len(toolsSlice) != 17 {
-		t.Errorf("expected 17 tools, got %d", len(toolsSlice))
+	// Should have 20 tools after Phase 25 Stage 25.4
+	// Stage 25.2 added query_raw (17 -> 18)
+	// Stage 25.3 added 8 convenience tools (18 -> 26)
+	// Stage 25.4 removed 6 deprecated tools (26 -> 20)
+	// Removed: query_context, query_tools_advanced, query_time_series,
+	// query_assistant_messages, query_conversation, query_files
+	// Final: 20 tools (1 core + 1 raw + 8 convenience + 7 legacy + 3 utility)
+	if len(toolsSlice) != 20 {
+		t.Errorf("expected 20 tools after Phase 25 Stage 25.4, got %d", len(toolsSlice))
 	}
 }
 

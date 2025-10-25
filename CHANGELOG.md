@@ -51,53 +51,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Unified Query API**: Single composable `query` tool consolidates 16 specialized MCP tools
-  - Resource-oriented design: Query "what" (entries/messages/tools) instead of "how"
-  - Composable pipeline: filter → transform → aggregate → output
-  - 94% reduction in tool count (16 → 1)
-  - 75% reduction in parameters (80+ → 20 core)
-  - See [Unified Query API Guide](docs/guides/unified-query-api.md)
+- **jq-based Query Interface** (Phase 25): Complete refactoring with native jq integration
+  - **QueryExecutor**: Streaming jq execution with file processing pipeline
+  - **20 MCP Tools**: Unified 3-layer architecture
+    - **Core Tools** (2): `query`, `query_raw` - Unified interface with jq filtering
+    - **Convenience Tools** (8): `query_tool_errors`, `query_token_usage`, `query_conversation_flow`, etc.
+    - **Legacy Tools** (7): Backward-compatible specialized tools
+    - **Utility Tools** (3): `cleanup_temp_files`, `list_capabilities`, `get_capability`
+  - **Hybrid Output Mode**: Auto-switches between inline (<8KB) and file_ref (≥8KB)
+  - **No Limits by Default**: Returns all results, relies on hybrid mode
+  - **Standard Parameters**: Consistent interface across all tools (scope, jq_filter, stats_only, etc.)
+  - See [MCP Query Tools Reference](docs/guides/mcp-query-tools.md)
+
+- **Comprehensive Documentation**:
+  - [MCP Query Tools Reference](docs/guides/mcp-query-tools.md) - Complete tool documentation (20 tools)
+  - [MCP Query Cookbook](docs/examples/mcp-query-cookbook.md) - 25+ practical examples
+  - [MCP v2.0 Migration Guide](docs/guides/mcp-v2-migration.md) - Upgrade from v1.x
+  - [Unified Query API Guide](docs/guides/unified-query-api.md) - Query architecture
+  - [Frequent JSONL Queries](docs/examples/frequent-jsonl-queries.md) - Updated with MCP tool mappings
+
+- **Performance Benchmarks**:
+  - QueryExecutor benchmarks for streaming execution
+  - Expression compilation benchmarks
+  - Memory usage profiling for different result sizes
+  - Hybrid output mode benchmarks (inline vs file_ref)
+
 - **Schema Standardization**: All output fields now use consistent snake_case
   - Matches JSONL source format 100%
   - ToolCall struct updated: `ToolName` → `tool_name`, `SessionID` → `session_id`, etc.
   - Complete field mapping documented in migration guide
-- **Comprehensive Documentation**:
-  - [Unified Query API Guide](docs/guides/unified-query-api.md) - Complete API reference
-  - [Migration Guide](docs/guides/migration-to-unified-query.md) - Migrate from legacy tools
-  - [Query Cookbook](docs/examples/query-cookbook.md) - 10+ practical examples
 
 ### Changed
 
-- **MCP Tool Output**: All query results now use snake_case field names
-- **Query Interface**: New unified query interface with composable parameters
-- **Documentation**: Updated all guides to reference new unified query API
+- **MCP Architecture**: Consolidated 16+ specialized tools into 20 tools with unified interface
+  - Core `query` tool replaces 6 removed tools (query_context, query_tools_advanced, etc.)
+  - 8 new convenience tools for common queries
+  - 7 legacy tools remain for backward compatibility
+- **Query Interface**: jq-based filtering replaces custom filter parameters
+  - Maximum flexibility with native jq expressions
+  - Composable queries with jq_filter and jq_transform
+  - Standard parameters across all tools
+- **Output Mode**: Hybrid output mode replaces fixed-size pagination
+  - Automatic inline vs file_ref decision based on result size
+  - Default threshold: 8KB (configurable via inline_threshold_bytes or META_CC_INLINE_THRESHOLD)
+  - No need for explicit limit parameters
+- **Documentation**: Updated all guides to reference v2.0 query interface
+
+### Removed (Phase 25.4)
+
+- **6 Specialized MCP Tools**: Removed in favor of unified `query` tool
+  - `query_context` - Use `query` with custom jq instead
+  - `query_tools_advanced` - Use `query` with jq filtering
+  - `query_time_series` - Use `query` + jq grouping instead
+  - `query_assistant_messages` - Use `query_token_usage` or `query` with jq
+  - `query_conversation` - Use `query_conversation_flow` instead
+  - `query_files` - Use `query_file_snapshots` or jq filtering instead
 
 ### Deprecated
 
-- **Legacy MCP Tools**: 16 specialized tools marked deprecated (removal in v3.0.0)
-  - `query_tools`, `query_user_messages`, `query_assistant_messages`
-  - `query_conversation`, `query_files`, `query_context`
-  - `query_tool_sequences`, `query_file_access`, `query_project_state`
-  - `query_successful_prompts`, `query_tools_advanced`, `query_time_series`
-  - `get_session_stats`, etc.
+- **Legacy MCP Tools** (7 remaining): Will be removed in v3.0.0
+  - `query_tools`, `query_user_messages`, `query_tool_sequences`
+  - `query_file_access`, `query_project_state`, `query_successful_prompts`
+  - `get_session_stats`
 - **Deprecation Timeline**:
-  - v2.0.0: Tools available as backward-compatible aliases
+  - v2.0.0: Tools available as backward-compatible
   - v2.1.0 (+3 months): Deprecation warnings added
   - v3.0.0 (+6 months): Tools removed
 
 ### Breaking Changes
 
+- **Tool Removal**: 6 specialized tools removed (see Removed section)
+  - Use `query` with jq filtering as replacement
+  - Use convenience tools for common patterns
+  - Use `query_raw` for maximum flexibility
 - **Field Names**: All output fields changed from PascalCase/camelCase to snake_case
   - Old: `{"ToolName": "Read", "SessionID": "abc"}`
   - New: `{"tool_name": "Read", "session_id": "abc"}`
-- **Migration Required**: See [Migration Guide](docs/guides/migration-to-unified-query.md) for detailed instructions
-- **Backward Compatibility**: Legacy tools remain functional during transition period (6 months)
+- **Migration Required**: See [MCP v2.0 Migration Guide](docs/guides/mcp-v2-migration.md) for detailed instructions
 
 ### Migration
 
-- **6-month transition period** with full backward compatibility
-- **Automatic conversion**: Legacy tools internally use unified query
-- **Migration guide**: Step-by-step instructions with examples
+- **Upgrade Path**:
+  1. Review [MCP v2.0 Migration Guide](docs/guides/mcp-v2-migration.md) for tool migration table
+  2. Replace removed tools with `query` + jq filtering
+  3. Use convenience tools for common patterns
+  4. Test with hybrid output mode (no explicit limits needed)
+  5. Optionally migrate legacy tools to new unified interface
+- **Backward Compatibility**: 7 legacy tools remain functional during transition
+- **Tool Migration Examples**: 25+ examples in [MCP Query Cookbook](docs/examples/mcp-query-cookbook.md)
 - **Tool mapping table**: Direct equivalents for all 16 tools
 - See [docs/guides/migration-to-unified-query.md](docs/guides/migration-to-unified-query.md)
 

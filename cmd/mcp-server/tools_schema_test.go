@@ -15,11 +15,8 @@ func TestQueryToolsHaveSchemaDocumentation(t *testing.T) {
 	schemaRequired := map[string][]string{
 		"query_tools":              {"tool_name", "status", "timestamp", "error", "input", "output", "uuid"},
 		"query_user_messages":      {"turn", "timestamp", "content"},
-		"query_assistant_messages": {"turn_sequence", "timestamp", "tool_use_count", "tokens_output", "text_length"},
-		"query_files":              {"file_path", "read_count", "write_count", "edit_count", "error_count", "total_ops", "error_rate"},
 		"query_file_access":        {"file", "total_accesses", "operations", "timeline"},
 		"query_tool_sequences":     {"pattern", "count", "occurrences", "time_span_minutes"},
-		"query_conversation":       {"turn", "user_message", "assistant_message", "duration_ms"},
 		"query_successful_prompts": {"turn", "content", "quality_score"},
 		"query_project_state":      {"timestamp", "type"},
 	}

@@ -75,31 +75,6 @@ func TestAdapterCompatibility(t *testing.T) {
 		assert.Equal(t, 5, params.Output.Limit)
 	})
 
-	t.Run("adaptQueryAssistantMessages_basic", func(t *testing.T) {
-		args := map[string]interface{}{
-			"pattern": ".*",
-		}
-
-		params := adaptQueryAssistantMessages(args)
-
-		assert.Equal(t, "messages", params.Resource)
-		assert.Equal(t, "assistant", params.Filter.Role)
-		assert.Equal(t, ".*", params.Filter.ContentMatch)
-	})
-
-	t.Run("adaptQueryFiles_basic", func(t *testing.T) {
-		args := map[string]interface{}{
-			"threshold": 5,
-		}
-
-		params := adaptQueryFiles(args)
-
-		assert.Equal(t, "tools", params.Resource)
-		assert.Equal(t, "Read|Edit|Write", params.Filter.ToolName)
-		assert.Equal(t, "count", params.Aggregate.Function)
-		assert.Equal(t, "file_path", params.Aggregate.Field)
-	})
-
 	t.Run("adaptGetSessionStats_basic", func(t *testing.T) {
 		args := map[string]interface{}{}
 
@@ -116,8 +91,6 @@ func TestLegacyToolAdapters(t *testing.T) {
 		supportedTools := []string{
 			"query_tools",
 			"query_user_messages",
-			"query_assistant_messages",
-			"query_files",
 			"get_session_stats",
 		}
 
@@ -132,11 +105,13 @@ func TestLegacyToolAdapters(t *testing.T) {
 			"unknown_tool",
 			"query_context",
 			"query_conversation",
+			"query_assistant_messages",
+			"query_files",
 		}
 
 		for _, tool := range unsupportedTools {
 			assert.False(t, canAdaptToUnifiedQuery(tool),
-				"Tool %s should not be adaptable yet", tool)
+				"Tool %s should not be adaptable (removed in Phase 25.4)", tool)
 		}
 	})
 
@@ -285,13 +260,14 @@ func TestBackwardCompatibility_QueryResults(t *testing.T) {
 		}
 	})
 
-	t.Run("query_assistant_messages_adapter_result_structure", func(t *testing.T) {
-		// Adapt legacy tool params
-		args := map[string]interface{}{}
-		params := adaptQueryAssistantMessages(args)
-
-		// Execute unified query
-		result, err := querypkg.Query(entries, params)
+	t.Run("query_raw_result_structure", func(t *testing.T) {
+		// Test query_raw functionality (replacement for complex queries)
+		result, err := querypkg.Query(entries, querypkg.QueryParams{
+			Resource: "messages",
+			Filter: querypkg.FilterSpec{
+				Role: "assistant",
+			},
+		})
 		require.NoError(t, err)
 
 		// Verify result structure
@@ -305,28 +281,7 @@ func TestBackwardCompatibility_QueryResults(t *testing.T) {
 		}
 	})
 
-	t.Run("query_files_adapter_result_structure", func(t *testing.T) {
-		// Adapt legacy tool params
-		args := map[string]interface{}{
-			"threshold": 1,
-		}
-		params := adaptQueryFiles(args)
-
-		// Execute unified query
-		result, err := querypkg.Query(entries, params)
-		require.NoError(t, err)
-
-		// Verify result structure for aggregation
-		results, ok := result.([]map[string]interface{})
-		require.True(t, ok, "Aggregated result should be []map[string]interface{}")
-		assert.NotEmpty(t, results)
-
-		// Verify aggregation structure
-		for _, r := range results {
-			assert.Contains(t, r, "file_path", "Should have file_path field")
-			assert.Contains(t, r, "count", "Should have count field")
-		}
-	})
+	// query_files adapter removed in Phase 25.4 - use query_file_snapshots instead
 }
 
 // TestBackwardCompatibility_EdgeCases tests edge cases in adapter behavior
@@ -484,66 +439,5 @@ func TestBackwardCompatibility_OutputFormat(t *testing.T) {
 		assert.NotNil(t, msg.ContentBlocks)
 	})
 
-	t.Run("aggregation_output_has_count_field", func(t *testing.T) {
-		entries := []parser.SessionEntry{
-			{
-				Type:       "assistant",
-				UUID:       "assistant-1",
-				Timestamp:  "2025-10-23T10:00:00Z",
-				SessionID:  "session-1",
-				ParentUUID: "user-1",
-				Message: &parser.Message{
-					Role: "assistant",
-					Content: []parser.ContentBlock{
-						{
-							Type: "tool_use",
-							ToolUse: &parser.ToolUse{
-								ID:   "tool-1",
-								Name: "Read",
-								Input: map[string]interface{}{
-									"file_path": "/test.txt",
-								},
-							},
-						},
-					},
-				},
-			},
-			{
-				Type:       "user",
-				UUID:       "tool-result-1",
-				Timestamp:  "2025-10-23T10:00:05Z",
-				SessionID:  "session-1",
-				ParentUUID: "assistant-1",
-				Message: &parser.Message{
-					Role: "user",
-					Content: []parser.ContentBlock{
-						{
-							Type: "tool_result",
-							ToolResult: &parser.ToolResult{
-								ToolUseID: "tool-1",
-								Content:   "content",
-								Status:    "success",
-							},
-						},
-					},
-				},
-			},
-		}
-
-		params := adaptQueryFiles(map[string]interface{}{})
-		result, err := querypkg.Query(entries, params)
-		require.NoError(t, err)
-
-		results, ok := result.([]map[string]interface{})
-		require.True(t, ok)
-		assert.NotEmpty(t, results)
-
-		// Verify aggregation has expected structure
-		for _, r := range results {
-			assert.Contains(t, r, "count")
-			count, ok := r["count"].(int)
-			require.True(t, ok)
-			assert.Greater(t, count, 0)
-		}
-	})
+	// aggregation_output_has_count_field test removed - query_files adapter removed in Phase 25.4
 }
