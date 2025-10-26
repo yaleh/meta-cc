@@ -7,68 +7,16 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/yaleh/meta-cc/internal/config"
 	"github.com/yaleh/meta-cc/internal/locator"
 )
 
-// handleQuery implements the Layer 2 query tool with jq_filter and jq_transform
-func (e *ToolExecutor) handleQuery(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
-	// Extract parameters
-	jqFilter := getStringParam(args, "jq_filter", "")
-	jqTransform := getStringParam(args, "jq_transform", "")
-	limit := getIntParam(args, "limit", 0)
+// handleQuery and handleQueryRaw deleted in Phase 27 Stage 27.1
+// These tools were removed to simplify the query interface
+// Users should use the 10 shortcut query tools instead
 
-	// Get base directory using pipeline infrastructure
-	baseDir, err := getQueryBaseDir(scope)
-	if err != nil {
-		return "", fmt.Errorf("failed to get base directory: %w", err)
-	}
-
-	// Create query executor
-	executor := NewQueryExecutor(baseDir)
-
-	// Build combined expression
-	expression := executor.buildExpression(jqFilter, jqTransform)
-
-	// Compile expression
-	code, err := executor.compileExpression(expression)
-	if err != nil {
-		return "", fmt.Errorf("invalid jq expression: %w", err)
-	}
-
-	// Get all JSONL files in directory
-	files, err := getJSONLFiles(baseDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to list JSONL files: %w", err)
-	}
-
-	if len(files) == 0 {
-		return "", fmt.Errorf("no JSONL files found in %s", baseDir)
-	}
-
-	// Execute query with streaming
-	ctx := context.Background()
-	results := executor.streamFiles(ctx, files, code, limit)
-
-	// Serialize results to JSON
-	jsonData, err := json.Marshal(results)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal results: %w", err)
-	}
-
-	return string(jsonData), nil
-}
-
-// handleQueryRaw implements the Layer 3 raw query tool with jq_expression
-func (e *ToolExecutor) handleQueryRaw(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
-	// Extract required parameter
-	jqExpression, ok := args["jq_expression"].(string)
-	if !ok || jqExpression == "" {
-		return "", fmt.Errorf("jq_expression parameter is required")
-	}
-
-	limit := getIntParam(args, "limit", 0)
-
+// executeQuery is an internal helper for convenience tools
+// It executes a jq query and returns JSON results
+func (e *ToolExecutor) executeQuery(scope string, jqFilter string, limit int) (string, error) {
 	// Get base directory using pipeline infrastructure
 	baseDir, err := getQueryBaseDir(scope)
 	if err != nil {
@@ -79,7 +27,7 @@ func (e *ToolExecutor) handleQueryRaw(cfg *config.Config, scope string, args map
 	executor := NewQueryExecutor(baseDir)
 
 	// Compile expression
-	code, err := executor.compileExpression(jqExpression)
+	code, err := executor.compileExpression(jqFilter)
 	if err != nil {
 		return "", fmt.Errorf("invalid jq expression: %w", err)
 	}

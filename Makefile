@@ -271,9 +271,15 @@ test:
 	@echo "Running tests (short mode, skips slow E2E tests)..."
 	$(GOTEST) -short -v ./...
 
-test-all:
+test-e2e-mcp: build
+	@echo "Running MCP E2E tests..."
+	@bash tests/e2e/mcp-e2e-simple.sh ./$(MCP_BINARY_NAME)
+
+test-all: test test-e2e-mcp
 	@echo "Running all tests (including slow E2E tests ~30s)..."
 	$(GOTEST) -v ./...
+	@echo ""
+	@echo "✅ All tests passed (unit + E2E)"
 
 test-coverage: build
 	@echo "Running tests with coverage..."

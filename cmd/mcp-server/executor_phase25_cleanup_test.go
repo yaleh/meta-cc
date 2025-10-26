@@ -88,16 +88,13 @@ func TestPhase25ToolsNoDoubleJQApplication(t *testing.T) {
 
 	executor := NewToolExecutor()
 
-	// Phase 25 tools: 1 core + 1 raw + 10 convenience = 12 tools
+	// Phase 27: query and query_raw removed
+	// Phase 25 tools: 10 convenience tools
 	phase25Tools := []struct {
 		name string
 		args map[string]interface{}
 	}{
-		// Core tools
-		{"query", map[string]interface{}{"jq_filter": ".[]"}},
-		{"query_raw", map[string]interface{}{"jq_expression": ".[]"}},
-
-		// Convenience tools (all call handleQuery internally)
+		// Convenience tools (all call executeQuery internally)
 		{"query_user_messages", map[string]interface{}{"pattern": "test"}},
 		{"query_tools", map[string]interface{}{}},
 		{"query_tool_errors", map[string]interface{}{}},
@@ -175,19 +172,20 @@ func TestLegacyToolsRemoved(t *testing.T) {
 func TestPhase25ToolCount(t *testing.T) {
 	tools := getToolDefinitions()
 
-	// Expected: 15 tools total
-	// - 1 query (Layer 2)
-	// - 1 query_raw (Layer 3)
+	// Expected: 16 tools total (Phase 27 Stage 27.4 update)
 	// - 10 convenience tools (Layer 1)
 	// - 3 utility tools (cleanup_temp_files, list_capabilities, get_capability)
+	// - 3 two-stage query tools (get_session_directory, inspect_session_files, execute_stage2_query)
 	//
-	// Removed: 5 legacy tools (query_tool_sequences, query_file_access, get_session_stats,
-	//          query_project_state, query_successful_prompts)
-	expectedCount := 15
+	// Phase 27 Removed: query, query_raw (simplified query interface)
+	// Phase 27 Added: inspect_session_files (Stage 27.3), execute_stage2_query (Stage 27.4)
+	// Phase 25 Removed: 5 legacy tools (query_tool_sequences, query_file_access, get_session_stats,
+	//                    query_project_state, query_successful_prompts)
+	expectedCount := 16
 
 	actualCount := len(tools)
 	require.Equal(t, expectedCount, actualCount,
-		"Expected %d tools after Phase 25 cleanup, got %d", expectedCount, actualCount)
+		"Expected %d tools after Phase 27 cleanup, got %d", expectedCount, actualCount)
 }
 
 // TestNoBackwardCompatibilityCode verifies all backward compatibility code removed

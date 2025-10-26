@@ -369,6 +369,38 @@ end note
 - ✅ 语义清晰（分阶段职责明确）
 - ✅ 代码简化（删除模糊的通用接口）
 
+### E2E 测试框架
+
+**Phase 27 引入完整的 E2E 测试基础设施**，支持在不重启 Claude Code 的情况下测试 MCP server：
+
+**测试方法**：
+1. **直接 stdio 测试**（快速验证）
+   ```bash
+   echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | \
+     ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | jq .
+   ```
+
+2. **自动化测试脚本**（推荐）
+   ```bash
+   ./tests/e2e/mcp-e2e-simple.sh ./meta-cc-mcp
+   ```
+
+3. **MCP Inspector**（交互调试）
+   ```bash
+   npm install -g @modelcontextprotocol/inspector
+   mcp-inspector ./meta-cc-mcp
+   ```
+
+**测试文档**（已创建）：
+- `docs/guides/mcp-e2e-testing.md` - 完整测试指南（13,000 字）
+- `docs/guides/mcp-testing-quickstart.md` - 快速参考手册
+- `docs/analysis/mcp-e2e-testing-recommendations.md` - 方法对比分析
+
+**集成方式**：
+- 每个 Stage 的验收标准包含 E2E 测试命令
+- 集成到 Makefile（`make test-e2e-mcp`）
+- 可集成到 CI/CD pipeline
+
 ### 删除的接口
 
 **移除 2 个通用查询工具**（语义不清晰）：
@@ -688,6 +720,18 @@ Example Queries:
 - ✅ 10 个快捷查询工具正常工作
 - ✅ 所有测试通过（删除相关测试后）
 
+**E2E 测试验证**：
+```bash
+# 验证工具已删除
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | \
+  ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | \
+  jq -e '.result.tools[] | select(.name == "query")' && \
+  echo "❌ FAILED: query still exists" || echo "✓ query removed"
+
+# 验证快捷工具仍可用
+./tests/e2e/mcp-e2e-simple.sh
+```
+
 #### Stage 27.2: 实现 `get_session_directory`
 
 **新增文件**：
@@ -737,11 +781,43 @@ func (e *ToolExecutor) handleGetSessionDirectory(cfg *config.Config, scope strin
 }
 ```
 
-**测试场景**：
+**测试场景**（单元测试）：
 - ✅ Session 范围查询
 - ✅ Project 范围查询
 - ✅ 无会话文件时错误处理
 - ✅ 返回 JSON 格式正确
+
+**E2E 测试验证**：
+```bash
+# 测试 project 范围
+echo '{
+  "jsonrpc":"2.0",
+  "id":1,
+  "method":"tools/call",
+  "params":{
+    "name":"get_session_directory",
+    "arguments":{"scope":"project"}
+  }
+}' | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | \
+  jq -e '.result.content[0].text | fromjson | .directory' && \
+  echo "✓ get_session_directory (project) works"
+
+# 测试 session 范围
+echo '{
+  "jsonrpc":"2.0",
+  "id":2,
+  "method":"tools/call",
+  "params":{
+    "name":"get_session_directory",
+    "arguments":{"scope":"session"}
+  }
+}' | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | \
+  jq -e '.result.content[0].text | fromjson | .file_count' && \
+  echo "✓ get_session_directory (session) works"
+
+# 运行自动化测试
+./tests/e2e/mcp-e2e-simple.sh
+```
 
 #### Stage 27.3: 实现 `inspect_session_files`
 
@@ -830,12 +906,62 @@ func InspectFiles(files []string, includeSamples bool) ([]FileMetadata, error) {
 }
 ```
 
-**测试场景**：
+**测试场景**（单元测试）：
 - ✅ 单文件分析
 - ✅ 多文件分析
 - ✅ 包含样本 vs 不包含样本
 - ✅ 空文件处理
 - ✅ 无效 JSON 处理
+
+**E2E 测试验证**：
+```bash
+# 获取会话目录
+SESSION_DIR=$(echo '{
+  "jsonrpc":"2.0",
+  "id":10,
+  "method":"tools/call",
+  "params":{
+    "name":"get_session_directory",
+    "arguments":{"scope":"project"}
+  }
+}' | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | \
+  jq -r '.result.content[0].text | fromjson | .directory')
+
+# 获取最近 3 个文件
+FILES=$(ls -t "$SESSION_DIR"/*.jsonl 2>/dev/null | head -3 | jq -R . | jq -s .)
+
+# 测试 inspect_session_files（不含样本）
+echo "{
+  \"jsonrpc\":\"2.0\",
+  \"id\":11,
+  \"method\":\"tools/call\",
+  \"params\":{
+    \"name\":\"inspect_session_files\",
+    \"arguments\":{
+      \"files\":$FILES,
+      \"include_samples\":false
+    }
+  }
+}" | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | \
+  jq -e '.result.content[0].text | fromjson | .files[] | .record_types' && \
+  echo "✓ inspect_session_files works"
+
+# 测试包含样本
+echo "{
+  \"jsonrpc\":\"2.0\",
+  \"id\":12,
+  \"method\":\"tools/call\",
+  \"params\":{
+    \"name\":\"inspect_session_files\",
+    \"arguments\":{
+      \"files\":$FILES,
+      \"include_samples\":true
+    }
+  }
+}" | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | \
+  jq -e '.result.content[0].text | fromjson | .files[] | .samples' && \
+  echo "✓ inspect_session_files (with samples) works"
+```
 
 #### Stage 27.4: 实现 `execute_stage2_query`
 
@@ -901,7 +1027,7 @@ func ExecuteStage2Query(ctx context.Context, params Stage2QueryParams) ([]Stage2
 }
 ```
 
-**测试场景**：
+**测试场景**（单元测试）：
 - ✅ 基础过滤（已验证）
 - ✅ 过滤 + 排序（已验证）
 - ✅ 过滤 + 排序 + 限制（已验证）
@@ -910,13 +1036,138 @@ func ExecuteStage2Query(ctx context.Context, params Stage2QueryParams) ([]Stage2
 - ✅ 超时处理（30s）
 - ✅ 上下文取消处理
 
-#### Stage 27.5: 文档更新
+**E2E 测试验证**：
+```bash
+# 获取会话文件列表
+SESSION_DIR=$(echo '{
+  "jsonrpc":"2.0",
+  "id":20,
+  "method":"tools/call",
+  "params":{
+    "name":"get_session_directory",
+    "arguments":{"scope":"project"}
+  }
+}' | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | \
+  jq -r '.result.content[0].text | fromjson | .directory')
+
+FILES=$(ls -t "$SESSION_DIR"/*.jsonl 2>/dev/null | head -3 | jq -R . | jq -s .)
+
+# 测试 1: 基础过滤
+echo "{
+  \"jsonrpc\":\"2.0\",
+  \"id\":21,
+  \"method\":\"tools/call\",
+  \"params\":{
+    \"name\":\"execute_stage2_query\",
+    \"arguments\":{
+      \"files\":$FILES,
+      \"filter\":\"select(.type == \\\"user\\\")\",
+      \"limit\":5
+    }
+  }
+}" | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | \
+  jq -e '.result.content[0].text | fromjson | .results' && \
+  echo "✓ execute_stage2_query (basic) works"
+
+# 测试 2: 过滤 + 排序 + 限制
+echo "{
+  \"jsonrpc\":\"2.0\",
+  \"id\":22,
+  \"method\":\"tools/call\",
+  \"params\":{
+    \"name\":\"execute_stage2_query\",
+    \"arguments\":{
+      \"files\":$FILES,
+      \"filter\":\"select(.type == \\\"user\\\")\",
+      \"sort\":\"sort_by(.timestamp)\",
+      \"limit\":10
+    }
+  }
+}" | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | \
+  jq -e '.result.content[0].text | fromjson | .metadata.execution_time_ms' && \
+  echo "✓ execute_stage2_query (with sort) works"
+
+# 测试 3: 完整工作流（过滤 + 排序 + 限制 + 转换）
+echo "{
+  \"jsonrpc\":\"2.0\",
+  \"id\":23,
+  \"method\":\"tools/call\",
+  \"params\":{
+    \"name\":\"execute_stage2_query\",
+    \"arguments\":{
+      \"files\":$FILES,
+      \"filter\":\"select(.type == \\\"user\\\")\",
+      \"sort\":\"sort_by(.timestamp)\",
+      \"transform\":\"\\\"\\\\(.timestamp[:19]) | \\\\(.message.content[:100])\\\"\",
+      \"limit\":5
+    }
+  }
+}" | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | \
+  jq -e '.result.content[0].text | fromjson | .results[] | .formatted' && \
+  echo "✓ execute_stage2_query (full pipeline) works"
+
+# 性能验证：< 100ms for 3MB data
+EXEC_TIME=$(echo "{
+  \"jsonrpc\":\"2.0\",
+  \"id\":24,
+  \"method\":\"tools/call\",
+  \"params\":{
+    \"name\":\"execute_stage2_query\",
+    \"arguments\":{
+      \"files\":$FILES,
+      \"filter\":\"select(.type == \\\"user\\\")\",
+      \"sort\":\"sort_by(.timestamp)\",
+      \"limit\":10
+    }
+  }
+}" | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | \
+  jq -r '.result.content[0].text | fromjson | .metadata.execution_time_ms')
+
+if [ "$EXEC_TIME" -lt 100 ]; then
+  echo "✓ Performance: ${EXEC_TIME}ms < 100ms"
+else
+  echo "⚠ Performance: ${EXEC_TIME}ms >= 100ms (may need optimization)"
+fi
+```
+
+#### Stage 27.5: 文档和测试完善
 
 **更新文档**：
 - `docs/guides/mcp.md` - 新增两阶段查询指南
 - `docs/guides/two-stage-query-guide.md` - 完整使用教程
 - `docs/examples/two-stage-query-examples.md` - 查询示例库
 - `CLAUDE.md` - 快速参考
+
+**E2E 测试基础设施**（已完成）：
+- ✅ `tests/e2e/mcp-e2e-simple.sh` - 自动化测试脚本
+- ✅ `docs/guides/mcp-e2e-testing.md` - E2E 测试完整指南
+- ✅ `docs/guides/mcp-testing-quickstart.md` - 快速参考
+- ✅ `docs/analysis/mcp-e2e-testing-recommendations.md` - 测试方法分析
+
+**E2E 测试扩展**（Stage 27.5 完成）：
+```bash
+# 更新测试脚本，添加 Phase 27 工具测试
+vim tests/e2e/mcp-e2e-simple.sh
+
+# 添加以下测试：
+# - get_session_directory 验证
+# - inspect_session_files 验证
+# - execute_stage2_query 完整工作流
+# - 性能基准测试（< 100ms）
+
+# 验证所有测试通过
+./tests/e2e/mcp-e2e-simple.sh
+```
+
+**集成到 CI/CD**：
+```makefile
+# Makefile 新增 target
+test-e2e-mcp: build
+	@bash tests/e2e/mcp-e2e-simple.sh ./meta-cc-mcp
+
+test-all: test test-e2e-mcp
+	@echo "✅ All tests passed (unit + E2E)"
+```
 
 **迁移指南**（破坏性变更）：
 ```markdown
@@ -945,13 +1196,31 @@ results = execute_stage2_query(
 
 ### 完成标准
 
+**代码实现**：
 - ✅ 删除 `query` 和 `query_raw` 工具
 - ✅ 3 个新 MCP 工具实现并测试通过
 - ✅ 10 个快捷查询工具保持兼容
 - ✅ 所有单元测试通过（覆盖率 ≥ 80%）
-- ✅ 性能验证：Stage 2 执行时间 < 100ms（3MB 数据）
-- ✅ 文档完整（API 参考 + 迁移指南 + 示例库）
 - ✅ MCP 工具描述包含完整 schema 说明
+
+**性能验证**：
+- ✅ Stage 2 执行时间 < 100ms（3MB 数据）
+- ✅ 智能查询加速 79x（3MB vs 453MB）
+- ✅ 内存使用 < 10MB（单次查询）
+
+**E2E 测试**：
+- ✅ 自动化测试脚本可运行（`./tests/e2e/mcp-e2e-simple.sh`）
+- ✅ 所有 Phase 27 工具通过 E2E 验证
+- ✅ 性能基准测试通过
+- ✅ 错误处理测试通过
+- ✅ 集成到 Makefile（`make test-e2e-mcp`）
+
+**文档完整性**：
+- ✅ API 参考文档完整
+- ✅ 迁移指南清晰
+- ✅ 查询示例库丰富（10+ 示例）
+- ✅ E2E 测试指南完整
+- ✅ 快速参考手册可用
 
 ### 风险和缓解
 

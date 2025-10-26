@@ -105,9 +105,10 @@ func TestAllToolsHaveStandardParameters(t *testing.T) {
 				return
 			}
 
-			// Skip utility tools that don't follow query tool patterns
-			if tool.Name == "cleanup_temp_files" || tool.Name == "list_capabilities" || tool.Name == "get_capability" {
-				t.Logf("Skipping utility tool: %s", tool.Name)
+			// Skip utility tools and Stage 1/2 tools that don't follow query tool patterns
+			if tool.Name == "cleanup_temp_files" || tool.Name == "list_capabilities" || tool.Name == "get_capability" ||
+				tool.Name == "get_session_directory" || tool.Name == "inspect_session_files" || tool.Name == "execute_stage2_query" {
+				t.Logf("Skipping utility/two-stage tool: %s", tool.Name)
 				return
 			}
 
@@ -161,8 +162,9 @@ func TestToolDescriptionConsistency(t *testing.T) {
 			continue
 		}
 
-		// Skip utility tools that don't follow "Default scope:" pattern
-		if tool.Name == "cleanup_temp_files" || tool.Name == "list_capabilities" || tool.Name == "get_capability" {
+		// Skip utility tools and two-stage tools (no scope param) that don't follow "Default scope:" pattern
+		if tool.Name == "cleanup_temp_files" || tool.Name == "list_capabilities" || tool.Name == "get_capability" ||
+			tool.Name == "get_session_directory" || tool.Name == "inspect_session_files" || tool.Name == "execute_stage2_query" {
 			continue
 		}
 
@@ -341,28 +343,21 @@ func TestLimitParameterBehavior(t *testing.T) {
 	}
 }
 
-// TestToolCountIncreasedTo14 verifies that the tool count has increased from 12 to 14
+// TestToolCountIncreasedTo14 verifies that the tool count is correct after Phase 27
 func TestToolCountIncreasedTo14(t *testing.T) {
 	tools := getToolDefinitions()
 
-	// Phase 19 adds 2 new tools: query_assistant_messages, query_conversation
-	// Phase 22 Stage 22.2 adds 1 new tool: list_capabilities
-	// Phase 22 Stage 22.3 adds 1 new tool: get_capability
-	// Phase 24 Stage 24.3 adds 1 new tool: query (unified query interface)
-	// Phase 25 Stage 25.2 adds 1 new tool: query_raw (raw jq interface)
-	// Phase 25 Stage 25.3 adds 8 convenience tools (18 -> 26)
-	// Phase 25 Stage 25.4 removes 6 deprecated tools (26 -> 20)
-	// Removed: query_context, query_tools_advanced, query_time_series,
-	// query_assistant_messages, query_conversation, query_files
-	// Phase 25 cleanup removes 5 legacy tools (20 -> 15)
-	// Removed: query_tool_sequences, query_file_access, get_session_stats,
-	// query_project_state, query_successful_prompts
-	// New target: 15 tools (1 query + 1 query_raw + 10 convenience + 3 utility)
-	expectedCount := 15
+	// Phase 25: 15 tools (1 query + 1 query_raw + 10 convenience + 3 utility)
+	// Phase 27 Stage 27.1: Removed query and query_raw (15 -> 13)
+	// Phase 27 Stage 27.2: Added get_session_directory (13 -> 14)
+	// Phase 27 Stage 27.3: Added inspect_session_files (14 -> 15)
+	// Phase 27 Stage 27.4: Added execute_stage2_query (15 -> 16)
+	// New target: 16 tools (10 convenience + 3 utility + 3 two-stage)
+	expectedCount := 16
 	actualCount := len(tools)
 
 	if actualCount != expectedCount {
-		t.Errorf("expected %d tools after Phase 25 Stage 25.3, got %d", expectedCount, actualCount)
+		t.Errorf("expected %d tools after Phase 27 Stage 27.4, got %d", expectedCount, actualCount)
 
 		// List all tool names for debugging
 		t.Log("Current tools:")

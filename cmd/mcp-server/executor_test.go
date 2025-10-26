@@ -788,3 +788,67 @@ func TestGetSessionHash(t *testing.T) {
 // TestExecuteMetaCC removed - executeMetaCC function deleted as part of Phase 23 CLI removal
 // All query tools now use internal/query library directly. See executor_no_cli_test.go for
 // tests verifying that tools don't attempt CLI execution.
+
+// TestQueryToolsNotRegistered verifies that query and query_raw tools are NOT registered
+// Phase 27 Stage 27.1: Delete old query interfaces
+func TestQueryToolsNotRegistered(t *testing.T) {
+	executor := NewToolExecutor()
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	// Test that query tool returns unknown tool error
+	_, err = executor.ExecuteTool(cfg, "query", map[string]interface{}{})
+	if err == nil {
+		t.Error("expected error for query tool, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown tool") {
+		t.Errorf("expected 'unknown tool' error for query, got: %v", err)
+	}
+
+	// Test that query_raw tool returns unknown tool error
+	_, err = executor.ExecuteTool(cfg, "query_raw", map[string]interface{}{"jq_expression": "."})
+	if err == nil {
+		t.Error("expected error for query_raw tool, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown tool") {
+		t.Errorf("expected 'unknown tool' error for query_raw, got: %v", err)
+	}
+}
+
+// TestShortcutQueryToolsRegistered verifies that all 10 shortcut query tools are still registered
+// Phase 27 Stage 27.1: Preserve 10 shortcut tools
+func TestShortcutQueryToolsRegistered(t *testing.T) {
+	shortcutTools := []string{
+		"query_user_messages",
+		"query_tools",
+		"query_tool_errors",
+		"query_token_usage",
+		"query_conversation_flow",
+		"query_system_errors",
+		"query_file_snapshots",
+		"query_timestamps",
+		"query_summaries",
+		"query_tool_blocks",
+	}
+
+	executor := NewToolExecutor()
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	for _, toolName := range shortcutTools {
+		t.Run(toolName, func(t *testing.T) {
+			// These tools should be registered, but will fail with "no sessions found"
+			// in test environment. We just need to verify they don't return "unknown tool" error.
+			_, err := executor.ExecuteTool(cfg, toolName, map[string]interface{}{})
+
+			// The error should NOT be "unknown tool"
+			if err != nil && strings.Contains(err.Error(), "unknown tool") {
+				t.Errorf("tool %s should be registered but got 'unknown tool' error", toolName)
+			}
+		})
+	}
+}

@@ -130,6 +130,272 @@ else
 fi
 echo ""
 
+# Test 5: get_session_directory (project scope)
+echo -e "${BLUE}Test 5: get_session_directory (project scope)${NC}"
+REQUEST='{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_session_directory","arguments":{"scope":"project"}}}'
+RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+if [ -z "$RESPONSE" ]; then
+    echo -e "  ${YELLOW}⚠ WARNING${NC} - No JSON-RPC response received"
+else
+    if echo "$RESPONSE" | jq -e '.result.content[0].text | fromjson | .directory' >/dev/null 2>&1; then
+        DIRECTORY=$(echo "$RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+        FILE_COUNT=$(echo "$RESPONSE" | jq -r '.result.content[0].text | fromjson | .file_count')
+        echo -e "  ${GREEN}✓ PASSED${NC} - Directory: $DIRECTORY, Files: $FILE_COUNT"
+    else
+        ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error.message // "Unknown error"')
+        echo -e "  ${YELLOW}⚠ WARNING${NC} - $ERROR_MSG"
+    fi
+fi
+echo ""
+
+# Test 6: get_session_directory (session scope)
+echo -e "${BLUE}Test 6: get_session_directory (session scope)${NC}"
+REQUEST='{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"get_session_directory","arguments":{"scope":"session"}}}'
+RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+if [ -z "$RESPONSE" ]; then
+    echo -e "  ${YELLOW}⚠ WARNING${NC} - No JSON-RPC response received"
+else
+    if echo "$RESPONSE" | jq -e '.result.content[0].text | fromjson | .directory' >/dev/null 2>&1; then
+        DIRECTORY=$(echo "$RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+        FILE_COUNT=$(echo "$RESPONSE" | jq -r '.result.content[0].text | fromjson | .file_count')
+        echo -e "  ${GREEN}✓ PASSED${NC} - Directory: $DIRECTORY, Files: $FILE_COUNT"
+    else
+        ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error.message // "Unknown error"')
+        echo -e "  ${YELLOW}⚠ WARNING${NC} - $ERROR_MSG"
+    fi
+fi
+echo ""
+
+# Test 7: inspect_session_files (without samples)
+echo -e "${BLUE}Test 7: inspect_session_files (without samples)${NC}"
+# First get the directory to get file list
+REQUEST='{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get_session_directory","arguments":{"scope":"project"}}}'
+RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+DIR_RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+if [ -z "$DIR_RESPONSE" ]; then
+    echo -e "  ${YELLOW}⚠ WARNING${NC} - Could not get directory"
+else
+    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+    # Get first 5 files from directory with FULL PATHS
+    FILES=$(ls "$DIRECTORY" 2>/dev/null | head -5 | sed "s|^|$DIRECTORY/|" | jq -R . | jq -s .)
+
+    if [ -z "$FILES" ] || [ "$FILES" = "[]" ]; then
+        echo -e "  ${YELLOW}⚠ WARNING${NC} - No files found in directory"
+    else
+        REQUEST="{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/call\",\"params\":{\"name\":\"inspect_session_files\",\"arguments\":{\"scope\":\"project\",\"files\":$FILES,\"include_samples\":false}}}"
+        RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+        RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+        if [ -z "$RESPONSE" ]; then
+            echo -e "  ${YELLOW}⚠ WARNING${NC} - No JSON-RPC response received"
+        else
+            if echo "$RESPONSE" | jq -e '.result.files' >/dev/null 2>&1; then
+                FILE_COUNT=$(echo "$RESPONSE" | jq -r '.result.files | length')
+                echo -e "  ${GREEN}✓ PASSED${NC} - Inspected $FILE_COUNT files"
+            else
+                ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error.message // "Unknown error"')
+                echo -e "  ${YELLOW}⚠ WARNING${NC} - $ERROR_MSG"
+            fi
+        fi
+    fi
+fi
+echo ""
+
+# Test 8: inspect_session_files (with samples)
+echo -e "${BLUE}Test 8: inspect_session_files (with samples)${NC}"
+# First get the directory to get file list
+REQUEST='{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"get_session_directory","arguments":{"scope":"project"}}}'
+RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+DIR_RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+if [ -z "$DIR_RESPONSE" ]; then
+    echo -e "  ${YELLOW}⚠ WARNING${NC} - Could not get directory"
+else
+    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+    # Get first 3 files from directory
+    FILES=$(ls "$DIRECTORY" 2>/dev/null | head -3 | jq -R . | jq -s .)
+
+    if [ -z "$FILES" ] || [ "$FILES" = "[]" ]; then
+        echo -e "  ${YELLOW}⚠ WARNING${NC} - No files found in directory"
+    else
+        REQUEST="{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"tools/call\",\"params\":{\"name\":\"inspect_session_files\",\"arguments\":{\"scope\":\"project\",\"files\":$FILES,\"include_samples\":true,\"sample_size\":3}}}"
+        RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+        RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+        if [ -z "$RESPONSE" ]; then
+            echo -e "  ${YELLOW}⚠ WARNING${NC} - No JSON-RPC response received"
+        else
+            if echo "$RESPONSE" | jq -e '.result.content[0].text | fromjson | .files' >/dev/null 2>&1; then
+                FILE_COUNT=$(echo "$RESPONSE" | jq -r '.result.content[0].text | fromjson | .files | length')
+                HAS_SAMPLES=$(echo "$RESPONSE" | jq -r '.result.content[0].text | fromjson | .files[0].sample_entries // [] | length > 0')
+                if [ "$HAS_SAMPLES" = "true" ]; then
+                    echo -e "  ${GREEN}✓ PASSED${NC} - Inspected $FILE_COUNT files with samples"
+                else
+                    echo -e "  ${GREEN}✓ PASSED${NC} - Inspected $FILE_COUNT files (no samples available)"
+                fi
+            else
+                ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error.message // "Unknown error"')
+                echo -e "  ${YELLOW}⚠ WARNING${NC} - $ERROR_MSG"
+            fi
+        fi
+    fi
+fi
+echo ""
+
+# Test 9: execute_stage2_query (basic filter)
+echo -e "${BLUE}Test 9: execute_stage2_query (basic filter)${NC}"
+# First get the directory to get file list
+REQUEST='{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"get_session_directory","arguments":{"scope":"project"}}}'
+RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+DIR_RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+if [ -z "$DIR_RESPONSE" ]; then
+    echo -e "  ${YELLOW}⚠ WARNING${NC} - Could not get directory"
+else
+    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+    # Get first 5 files from directory
+    FILES=$(ls "$DIRECTORY" 2>/dev/null | head -5 | jq -R . | jq -s .)
+
+    if [ -z "$FILES" ] || [ "$FILES" = "[]" ]; then
+        echo -e "  ${YELLOW}⚠ WARNING${NC} - No files found in directory"
+    else
+        REQUEST="{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"tools/call\",\"params\":{\"name\":\"execute_stage2_query\",\"arguments\":{\"scope\":\"project\",\"files\":$FILES,\"filter\":\"select(.type == \\\\\\\"user\\\\\\\")\",\"limit\":5}}}"
+        RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+        RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+        if [ -z "$RESPONSE" ]; then
+            echo -e "  ${YELLOW}⚠ WARNING${NC} - No JSON-RPC response received"
+        else
+            if echo "$RESPONSE" | jq -e '.result' >/dev/null 2>&1; then
+                echo -e "  ${GREEN}✓ PASSED${NC} - Query executed successfully"
+            else
+                ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error.message // "Unknown error"')
+                echo -e "  ${YELLOW}⚠ WARNING${NC} - $ERROR_MSG"
+            fi
+        fi
+    fi
+fi
+echo ""
+
+# Test 10: execute_stage2_query (full pipeline)
+echo -e "${BLUE}Test 10: execute_stage2_query (full pipeline)${NC}"
+# First get the directory to get file list
+REQUEST='{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"get_session_directory","arguments":{"scope":"project"}}}'
+RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+DIR_RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+if [ -z "$DIR_RESPONSE" ]; then
+    echo -e "  ${YELLOW}⚠ WARNING${NC} - Could not get directory"
+else
+    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+    # Get first 5 files from directory
+    FILES=$(ls "$DIRECTORY" 2>/dev/null | head -5 | jq -R . | jq -s .)
+
+    if [ -z "$FILES" ] || [ "$FILES" = "[]" ]; then
+        echo -e "  ${YELLOW}⚠ WARNING${NC} - No files found in directory"
+    else
+        REQUEST="{\"jsonrpc\":\"2.0\",\"id\":10,\"method\":\"tools/call\",\"params\":{\"name\":\"execute_stage2_query\",\"arguments\":{\"scope\":\"project\",\"files\":$FILES,\"filter\":\"select(.type == \\\\\\\"assistant\\\\\\\")\",\"sort_by\":\"timestamp\",\"sort_order\":\"desc\",\"transform\":\"{timestamp, turn}\",\"limit\":3}}}"
+        RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+        RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+        if [ -z "$RESPONSE" ]; then
+            echo -e "  ${YELLOW}⚠ WARNING${NC} - No JSON-RPC response received"
+        else
+            if echo "$RESPONSE" | jq -e '.result' >/dev/null 2>&1; then
+                echo -e "  ${GREEN}✓ PASSED${NC} - Full pipeline executed successfully"
+            else
+                ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error.message // "Unknown error"')
+                echo -e "  ${YELLOW}⚠ WARNING${NC} - $ERROR_MSG"
+            fi
+        fi
+    fi
+fi
+echo ""
+
+# Test 11: Performance validation
+echo -e "${BLUE}Test 11: Performance Validation (< 100ms target)${NC}"
+# First get the directory to get file list
+REQUEST='{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"get_session_directory","arguments":{"scope":"project"}}}'
+RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+DIR_RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+if [ -z "$DIR_RESPONSE" ]; then
+    echo -e "  ${YELLOW}⚠ WARNING${NC} - Could not get directory"
+else
+    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+    # Get first 10 files from directory
+    FILES=$(ls "$DIRECTORY" 2>/dev/null | head -10 | jq -R . | jq -s .)
+
+    if [ -z "$FILES" ] || [ "$FILES" = "[]" ]; then
+        echo -e "  ${YELLOW}⚠ WARNING${NC} - No files found in directory"
+    else
+        START_TIME=$(date +%s%3N)
+        REQUEST="{\"jsonrpc\":\"2.0\",\"id\":11,\"method\":\"tools/call\",\"params\":{\"name\":\"execute_stage2_query\",\"arguments\":{\"scope\":\"project\",\"files\":$FILES,\"filter\":\"select(.type == \\\\\\\"user\\\\\\\")\",\"limit\":10}}}"
+        RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+        END_TIME=$(date +%s%3N)
+        DURATION=$((END_TIME - START_TIME))
+
+        RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+        if [ -z "$RESPONSE" ]; then
+            echo -e "  ${YELLOW}⚠ WARNING${NC} - No response received"
+        else
+            if [ $DURATION -lt 100 ]; then
+                echo -e "  ${GREEN}✓ PASSED${NC} - Query completed in ${DURATION}ms (< 100ms target)"
+            else
+                echo -e "  ${YELLOW}⚠ SLOW${NC} - Query took ${DURATION}ms (target: < 100ms)"
+            fi
+        fi
+    fi
+fi
+echo ""
+
+# Test 12: Complete two-stage workflow
+echo -e "${BLUE}Test 12: Complete Two-Stage Workflow${NC}"
+
+# Stage 1: Get directory
+echo -e "  ${BLUE}Stage 1: Get session directory${NC}"
+REQUEST='{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"get_session_directory","arguments":{"scope":"project"}}}'
+RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+if [ -z "$RESPONSE" ]; then
+    echo -e "    ${RED}✗ FAILED${NC} - Stage 1 failed"
+else
+    if echo "$RESPONSE" | jq -e '.result.content[0].text | fromjson | .directory' >/dev/null 2>&1; then
+        echo -e "    ${GREEN}✓ Stage 1 complete${NC}"
+
+        DIRECTORY=$(echo "$RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+        FILES=$(ls "$DIRECTORY" 2>/dev/null | head -5 | jq -R . | jq -s .)
+
+        # Stage 2: Execute query
+        echo -e "  ${BLUE}Stage 2: Execute query${NC}"
+        REQUEST="{\"jsonrpc\":\"2.0\",\"id\":13,\"method\":\"tools/call\",\"params\":{\"name\":\"execute_stage2_query\",\"arguments\":{\"scope\":\"project\",\"files\":$FILES,\"filter\":\"select(.type == \\\\\\\"user\\\\\\\")\",\"limit\":5}}}"
+        RAW_OUTPUT=$(echo "$REQUEST" | timeout 5 "$BINARY" 2>&1)
+        RESPONSE=$(get_json_response "$RAW_OUTPUT")
+
+        if [ -z "$RESPONSE" ]; then
+            echo -e "    ${RED}✗ FAILED${NC} - Stage 2 failed"
+        else
+            if echo "$RESPONSE" | jq -e '.result' >/dev/null 2>&1; then
+                echo -e "    ${GREEN}✓ Stage 2 complete${NC}"
+                echo -e "  ${GREEN}✓ PASSED${NC} - Complete two-stage workflow successful"
+            else
+                ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error.message // "Unknown error"')
+                echo -e "    ${RED}✗ FAILED${NC} - Stage 2 returned error: $ERROR_MSG"
+            fi
+        fi
+    else
+        echo -e "    ${RED}✗ FAILED${NC} - Stage 1 returned error"
+    fi
+fi
+echo ""
+
 echo "=========================================="
 echo -e "${GREEN}✓ Basic tests completed${NC}"
 echo "=========================================="

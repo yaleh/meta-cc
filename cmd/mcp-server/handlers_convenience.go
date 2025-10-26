@@ -8,7 +8,8 @@ import (
 )
 
 // handlers_convenience.go implements the 10 convenience tools (Layer 1)
-// These tools wrap handleQuery() with pre-configured jq expressions
+// These tools wrap executeQuery() with pre-configured jq expressions
+// Phase 27 Stage 27.1: Updated to use executeQuery() instead of handleQuery()
 
 // handleQueryUserMessages implements query_user_messages convenience tool
 // Maps to Query 1 from frequent-jsonl-queries.md
@@ -31,13 +32,8 @@ func (e *ToolExecutor) handleQueryUserMessages(cfg *config.Config, scope string,
 		jqFilter = fmt.Sprintf(`%s | select(.message.content | test("%s"))`, jqFilter, escapedPattern)
 	}
 
-	// Build args for handleQuery
-	queryArgs := map[string]interface{}{
-		"jq_filter": jqFilter,
-		"limit":     limit,
-	}
-
-	return e.handleQuery(cfg, scope, queryArgs)
+	// Call executeQuery directly
+	return e.executeQuery(scope, jqFilter, limit)
 }
 
 // handleQueryTools implements query_tools convenience tool
@@ -55,12 +51,7 @@ func (e *ToolExecutor) handleQueryTools(cfg *config.Config, scope string, args m
 		jqFilter = fmt.Sprintf(`%s | select(.message.content[] | select(.type == "tool_use" and .name == "%s"))`, jqFilter, escapedTool)
 	}
 
-	queryArgs := map[string]interface{}{
-		"jq_filter": jqFilter,
-		"limit":     limit,
-	}
-
-	return e.handleQuery(cfg, scope, queryArgs)
+	return e.executeQuery(scope, jqFilter, limit)
 }
 
 // handleQueryToolErrors implements query_tool_errors convenience tool
@@ -72,12 +63,7 @@ func (e *ToolExecutor) handleQueryToolErrors(cfg *config.Config, scope string, a
 	jqFilter := `select(.type == "user" and (.message.content | type == "array")) | ` +
 		`select(.message.content[] | select(.type == "tool_result" and .is_error == true))`
 
-	queryArgs := map[string]interface{}{
-		"jq_filter": jqFilter,
-		"limit":     limit,
-	}
-
-	return e.handleQuery(cfg, scope, queryArgs)
+	return e.executeQuery(scope, jqFilter, limit)
 }
 
 // handleQueryTokenUsage implements query_token_usage convenience tool
@@ -88,12 +74,7 @@ func (e *ToolExecutor) handleQueryTokenUsage(cfg *config.Config, scope string, a
 	// Filter for assistant messages with usage information
 	jqFilter := `select(.type == "assistant" and has("message")) | select(.message | has("usage"))`
 
-	queryArgs := map[string]interface{}{
-		"jq_filter": jqFilter,
-		"limit":     limit,
-	}
-
-	return e.handleQuery(cfg, scope, queryArgs)
+	return e.executeQuery(scope, jqFilter, limit)
 }
 
 // handleQueryConversationFlow implements query_conversation_flow convenience tool
@@ -104,19 +85,10 @@ func (e *ToolExecutor) handleQueryConversationFlow(cfg *config.Config, scope str
 	// Filter for user and assistant messages only
 	jqFilter := `select(.type == "user" or .type == "assistant")`
 
-	// Optional transform to show parent-child relationships
-	jqTransform := getStringParam(args, "transform", "")
+	// Note: jq_transform was removed in Phase 27 - transform parameter is ignored
+	// Users should use jq_filter for transformations instead
 
-	queryArgs := map[string]interface{}{
-		"jq_filter": jqFilter,
-		"limit":     limit,
-	}
-
-	if jqTransform != "" {
-		queryArgs["jq_transform"] = jqTransform
-	}
-
-	return e.handleQuery(cfg, scope, queryArgs)
+	return e.executeQuery(scope, jqFilter, limit)
 }
 
 // handleQuerySystemErrors implements query_system_errors convenience tool
@@ -127,12 +99,7 @@ func (e *ToolExecutor) handleQuerySystemErrors(cfg *config.Config, scope string,
 	// Filter for system API errors
 	jqFilter := `select(.type == "system" and .subtype == "api_error")`
 
-	queryArgs := map[string]interface{}{
-		"jq_filter": jqFilter,
-		"limit":     limit,
-	}
-
-	return e.handleQuery(cfg, scope, queryArgs)
+	return e.executeQuery(scope, jqFilter, limit)
 }
 
 // handleQueryFileSnapshots implements query_file_snapshots convenience tool
@@ -143,12 +110,7 @@ func (e *ToolExecutor) handleQueryFileSnapshots(cfg *config.Config, scope string
 	// Filter for file history snapshots with messageId
 	jqFilter := `select(.type == "file-history-snapshot" and has("messageId"))`
 
-	queryArgs := map[string]interface{}{
-		"jq_filter": jqFilter,
-		"limit":     limit,
-	}
-
-	return e.handleQuery(cfg, scope, queryArgs)
+	return e.executeQuery(scope, jqFilter, limit)
 }
 
 // handleQueryTimestamps implements query_timestamps convenience tool
@@ -159,12 +121,7 @@ func (e *ToolExecutor) handleQueryTimestamps(cfg *config.Config, scope string, a
 	// Filter for entries with timestamp
 	jqFilter := `select(.timestamp != null)`
 
-	queryArgs := map[string]interface{}{
-		"jq_filter": jqFilter,
-		"limit":     limit,
-	}
-
-	return e.handleQuery(cfg, scope, queryArgs)
+	return e.executeQuery(scope, jqFilter, limit)
 }
 
 // handleQuerySummaries implements query_summaries convenience tool
@@ -182,12 +139,7 @@ func (e *ToolExecutor) handleQuerySummaries(cfg *config.Config, scope string, ar
 		jqFilter = fmt.Sprintf(`%s | select(.summary | test("%s"; "i"))`, jqFilter, escapedKeyword)
 	}
 
-	queryArgs := map[string]interface{}{
-		"jq_filter": jqFilter,
-		"limit":     limit,
-	}
-
-	return e.handleQuery(cfg, scope, queryArgs)
+	return e.executeQuery(scope, jqFilter, limit)
 }
 
 // handleQueryToolBlocks implements query_tool_blocks convenience tool
@@ -210,12 +162,7 @@ func (e *ToolExecutor) handleQueryToolBlocks(cfg *config.Config, scope string, a
 		jqFilter = `select(.type == "user" and (.message.content | type == "array")) | .message.content[] | select(.type == "tool_result")`
 	}
 
-	queryArgs := map[string]interface{}{
-		"jq_filter": jqFilter,
-		"limit":     limit,
-	}
-
-	return e.handleQuery(cfg, scope, queryArgs)
+	return e.executeQuery(scope, jqFilter, limit)
 }
 
 // escapeJQ escapes special characters in strings for jq expressions

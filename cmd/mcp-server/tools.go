@@ -109,41 +109,10 @@ func buildTool(name, description string, properties map[string]Property, require
 
 func getToolDefinitions() []Tool {
 	return []Tool{
-		// Phase 25: query tool uses jq-based interface (jq_filter, jq_transform)
-		// Standard parameters (scope, jq_filter, stats_only, etc.) provided by StandardToolParameters()
-		buildTool("query", "Execute jq query on session data. Default scope: project.", map[string]Property{
-			"jq_transform": {
-				Type: "string",
-				Description: `jq transform expression (optional). Applied after filtering.
+		// Phase 27 Stage 27.1: query and query_raw tools removed
+		// Use the 10 shortcut query tools instead
 
-Examples:
-  - {type, timestamp}
-  - {timestamp, content: .message.content}
-  - {type, tools: [.message.content[]? | select(.type == "tool_use") | .name]}
-
-Use transform to extract specific fields or reshape results.`,
-			},
-		}),
-		buildTool("query_raw", "Execute raw jq expression. For power users. Default scope: project.", map[string]Property{
-			"jq_expression": {
-				Type: "string",
-				Description: `Complete jq expression (required). Maximum flexibility.
-
-Examples:
-  - select(.type == "user")
-  - select(.type == "assistant") | {timestamp, tools: [.message.content[]? | select(.type == "tool_use") | .name]}
-  - select(.type == "user" and (.message.content | type == "string"))
-
-Note: Expressions operate on individual JSONL objects, not arrays.
-Do NOT use .[] prefix - each line is already an object.`,
-			},
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-		}, "jq_expression"),
-
-		// Layer 1: NEW Convenience Tools (8 high-frequency queries)
+		// Layer 1: Convenience Tools (10 high-frequency queries)
 		// Note: query_user_messages and query_tools already exist above
 		buildTool("query_tool_errors", "Query tool execution errors. Default scope: project.", map[string]Property{
 			"limit": {
@@ -298,6 +267,58 @@ Do NOT use .[] prefix - each line is already an object.`,
 				Required: []string{"name"},
 			},
 		},
+		buildTool("get_session_directory", "Get session directory metadata. Default scope: project.", map[string]Property{
+			"scope": {
+				Type:        "string",
+				Description: "Query scope: 'session' (current session only) or 'project' (all sessions)",
+			},
+		}, "scope"),
+		buildTool("inspect_session_files", "Inspect session files for metadata (record types, time ranges, size).", map[string]Property{
+			"files": {
+				Type:        "array",
+				Description: "Array of absolute file paths to inspect",
+				Items: &Property{
+					Type: "string",
+				},
+			},
+			"include_samples": {
+				Type:        "boolean",
+				Description: "If true, include 1-2 sample records per type (default: false)",
+			},
+		}, "files"),
+		{
+			Name:        "execute_stage2_query",
+			Description: "Execute Stage 2 query on selected files with filtering, sorting, and limits.",
+			InputSchema: ToolSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"files": {
+						Type:        "array",
+						Description: "Array of absolute file paths to query (from Stage 1 inspection)",
+						Items: &Property{
+							Type: "string",
+						},
+					},
+					"filter": {
+						Type:        "string",
+						Description: "jq filter expression (e.g., 'select(.type == \"user\")'). Required.",
+					},
+					"sort": {
+						Type:        "string",
+						Description: "jq sort expression (e.g., 'sort_by(.timestamp)'). Optional.",
+					},
+					"transform": {
+						Type:        "string",
+						Description: "jq transform expression (e.g., '{type, timestamp}'). Optional.",
+					},
+					"limit": {
+						Type:        "number",
+						Description: "Maximum number of results to return. Optional (default: no limit).",
+					},
+				},
+				Required: []string{"files", "filter"},
+			},
+		},
 	}
 }
 
@@ -314,6 +335,7 @@ type ToolSchema struct {
 }
 
 type Property struct {
-	Type        string `json:"type"`
-	Description string `json:"description"`
+	Type        string    `json:"type"`
+	Description string    `json:"description"`
+	Items       *Property `json:"items,omitempty"` // For array types
 }

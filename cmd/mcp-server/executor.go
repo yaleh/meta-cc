@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -95,6 +96,57 @@ func (e *ToolExecutor) executeSpecialTool(cfg *config.Config, toolName, scope st
 		recordToolSuccess(toolName, scope, start)
 		return output, true, nil
 
+	case "get_session_directory":
+		result, err := handleGetSessionDirectory(context.Background(), args)
+		if err != nil {
+			errorType := classifyError(err)
+			recordToolFailure(toolName, scope, start, errorType)
+			return "", true, err
+		}
+		// Convert result to JSON string
+		jsonData, err := json.Marshal(result)
+		if err != nil {
+			errorType := classifyError(err)
+			recordToolFailure(toolName, scope, start, errorType)
+			return "", true, fmt.Errorf("failed to marshal result: %w", err)
+		}
+		recordToolSuccess(toolName, scope, start)
+		return string(jsonData), true, nil
+
+	case "inspect_session_files":
+		result, err := handleInspectSessionFiles(context.Background(), args)
+		if err != nil {
+			errorType := classifyError(err)
+			recordToolFailure(toolName, scope, start, errorType)
+			return "", true, err
+		}
+		// Convert result to JSON string
+		jsonData, err := json.Marshal(result)
+		if err != nil {
+			errorType := classifyError(err)
+			recordToolFailure(toolName, scope, start, errorType)
+			return "", true, fmt.Errorf("failed to marshal result: %w", err)
+		}
+		recordToolSuccess(toolName, scope, start)
+		return string(jsonData), true, nil
+
+	case "execute_stage2_query":
+		result, err := handleExecuteStage2Query(context.Background(), args)
+		if err != nil {
+			errorType := classifyError(err)
+			recordToolFailure(toolName, scope, start, errorType)
+			return "", true, err
+		}
+		// Convert result to JSON string
+		jsonData, err := json.Marshal(result)
+		if err != nil {
+			errorType := classifyError(err)
+			recordToolFailure(toolName, scope, start, errorType)
+			return "", true, fmt.Errorf("failed to marshal result: %w", err)
+		}
+		recordToolSuccess(toolName, scope, start)
+		return string(jsonData), true, nil
+
 	default:
 		return "", false, nil
 	}
@@ -114,10 +166,8 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 	var err error
 
 	switch toolName {
-	case "query":
-		rawOutput, err = e.handleQuery(cfg, scope, args)
-	case "query_raw":
-		rawOutput, err = e.handleQueryRaw(cfg, scope, args)
+	// Phase 27 Stage 27.1: query and query_raw tools removed
+	// Use the 10 shortcut query tools instead
 
 	// Layer 1: Convenience Tools (10 high-frequency queries)
 	case "query_user_messages":
@@ -161,13 +211,13 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 	// Phase 25 Fix: All Phase 25 tools execute jq internally, so we should
 	// NOT apply jq_filter again to avoid double application.
 	//
-	// Phase 25 tools (12 total):
-	// - query, query_raw: Execute jq in handleQuery/handleQueryRaw
-	// - 10 convenience tools: Call handleQuery internally, which executes jq
+	// Phase 27 Update: query and query_raw removed
+	// Phase 25 tools (10 total):
+	// - 10 convenience tools: Execute jq internally
 	//
 	// Therefore, NO Phase 25 tool should have jq_filter applied post-processing.
 	phase25Tools := map[string]bool{
-		"query": true, "query_raw": true,
+		// Phase 27: query and query_raw removed
 		"query_user_messages": true, "query_tools": true, "query_tool_errors": true,
 		"query_token_usage": true, "query_conversation_flow": true, "query_system_errors": true,
 		"query_file_snapshots": true, "query_timestamps": true, "query_summaries": true,

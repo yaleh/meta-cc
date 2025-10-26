@@ -96,47 +96,5 @@ func TestJqFilterDescriptionFormat(t *testing.T) {
 	}
 }
 
-// TestQueryToolSchemaMatchesImplementation verifies that the 'query' tool schema
-// matches the Phase 25 jq-based implementation and does NOT include obsolete
-// object-based parameters that were removed.
-func TestQueryToolSchemaMatchesImplementation(t *testing.T) {
-	tools := getToolDefinitions()
-
-	var queryTool *Tool
-	for i := range tools {
-		if tools[i].Name == "query" {
-			queryTool = &tools[i]
-			break
-		}
-	}
-
-	if queryTool == nil {
-		t.Fatal("query tool not found in tool definitions")
-	}
-
-	// Verify obsolete parameters are NOT in schema (Phase 25 breaking change)
-	obsoleteParams := []string{"resource", "filter", "transform", "aggregate"}
-	for _, param := range obsoleteParams {
-		if _, exists := queryTool.InputSchema.Properties[param]; exists {
-			t.Errorf("query tool schema contains obsolete parameter '%s' that was removed in Phase 25.\n"+
-				"These object-based parameters were replaced with jq-based parameters (jq_filter, jq_transform).\n"+
-				"See docs/plans/25/PHASE-25-IMPLEMENTATION-PLAN.md lines 127-148 for breaking change details.",
-				param)
-		}
-	}
-
-	// Verify jq-based parameters ARE in schema (Phase 25 new design)
-	// Note: jq_filter and other standard parameters come from StandardToolParameters()
-	// and are merged in via MergeParameters(), so they should exist
-	requiredParams := []string{"jq_filter", "scope"}
-	for _, param := range requiredParams {
-		if _, exists := queryTool.InputSchema.Properties[param]; !exists {
-			t.Errorf("query tool schema missing required parameter '%s' from Phase 25 jq-based design", param)
-		}
-	}
-
-	// Verify description reflects jq-based interface
-	if !strings.Contains(queryTool.Description, "query") && !strings.Contains(queryTool.Description, "jq") {
-		t.Errorf("query tool description should mention jq-based querying.\nDescription: %s", queryTool.Description)
-	}
-}
+// TestQueryToolSchemaMatchesImplementation removed in Phase 27 Stage 27.1
+// The query tool was deleted to simplify the query interface
