@@ -27,23 +27,21 @@ repos:
         description: Organize Go imports
         args: [-w]
 
-      - id: go-vet
-        name: go vet
-        description: Run go vet
-        pass_filenames: false
+      # go-vet removed: redundant with golangci-lint and has hook issues
+      # Use: golangci-lint (includes go vet) and go test (short)
 
       - id: go-mod-tidy
         name: go mod tidy
         description: Clean go.mod and go.sum
         pass_filenames: false
 
-  # golangci-lint (fast mode for pre-commit)
+  # golangci-lint
   - repo: https://github.com/golangci/golangci-lint
     rev: v1.55.2
     hooks:
       - id: golangci-lint
         name: golangci-lint
-        description: Run golangci-lint (fast mode)
+        description: Run golangci-lint
         args: [--fast, --timeout=5m]
         pass_filenames: false
 

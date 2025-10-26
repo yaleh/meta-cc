@@ -100,6 +100,79 @@ See [MCP v2.0 Migration Guide](mcp-v2-migration.md) for complete migration instr
 
 ---
 
+## Query Behavior: Session-First Architecture
+
+**Understanding Session Boundaries**:
+
+Claude Code organizes session data as **one JSONL file per session**. Each file represents a complete conversation context. meta-cc convenience tools respect this natural organization:
+
+### Default Behavior (Session-First)
+
+All convenience query tools (`query_user_messages`, `query_tools`, etc.) use **session-aware ordering**:
+
+1. **Sessions ordered by recency**: Most recent sessions first (by file modification time)
+2. **Messages chronological within each session**: Oldest to newest preserves conversation flow
+3. **Session boundaries preserved**: Complete context maintained within each session
+4. **Limit applies across sessions**: But respects session boundaries when possible
+
+**Why Session-First?**
+
+- **Most common use case**: "What was I working on recently?" → Recent sessions matter most
+- **Context preservation**: See complete conversation flow within each session
+- **Performance**: Files already separated by session → no cross-file sorting needed
+- **Natural organization**: Matches how Claude Code stores data
+
+### Example: Query Behavior
+
+```javascript
+// Project has 3 sessions:
+// - Session A (newest): 2025-10-26, 50 messages
+// - Session B (middle): 2025-10-25, 150 messages
+// - Session C (oldest): 2025-10-24, 80 messages
+
+query_user_messages({pattern: ".*", limit: 100})
+
+// Returns:
+// - All 50 messages from Session A (newest)
+// - First 50 messages from Session B (to reach limit=100)
+// - Session C not read (limit already reached)
+// - All messages chronological within their session
+```
+
+### Advanced Use Cases
+
+**For global timestamp ordering** (cross-session, precise timestamp order):
+
+```javascript
+// Use Phase 27 two-stage query
+const dir = await get_session_directory({scope: "project"});
+await execute_stage2_query({
+    files: dir.files,
+    filter: 'select(.type == "user")',
+    sort: 'sort_by(.timestamp) | reverse',  // Global sort
+    limit: 100
+});
+```
+
+**For historical analysis** (oldest sessions first):
+
+```javascript
+// Stage 1: Get directory and select oldest files
+const dir = await get_session_directory({scope: "project"});
+const oldestFiles = dir.files
+    .sort((a, b) => a.modified_time - b.modified_time)  // Oldest first
+    .slice(0, 5);
+
+// Stage 2: Query selected files
+await execute_stage2_query({
+    files: oldestFiles,
+    filter: 'select(.type == "user")',
+    limit: 100
+});
+```
+
+---
+
 ### 1. get_session_stats
 
 **Purpose**: Statistical information about the current session.
@@ -158,9 +231,45 @@ See [MCP v2.0 Migration Guide](mcp-v2-migration.md) for complete migration instr
 - `max_message_length` (number): Deprecated - use hybrid mode instead
 - `content_summary` (boolean): Deprecated - use hybrid mode instead
 
+**Session-First Ordering** ✨:
+
+This tool uses **session-aware ordering** optimized for viewing recent activity:
+
+1. **Sessions ordered by recency**: Most recent sessions first (by file modification time)
+2. **Messages chronological within sessions**: Oldest to newest within each session
+3. **Session boundaries preserved**: Maintains complete context within each session
+4. **Limit behavior**: Applies across sessions while respecting session boundaries when possible
+
+**Example Behavior**:
+```javascript
+// Request: Get 100 recent user messages
+query_user_messages({pattern: ".*", limit: 100})
+
+// Returns:
+// - All messages from most recent session (e.g., 50 messages)
+// - If < 100, continues with next most recent session (e.g., 50 more)
+// - Maintains chronological order within each session
+// - Preserves full session context (from session start)
+```
+
+**For Global Timestamp Ordering**:
+
+If you need precise global timestamp ordering across all sessions instead of session-first:
+
+```javascript
+// Use two-stage query for cross-session timestamp ordering
+const dir = await get_session_directory({scope: "project"});
+await execute_stage2_query({
+    files: dir.files,
+    filter: 'select(.type == "user")',
+    sort: 'sort_by(.timestamp) | reverse',
+    limit: 100
+});
+```
+
 **Examples**:
 ```json
-// Find error-related messages
+// Find error-related messages (from recent sessions)
 {"pattern": "error|fix|bug", "limit": 5}
 
 // Count messages by topic

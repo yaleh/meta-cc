@@ -14,20 +14,25 @@ analyze(S) = collect(messages) ∧ extract(features) ∧ detect(sequences) ∧ m
 
 collect :: Scope → UserMessages
 collect(S) = {
+  # IMPORTANT: Convenience tools use session-first ordering
+  # - Sessions ordered by recency (newest first)
+  # - Messages chronological within each session
+  # - Session boundaries preserved for complete context
+
   all_messages: mcp_meta_cc.query_user_messages(
     pattern=".*",
     limit=200,
     scope=scope
   ),
 
-  # query_assistant_messages does not exist - use query with correct filter
-  assistant_messages: mcp_meta_cc.query(
-    jq_filter='select(.type == "assistant")',
-    limit=200,
-    scope=scope
+  # For assistant messages, use two-stage query (Phase 27)
+  assistant_messages: mcp_meta_cc.execute_stage2_query(
+    files=get_all_session_files(scope),
+    filter='select(.type == "assistant")',
+    limit=200
   ),
 
-  # query_conversation does not exist - use query_conversation_flow
+  # query_conversation_flow provides conversation context
   conversations: mcp_meta_cc.query_conversation_flow(
     limit=200,
     scope=scope
@@ -36,6 +41,14 @@ collect(S) = {
   # query_successful_prompts does not exist - no direct replacement
   # Could use query_user_messages to analyze patterns manually
   # successful_patterns: null
+}
+
+# Helper to get all session files for a scope
+get_all_session_files :: Scope → [FilePath]
+get_all_session_files(S) = {
+  dir_info = mcp_meta_cc.get_session_directory(scope=S),
+  files = dir_info.files
+  # Files already sorted by modification time (newest first)
 }
 
 extract :: UserMessages → MessageFeatures

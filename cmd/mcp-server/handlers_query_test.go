@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Phase 27 Stage 27.1: Tests for query and query_raw removed
@@ -207,4 +208,99 @@ func TestGetQueryBaseDirIntegration(t *testing.T) {
 			t.Errorf("project scope returned project root (%s), should use SessionLocator", projectPath)
 		}
 	})
+}
+
+// TestGetJSONLFilesOrderByModTime tests that getJSONLFiles returns files ordered by modification time (newest first)
+func TestGetJSONLFilesOrderByModTime(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test files with different modification times
+	// We'll create them in a specific order and set their modification times
+
+	// File 1: oldest (2025-01-01 10:00)
+	file1 := filepath.Join(tmpDir, "session-old.jsonl")
+	f1, err := os.Create(file1)
+	if err != nil {
+		t.Fatalf("failed to create file1: %v", err)
+	}
+	f1.WriteString(`{"type":"user","timestamp":"2025-01-01T10:00:00Z"}` + "\n")
+	f1.Close()
+
+	// File 2: middle (2025-01-02 10:00)
+	file2 := filepath.Join(tmpDir, "session-middle.jsonl")
+	f2, err := os.Create(file2)
+	if err != nil {
+		t.Fatalf("failed to create file2: %v", err)
+	}
+	f2.WriteString(`{"type":"user","timestamp":"2025-01-02T10:00:00Z"}` + "\n")
+	f2.Close()
+
+	// File 3: newest (2025-01-03 10:00)
+	file3 := filepath.Join(tmpDir, "session-new.jsonl")
+	f3, err := os.Create(file3)
+	if err != nil {
+		t.Fatalf("failed to create file3: %v", err)
+	}
+	f3.WriteString(`{"type":"user","timestamp":"2025-01-03T10:00:00Z"}` + "\n")
+	f3.Close()
+
+	// Set modification times (simulate different session times)
+	now := time.Now()
+	oldTime := now.Add(-48 * time.Hour)    // 2 days ago
+	middleTime := now.Add(-24 * time.Hour) // 1 day ago
+	newTime := now                         // now
+
+	if err := os.Chtimes(file1, oldTime, oldTime); err != nil {
+		t.Fatalf("failed to set modtime for file1: %v", err)
+	}
+	if err := os.Chtimes(file2, middleTime, middleTime); err != nil {
+		t.Fatalf("failed to set modtime for file2: %v", err)
+	}
+	if err := os.Chtimes(file3, newTime, newTime); err != nil {
+		t.Fatalf("failed to set modtime for file3: %v", err)
+	}
+
+	// Call getJSONLFiles
+	files, err := getJSONLFiles(tmpDir)
+	if err != nil {
+		t.Fatalf("getJSONLFiles failed: %v", err)
+	}
+
+	// Verify we got 3 files
+	if len(files) != 3 {
+		t.Fatalf("expected 3 files, got %d", len(files))
+	}
+
+	// Verify order: newest first (file3, file2, file1)
+	// The files should be ordered by modification time, newest first
+	expectedOrder := []string{
+		filepath.Base(file3), // session-new.jsonl (newest)
+		filepath.Base(file2), // session-middle.jsonl
+		filepath.Base(file1), // session-old.jsonl (oldest)
+	}
+
+	for i, expectedFile := range expectedOrder {
+		actualFile := filepath.Base(files[i])
+		if actualFile != expectedFile {
+			t.Errorf("position %d: expected %s, got %s", i, expectedFile, actualFile)
+		}
+	}
+
+	// Also verify modification times are in descending order
+	for i := 0; i < len(files)-1; i++ {
+		stat1, _ := os.Stat(files[i])
+		stat2, _ := os.Stat(files[i+1])
+
+		if stat1.ModTime().Before(stat2.ModTime()) {
+			t.Errorf("files not sorted by modtime descending: %s (%v) should be after %s (%v)",
+				filepath.Base(files[i]), stat1.ModTime(),
+				filepath.Base(files[i+1]), stat2.ModTime())
+		}
+	}
+
+	t.Logf("Files correctly ordered by modification time (newest first):")
+	for i, file := range files {
+		stat, _ := os.Stat(file)
+		t.Logf("  %d. %s (modtime: %v)", i+1, filepath.Base(file), stat.ModTime())
+	}
 }

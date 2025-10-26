@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/yaleh/meta-cc/internal/locator"
 )
@@ -102,20 +103,50 @@ func getQueryBaseDir(scope string) (string, error) {
 }
 
 // getJSONLFiles returns all .jsonl files in a directory (non-recursive)
+// Files are sorted by modification time (newest first) to prioritize recent sessions
 func getJSONLFiles(dir string) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
 
-	var files []string
+	// Collect file info with modification times
+	type fileInfo struct {
+		path    string
+		modTime int64 // Unix timestamp for easier sorting
+	}
+	var fileInfos []fileInfo
+
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
 		if filepath.Ext(entry.Name()) == ".jsonl" {
-			files = append(files, filepath.Join(dir, entry.Name()))
+			fullPath := filepath.Join(dir, entry.Name())
+
+			// Get file stat for modification time
+			info, err := entry.Info()
+			if err != nil {
+				// Skip files we can't stat
+				continue
+			}
+
+			fileInfos = append(fileInfos, fileInfo{
+				path:    fullPath,
+				modTime: info.ModTime().Unix(),
+			})
 		}
+	}
+
+	// Sort by modification time (newest first = descending order)
+	sort.Slice(fileInfos, func(i, j int) bool {
+		return fileInfos[i].modTime > fileInfos[j].modTime
+	})
+
+	// Extract paths
+	var files []string
+	for _, fi := range fileInfos {
+		files = append(files, fi.path)
 	}
 
 	return files, nil

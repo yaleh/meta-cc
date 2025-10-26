@@ -14,43 +14,53 @@ analyze(M) = collect(events) ∧ sequence(timeline) ∧ detect(patterns) ∧ mea
 
 collect :: Scope → EventData
 collect(S) = {
-  # IMPORTANT: Do NOT use .[] prefix in jq_filter - JSONL files are processed line-by-line
-  # Each jq expression operates on a single object, not an array
+  # IMPORTANT: Convenience tools use session-first ordering
+  # - Sessions ordered by recency (newest first)
+  # - Messages chronological within each session
+  # - Session boundaries preserved for complete context
 
+  # Note: query_user_messages returns messages grouped by session
+  # Most recent sessions first, maintaining chronological order within each session
+  # This is optimal for understanding "what was I working on recently"
   user_messages: mcp_meta_cc.query_user_messages(
     pattern=".*",
     scope=scope
   ),
 
-  # query_assistant_messages does not exist - use query with correct filter
-  assistant_messages: mcp_meta_cc.query(
-    jq_filter='select(.type == "assistant")',
-    scope=scope
+  # For assistant messages, use execute_stage2_query for flexibility
+  # Or use query_token_usage if only need messages with token stats
+  assistant_messages: mcp_meta_cc.execute_stage2_query(
+    files=get_all_session_files(scope),
+    filter='select(.type == "assistant")'
   ),
 
-  # query_conversation does not exist - use query_conversation_flow
+  # Conversation flow preserves session context
   conversations: mcp_meta_cc.query_conversation_flow(
     scope=scope
   ),
 
-  # query_tools does not accept jq_filter - use query instead
-  # Filter for tool_use blocks in assistant messages (Task, SlashCommand, MCP tools)
-  high_level_tools: mcp_meta_cc.query(
-    jq_filter='select(.type == "assistant" and (.message.content[]? | .type == "tool_use" and (.name | test("^(Task|SlashCommand|mcp__)"))))',
-    scope=scope
+  # For high-level tools, use execute_stage2_query with complex filter
+  # This gives you control over file selection and sorting
+  high_level_tools: mcp_meta_cc.execute_stage2_query(
+    files=get_all_session_files(scope),
+    filter='select(.type == "assistant" and (.message.content[]? | .type == "tool_use" and (.name | test("^(Task|SlashCommand|mcp__)"))))'
   ),
 
-  # Filter for tool errors in tool_result blocks
-  error_events: mcp_meta_cc.query(
-    jq_filter='select(.type == "user" and (.message.content[]? | select(.type == "tool_result" and .is_error == true)))',
+  # Tool errors can use the convenience tool
+  error_events: mcp_meta_cc.query_tool_errors(
     scope=scope
   ),
-
-  # query_tool_sequences does not exist - would need custom implementation
-  # For now, omit this data or implement alternative approach
-  # tool_sequences: null,
 
   git_history: if is_git_repository() then collect_git_data(S) else null
+}
+
+# Helper to get all session files for a scope
+get_all_session_files :: Scope → [FilePath]
+get_all_session_files(S) = {
+  dir_info = mcp_meta_cc.get_session_directory(scope=S),
+  # For timeline, we want all files in chronological order
+  # Sort by modification time (oldest first for historical timeline)
+  files = dir_info.files.sort_by(modified_time)
 }
 
 collect_git_data :: Scope → GitData
