@@ -52,7 +52,9 @@ find_broken_refs(P) = {
 detect_silos :: Project → Silos
 detect_silos(P) = {
   # Hidden: repeated explanations not in docs
-  hidden = query_assistant_messages(min_len=100, pattern="because|reason|need to")
+  # query_assistant_messages does not exist - use query() instead
+  hidden = query(jq_filter='select(.type == "assistant")', scope="project")
+    → filter_by_content_pattern("because|reason|need to")
     → cluster_by_similarity()
     → filter(not_in_docs AND count > 3),
 

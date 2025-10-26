@@ -130,7 +130,93 @@ Project-wide task tracking and future improvements.
 
 ### Planned
 
-- [ ] TBD (track feature requests here)
+- [ ] **Implement Metadata-Driven Query Architecture**
+  - **Phase**: MCP Query Optimization (Phase 27 candidate)
+  - **Type**: Architectural improvement
+  - **Core Concept**:
+    - MCP server returns metadata (schema, file info, query templates) instead of executing queries
+    - Claude constructs and executes queries directly using Bash tool
+    - Hybrid approach: metadata-driven for flexibility + shell helpers for convenience
+  - **Implementation**:
+    - **Stage 1**: Core metadata tool (1 day, ~100 lines)
+      - New MCP tool: `get_session_metadata`
+      - Returns: JSONL schema, file metadata (records, timestamps), query templates
+      - Response size: 1-5 KB (vs 10-1000 KB for query results)
+      - Response time: 0.02s (instant metadata lookup)
+    - **Stage 2**: Query template library (0.5 day)
+      - YAML-based template definitions
+      - Common queries: user_messages, tool_errors, time_range, smart_file_filter
+      - Variable substitution support
+    - **Stage 3**: Shell helper tools (0.5 day, ~50 lines each)
+      - Keep 5-8 core convenience tools (backward compatibility)
+      - `query_user_messages`, `query_tool_errors`, `query_token_usage`, etc.
+      - Shell-based implementation for simplicity
+  - **Key Advantages**:
+    - ✅ **Zero-code extensibility**: Claude creates new queries without code changes
+    - ✅ **Complete transparency**: Users see full query commands (debugging friendly)
+    - ✅ **Minimal data transfer**: 1KB metadata vs 10-1000KB results
+    - ✅ **Extreme maintainability**: <100 lines core code vs 2000+ lines current
+    - ✅ **Maximum flexibility**: Claude freely combines jq, grep, sort, etc.
+    - ✅ **Self-documenting**: Schema serves as API documentation
+  - **Performance Comparison** (200-file project):
+    - Latest 10 records: 17s (current) → 0.3s (metadata + early stop)
+    - Simple filter: 0.5s (current) → 0.05s (shell pipeline)
+    - Time range query: 17s (current) → 0.5s (smart file filtering)
+    - Metadata lookup: N/A → 0.02s (cached index)
+  - **Use Cases**:
+    - **Standard queries**: Use convenience tools (simple, 1 MCP call)
+    - **Custom queries**: Get metadata → Claude builds command (flexible)
+    - **Ad-hoc analysis**: Claude combines templates creatively
+    - **Query debugging**: Claude shows and explains commands
+  - **Example Workflow**:
+    ```
+    User: "Show me errors from yesterday mentioning 'timeout'"
+
+    Claude:
+    1. Calls get_session_metadata(scope: "project")
+    2. Filters files by timestamp (yesterday's files only)
+    3. Constructs optimized query:
+       cat file1.jsonl file2.jsonl \
+         | grep '"is_error":true' \
+         | jq -c 'select(.type == "user") |
+                  select(.message.content[]? |
+                  select(.type == "tool_result" and .is_error)) |
+                  select(.message.content | test("timeout"))' \
+         | jq -s 'sort_by(.timestamp) | reverse'
+    4. Executes via Bash tool
+    ```
+  - **Security Considerations**:
+    - Path sandboxing (restrict to session directories)
+    - Metadata excludes sensitive content
+    - Query templates use parameterization (no injection)
+    - Full audit trail (MCP + Bash tool logs)
+  - **Backward Compatibility**:
+    - Existing query tools remain functional
+    - Progressive migration strategy
+    - Dual-mode support (direct query + metadata-driven)
+  - **Success Metrics**:
+    - Code reduction: 80% (2000 lines → 400 lines)
+    - Development time for new queries: 2 days → 0 (Claude auto-generates)
+    - Query flexibility: Fixed set → Unlimited combinations
+    - Maintenance burden: High → Low (schema + templates only)
+  - **Risks and Mitigations**:
+    - Risk: Claude constructs incorrect commands
+      - Mitigation: Detailed templates + examples in metadata
+    - Risk: Additional MCP roundtrip overhead
+      - Mitigation: Metadata caching (0.02s lookup)
+    - Risk: Security vulnerabilities
+      - Mitigation: Path restrictions + command auditing
+  - **Dependencies**:
+    - File metadata indexing (can reuse from Phase 26 discussion)
+    - JSONL schema documentation (already exists in docs/)
+    - Query template library (new, minimal effort)
+  - **Total Investment**: 2 days
+  - **Expected ROI**: 5x+ development efficiency, 80% code reduction
+  - **Priority**: High (foundational improvement for long-term maintainability)
+  - **Related**:
+    - Complements shell-first approach discussed in query optimization analysis
+    - Aligns with Unix philosophy (small tools, composition)
+    - Follows meta-cc principle of empowering Claude rather than constraining
 
 ## Infrastructure
 
@@ -202,5 +288,5 @@ Project-wide task tracking and future improvements.
 
 ---
 
-**Last Updated**: 2025-10-25
+**Last Updated**: 2025-10-26
 **Maintainers**: Project team

@@ -4,22 +4,22 @@ This guide shows how to use the meta-cc integration examples (MCP Server, Subage
 
 ## Design Philosophy
 
-meta-cc is designed as a **powerful data retrieval and statistics tool** for Claude Code session history. It follows a clear separation of concerns:
+meta-cc is designed as a **powerful session history analysis tool** for Claude Code. It follows a clear separation of concerns:
 
-**meta-cc CLI Tool (Data Layer)**
-- ✅ Powerful query and filtering capabilities
+**meta-cc MCP Server (Data Layer)**
+- ✅ 20 query and analysis tools
+- ✅ Powerful query and filtering capabilities with jq integration
 - ✅ Precise statistical analysis
-- ✅ Flexible output control (pagination, chunking, sorting)
-- ✅ Unix-style composability (pipe-friendly)
+- ✅ Flexible output control (hybrid mode, pagination)
 - ❌ **No semantic analysis** (no NLP, no recommendations)
 
 **Claude Code Integration Layer (Semantic Layer)**
-- Slash Commands: Single or multiple meta-cc calls with different parameters
-- Subagents: Iterative multi-turn meta-cc calls
-- MCP Tools: Claude autonomously decides parameters
+- Slash Commands: Use MCP capabilities with predefined workflows
+- Subagents: Iterative multi-turn MCP tool calls
+- MCP Tools: Claude autonomously selects and calls tools
 - ✅ Semantic understanding, pattern recognition, recommendation generation
 
-This separation allows Claude to perform complex analysis by making multiple meta-cc calls with varying parameters, while meta-cc focuses on fast, accurate data extraction.
+This separation allows Claude to perform complex analysis by making multiple MCP tool calls with varying parameters, while the MCP server focuses on fast, accurate data extraction.
 
 ## Installation
 
@@ -49,13 +49,10 @@ The bundle includes:
 ```bash
 git clone https://github.com/yaleh/meta-cc.git
 cd meta-cc
-make build           # Build both CLI and MCP server
-sudo cp meta-cc /usr/local/bin/
+make build-mcp       # Build MCP server
 sudo cp meta-cc-mcp /usr/local/bin/
 
-# Copy Claude Code integration files
-cp -r .claude/commands ~/.claude/projects/meta-cc/commands/
-cp -r .claude/agents ~/.claude/projects/meta-cc/agents/
+# Plugin files are automatically available after installation
 ```
 
 ### MCP Server Configuration
@@ -81,7 +78,7 @@ meta-cc provides **three integration tiers** optimized for different use cases:
 
 Claude automatically calls MCP tools based on your questions. No special syntax needed.
 
-**Available**: 14 MCP tools including `query_tools`, `query_user_messages`, `query_assistant_messages`, `query_conversation`, `aggregate_stats`, `query_time_series`, `query_files`, etc.
+**Available**: 20 MCP tools including `query_tools`, `query_user_messages`, `query`, `query_raw`, `get_session_stats`, `query_time_series`, `query_files`, etc.
 
 **Examples**:
 ```
@@ -260,36 +257,42 @@ Would you like me to create a custom Hook to validate grep commands before execu
 
 ### Example 4: MCP Tool Showcase
 
-**Available MCP Tools** (14 total):
+**Available MCP Tools** (20 total):
 
-#### Message Query Tools
+#### Core Query Tools (Unified API)
 ```
-query_user_messages       # Search user messages with regex
-query_assistant_messages  # Search assistant response messages with regex
-query_conversation        # Search conversation (user + assistant) with optional role filter
+query                    # Unified query interface with jq filtering
+query_raw                # Raw jq expressions for maximum flexibility
 ```
 
-#### Tool Query Tools
+#### Convenience Query Tools
+```
+query_tool_errors        # Query tool errors
+query_token_usage        # Query token usage statistics
+query_conversation_flow  # Query conversation flow patterns
+query_tool_errors        # Common error patterns
+query_file_operations    # File operation history
+query_workflow_patterns  # Workflow pattern detection
+query_time_distribution  # Time-based activity analysis
+query_performance_metrics # Performance metrics
+```
+
+#### Legacy Query Tools (Backward Compatible)
 ```
 query_tools              # Query tool call history
-query_tools_advanced     # SQL-like filtering
-query_tool_sequences     # Repeated tool sequences
-```
-
-#### Analysis Tools
-```
-query_context            # Context around specific events
-query_file_access        # File operation history
-query_files              # File-level operation statistics
-query_project_state      # Project evolution tracking
-query_successful_prompts # Identify high-quality prompts
+query_user_messages      # Search user messages with regex
+query_assistant_messages # Search assistant responses
+query_conversation       # Search full conversation
+query_files              # File-level statistics
 query_time_series        # Temporal pattern analysis
+query_tool_sequences     # Repeated tool sequences
 ```
 
 #### Stats & Utilities
 ```
 get_session_stats        # Session statistics and metrics
 cleanup_temp_files       # Remove old temporary files
+get_mcp_version          # Get MCP server version
 ```
 
 **Example Queries Using These Tools**:

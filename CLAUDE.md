@@ -96,20 +96,20 @@ A: Skills are automatically available after plugin installation. Claude Code wil
 
 ### Architecture
 
-**Two-layer architecture**:
-1. **CLI Tool**: Parses session history (JSONL), detects patterns, outputs structured JSON
-2. **Claude Integration**: Slash commands, subagents, and MCP server for LLM-powered analysis
+**MCP-based architecture**:
+- **MCP Server**: Provides 20 tools for session history analysis and query
+- **Claude Integration**: Slash commands, subagents, and capabilities for LLM-powered analysis
 
-**Key principle**: CLI handles data extraction (no LLM). Claude performs semantic understanding.
+**Key principle**: MCP server handles data extraction and query. Claude performs semantic understanding and recommendations.
 
 ### Repository Structure
 
 See [docs/reference/repository-structure.md](docs/reference/repository-structure.md) for complete directory guide.
 
 **Key directories**:
-- `.claude/` - Plugin entry point (slash commands, subagents)
+- `.claude/` - Plugin entry point (slash commands, subagents, skills)
 - `capabilities/` - Capability source files (content for /meta command)
-- `cmd/` - CLI and MCP server
+- `cmd/mcp-server/` - MCP server implementation
 - `internal/` - Core logic (parser, analyzer, query)
 - `docs/` - Technical documentation
 
@@ -306,7 +306,6 @@ export META_CC_CAPABILITY_SOURCES="capabilities/commands"
 - [Capabilities Guide](docs/guides/capabilities.md) - Create custom capabilities
 
 **Reference**:
-- [CLI Reference](docs/reference/cli.md) - Complete command reference
 - [JSONL Reference](docs/reference/jsonl.md) - Output format and jq patterns
 - [Features](docs/reference/features.md) - Advanced features overview
 - [Examples & Usage](docs/tutorials/examples.md) - Step-by-step tutorials

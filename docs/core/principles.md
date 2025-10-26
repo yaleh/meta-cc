@@ -30,15 +30,16 @@
 
 ### 1. 职责最小化原则
 
-meta-cc 仅负责 Claude Code 会话历史知识的提取，不做分析决策。
+meta-cc MCP 服务器仅负责 Claude Code 会话历史知识的提取和查询，不做语义分析决策。
 
 **应该做的：**
 - ✅ 提取：Turn、ToolCall、Error 等结构化数据
 - ✅ 检测：基于规则的模式识别（重复错误签名、工具序列）
+- ✅ 查询：提供 20 个 MCP 工具用于数据访问和统计
 
 **不应该做的：**
-- ❌ 分析：不做语义分析、不做决策（如窗口大小、聚合方式）
-- ❌ 过滤：不预判用户需求，复杂过滤交给 jq/awk
+- ❌ 分析：不做语义分析、不做决策（如建议、推荐）
+- ❌ 过滤：不预判用户需求，复杂过滤使用 jq 表达式
 
 ### 2. Pipeline 模式
 
@@ -81,12 +82,12 @@ for _, k := range keys {
 
 ### 4. 延迟决策
 
-将分析决策推给下游工具/LLM，meta-cc 只提供原始数据。
+将分析决策推给 Claude LLM，MCP 服务器只提供原始数据和基础统计。
 
 **职责边界：**
-- ❌ meta-cc 不应实现：窗口过滤、错误聚合、模式计数
-- ✅ 交给 jq/awk：`meta-cc query errors | jq '.[length-50:]'`
-- ✅ 交给 Claude：Slash Commands 从 JSONL 生成语义建议
+- ❌ MCP 服务器不应实现：语义分析、决策建议、复杂聚合
+- ✅ 交给 jq：使用 `query` 和 `query_raw` 工具的 jq_filter 参数
+- ✅ 交给 Claude：Slash Commands 和 Subagents 从数据生成语义建议
 
 ---
 

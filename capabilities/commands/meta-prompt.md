@@ -15,7 +15,8 @@ refine(P) = analyze(history) ∧ detect(gaps) ∧ generate(alternatives)
 
 analyze :: Project_History → Success_Patterns
 analyze(H) = {
-  successful: mcp_meta_cc.query_successful_prompts(min_quality_score=0.8),
+  # query_successful_prompts does not exist - analyze user messages manually
+  # successful: null,
 
   similar: mcp_meta_cc.query_user_messages(pattern=keywords(P)),
 

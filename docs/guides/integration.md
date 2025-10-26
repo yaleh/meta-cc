@@ -4,11 +4,11 @@ A practical guide to choosing and using the right integration method for your me
 
 ## Overview
 
-meta-cc provides three integration methods with Claude Code:
+meta-cc provides three integration methods with Claude Code, all powered by the MCP server:
 
-- **MCP Server**: Seamless data access through the Model Context Protocol
-- **Slash Commands**: Quick, pre-defined workflows
-- **Subagent (@meta-coach)**: Interactive, conversational analysis
+- **MCP Tools**: Direct access to 20 query and analysis tools through Claude's autonomous tool calling
+- **Slash Commands**: Quick, pre-defined workflows using MCP capabilities
+- **Subagent (@meta-coach)**: Interactive, conversational analysis leveraging MCP tools
 
 ### Quick Comparison
 
@@ -197,9 +197,8 @@ User: "@meta-coach I feel stuck, help analyze my workflow"
 | **Quick stats check** | MCP or Slash | Fast, no ceremony | Either works |
 | **Daily workflow automation** | Slash Command | Predictable, repeatable | - |
 | **Debugging repeated errors** | Subagent | Needs exploration | Slash + manual |
-| **Cross-project comparison** | Slash Command | Parametric | MCP if supported |
+| **Cross-project comparison** | MCP Tools | Native support | - |
 | **Learning optimization** | Subagent | Educational, conversational | - |
-| **CI/CD integration** | ❌ None | Use meta-cc CLI directly | - |
 | **Ad-hoc exploration** | MCP | Natural questions | - |
 | **Implementing fixes** | Subagent | Can create files/configs | Manual |
 
@@ -216,10 +215,10 @@ User: "@meta-coach I feel stuck, help analyze my workflow"
 3. Only use it once → Just ask Claude (uses MCP)
 
 **❌ Don't Use Subagent When**:
-1. Just need quick data → Use MCP or Slash (faster)
+1. Just need quick data → Use MCP tools or Slash (faster)
 2. Need same exact output format → Use Slash Command
 3. Want to reference main conversation → Stay in main context (MCP)
-4. Track progress across sessions → Use persistent storage (no memory)
+4. Track progress across sessions → MCP query tools handle multi-session data
 
 ---
 
@@ -233,9 +232,9 @@ The three methods work together:
 - Use case: Fixed workflow leveraging MCP data access
 - Benefit: Combines predictability with seamless integration
 
-**Pattern 2: Subagent → Calls meta-cc CLI**
+**Pattern 2: Subagent → Calls MCP Tools**
 - Use case: Complex analysis requiring reasoning and data
-- Benefit: Subagent's reasoning + meta-cc's structured data
+- Benefit: Subagent's reasoning + MCP tools' structured data
 
 **Pattern 3: MCP as Foundation, Others as Shortcuts**
 - Strategy: Start with MCP → Identify common patterns → Create Slash Commands → Add Subagent for guidance
@@ -282,15 +281,20 @@ The three methods work together:
 ---
 name: my-custom-check
 description: [Your description]
-allowed_tools: [Bash]
 ---
 
-#!/bin/bash
-meta-cc parse stats --output json | jq '.ErrorRate'
+# My Custom Check
 
-if [ condition ]; then
-  meta-cc analyze errors --output md
-fi
+Query session data using MCP tools.
+
+## Instructions
+
+Use the following MCP tools:
+- query_tools for tool call analysis
+- get_session_stats for statistics
+- query_user_messages for message search
+
+Analyze the results and provide insights.
 ```
 
 ---

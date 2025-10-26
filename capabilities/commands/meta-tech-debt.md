@@ -37,8 +37,9 @@ collect(S) = {
       scope: scope
     }),
 
-    test_discussions: mcp_meta_cc.query_conversation({
-      pattern: identify_test_coverage_concerns(),
+    # query_conversation does not exist - use query_user_messages for test discussions
+    test_discussions: mcp_meta_cc.query_user_messages({
+      pattern: "(test|coverage|missing test|need test|untested)",
       scope: scope
     }),
 
@@ -66,8 +67,9 @@ collect(S) = {
   },
 
   design_debt: collect_design_debt() {
-    unimplemented_intentions: mcp_meta_cc.query_conversation({
-      pattern: identify_postponed_work_patterns(),
+    # query_conversation does not exist - use query_user_messages for postponed work
+    unimplemented_intentions: mcp_meta_cc.query_user_messages({
+      pattern: "(TODO|FIXME|later|postpone|defer|skip for now)",
       scope: scope
     }),
 

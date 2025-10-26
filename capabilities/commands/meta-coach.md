@@ -20,23 +20,22 @@ collect(S) = {
     scope=scope
   ),
 
-  assistant_messages: mcp_meta_cc.query_assistant_messages(
-    pattern=".*",
+  # query_assistant_messages does not exist - use query with correct filter
+  assistant_messages: mcp_meta_cc.query(
+    jq_filter='select(.type == "assistant")',
     limit=200,
     scope=scope
   ),
 
-  conversations: mcp_meta_cc.query_conversation(
-    pattern=".*",
+  # query_conversation does not exist - use query_conversation_flow
+  conversations: mcp_meta_cc.query_conversation_flow(
     limit=200,
     scope=scope
   ),
 
-  successful_patterns: mcp_meta_cc.query_successful_prompts(
-    min_quality_score=0.8,
-    limit=30,
-    scope=scope
-  )
+  # query_successful_prompts does not exist - no direct replacement
+  # Could use query_user_messages to analyze patterns manually
+  # successful_patterns: null
 }
 
 extract :: UserMessages → MessageFeatures

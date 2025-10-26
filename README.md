@@ -46,7 +46,7 @@ The meta-cc plugin includes everything you need:
 
 **Try BAIME**: Just tell Claude _"Use BAIME to build [domain] capability and complete [tasks]"_ - Claude handles everything automatically. See [BAIME Usage Guide](docs/tutorials/baime-usage.md#try-baime-in-3-steps) for examples and the 3-level trial workflow.
 
-### 2. Install Binaries
+### 2. Install MCP Server Binary
 
 ```bash
 # Linux/macOS (one-liner)
@@ -66,7 +66,6 @@ claude mcp add meta-cc meta-cc-mcp
 ### Verify Installation
 
 ```bash
-meta-cc --version          # Should show version number
 /meta "show stats"         # Should display session statistics
 ```
 
@@ -144,41 +143,6 @@ Get personalized workflow guidance from the `@meta-coach` subagent:
 
 ---
 
-## Command Line Usage
-
-Use meta-cc CLI for scripting and automation:
-
-```bash
-# Session statistics
-meta-cc parse stats
-
-# Query tool calls
-meta-cc query tools --tool Bash --status error
-
-# Search user messages
-meta-cc query user-messages --pattern "fix.*bug"
-
-# Time series analysis
-meta-cc stats time-series --metric error-rate --interval day
-
-# File operation tracking
-meta-cc stats files --sort-by edit_count --top 10
-```
-
-**Pipe to Unix tools**:
-
-```bash
-# Filter with jq
-meta-cc query tools | jq 'select(.Status == "error")'
-
-# Process with awk
-meta-cc query tools --output tsv | awk '{print $2}' | sort | uniq -c
-```
-
-See [CLI Reference](docs/reference/cli.md) for complete command list and [CLI Composability](docs/tutorials/cli-composability.md) for advanced pipeline patterns.
-
----
-
 ## Documentation
 
 ### Getting Started
@@ -189,13 +153,11 @@ See [CLI Reference](docs/reference/cli.md) for complete command list and [CLI Co
 
 ### Integration
 
-- **[MCP Guide](docs/guides/mcp.md)** - Complete MCP tool reference (16 tools)
-- **[Integration Guide](docs/guides/integration.md)** - Choose MCP vs Slash vs Subagent
-- **[CLI Composability](docs/tutorials/cli-composability.md)** - Unix pipeline patterns
+- **[MCP Guide](docs/guides/mcp.md)** - Complete MCP tool reference (20 tools)
+- **[Integration Guide](docs/guides/integration.md)** - MCP, Slash Commands, and Subagents
 
 ### Advanced
 
-- **[CLI Reference](docs/reference/cli.md)** - Complete command reference
 - **[JSONL Reference](docs/reference/jsonl.md)** - Output format and jq patterns
 - **[Feature Overview](docs/reference/features.md)** - Advanced features and capabilities
 
@@ -218,16 +180,15 @@ See [CLI Reference](docs/reference/cli.md) for complete command list and [CLI Co
 ## Key Features
 
 - 🎯 **Natural language interface** - `/meta` command with semantic matching
-- 🔍 **16 MCP query tools** - Autonomous session data analysis
-- 🎓 **Interactive coaching** - `@meta-coach` subagent
+- 🔍 **20 MCP query tools** - Autonomous session data analysis with unified query API
+- 🎓 **Interactive coaching** - `@meta-coach` subagent for workflow optimization
 - 📚 **16 Validated Skills** - Reusable methodologies for testing, CI/CD, error recovery, documentation, and more
 - 🤖 **5 Specialized Agents** - Project planning, stage execution, iteration management
-- 📊 **Advanced analytics** - SQL-like queries, aggregation, time series
+- 📊 **Advanced analytics** - jq-based filtering, aggregation, time series
 - 📁 **File operation tracking** - Identify hotspots and churn
 - 🔄 **Workflow pattern detection** - Find repeated sequences
-- 🚀 **Zero dependencies** - Single binary deployment
+- 🚀 **Zero dependencies** - Single binary MCP server
 - 🔧 **Extensible** - Create custom capabilities with markdown
-- 🧩 **Unix-friendly** - JSONL streaming, clean I/O, composable pipelines
 
 ### Skills (16 Validated Methodologies)
 
@@ -268,7 +229,7 @@ See [Feature Overview](docs/reference/features.md) for detailed documentation.
 ```bash
 git clone https://github.com/yaleh/meta-cc.git
 cd meta-cc
-make build
+make build-mcp  # Build MCP server
 ```
 
 ### Run Tests
@@ -295,13 +256,14 @@ category: analysis
 
 # My Custom Feature
 
-Analyze custom patterns in session data.
+Analyze custom patterns in session data using MCP tools.
 
 ## Implementation
 
-```bash
-meta-cc query tools --tool Bash --status error
-```
+Ask Claude to query session data using MCP tools:
+- query_tools for tool analysis
+- query_user_messages for message search
+- get_session_stats for statistics
 
 ## Usage
 

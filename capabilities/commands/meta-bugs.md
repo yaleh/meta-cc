@@ -18,7 +18,8 @@ collect(S) = {
     scope=scope
   ),
 
-  resolution_signals: mcp_meta_cc.query_conversation(
+  # query_conversation does not exist - use query_user_messages to detect resolution signals
+  resolution_signals: mcp_meta_cc.query_user_messages(
     pattern="(test.*pass|build.*success|all.*pass|fixed|resolved|working|problem.*solved)",
     scope=scope
   ),
@@ -33,15 +34,11 @@ collect(S) = {
     scope=scope
   ),
 
-  tool_patterns: mcp_meta_cc.query_tool_sequences(
-    min_occurrences=2,
-    scope=scope,
-    include_builtin_tools=true
-  ),
+  # query_tool_sequences does not exist - not implemented
+  # tool_patterns: null,
 
-  session_stats: mcp_meta_cc.get_session_stats(
-    scope=scope
-  )
+  # get_session_stats does not exist - use query_timestamps or query_summaries for overview
+  # session_stats: null
 }
 
 ## Phase 2: Pattern Detection
@@ -346,11 +343,9 @@ implementation_strategy:
 - Format output as structured markdown report
 
 mcp_tools_used:
-- query_user_messages: Detect workflow failures and user corrections
-- query_conversation: Detect resolution signals
+- query_user_messages: Detect workflow failures, user corrections, and resolution signals
 - query_tools: Get error context
-- query_tool_sequences: Identify workflow patterns
-- get_session_stats: Calculate rates and ratios
+- query_timestamps: Get chronological overview for rate calculations
 
 constraints:
 - Pure MCP-driven: no Go code modifications

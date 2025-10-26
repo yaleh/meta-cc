@@ -74,7 +74,8 @@ enrich(P, T) = {
   supplemental: if completeness.score < 0.6 && has_mcp_context then {
     # Only fetch if critical data missing
     basic_stats: if missing("session_stats") then
-      mcp__meta_cc__get_session_stats(scope="project"),
+      # get_session_stats does not exist - use query_summaries
+      mcp__meta_cc__query_summaries(scope="project"),
 
     user_data: if missing("user_patterns") && critical then
       mcp__meta_cc__query_user_messages(

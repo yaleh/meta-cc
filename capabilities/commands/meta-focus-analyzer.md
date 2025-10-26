@@ -11,12 +11,13 @@ scope :: project | session
 
 analyze :: Session → Focus_Report
 analyze(S) = {
-  file_access_data: mcp_meta_cc.query_files(
-    scope=scope,
-    threshold=5
+  # query_files does not exist - use query_file_snapshots instead
+  file_access_data: mcp_meta_cc.query_file_snapshots(
+    scope=scope
   ),
 
-  session_metrics: mcp_meta_cc.get_session_stats(
+  # get_session_stats does not exist - use query_summaries or query_timestamps
+  session_metrics: mcp_meta_cc.query_summaries(
     scope=scope
   ),
 
@@ -25,9 +26,8 @@ analyze(S) = {
     limit=100
   ),
 
-  time_distribution: mcp_meta_cc.query_time_series(
-    interval="day",
-    metric="tool-calls",
+  # query_time_series does not exist - use query_timestamps with manual aggregation
+  time_distribution: mcp_meta_cc.query_timestamps(
     scope=scope
   )
 }

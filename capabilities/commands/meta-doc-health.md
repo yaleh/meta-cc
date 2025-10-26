@@ -14,7 +14,8 @@ analyze(P) = collect(data) ∧ classify(roles) ∧ validate(constraints) ∧ rec
 
 collect :: Project → Metrics
 collect(P) = {
-  mcp_meta_cc.query_files(threshold=5, scope=scope),
+  # query_files does not exist - use query_file_snapshots instead
+  mcp_meta_cc.query_file_snapshots(scope=scope),
   git_log_stats(docs/),
   glob("docs/**/*.md") → wc -l
 }
@@ -76,7 +77,7 @@ output(A) = {
 implementation_notes:
 - roles: context_base(300), living(600), spec(∞), reference(800), episodic(∞), archive(∞)
 - metrics: RE_ratio, access_density, lifecycle
-- data: query_files, git log, wc -l
+- data: query_file_snapshots, git log, wc -l
 - frequency: monthly or pre-commit
 
 role_definitions:

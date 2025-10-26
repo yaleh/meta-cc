@@ -25,10 +25,8 @@ collect(S) = {
     scope=scope
   ),
 
-  tool_sequences: mcp_meta_cc.query_tool_sequences(
-    min_occurrences=2,
-    scope=scope
-  ),
+  # query_tool_sequences does not exist - not implemented
+  # tool_sequences: null,
 
   git_context: if is_git_repository() then {
     recent_commits: get_commits_since(S.start_time),

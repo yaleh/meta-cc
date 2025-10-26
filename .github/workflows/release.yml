@@ -52,7 +52,7 @@ jobs:
       - name: Sync plugin files
         run: bash scripts/sync-plugin-files.sh
 
-      - name: Build binaries
+      - name: Build MCP server binaries
         run: |
           mkdir -p build
 
@@ -62,22 +62,7 @@ jobs:
           BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
           LDFLAGS="-X github.com/yaleh/meta-cc/cmd.Version=${VERSION} -X github.com/yaleh/meta-cc/cmd.Commit=${COMMIT} -X github.com/yaleh/meta-cc/cmd.BuildTime=${BUILD_TIME}"
 
-          # Linux amd64
-          GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-linux-amd64 .
-
-          # Linux arm64
-          GOOS=linux GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-linux-arm64 .
-
-          # macOS amd64
-          GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-darwin-amd64 .
-
-          # macOS arm64
-          GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-darwin-arm64 .
-
-          # Windows amd64
-          GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-windows-amd64.exe .
-
-          # MCP server binaries
+          # MCP server binaries (MCP-only architecture)
           GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-mcp-linux-amd64 ./cmd/mcp-server
           GOOS=linux GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-mcp-linux-arm64 ./cmd/mcp-server
           GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/meta-cc-mcp-darwin-amd64 ./cmd/mcp-server
@@ -99,12 +84,10 @@ jobs:
             PKG_DIR=build/packages/meta-cc-plugin-${platform}
             mkdir -p $PKG_DIR/bin $PKG_DIR/.claude-plugin $PKG_DIR/commands $PKG_DIR/agents $PKG_DIR/skills $PKG_DIR/lib
 
-            # Copy binaries
+            # Copy MCP server binary (MCP-only architecture)
             if [[ $platform == windows-* ]]; then
-              cp build/meta-cc-${platform}.exe $PKG_DIR/bin/meta-cc.exe
               cp build/meta-cc-mcp-${platform}.exe $PKG_DIR/bin/meta-cc-mcp.exe
             else
-              cp build/meta-cc-${platform} $PKG_DIR/bin/meta-cc
               cp build/meta-cc-mcp-${platform} $PKG_DIR/bin/meta-cc-mcp
             fi
 
@@ -207,10 +190,13 @@ jobs:
 
             See [Installation Guide](https://github.com/yaleh/meta-cc#installation) for detailed instructions and troubleshooting.
 
+            ### Architecture
+            This release contains MCP server binaries only. Query session data using MCP tools via Claude Code.
+
             ### Verification
-            After installation, verify with:
-            ```bash
-            meta-cc --version
+            After installation, test with:
+            ```
+            /meta "show session stats"
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -225,7 +211,8 @@ jobs:
           echo "Build Metrics:"
           echo "  - Build duration: ${BUILD_DURATION}s"
           echo "  - Platforms built: 5 (linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64)"
-          echo "  - Binaries created: 10 (CLI + MCP × 5 platforms)"
+          echo "  - Binaries created: 5 (MCP server × 5 platforms)"
+          echo "  - Architecture: MCP-only"
           echo ""
           echo "Artifact Summary:"
           echo "  - Plugin packages: 5"
@@ -249,7 +236,8 @@ jobs:
           echo "### Build Metrics" >> $GITHUB_STEP_SUMMARY
           echo "- **Build duration**: ${BUILD_DURATION}s" >> $GITHUB_STEP_SUMMARY
           echo "- **Platforms**: 5 (linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Binaries**: 10 (CLI + MCP server × 5 platforms)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Binaries**: 5 (MCP server × 5 platforms)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Architecture**: MCP-only" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "- **Plugin packages**: 5 platform-specific packages" >> $GITHUB_STEP_SUMMARY

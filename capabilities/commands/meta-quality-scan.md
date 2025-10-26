@@ -23,13 +23,14 @@ analyze(S) = {
     limit=30
   ),
 
-  session_statistics: mcp_meta_cc.get_session_stats(
+  # get_session_stats does not exist - use query_summaries
+  session_statistics: mcp_meta_cc.query_summaries(
     scope=scope
   ),
 
-  project_files: mcp_meta_cc.query_files(
-    scope=scope,
-    threshold=10
+  # query_files does not exist - use query_file_snapshots
+  project_files: mcp_meta_cc.query_file_snapshots(
+    scope=scope
   ),
 
   git_metrics: if is_git_repository() then {

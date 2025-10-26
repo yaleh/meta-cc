@@ -20,11 +20,9 @@ collect(S) = {
     scope=scope
   ),
 
-  successful_patterns: mcp_meta_cc.query_successful_prompts(
-    min_quality_score=0.8,
-    limit=30,
-    scope=scope
-  ),
+  # query_successful_prompts does not exist - no direct replacement
+  # Could analyze user messages for patterns manually
+  # successful_patterns: null,
 
   git_activity: if is_git_repository() then {
     commits: get_commits_since(S.start_time),

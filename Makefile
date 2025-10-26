@@ -15,11 +15,13 @@ BUILD_DIR := build
 DIST_DIR := dist
 CAPABILITIES_DIR := capabilities
 CAPABILITIES_ARCHIVE := capabilities-latest.tar.gz
-BINARY_NAME := meta-cc
 MCP_BINARY_NAME := meta-cc-mcp
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build build-cli build-mcp test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp metrics-cli check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full
+# Default target when running 'make' without arguments
+.DEFAULT_GOAL := all
+
+.PHONY: all build test test-all test-coverage clean clean-capabilities install cross-compile bundle-release bundle-capabilities test-capability-package lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full
 
 # ==============================================================================
 # Build Quality Gates (BAIME Experiment - Iteration 1)
@@ -261,13 +263,7 @@ ci: check-workspace-full test-all build
 	@echo ""
 	@echo "✅ CI validation passed"
 
-build: build-cli build-mcp
-
-build-cli:
-	@echo "Building $(BINARY_NAME) $(VERSION)..."
-	$(GOBUILD) $(LDFLAGS) -o $(BINARY_NAME) .
-
-build-mcp:
+build:
 	@echo "Building $(MCP_BINARY_NAME) $(VERSION)..."
 	$(GOBUILD) -o $(MCP_BINARY_NAME) ./cmd/mcp-server
 
@@ -294,11 +290,6 @@ metrics-mcp:
 	@./scripts/capture-mcp-metrics.sh
 	@echo "✅ MCP metrics snapshot complete"
 
-metrics-cli:
-	@echo "Capturing CLI metrics snapshot..."
-	@./scripts/capture-cli-metrics.sh
-	@echo "✅ CLI metrics snapshot complete"
-
 bundle-capabilities:
 	@echo "Creating capability package: $(CAPABILITIES_ARCHIVE)..."
 	@if [ ! -d "$(CAPABILITIES_DIR)/commands" ]; then \
@@ -322,27 +313,26 @@ test-capability-package:
 clean: clean-capabilities
 	@echo "Cleaning..."
 	$(GOCLEAN)
-	rm -f $(BINARY_NAME)
 	rm -f $(MCP_BINARY_NAME)
 	rm -rf $(BUILD_DIR)
 	rm -rf $(DIST_DIR)
 	rm -f coverage.out coverage.html
 
 install:
-	@echo "Installing..."
-	$(GOCMD) install $(LDFLAGS) .
+	@echo "Installing MCP server..."
+	$(GOCMD) install $(LDFLAGS) ./cmd/mcp-server
 
 cross-compile:
-	@echo "Building for multiple platforms..."
+	@echo "Building MCP server for multiple platforms..."
 	@mkdir -p $(BUILD_DIR)
 	@for platform in $(PLATFORMS); do \
 		GOOS=$${platform%/*} GOARCH=$${platform#*/} \
-		$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-$${platform%/*}-$${platform#*/} .; \
+		$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(MCP_BINARY_NAME)-$${platform%/*}-$${platform#*/} ./cmd/mcp-server; \
 		if [ "$${platform%/*}" = "windows" ]; then \
-			mv $(BUILD_DIR)/$(BINARY_NAME)-$${platform%/*}-$${platform#*/} $(BUILD_DIR)/$(BINARY_NAME)-$${platform%/*}-$${platform#*/}.exe; \
+			mv $(BUILD_DIR)/$(MCP_BINARY_NAME)-$${platform%/*}-$${platform#*/} $(BUILD_DIR)/$(MCP_BINARY_NAME)-$${platform%/*}-$${platform#*/}.exe; \
 		fi; \
 	done
-	@echo "Cross-compilation complete. Binaries in $(BUILD_DIR)/"
+	@echo "Cross-compilation complete. MCP server binaries in $(BUILD_DIR)/"
 
 sync-plugin-files:
 	@echo "Preparing plugin files for release packaging..."
@@ -377,10 +367,8 @@ bundle-release: sync-plugin-files
 		BUNDLE_DIR=$(BUILD_DIR)/bundles/meta-cc-$(VERSION)-$$PLATFORM_NAME; \
 		mkdir -p $$BUNDLE_DIR/bin $$BUNDLE_DIR/commands $$BUNDLE_DIR/agents $$BUNDLE_DIR/.claude-plugin $$BUNDLE_DIR/lib; \
 		if [ "$${platform%/*}" = "windows" ]; then \
-			cp $(BUILD_DIR)/$(BINARY_NAME)-$$PLATFORM_NAME.exe $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
 			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME.exe $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
 		else \
-			cp $(BUILD_DIR)/$(BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
 			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
 		fi; \
 		cp -r $(DIST_DIR)/commands/* $$BUNDLE_DIR/commands/; \
@@ -492,9 +480,7 @@ security:
 
 help:
 	@echo "Available targets:"
-	@echo "  make build                   - Build both meta-cc and meta-cc-mcp"
-	@echo "  make build-cli               - Build meta-cc CLI only"
-	@echo "  make build-mcp               - Build meta-cc-mcp MCP server only"
+	@echo "  make build                   - Build meta-cc-mcp MCP server"
 	@echo "  make dev                     - Development build (use .claude/ for immediate testing)"
 	@echo "  make test                    - Run tests (short mode, skips slow E2E tests)"
 	@echo "  make test-all                - Run all tests (including slow E2E tests ~30s)"
@@ -510,8 +496,8 @@ help:
 	@echo "  make install-pre-commit      - Install pre-commit framework hooks"
 	@echo "  make clean                   - Remove build artifacts ($(BUILD_DIR)/, $(DIST_DIR)/)"
 	@echo "  make clean-capabilities      - Remove capability packages only"
-	@echo "  make install                 - Install to GOPATH/bin"
-	@echo "  make cross-compile           - Build for all platforms"
+	@echo "  make install                 - Install MCP server to GOPATH/bin"
+	@echo "  make cross-compile           - Build MCP server for all platforms"
 	@echo "  make bundle-capabilities     - Create capability package (.tar.gz)"
 	@echo "  make sync-plugin-files       - Prepare plugin files in $(DIST_DIR)/ for packaging"
 	@echo "  make bundle-release          - Create release bundles (auto-syncs first, requires VERSION=vX.Y.Z)"

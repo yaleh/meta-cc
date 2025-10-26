@@ -12,7 +12,8 @@ analyze(S) = gather(data) ∧ assess(state) ∧ detect(patterns) ∧ prioritize(
 
 gather :: Session → Session_Data
 gather(S) = {
-  stats: mcp_meta_cc.get_session_stats(scope="project"),
+  # get_session_stats does not exist - use query_summaries for overview
+  stats: mcp_meta_cc.query_summaries(scope="project"),
 
   recent_intents: mcp_meta_cc.query_user_messages(scope="project", limit=10),
 
@@ -20,9 +21,11 @@ gather(S) = {
 
   errors: mcp_meta_cc.query_tools(scope="project", status="error"),
 
-  workflows: mcp_meta_cc.query_tool_sequences(scope="project", min_occurrences=3),
+  # query_tool_sequences does not exist - not implemented
+  # workflows: null,
 
-  successful_prompts: mcp_meta_cc.query_successful_prompts(scope="project", min_quality_score=0.8, limit=10)
+  # query_successful_prompts does not exist - no direct replacement
+  # successful_prompts: null
 }
 
 assess :: Session_Data → Session_State

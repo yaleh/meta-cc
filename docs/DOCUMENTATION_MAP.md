@@ -147,7 +147,7 @@ graph TD
 
 ### For Advanced Users
 
-1. **CLI Reference**: [docs/reference/cli.md](reference/cli.md) - Complete command reference
+1. **MCP Tools Reference**: [docs/guides/mcp.md](guides/mcp.md) - Complete MCP tool reference (20 tools)
 2. **JSONL Reference**: [docs/reference/jsonl.md](reference/jsonl.md) - Output format and jq patterns
 3. **JSONL Schema**: [docs/reference/jsonl-schema.md](reference/jsonl-schema.md) - Session file structure specification
 4. **Query Examples**:
@@ -155,7 +155,7 @@ graph TD
    - [docs/examples/multi-file-jsonl-queries.md](examples/multi-file-jsonl-queries.md) - Multi-file queries with results
    - [docs/examples/frequent-jsonl-queries.md](examples/frequent-jsonl-queries.md) - Most frequently used queries
 5. **Features**: [docs/reference/features.md](reference/features.md) - Advanced capabilities
-6. **CLI Composability**: [docs/tutorials/cli-composability.md](tutorials/cli-composability.md) - Unix pipeline patterns
+6. **MCP Query Cookbook**: [docs/examples/mcp-query-cookbook.md](examples/mcp-query-cookbook.md) - 25+ practical query examples
 
 ### For Claude Code Development
 
@@ -217,7 +217,7 @@ See [Role-Based Documentation Architecture](methodology/role-based-documentation
 | **docs/guides/release-process.md** | Release workflow | Maintainers | Rarely (stable) |
 | **docs/guides/git-hooks.md** | Git hooks usage | Developers | Rarely (stable) |
 | **docs/tutorials/examples.md** | Step-by-step tutorials | New users | When features added |
-| **docs/reference/cli.md** | Complete CLI command reference | Advanced users | When commands added |
+| **docs/guides/mcp.md** | Complete MCP tool reference | All users | When tools added/changed |
 | **docs/reference/jsonl.md** | Output format and jq patterns | Advanced users | Rarely (stable) |
 | **docs/reference/jsonl-schema.md** | JSONL session file schema specification | Developers & Analysts | When schema changes |
 | **docs/reference/features.md** | Advanced features overview | Advanced users | When features added |

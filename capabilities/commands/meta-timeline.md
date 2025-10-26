@@ -14,35 +14,41 @@ analyze(M) = collect(events) ∧ sequence(timeline) ∧ detect(patterns) ∧ mea
 
 collect :: Scope → EventData
 collect(S) = {
+  # IMPORTANT: Do NOT use .[] prefix in jq_filter - JSONL files are processed line-by-line
+  # Each jq expression operates on a single object, not an array
+
   user_messages: mcp_meta_cc.query_user_messages(
     pattern=".*",
     scope=scope
   ),
 
-  assistant_messages: mcp_meta_cc.query_assistant_messages(
-    pattern=".*",
+  # query_assistant_messages does not exist - use query with correct filter
+  assistant_messages: mcp_meta_cc.query(
+    jq_filter='select(.type == "assistant")',
     scope=scope
   ),
 
-  conversations: mcp_meta_cc.query_conversation(
+  # query_conversation does not exist - use query_conversation_flow
+  conversations: mcp_meta_cc.query_conversation_flow(
     scope=scope
   ),
 
-  high_level_tools: mcp_meta_cc.query_tools(
-    scope=scope,
-    jq_filter='select(.ToolName | test("^(Task|SlashCommand|mcp__)"))'
-  ),
-
-  error_events: mcp_meta_cc.query_tools(
-    status="error",
-    scope=scope,
-    jq_filter='select(.ToolName | test("^(Task|SlashCommand|mcp__|Bash)") and (.Error | test("fail|error|interrupt", "i")))'
-  ),
-
-  tool_sequences: mcp_meta_cc.query_tool_sequences(
-    min_occurrences=2,
+  # query_tools does not accept jq_filter - use query instead
+  # Filter for tool_use blocks in assistant messages (Task, SlashCommand, MCP tools)
+  high_level_tools: mcp_meta_cc.query(
+    jq_filter='select(.type == "assistant" and (.message.content[]? | .type == "tool_use" and (.name | test("^(Task|SlashCommand|mcp__)"))))',
     scope=scope
   ),
+
+  # Filter for tool errors in tool_result blocks
+  error_events: mcp_meta_cc.query(
+    jq_filter='select(.type == "user" and (.message.content[]? | select(.type == "tool_result" and .is_error == true)))',
+    scope=scope
+  ),
+
+  # query_tool_sequences does not exist - would need custom implementation
+  # For now, omit this data or implement alternative approach
+  # tool_sequences: null,
 
   git_history: if is_git_repository() then collect_git_data(S) else null
 }
@@ -756,6 +762,30 @@ implementation_notes:
 - use semantic analysis to understand user intent and satisfaction
 - detect context switches via topic changes, /clear, or long gaps
 - measure productivity via completion rates, not just activity volume
+
+mcp_tool_usage_guide:
+  critical_rules:
+    - "NEVER use .[] prefix in jq_filter - JSONL files are line-by-line, not arrays"
+    - "Each jq expression operates on ONE object (the current line), not an array"
+    - "Correct: select(.type == \"user\") | Wrong: .[] | select(.type == \"user\")"
+
+  available_convenience_tools:
+    - query_user_messages(pattern, scope) - filter user messages by regex pattern
+    - query_conversation_flow(scope) - get user and assistant message pairs
+    - query_tool_errors(scope, limit) - get tool execution errors
+    - query_token_usage(scope) - get assistant messages with token stats
+    - query_timestamps(scope) - get all entries with timestamps
+
+  use_query_for_custom_filters:
+    - "query(jq_filter, jq_transform, scope, limit) - maximum flexibility"
+    - "Example: query(jq_filter='select(.type == \"assistant\")', scope='session')"
+    - "For complex filters, use query() not convenience tools"
+
+  non_existent_tools_to_avoid:
+    - query_assistant_messages → use query(jq_filter='select(.type == \"assistant\")')
+    - query_conversation → use query_conversation_flow()
+    - query_tool_sequences → not implemented, use alternative approach
+    - query_tools with jq_filter → use query() instead, query_tools only accepts tool param
 
 ascii_visualization_requirements:
 - ALL output MUST start with ASCII art timeline visualization

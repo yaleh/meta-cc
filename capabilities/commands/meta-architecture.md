@@ -18,20 +18,18 @@ collect(S) = {
     scope: scope
   }),
 
-  design_conversations: mcp_meta_cc.query_conversation({
-    pattern: identify_design_question_patterns(),
+  # query_conversation does not exist - use query_conversation_flow
+  design_conversations: mcp_meta_cc.query_conversation_flow({
     scope: scope
   }),
 
-  file_operations: mcp_meta_cc.query_files({
-    threshold: 5,
+  # query_files does not exist - use query_file_snapshots instead
+  file_operations: mcp_meta_cc.query_file_snapshots({
     scope: scope
   }),
 
-  tool_sequences: mcp_meta_cc.query_tool_sequences({
-    min_occurrences: 3,
-    scope: scope
-  }),
+  # query_tool_sequences does not exist - not implemented
+  # tool_sequences: null,
 
   git_context: if is_git_repository() then {
     architecture_commits: analyze_architecture_commits(),
