@@ -112,7 +112,7 @@ test_result() {
 echo "Test Category 1: Binary Execution"
 echo "-----------------------------------"
 
-# Test 1.1: CLI binary executes (--version)
+# Test 1.1: CLI binary executes (--version) - OPTIONAL (removed in Phase 26)
 if [ -f "bin/meta-cc" ]; then
     if VERSION_OUTPUT=$(./bin/meta-cc --version 2>&1); then
         if echo "$VERSION_OUTPUT" | grep -q "meta-cc version"; then
@@ -124,10 +124,11 @@ if [ -f "bin/meta-cc" ]; then
         test_result "CLI binary executes (--version)" "fail" "Binary execution failed with exit code $?"
     fi
 else
-    test_result "CLI binary executes (--version)" "fail" "Binary not found: bin/meta-cc"
+    # CLI binary is optional (removed in Phase 26 - MCP-only architecture)
+    echo "  ⊘ CLI binary executes (--version) - SKIPPED (CLI removed in Phase 26)"
 fi
 
-# Test 1.2: CLI help displays
+# Test 1.2: CLI help displays - OPTIONAL (removed in Phase 26)
 if [ -f "bin/meta-cc" ]; then
     if HELP_OUTPUT=$(./bin/meta-cc --help 2>&1); then
         if echo "$HELP_OUTPUT" | grep -qi "usage\|command"; then
@@ -139,7 +140,8 @@ if [ -f "bin/meta-cc" ]; then
         test_result "CLI help displays (--help)" "fail" "Help command failed"
     fi
 else
-    test_result "CLI help displays (--help)" "fail" "Binary not found: bin/meta-cc"
+    # CLI binary is optional (removed in Phase 26 - MCP-only architecture)
+    echo "  ⊘ CLI help displays (--help) - SKIPPED (CLI removed in Phase 26)"
 fi
 
 # Test 1.3: MCP server binary executes
@@ -158,10 +160,15 @@ fi
 
 # Test 1.4: Binaries are executable (Unix platforms only)
 if [ "$PLATFORM" != "windows-amd64" ]; then
-    if [ -x "bin/meta-cc" ]; then
-        test_result "CLI binary is executable" "pass"
+    # CLI binary check is optional (removed in Phase 26)
+    if [ -f "bin/meta-cc" ]; then
+        if [ -x "bin/meta-cc" ]; then
+            test_result "CLI binary is executable" "pass"
+        else
+            test_result "CLI binary is executable" "fail" "Binary doesn't have execute permission"
+        fi
     else
-        test_result "CLI binary is executable" "fail" "Binary doesn't have execute permission"
+        echo "  ⊘ CLI binary is executable - SKIPPED (CLI removed in Phase 26)"
     fi
 
     if [ -x "bin/meta-cc-mcp" ]; then
@@ -180,7 +187,7 @@ echo ""
 echo "Test Category 2: Version Consistency"
 echo "-------------------------------------"
 
-# Test 2.1: CLI version matches tag
+# Test 2.1: CLI version matches tag - OPTIONAL (removed in Phase 26)
 if [ -f "bin/meta-cc" ]; then
     VERSION_OUTPUT=$(./bin/meta-cc --version 2>&1)
 
@@ -210,7 +217,8 @@ if [ -f "bin/meta-cc" ]; then
         test_result "CLI version matches tag" "fail" "CLI reports '$CLI_VERSION_CLEAN' but tag is '$VERSION_NUM'"
     fi
 else
-    test_result "CLI version matches tag" "fail" "CLI binary not found"
+    # CLI binary is optional (removed in Phase 26 - MCP-only architecture)
+    echo "  ⊘ CLI version matches tag - SKIPPED (CLI removed in Phase 26)"
 fi
 
 # Test 2.2: marketplace.json version matches tag
@@ -246,8 +254,8 @@ for dir in "${REQUIRED_DIRS[@]}"; do
 done
 
 # Test 3.2: Required files present
+# Note: bin/meta-cc is optional (removed in Phase 26 - MCP-only architecture)
 REQUIRED_FILES=(
-    "bin/meta-cc"
     "bin/meta-cc-mcp"
     ".claude-plugin/marketplace.json"
     "install.sh"
@@ -256,16 +264,23 @@ REQUIRED_FILES=(
     "LICENSE"
 )
 
+# Optional files (CLI removed in Phase 26)
+OPTIONAL_FILES=(
+    "bin/meta-cc"
+)
+
 # Adjust for Windows platform (.exe extension)
 if [ "$PLATFORM" = "windows-amd64" ]; then
     REQUIRED_FILES=(
-        "bin/meta-cc.exe"
         "bin/meta-cc-mcp.exe"
         ".claude-plugin/marketplace.json"
         "install.sh"
         "uninstall.sh"
         "README.md"
         "LICENSE"
+    )
+    OPTIONAL_FILES=(
+        "bin/meta-cc.exe"
     )
 fi
 
@@ -274,6 +289,15 @@ for file in "${REQUIRED_FILES[@]}"; do
         test_result "File exists: $file" "pass"
     else
         test_result "File exists: $file" "fail" "Required file missing"
+    fi
+done
+
+# Check optional files (CLI removed in Phase 26)
+for file in "${OPTIONAL_FILES[@]}"; do
+    if [ -f "$file" ]; then
+        test_result "File exists: $file" "pass"
+    else
+        echo "  ⊘ File exists: $file - SKIPPED (CLI removed in Phase 26)"
     fi
 done
 
