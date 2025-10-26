@@ -184,6 +184,37 @@ check-release-ready:
 	@echo ""
 	@echo "✅ Release ready"
 
+# ==============================================================================
+# Pre-Release Validation (Phase 27.6)
+# ==============================================================================
+
+pre-release-check:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION required"; \
+		echo "Usage: make pre-release-check VERSION=v2.0.3"; \
+		exit 1; \
+	fi
+	@echo "Running pre-release validation for $(VERSION)..."
+	@bash scripts/pre-release-check.sh $(VERSION)
+
+bump-version:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION required"; \
+		echo "Usage: make bump-version VERSION=v2.0.3"; \
+		exit 1; \
+	fi
+	@echo "Bumping version to $(VERSION)..."
+	@bash scripts/bump-version.sh $(VERSION)
+
+release:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION required"; \
+		echo "Usage: make release VERSION=v2.0.3"; \
+		exit 1; \
+	fi
+	@echo "Creating release $(VERSION)..."
+	@bash scripts/release.sh $(VERSION)
+
 test-all-local: test-all test-bats
 	@echo "✅ All tests passed (including Bats)"
 
@@ -486,26 +517,40 @@ security:
 
 help:
 	@echo "Available targets:"
+	@echo ""
+	@echo "Development:"
 	@echo "  make build                   - Build meta-cc-mcp MCP server"
 	@echo "  make dev                     - Development build (use .claude/ for immediate testing)"
 	@echo "  make test                    - Run tests (short mode, skips slow E2E tests)"
 	@echo "  make test-all                - Run all tests (including slow E2E tests ~30s)"
 	@echo "  make test-coverage           - Run tests with coverage report (includes E2E tests)"
 	@echo "  make test-coverage-check     - Check test coverage meets 80% threshold"
-	@echo "  make test-capability-package - Test capability package creation and extraction"
 	@echo "  make lint                    - Run static analysis (fmt + vet + error-linting + golangci-lint)"
-	@echo "  make lint-errors             - Run error linting (check error conventions)"
-	@echo "  make lint-fix                - Run golangci-lint with auto-fix"
 	@echo "  make fmt                     - Format code with gofmt"
 	@echo "  make vet                     - Run go vet"
-	@echo "  make security                - Run security scan with gosec"
+	@echo "  make all                     - Full validation (workspace checks + tests + build)"
+	@echo ""
+	@echo "Release Management:"
+	@echo "  make bump-version VERSION=vX.Y.Z      - Bump marketplace.json version"
+	@echo "  make pre-release-check VERSION=vX.Y.Z - Run pre-release validation checks"
+	@echo "  make release VERSION=vX.Y.Z           - Create and push release (runs pre-release-check)"
+	@echo "  make check-release-ready              - Verify latest tag matches marketplace.json"
+	@echo ""
+	@echo "Quality Gates:"
+	@echo "  make pre-commit              - Pre-commit validation (recommended before git commit)"
+	@echo "  make pre-commit-full         - Full pre-commit validation (includes plugin sync)"
+	@echo "  make check-workspace         - P0 workspace validation (temp files, fixtures, deps)"
+	@echo "  make check-workspace-full    - Full workspace validation (all checks)"
 	@echo "  make install-pre-commit      - Install pre-commit framework hooks"
-	@echo "  make clean                   - Remove build artifacts ($(BUILD_DIR)/, $(DIST_DIR)/)"
-	@echo "  make clean-capabilities      - Remove capability packages only"
-	@echo "  make install                 - Install MCP server to GOPATH/bin"
+	@echo ""
+	@echo "Build & Package:"
 	@echo "  make cross-compile           - Build MCP server for all platforms"
-	@echo "  make bundle-capabilities     - Create capability package (.tar.gz)"
 	@echo "  make sync-plugin-files       - Prepare plugin files in $(DIST_DIR)/ for packaging"
+	@echo "  make bundle-capabilities     - Create capability package (.tar.gz)"
 	@echo "  make bundle-release          - Create release bundles (auto-syncs first, requires VERSION=vX.Y.Z)"
+	@echo ""
+	@echo "Utilities:"
+	@echo "  make clean                   - Remove build artifacts ($(BUILD_DIR)/, $(DIST_DIR)/)"
 	@echo "  make deps                    - Download and tidy dependencies"
+	@echo "  make security                - Run security scan with gosec"
 	@echo "  make help                    - Show this help message"

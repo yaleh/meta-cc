@@ -69,6 +69,24 @@ repos:
         always_run: false
         files: \.go$
 
+      # Marketplace.json validation (Phase 27.6)
+      - id: validate-marketplace-json
+        name: Validate marketplace.json schema
+        description: Ensure marketplace.json has valid structure
+        entry: scripts/hooks/validate-marketplace.sh
+        language: script
+        pass_filenames: false
+        files: '\.claude-plugin/marketplace\.json$'
+
+      - id: check-version-sync
+        name: Check version consistency
+        description: Warn if marketplace.json version doesn't match latest tag
+        entry: scripts/hooks/check-version-sync.sh
+        language: script
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
       # Plugin version management
       - id: plugin-version-bump
         name: Auto-bump plugin version
