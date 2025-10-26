@@ -227,13 +227,15 @@ end note
 | 18-22 | 开源发布与生态建设 | ✅ | GitHub Release、插件分发、统一/meta、消息查询完整化 | ~3,250 行 | [plans/18-22/](../plans/18-github-release-prep/) (里程碑汇总) |
 | 23-25 | 查询接口重构 (v2.0) | ✅ | jq-based 三层 API、零学习成本、已归档 | ~5,650 行 | [归档文档](../archive/phase-23-25-query-refactoring.md) |
 | 26 | CLI 代码清理（MCP 独立化） | 📋 | 移除 CLI 代码、MCP-only 架构、简化构建 | -19,500 行 | [详细计划](./phase-26-cli-removal-plan.md) |
+| 27 | 两阶段查询架构 | 📋 | 删除 query/query_raw，新增元数据+Stage 2 查询工具 | ~550 行 (净增) | [Phase 27 详情](#phase-27-两阶段查询架构详细) |
 
 **注释**：
 - **状态标识**：✅ 已完成，🟡 部分实现，📋 计划中
-- **代码量**：估算值，包含源码和测试；负数表示删除
+- **代码量**：估算值，包含源码和测试；负数表示删除，净增表示删除后新增
 - Phase 7 集成到 Phase 8 的查询系统中
 - Phase 10-11 核心功能已实现，部分高级特性待完善
 - Phase 26 为架构简化 Phase，将移除过时的 CLI 代码
+- Phase 27 重构查询架构，将查询规划责任转移到 Claude Code
 
 ---
 
@@ -334,6 +336,649 @@ end note
 详细计划见 `plans/17/`（如存在）
 
 **Phase 23-25 归档说明**：查询接口重构 v2.0 已完成并归档至 `docs/archive/phase-23-25-query-refactoring.md`，包含完整的 jq-based 三层 API 设计和实现细节。
+
+---
+
+## Phase 27: 两阶段查询架构（详细）
+
+**目标**：重构查询架构，将查询规划责任转移到 Claude Code，提供轻量级元数据工具和通用查询执行器
+
+**代码量**：~550 行净增（删除 ~200 行 query/query_raw，新增 ~750 行）
+
+**背景**：Phase 23-25 实现的通用 query/query_raw 接口存在语义不清晰问题（流式 vs 排序 vs 最近），且将查询规划职责放在 MCP server 导致灵活性受限。Phase 27 采用两阶段模式，让 Claude Code 自主规划查询策略。
+
+### 架构转变
+
+```
+┌─────────────────────────────────────────────────────┐
+│  旧架构 (Phase 23-25)                                │
+│  Claude Code → query/query_raw (复杂查询逻辑)       │
+│                  ↓                                   │
+│               全量扫描 + jq 过滤                     │
+├─────────────────────────────────────────────────────┤
+│  新架构 (Phase 27)                                   │
+│  Claude Code → Stage 1: 元数据查询 (轻量)            │
+│              → 自主决策文件范围                       │
+│              → Stage 2: 执行查询 (精准)               │
+└─────────────────────────────────────────────────────┘
+```
+
+**核心优势**：
+- ✅ 性能提升 79x（智能文件选择，3MB vs 453MB）
+- ✅ 查询规划灵活（Claude Code 自主决策）
+- ✅ 语义清晰（分阶段职责明确）
+- ✅ 代码简化（删除模糊的通用接口）
+
+### 删除的接口
+
+**移除 2 个通用查询工具**（语义不清晰）：
+- ❌ `query` - 删除（过滤/排序/切片顺序不明确）
+- ❌ `query_raw` - 删除（与 query 功能重复）
+
+**保留 10 个快捷查询工具**（高频场景优化）：
+- ✅ `query_user_messages` - 用户消息查询
+- ✅ `query_tools` - 工具调用查询
+- ✅ `query_tool_errors` - 工具错误查询
+- ✅ `query_token_usage` - Token 使用统计
+- ✅ `query_conversation_flow` - 对话流查询
+- ✅ `query_system_errors` - 系统错误查询
+- ✅ `query_file_snapshots` - 文件快照查询
+- ✅ `query_timestamps` - 时间戳查询
+- ✅ `query_summaries` - 摘要查询
+- ✅ `query_tool_blocks` - 工具块查询
+
+### 新增 MCP 工具
+
+#### Tool 1: `get_session_directory`
+
+**功能**：返回 Claude Code 会话历史记录目录路径
+
+**参数**：
+```json
+{
+  "scope": {
+    "type": "string",
+    "enum": ["session", "project"],
+    "default": "project",
+    "description": "查询范围：'session' 返回当前会话文件所在目录，'project' 返回项目所有会话目录"
+  }
+}
+```
+
+**返回值**：
+```json
+{
+  "directory": "/home/user/.claude/projects/-home-user-work-meta-cc",
+  "scope": "project",
+  "file_count": 660,
+  "total_size_bytes": 474873856
+}
+```
+
+**Description**（工具描述）：
+```
+Returns the directory path containing Claude Code session JSONL files.
+
+Scope:
+- "session": Returns directory of the most recently modified session file
+- "project": Returns directory containing all session files for current project
+
+Output Schema:
+{
+  "directory": string,        // Absolute path to session directory
+  "scope": "session|project",
+  "file_count": number,        // Total JSONL files in directory
+  "total_size_bytes": number   // Total size of all JSONL files
+}
+
+Use Cases:
+- Stage 1 of two-stage query: Get directory path
+- Manual exploration of session data
+- External tool integration (jq, grep, etc.)
+```
+
+#### Tool 2: `inspect_session_files`
+
+**功能**：分析 JSONL 文件，返回文件级元数据（记录数、类型分布、时间范围等）
+
+**参数**：
+```json
+{
+  "files": {
+    "type": "array",
+    "items": {"type": "string"},
+    "description": "要分析的 JSONL 文件路径列表（绝对路径）",
+    "required": true
+  },
+  "include_samples": {
+    "type": "boolean",
+    "default": false,
+    "description": "是否包含每个文件的前 3 条记录样本"
+  }
+}
+```
+
+**返回值**：
+```json
+{
+  "files": [
+    {
+      "path": "/path/to/session-001.jsonl",
+      "size_bytes": 1592690,
+      "line_count": 265,
+      "record_types": {
+        "user": 45,
+        "assistant": 42,
+        "file-history-snapshot": 178
+      },
+      "time_range": {
+        "earliest": "2025-10-26T07:00:00.000Z",
+        "latest": "2025-10-26T09:28:30.542Z"
+      },
+      "mtime": "2025-10-26T09:28:30.000Z",
+      "samples": [...]  // 可选，前 3 条记录
+    }
+  ],
+  "summary": {
+    "total_files": 3,
+    "total_records": 570,
+    "total_size_bytes": 3145728,
+    "time_range": {
+      "earliest": "2025-10-26T02:25:00.000Z",
+      "latest": "2025-10-26T10:18:00.000Z"
+    }
+  }
+}
+```
+
+**Description**（工具描述）：
+```
+Analyzes JSONL session files and returns file-level metadata.
+
+Parameters:
+- files: Array of absolute file paths to analyze
+- include_samples: Whether to include first 3 records from each file (default: false)
+
+Output Schema:
+{
+  "files": [
+    {
+      "path": string,           // Absolute file path
+      "size_bytes": number,     // File size
+      "line_count": number,     // Total lines (including empty)
+      "record_types": {         // Record type distribution
+        "user": number,
+        "assistant": number,
+        "file-history-snapshot": number
+      },
+      "time_range": {           // Timestamp range in file
+        "earliest": string,     // ISO8601 timestamp
+        "latest": string        // ISO8601 timestamp
+      },
+      "mtime": string,          // File modification time (ISO8601)
+      "samples": [...]          // Optional: first 3 records
+    }
+  ],
+  "summary": {                  // Aggregated statistics
+    "total_files": number,
+    "total_records": number,
+    "total_size_bytes": number,
+    "time_range": {
+      "earliest": string,
+      "latest": string
+    }
+  }
+}
+
+JSONL Record Schema (Claude Code session format):
+{
+  "type": "user|assistant|file-history-snapshot",
+  "uuid": string,               // Unique identifier
+  "timestamp": string,          // ISO8601 timestamp
+  "sessionId": string,          // Session UUID
+  "message": {                  // Present for user/assistant types
+    "role": string,
+    "content": string | array   // Text or array of content blocks
+  },
+  // Additional fields vary by type
+}
+
+Use Cases:
+- Query planning: Decide which files to scan based on time_range
+- Performance optimization: Avoid scanning old files for recent queries
+- Data exploration: Understand session structure before querying
+```
+
+#### Tool 3: `execute_stage2_query`
+
+**功能**：在指定文件上执行结构化查询（过滤 → 排序 → 转换 → 限制）
+
+**参数**：
+```json
+{
+  "files": {
+    "type": "array",
+    "items": {"type": "string"},
+    "description": "要查询的 JSONL 文件路径列表",
+    "required": true
+  },
+  "filter": {
+    "type": "string",
+    "description": "jq 过滤表达式（例如：'select(.type == \"user\")'）",
+    "required": true
+  },
+  "sort": {
+    "type": "string",
+    "description": "jq 排序表达式（例如：'sort_by(.timestamp)'），为空则不排序",
+    "default": ""
+  },
+  "transform": {
+    "type": "string",
+    "description": "jq 转换表达式（例如：'\"\\(.timestamp[:19]) | \\(.message.content[:150])\"'），为空则返回原始 JSON",
+    "default": ""
+  },
+  "limit": {
+    "type": "integer",
+    "description": "返回结果数量限制（0 表示无限制）",
+    "default": 0
+  }
+}
+```
+
+**返回值**：
+```json
+{
+  "results": [
+    {
+      "formatted": "2025-10-26T10:17:57 | 现在，参考上面的方案...",
+      "raw": { "type": "user", "timestamp": "...", ... }
+    }
+  ],
+  "metadata": {
+    "files_scanned": 3,
+    "records_matched": 27,
+    "records_sorted": 27,
+    "records_returned": 10,
+    "execution_time_ms": 54.42
+  }
+}
+```
+
+**Description**（工具描述）：
+```
+Executes a structured query on specified JSONL files using jq expressions.
+
+Execution Order:
+1. Load and Filter: Stream through files, apply filter expression to each record
+2. Sort: Sort all filtered records (if sort expression provided)
+3. Limit: Take first/last N records (if limit > 0)
+4. Transform: Apply transform expression to each result record
+
+Parameters:
+- files: Array of absolute file paths (from get_session_directory or user selection)
+- filter: jq filter expression (required)
+  Example: 'select(.type == "user" and (.message.content | type == "string"))'
+- sort: jq sort expression (optional, empty = no sort)
+  Example: 'sort_by(.timestamp)'
+- transform: jq transform for output formatting (optional, empty = raw JSON)
+  Example: '"\(.timestamp[:19]) | \(.message.content[:150])"'
+- limit: Maximum results to return (0 = all)
+
+Output Schema:
+{
+  "results": [
+    {
+      "formatted": string,  // Result of transform (or JSON string if no transform)
+      "raw": object         // Original JSON record
+    }
+  ],
+  "metadata": {
+    "files_scanned": number,
+    "records_matched": number,   // After filter
+    "records_sorted": number,    // After sort
+    "records_returned": number,  // After limit
+    "execution_time_ms": number
+  }
+}
+
+Performance:
+- Streaming: Files processed one-by-one, memory-efficient
+- Early stopping: If limit reached during filtering, remaining files skipped
+- Typical: 55ms for 3 files (3MB, 570 lines, filter → sort → limit 10)
+
+jq Expression Compatibility:
+- Uses gojq library (99% compatible with jq 1.6)
+- Supports: select, map, sort_by, group_by, has, test, etc.
+- Note: Some advanced functions may not be supported (e.g., @base64d)
+
+Error Handling:
+- Invalid jq expression: Returns error with line/column info
+- Timeout: 30s limit per query
+- Invalid JSON: Skips malformed lines (does not fail entire query)
+
+Example Queries:
+1. Recent user messages:
+   filter: 'select(.type == "user" and (.message.content | type == "string"))'
+   sort: 'sort_by(.timestamp)'
+   limit: 10
+
+2. Tool errors with timestamps:
+   filter: 'select(.type == "user" and .message.content[].is_error == true)'
+   transform: '"\(.timestamp) | \(.message.content[].content)"'
+
+3. Token usage statistics:
+   filter: 'select(.type == "assistant" and .message.usage)'
+   transform: '{timestamp: .timestamp, tokens: .message.usage.output_tokens}'
+```
+
+### 实现策略
+
+#### Stage 27.1: 删除旧接口（破坏性变更）
+
+**删除文件**：
+- `cmd/mcp-server/handlers_query.go` 中的 `handleQuery` 和 `handleQueryRaw`
+- `cmd/mcp-server/executor.go` 中对应的工具分发逻辑
+
+**更新测试**：
+- 删除 `handlers_query_test.go` 中相关测试
+- 确保 10 个快捷查询工具测试仍通过
+
+**验收标准**：
+- ✅ `query` 和 `query_raw` 工具不再可用
+- ✅ 10 个快捷查询工具正常工作
+- ✅ 所有测试通过（删除相关测试后）
+
+#### Stage 27.2: 实现 `get_session_directory`
+
+**新增文件**：
+- `cmd/mcp-server/handlers_stage1.go` - Stage 1 工具实现
+- `cmd/mcp-server/handlers_stage1_test.go` - 单元测试
+
+**实现逻辑**：
+```go
+func (e *ToolExecutor) handleGetSessionDirectory(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
+    scopeParam := getStringParam(args, "scope", "project")
+
+    loc := locator.NewSessionLocator()
+    cwd, _ := os.Getwd()
+
+    var directory string
+    var fileCount int
+    var totalSize int64
+
+    if scopeParam == "session" {
+        // 获取最近会话文件所在目录
+        sessionFile, err := loc.FromProjectPath(cwd)
+        if err != nil {
+            return "", err
+        }
+        directory = filepath.Dir(sessionFile)
+        fileCount = 1
+        totalSize, _ = getFileSize(sessionFile)
+    } else {
+        // 获取项目所有会话目录
+        sessionFiles, err := loc.AllSessionsFromProject(cwd)
+        if err != nil {
+            return "", err
+        }
+        directory = filepath.Dir(sessionFiles[0])
+        fileCount = len(sessionFiles)
+        totalSize = getTotalSize(sessionFiles)
+    }
+
+    result := map[string]interface{}{
+        "directory": directory,
+        "scope": scopeParam,
+        "file_count": fileCount,
+        "total_size_bytes": totalSize,
+    }
+
+    return serializeJSON(result), nil
+}
+```
+
+**测试场景**：
+- ✅ Session 范围查询
+- ✅ Project 范围查询
+- ✅ 无会话文件时错误处理
+- ✅ 返回 JSON 格式正确
+
+#### Stage 27.3: 实现 `inspect_session_files`
+
+**新增文件**：
+- `internal/query/file_inspector.go` - 文件元数据分析核心
+- `internal/query/file_inspector_test.go` - 单元测试
+
+**实现逻辑**：
+```go
+type FileMetadata struct {
+    Path        string            `json:"path"`
+    SizeBytes   int64             `json:"size_bytes"`
+    LineCount   int               `json:"line_count"`
+    RecordTypes map[string]int    `json:"record_types"`
+    TimeRange   TimeRange         `json:"time_range"`
+    MTime       string            `json:"mtime"`
+    Samples     []interface{}     `json:"samples,omitempty"`
+}
+
+func InspectFiles(files []string, includeSamples bool) ([]FileMetadata, error) {
+    var results []FileMetadata
+
+    for _, filepath := range files {
+        metadata := FileMetadata{
+            Path: filepath,
+            RecordTypes: make(map[string]int),
+        }
+
+        // 获取文件信息
+        fileInfo, _ := os.Stat(filepath)
+        metadata.SizeBytes = fileInfo.Size()
+        metadata.MTime = fileInfo.ModTime().Format(time.RFC3339)
+
+        // 解析 JSONL
+        file, _ := os.Open(filepath)
+        scanner := bufio.NewScanner(file)
+
+        var earliest, latest time.Time
+        var samples []interface{}
+
+        lineCount := 0
+        for scanner.Scan() {
+            lineCount++
+            line := scanner.Text()
+            if line == "" {
+                continue
+            }
+
+            var entry map[string]interface{}
+            json.Unmarshal([]byte(line), &entry)
+
+            // 统计类型
+            if entryType, ok := entry["type"].(string); ok {
+                metadata.RecordTypes[entryType]++
+            }
+
+            // 时间范围
+            if timestamp, ok := entry["timestamp"].(string); ok {
+                t, _ := time.Parse(time.RFC3339, timestamp)
+                if earliest.IsZero() || t.Before(earliest) {
+                    earliest = t
+                }
+                if latest.IsZero() || t.After(latest) {
+                    latest = t
+                }
+            }
+
+            // 样本收集
+            if includeSamples && len(samples) < 3 {
+                samples = append(samples, entry)
+            }
+        }
+
+        metadata.LineCount = lineCount
+        metadata.TimeRange.Earliest = earliest.Format(time.RFC3339)
+        metadata.TimeRange.Latest = latest.Format(time.RFC3339)
+        if includeSamples {
+            metadata.Samples = samples
+        }
+
+        results = append(results, metadata)
+        file.Close()
+    }
+
+    return results, nil
+}
+```
+
+**测试场景**：
+- ✅ 单文件分析
+- ✅ 多文件分析
+- ✅ 包含样本 vs 不包含样本
+- ✅ 空文件处理
+- ✅ 无效 JSON 处理
+
+#### Stage 27.4: 实现 `execute_stage2_query`
+
+**基于可行性验证**（已完成）：
+- 核心代码已在 `test_stage2_query.go` 中验证
+- 移植到 `internal/query/stage2_executor.go`
+- 集成到 MCP 工具处理器
+
+**实现逻辑**（已验证）：
+```go
+func ExecuteStage2Query(ctx context.Context, params Stage2QueryParams) ([]Stage2QueryResult, error) {
+    // 1. 过滤阶段：流式读取文件 + jq 过滤
+    filteredRecords := []interface{}{}
+    filterCode, _ := compileJQ(params.Filter)
+
+    for _, file := range params.Files {
+        scanner := bufio.NewScanner(file)
+        for scanner.Scan() {
+            var entry interface{}
+            json.Unmarshal(scanner.Bytes(), &entry)
+
+            // 应用 jq 过滤
+            if match := filterCode.Run(entry); match {
+                filteredRecords = append(filteredRecords, entry)
+            }
+        }
+    }
+
+    // 2. 排序阶段（可选）
+    if params.Sort != "" {
+        sortCode, _ := compileJQ(params.Sort)
+        sortedRecords = sortCode.Run(filteredRecords)
+    } else {
+        sortedRecords = filteredRecords
+    }
+
+    // 3. 限制阶段
+    if params.Limit > 0 && len(sortedRecords) > params.Limit {
+        sortedRecords = sortedRecords[len(sortedRecords)-params.Limit:]
+    }
+
+    // 4. 转换阶段（可选）
+    results := []Stage2QueryResult{}
+    if params.Transform != "" {
+        transformCode, _ := compileJQ(params.Transform)
+        for _, record := range sortedRecords {
+            formatted := transformCode.Run(record)
+            results = append(results, Stage2QueryResult{
+                Formatted: formatted,
+                Raw: record,
+            })
+        }
+    } else {
+        for _, record := range sortedRecords {
+            results = append(results, Stage2QueryResult{
+                Formatted: jsonSerialize(record),
+                Raw: record,
+            })
+        }
+    }
+
+    return results, nil
+}
+```
+
+**测试场景**：
+- ✅ 基础过滤（已验证）
+- ✅ 过滤 + 排序（已验证）
+- ✅ 过滤 + 排序 + 限制（已验证）
+- ✅ 过滤 + 排序 + 限制 + 转换（已验证）
+- ✅ 无效 jq 表达式错误处理
+- ✅ 超时处理（30s）
+- ✅ 上下文取消处理
+
+#### Stage 27.5: 文档更新
+
+**更新文档**：
+- `docs/guides/mcp.md` - 新增两阶段查询指南
+- `docs/guides/two-stage-query-guide.md` - 完整使用教程
+- `docs/examples/two-stage-query-examples.md` - 查询示例库
+- `CLAUDE.md` - 快速参考
+
+**迁移指南**（破坏性变更）：
+```markdown
+# 从 query/query_raw 迁移到两阶段查询
+
+## 旧方式（已弃用）
+query({
+  resource: "tools",
+  jq_filter: 'select(.type == "user")',
+  limit: 10
+})
+
+## 新方式（推荐）
+// Stage 1: 获取目录并选择文件
+dir = get_session_directory(scope="project")
+files = list_most_recent_files(dir.directory, limit=3)
+
+// Stage 2: 执行查询
+results = execute_stage2_query(
+  files=files,
+  filter='select(.type == "user")',
+  sort='sort_by(.timestamp)',
+  limit=10
+)
+```
+
+### 完成标准
+
+- ✅ 删除 `query` 和 `query_raw` 工具
+- ✅ 3 个新 MCP 工具实现并测试通过
+- ✅ 10 个快捷查询工具保持兼容
+- ✅ 所有单元测试通过（覆盖率 ≥ 80%）
+- ✅ 性能验证：Stage 2 执行时间 < 100ms（3MB 数据）
+- ✅ 文档完整（API 参考 + 迁移指南 + 示例库）
+- ✅ MCP 工具描述包含完整 schema 说明
+
+### 风险和缓解
+
+| 风险 | 概率 | 影响 | 缓解措施 |
+|------|------|------|---------|
+| 破坏性变更影响用户 | 高 | 中 | 提供清晰迁移指南，保留快捷查询 |
+| 性能不达预期 | 低 | 中 | 已验证（55ms），可缓存文件元数据 |
+| jq 表达式兼容性 | 中 | 中 | 文档化支持子集，提供示例库 |
+| 学习曲线陡峭 | 高 | 中 | 丰富示例，Claude Code 辅助生成 |
+
+### 预期收益
+
+**性能**：
+- 智能查询：79x 加速（3MB vs 453MB）
+- Stage 2 执行：55ms（验证值）
+
+**代码质量**：
+- 代码量净增：+550 行（删除 200，新增 750）
+- 语义清晰：分阶段职责明确
+- 可维护性：删除模糊接口
+
+**用户体验**：
+- 灵活性提升：Claude Code 自主规划
+- 可观测性：详细元数据和执行统计
+- 学习曲线：需要示例支持
+
+详细可行性分析见 [`docs/analysis/stage2-go-implementation-feasibility.md`](../analysis/stage2-go-implementation-feasibility.md)
 
 ---
 
