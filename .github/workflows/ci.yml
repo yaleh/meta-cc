@@ -11,8 +11,16 @@ jobs:
     name: Test
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        go: ['1.21', '1.22']
+        include:
+          # Primary development target
+          - os: ubuntu-latest
+            go: '1.22'
+          # Mac users matter (most Claude Code users)
+          - os: macos-latest
+            go: '1.22'
+          # Backward compatibility check
+          - os: ubuntu-latest
+            go: '1.21'
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -46,24 +54,7 @@ jobs:
         shell: bash
         run: |
           bash scripts/sync-plugin-files.sh
-
-          # Check sync succeeded (new structure uses dist/)
-          if [ ! -d "dist/commands" ] || [ ! -d "dist/agents" ]; then
-            echo "ERROR: Plugin file sync failed - dist/ directory not created"
-            exit 1
-          fi
-
-          # Check file count (only unified meta.md, capabilities distributed separately)
-          DIST_CMD_COUNT=$(find dist/commands -name "*.md" | wc -l)
-          EXPECTED_COUNT=1
-
-          if [ "$DIST_CMD_COUNT" -ne "$EXPECTED_COUNT" ]; then
-            echo "ERROR: Command file count mismatch: expected $EXPECTED_COUNT (unified meta.md only), got $DIST_CMD_COUNT"
-            exit 1
-          fi
-
-          echo "✓ Plugin files synced successfully ($DIST_CMD_COUNT command file: unified meta.md)"
-          echo "  Note: 13 capability files distributed separately in capabilities-latest.tar.gz"
+          bash scripts/sync-plugin-files.sh --verify
 
       - name: Check CHANGELOG updated
         if: github.event_name == 'pull_request'
@@ -72,7 +63,7 @@ jobs:
           GITHUB_BASE_REF: ${{ github.base_ref }}
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          bash scripts/check-changelog-updated.sh
+          bash scripts/ci/check-changelog-updated.sh
 
       - name: Run tests
         run: make test
@@ -81,50 +72,18 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
         run: make test-coverage
 
+      - name: Cache golangci-lint
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/golangci-lint
+          key: ${{ runner.os }}-golangci-${{ hashFiles('**/*.go') }}
+          restore-keys: |
+            ${{ runner.os }}-golangci-
+
       - name: Run linter
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
         run: make lint
-
-      - name: Check error handling quality
-        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
-        shell: bash
-        run: |
-          echo "Checking error handling quality..."
-
-          # Check for unsupported format errors (should use mcerrors.ErrInvalidInput)
-          UNSUPPORTED_FORMAT_ERRORS=$(grep -r "unsupported output format.*supported:" cmd/*.go | grep -v "mcerrors\.ErrInvalidInput" | wc -l || true)
-          if [ "$UNSUPPORTED_FORMAT_ERRORS" -gt 0 ]; then
-            echo "❌ ERROR: Found $UNSUPPORTED_FORMAT_ERRORS unsupported format errors without proper sentinel errors"
-            echo "All unsupported format errors should use mcerrors.ErrInvalidInput sentinel error"
-            exit 1
-          else
-            echo "✅ All unsupported format errors use proper sentinel errors"
-          fi
-
-          # Check for invalid type errors (should use mcerrors.ErrInvalidInput)
-          INVALID_TYPE_ERRORS=$(grep -r "invalid type.*must be one of:" cmd/*.go | grep -v "mcerrors\.ErrInvalidInput" | wc -l || true)
-          if [ "$INVALID_TYPE_ERRORS" -gt 0 ]; then
-            echo "❌ ERROR: Found $INVALID_TYPE_ERRORS invalid type errors without proper sentinel errors"
-            echo "All invalid type errors should use mcerrors.ErrInvalidInput sentinel error"
-            exit 1
-          else
-            echo "✅ All invalid type errors use proper sentinel errors"
-          fi
-
-          # Check error wrapping consistency
-          FILES_WITH_ERRORS=$(grep -l "fmt\.Errorf.*%w" cmd/*.go | wc -l || true)
-          FILES_WITH_MCERRORS=$(grep -l "mcerrors" cmd/*.go | wc -l || true)
-
-          echo "Files with error wrapping: $FILES_WITH_ERRORS"
-          echo "Files with mcerrors imports: $FILES_WITH_MCERRORS"
-
-          if [ "$FILES_WITH_ERRORS" -gt 0 ]; then
-            echo "✅ Error wrapping is implemented in $FILES_WITH_ERRORS files"
-          else
-            echo "⚠️  No files with error wrapping found (this may be expected)"
-          fi
-
-          echo "✅ Error handling quality check passed"
 
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
@@ -137,31 +96,7 @@ jobs:
       - name: Check coverage threshold
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
         shell: bash
-        run: |
-          echo "Checking test coverage threshold..."
-
-          # Extract total coverage percentage
-          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-
-          # Define threshold (lowered to 70% because -short mode skips integration tests)
-          THRESHOLD=70.0
-
-          echo "Current coverage: ${COVERAGE}%"
-          echo "Required threshold: ${THRESHOLD}%"
-
-          # Compare coverage to threshold
-          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
-            echo "❌ ERROR: Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
-            echo ""
-            echo "Please add tests to increase coverage above ${THRESHOLD}%"
-            echo ""
-            echo "To check coverage locally:"
-            echo "  make test-coverage"
-            echo "  open coverage.html"
-            exit 1
-          else
-            echo "✅ Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
-          fi
+        run: bash scripts/checks/check-coverage.sh 75
 
       - name: Calculate test duration
         if: always() && matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
@@ -177,7 +112,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
         shell: bash
         run: |
-          bash scripts/track-metrics.sh test_duration ${{ env.TEST_DURATION }} seconds
+          bash scripts/ci/track-metrics.sh test_duration ${{ env.TEST_DURATION }} seconds
 
       - name: Check performance regression
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22' && github.event_name == 'pull_request'
@@ -185,7 +120,7 @@ jobs:
         run: |
           # Check test duration regression (20% threshold)
           # Exit code 2 (insufficient data) is treated as a warning, not a failure
-          bash scripts/check-performance-regression.sh test_duration ${{ env.TEST_DURATION }} 20 || [ $? -eq 2 ]
+          bash scripts/ci/check-performance-regression.sh test_duration ${{ env.TEST_DURATION }} 20 || [ $? -eq 2 ]
 
       - name: Commit and push metrics
         if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22' && github.event_name == 'push'

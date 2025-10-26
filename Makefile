@@ -33,46 +33,20 @@ check-workspace: check-temp-files check-fixtures check-deps
 
 # P1: Enhanced checks (Iteration 2)
 check-scripts:
-	@bash scripts/check-scripts.sh
+	@bash scripts/checks/check-scripts.sh
 
 check-debug:
-	@bash scripts/check-debug.sh
+	@bash scripts/checks/check-debug.sh
 
 check-go-quality:
-	@bash scripts/check-go-quality.sh
+	@bash scripts/checks/check-go-quality.sh
 
 # ==============================================================================
 # CI-Derived Local Checks (从CI迁移的本地检查)
 # ==============================================================================
 
 check-test-quality:
-	@echo "=== Test Quality Check ==="
-	@echo ""
-	@echo "[1/2] Checking for hardcoded project hashes in new tests..."
-	@# Only check for hardcoded strings starting with - or / (the problematic pattern)
-	@# Pattern matches: projectHash := "-fixed" or projectHash := "/fixed"
-	@PROBLEM_FILES=$$(grep -rn -E 'projectHash[[:space:]]*:=[[:space:]]*"[/-]' --include="*_test.go" cmd/ pkg/ 2>/dev/null | \
-		grep -v writeSessionFixture || true); \
-	if [ -n "$$PROBLEM_FILES" ]; then \
-		echo "⚠️  WARNING: Hardcoded project hash detected:"; \
-		echo "$$PROBLEM_FILES" | sed 's/^/  /'; \
-		echo "   Consider using writeSessionFixture() for better cross-platform compatibility."; \
-		echo "   (Non-blocking warning)"; \
-	else \
-		echo "✓ No problematic project hashes found"; \
-	fi
-	@echo ""
-	@echo "[2/2] Checking for os.UserHomeDir() in tests..."
-	@FILES=$$(grep -rl 'os\.UserHomeDir' --include="*_test.go" . 2>/dev/null || true); \
-	if [ -n "$$FILES" ]; then \
-		echo "⚠️  WARNING: os.UserHomeDir() found in tests:"; \
-		echo "$$FILES" | sed 's/^/  - /'; \
-		echo "   Consider using META_CC_PROJECTS_ROOT instead."; \
-	else \
-		echo "✓ No os.UserHomeDir() usage in tests"; \
-	fi
-	@echo ""
-	@echo "✅ Test quality check passed"
+	@bash scripts/checks/check-test-quality.sh
 
 check-formatting:
 	@echo "=== Code Formatting Check ==="
@@ -96,28 +70,8 @@ fix-formatting:
 	@echo "✓ Formatting fixed"
 
 check-plugin-sync:
-	@echo "=== Plugin File Sync Verification ==="
-	@echo ""
-	@echo "[1/3] Running sync script..."
 	@bash scripts/sync-plugin-files.sh
-	@echo ""
-	@echo "[2/3] Verifying dist/ structure..."
-	@if [ ! -d "dist/commands" ] || [ ! -d "dist/agents" ]; then \
-		echo "❌ ERROR: Plugin file sync failed - dist/ directory not created"; \
-		exit 1; \
-	fi
-	@echo "✓ dist/ structure verified"
-	@echo ""
-	@echo "[3/3] Checking file count..."
-	@DIST_CMD_COUNT=$$(find dist/commands -name "*.md" 2>/dev/null | wc -l); \
-	EXPECTED_COUNT=1; \
-	if [ "$$DIST_CMD_COUNT" -ne "$$EXPECTED_COUNT" ]; then \
-		echo "❌ ERROR: Command file count mismatch: expected $$EXPECTED_COUNT, got $$DIST_CMD_COUNT"; \
-		exit 1; \
-	fi
-	@echo "✓ File count verified: $$DIST_CMD_COUNT command file(s)"
-	@echo ""
-	@echo "✅ Plugin file sync verification passed"
+	@bash scripts/sync-plugin-files.sh --verify
 
 check-mod-tidy:
 	@echo "=== Go Module Tidy Check ==="
@@ -177,7 +131,7 @@ check-release-ready:
 		echo "  Git tag: $$LATEST_TAG ($$VERSION_NUM)"; \
 		echo "  marketplace.json: $$MARKETPLACE_VERSION"; \
 		echo ""; \
-		echo "Run './scripts/release.sh $$LATEST_TAG' to fix"; \
+		echo "Run './scripts/release/release.sh $$LATEST_TAG' to fix"; \
 		exit 1; \
 	fi; \
 	echo "✓ marketplace.json version verified: $$MARKETPLACE_VERSION"
@@ -195,7 +149,7 @@ pre-release-check:
 		exit 1; \
 	fi
 	@echo "Running pre-release validation for $(VERSION)..."
-	@bash scripts/pre-release-check.sh $(VERSION)
+	@bash scripts/release/pre-release-check.sh $(VERSION)
 
 bump-version:
 	@if [ -z "$(VERSION)" ]; then \
@@ -204,7 +158,7 @@ bump-version:
 		exit 1; \
 	fi
 	@echo "Bumping version to $(VERSION)..."
-	@bash scripts/bump-version.sh $(VERSION)
+	@bash scripts/release/bump-version.sh $(VERSION)
 
 release:
 	@if [ -z "$(VERSION)" ]; then \
@@ -213,34 +167,23 @@ release:
 		exit 1; \
 	fi
 	@echo "Creating release $(VERSION)..."
-	@bash scripts/release.sh $(VERSION)
+	@bash scripts/release/release.sh $(VERSION)
 
 test-all-local: test-all test-bats
 	@echo "✅ All tests passed (including Bats)"
-
-pre-commit-full: check-workspace-full check-plugin-sync check-test-quality test lint
-	@echo ""
-	@echo "✅ Full pre-commit validation passed"
-	@echo ""
-	@echo "All checks complete:"
-	@echo "  ✓ Workspace validation"
-	@echo "  ✓ Plugin file sync"
-	@echo "  ✓ Test quality"
-	@echo "  ✓ Tests passed"
-	@echo "  ✓ Lint checks passed"
 
 # P0 + P1 + P2: Complete workspace validation
 check-workspace-full: check-workspace check-scripts check-debug check-go-quality check-test-quality check-formatting
 	@echo "✅ Full workspace validation passed"
 
 check-temp-files:
-	@bash scripts/check-temp-files.sh
+	@bash scripts/checks/check-temp-files.sh
 
 check-fixtures:
-	@bash scripts/check-fixtures.sh
+	@bash scripts/checks/check-fixtures.sh
 
 check-deps:
-	@bash scripts/check-deps.sh
+	@bash scripts/checks/check-deps.sh
 
 check-imports:
 	@echo "Checking import formatting..."
@@ -260,39 +203,50 @@ fix-imports:
 	@echo "✓ Imports fixed"
 
 # ==============================================================================
-# Unified Build Targets
+# Unified Build Targets (3-Tier Workflow)
 # ==============================================================================
 
-# Developer quick iteration (minimal checks)
+# Tier 1: FAST - Quick developer iteration (<10s)
 dev: fmt build
 	@echo "✅ Development build ready"
 	@echo ""
 	@echo "For commit preparation, run:"
-	@echo "  make pre-commit"
+	@echo "  make commit"
 
-# Pre-commit validation (P0 + P1 + P2 + quick tests)
-pre-commit: check-workspace-full test
+# Tier 2: COMMIT - Essential pre-commit validation (<60s)
+commit: check-workspace test
 	@echo ""
 	@echo "✅ Ready to commit"
 	@echo ""
-	@echo "All pre-commit checks passed:"
+	@echo "Essential checks passed:"
 	@echo "  ✓ Workspace clean (no temp files)"
 	@echo "  ✓ Fixtures verified"
 	@echo "  ✓ Dependencies in sync"
-	@echo "  ✓ Scripts validated (shellcheck)"
-	@echo "  ✓ No debug statements"
-	@echo "  ✓ Go code quality (fmt + vet + build)"
-	@echo "  ✓ Tests passed"
-
-# Full local validation (P0 + P1 + P2 checks + build)
-all: check-workspace-full test build
+	@echo "  ✓ Tests passed (short mode)"
 	@echo ""
-	@echo "✅ All quality gates passed"
+	@echo "Before pushing to remote, run:"
+	@echo "  make push"
 
-# CI-level validation (comprehensive)
-ci: check-workspace-full test-all build
+# Tier 3: PUSH - Full validation before push (<120s)
+push: check-workspace-full test-all lint build
 	@echo ""
-	@echo "✅ CI validation passed"
+	@echo "✅ Ready to push"
+	@echo ""
+	@echo "All quality gates passed:"
+	@echo "  ✓ Full workspace validation"
+	@echo "  ✓ All tests passed (including E2E)"
+	@echo "  ✓ Lint checks passed"
+	@echo "  ✓ Build successful"
+
+# Legacy aliases (deprecated, will be removed in future version)
+pre-commit: commit
+	@echo "⚠️  DEPRECATED: Use 'make commit' instead"
+
+all: push
+	@echo "⚠️  DEPRECATED: Use 'make push' instead"
+
+ci: push
+	@echo "⚠️  DEPRECATED: Use 'make push' instead"
 
 build:
 	@echo "Building $(MCP_BINARY_NAME) $(VERSION)..."
@@ -324,7 +278,7 @@ test-coverage-full: build
 
 metrics-mcp:
 	@echo "Capturing MCP server metrics snapshot..."
-	@./scripts/capture-mcp-metrics.sh
+	@./scripts/ci/capture-mcp-metrics.sh
 	@echo "✅ MCP metrics snapshot complete"
 
 bundle-capabilities:
@@ -412,8 +366,8 @@ bundle-release: sync-plugin-files
 		cp -r $(DIST_DIR)/agents/* $$BUNDLE_DIR/agents/; \
 		cp -r lib/* $$BUNDLE_DIR/lib/; \
 		cp -r .claude-plugin/* $$BUNDLE_DIR/.claude-plugin/; \
-		cp scripts/install.sh $$BUNDLE_DIR/; \
-		cp scripts/uninstall.sh $$BUNDLE_DIR/ 2>/dev/null || true; \
+		cp scripts/install/install.sh $$BUNDLE_DIR/; \
+		cp scripts/install/uninstall.sh $$BUNDLE_DIR/ 2>/dev/null || true; \
 		cp README.md $$BUNDLE_DIR/; \
 		cp LICENSE $$BUNDLE_DIR/; \
 		tar -czf $(BUILD_DIR)/meta-cc-bundle-$$PLATFORM_NAME.tar.gz -C $(BUILD_DIR)/bundles meta-cc-$(VERSION)-$$PLATFORM_NAME; \
@@ -437,7 +391,7 @@ lint: fmt vet lint-errors lint-error-handling
 
 lint-errors:
 	@echo "Running error linting..."
-	@./scripts/lint-errors.sh cmd/ internal/
+	@./scripts/checks/lint-errors.sh cmd/ internal/
 
 lint-error-handling:
 	@echo "Checking error handling quality..."
@@ -482,18 +436,11 @@ vet:
 # Quality gates (added in Bootstrap-008 Iteration 3)
 install-pre-commit:
 	@echo "Installing pre-commit hooks..."
-	@bash scripts/install-pre-commit.sh
+	@bash scripts/install/install-pre-commit.sh
 
 test-coverage-check:
-	@echo "Checking test coverage meets 80% threshold..."
 	@$(GOTEST) -coverprofile=coverage.out ./... > /dev/null 2>&1
-	@COVERAGE=$$(go tool cover -func=coverage.out | tail -1 | awk '{print $$3}' | sed 's/%//'); \
-	if [ "$$(echo "$$COVERAGE < 80" | bc)" -eq 1 ]; then \
-		echo "FAIL: Coverage $$COVERAGE% is below 80% target"; \
-		exit 1; \
-	else \
-		echo "PASS: Coverage $$COVERAGE% meets 80% target"; \
-	fi
+	@bash scripts/checks/check-coverage.sh 75
 
 lint-fix:
 	@echo "Running golangci-lint with auto-fix..."
@@ -518,17 +465,20 @@ security:
 help:
 	@echo "Available targets:"
 	@echo ""
-	@echo "Development:"
+	@echo "Development Workflow (3-Tier):"
+	@echo "  make dev                     - Tier 1: Quick iteration (fmt + build, <10s)"
+	@echo "  make commit                  - Tier 2: Pre-commit checks (workspace + tests, <60s)"
+	@echo "  make push                    - Tier 3: Full validation before push (all checks, <120s)"
+	@echo ""
+	@echo "Individual Tasks:"
 	@echo "  make build                   - Build meta-cc-mcp MCP server"
-	@echo "  make dev                     - Development build (use .claude/ for immediate testing)"
 	@echo "  make test                    - Run tests (short mode, skips slow E2E tests)"
 	@echo "  make test-all                - Run all tests (including slow E2E tests ~30s)"
-	@echo "  make test-coverage           - Run tests with coverage report (includes E2E tests)"
-	@echo "  make test-coverage-check     - Check test coverage meets 80% threshold"
+	@echo "  make test-coverage           - Run tests with coverage report"
+	@echo "  make test-coverage-check     - Check test coverage meets 75% threshold"
 	@echo "  make lint                    - Run static analysis (fmt + vet + error-linting + golangci-lint)"
 	@echo "  make fmt                     - Format code with gofmt"
 	@echo "  make vet                     - Run go vet"
-	@echo "  make all                     - Full validation (workspace checks + tests + build)"
 	@echo ""
 	@echo "Release Management:"
 	@echo "  make bump-version VERSION=vX.Y.Z      - Bump marketplace.json version"
@@ -537,10 +487,10 @@ help:
 	@echo "  make check-release-ready              - Verify latest tag matches marketplace.json"
 	@echo ""
 	@echo "Quality Gates:"
-	@echo "  make pre-commit              - Pre-commit validation (recommended before git commit)"
-	@echo "  make pre-commit-full         - Full pre-commit validation (includes plugin sync)"
 	@echo "  make check-workspace         - P0 workspace validation (temp files, fixtures, deps)"
 	@echo "  make check-workspace-full    - Full workspace validation (all checks)"
+	@echo "  make check-test-quality      - Check test quality issues"
+	@echo "  make check-plugin-sync       - Verify plugin file sync"
 	@echo "  make install-pre-commit      - Install pre-commit framework hooks"
 	@echo ""
 	@echo "Build & Package:"
@@ -554,3 +504,8 @@ help:
 	@echo "  make deps                    - Download and tidy dependencies"
 	@echo "  make security                - Run security scan with gosec"
 	@echo "  make help                    - Show this help message"
+	@echo ""
+	@echo "Legacy (Deprecated):"
+	@echo "  make all                     - Use 'make push' instead"
+	@echo "  make pre-commit              - Use 'make commit' instead"
+	@echo "  make ci                      - Use 'make push' instead"

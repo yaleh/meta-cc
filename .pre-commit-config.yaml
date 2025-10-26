@@ -13,19 +13,14 @@
 #   - Update hooks: pre-commit autoupdate
 
 repos:
-  # Go formatting and imports
+  # Go formatting and imports (go-imports includes go-fmt functionality)
   - repo: https://github.com/dnephin/pre-commit-golang
     rev: v0.5.1
     hooks:
-      - id: go-fmt
-        name: gofmt
-        description: Format Go code
-        args: [-w]
-
       - id: go-imports
         name: goimports
-        description: Organize Go imports
-        args: [-w]
+        description: Format Go code and organize imports
+        args: [-w, -local=github.com/yaleh/meta-cc]
 
       # go-vet removed: redundant with golangci-lint and has hook issues
       # Use: golangci-lint (includes go vet) and go test (short)
@@ -35,14 +30,14 @@ repos:
         description: Clean go.mod and go.sum
         pass_filenames: false
 
-  # golangci-lint
+  # golangci-lint (optimized to only check changed files)
   - repo: https://github.com/golangci/golangci-lint
     rev: v1.55.2
     hooks:
       - id: golangci-lint
         name: golangci-lint
-        description: Run golangci-lint
-        args: [--fast, --timeout=5m]
+        description: Run golangci-lint (only on changed files)
+        args: [--fast, --new-from-rev=HEAD~1, --timeout=2m]
         pass_filenames: false
 
   # Security scanning (critical only for pre-commit)
@@ -87,7 +82,7 @@ repos:
         always_run: true
         verbose: true
 
-      # Plugin version management
+      # Plugin version management (runs on pre-push to reduce commit friction)
       - id: plugin-version-bump
         name: Auto-bump plugin version
         description: Auto-increment plugin version when .claude/ files change
@@ -95,23 +90,10 @@ repos:
         language: script
         files: '^\.claude/(commands|agents)/.*\.md$'
         pass_filenames: false
+        stages: [pre-push]
 
-      # Detect hardcoded project hash (prevents 30% of CI errors!)
-      - id: detect-hardcoded-hash
-        name: Detect hardcoded project hash
-        description: Prevent hardcoded project hashes in tests
-        entry: "bash -c 'if git diff --cached | grep -qE \"projectHash\\s*:=\\s*\\\"[/-]\"; then echo \"ERROR: Hardcoded project hash detected! Use writeSessionFixture() instead.\"; exit 1; fi'"
-        language: system
-        files: '_test\.go$'
-
-      # Detect os.UserHomeDir() usage in tests
-      - id: detect-userhomedir
-        name: Detect os.UserHomeDir in tests
-        description: Warn about os.UserHomeDir usage in tests
-        entry: "bash -c 'if git diff --cached --name-only | grep \"_test\\.go$\" | xargs grep -l \"os\\.UserHomeDir()\" 2>/dev/null; then echo \"Warning: os.UserHomeDir() in tests. Consider using META_CC_PROJECTS_ROOT.\"; exit 0; fi'"
-        language: system
-        files: '_test\.go$'
-        verbose: true
+      # Test quality checks moved to Makefile target for faster commits
+      # Run manually: make check-test-quality
 
       # Error handling quality check (from CI - full check: make lint-error-handling)
       - id: check-error-handling

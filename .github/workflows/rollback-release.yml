@@ -1,0 +1,196 @@
+name: Rollback Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to rollback (e.g., v2.0.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  rollback:
+    name: Rollback Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate version format
+        run: |
+          VERSION=${{ inputs.version }}
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+            echo "❌ ERROR: Invalid version format: $VERSION"
+            echo "Expected format: v1.0.0 or v1.0.0-beta"
+            exit 1
+          fi
+          echo "✓ Version format valid: $VERSION"
+
+      - name: Check if release exists
+        id: check_release
+        run: |
+          VERSION=${{ inputs.version }}
+
+          # Check if GitHub release exists
+          gh release view "$VERSION" >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            echo "release_exists=true" >> $GITHUB_OUTPUT
+            echo "✓ GitHub release exists: $VERSION"
+          else
+            echo "release_exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️  GitHub release not found: $VERSION"
+          fi
+
+          # Check if git tag exists
+          git tag | grep -q "^$VERSION$"
+          if [ $? -eq 0 ]; then
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+            echo "✓ Git tag exists: $VERSION"
+          else
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️  Git tag not found: $VERSION"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete GitHub release
+        if: steps.check_release.outputs.release_exists == 'true'
+        run: |
+          VERSION=${{ inputs.version }}
+          gh release delete "$VERSION" --yes
+          echo "✓ GitHub release deleted: $VERSION"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete git tag (remote)
+        if: steps.check_release.outputs.tag_exists == 'true'
+        run: |
+          VERSION=${{ inputs.version }}
+          git push origin --delete "$VERSION" || true
+          echo "✓ Remote git tag deleted: $VERSION"
+
+      - name: Delete git tag (local)
+        if: steps.check_release.outputs.tag_exists == 'true'
+        run: |
+          VERSION=${{ inputs.version }}
+          git tag -d "$VERSION" || true
+          echo "✓ Local git tag deleted: $VERSION"
+
+      - name: Get previous version
+        id: prev_version
+        run: |
+          VERSION=${{ inputs.version }}
+
+          # Get previous tag (excluding the one being rolled back)
+          PREV_VERSION=$(git tag --sort=-v:refname | grep -v "^$VERSION$" | head -1)
+
+          if [ -z "$PREV_VERSION" ]; then
+            echo "⚠️  WARNING: No previous version found"
+            echo "prev_version=" >> $GITHUB_OUTPUT
+          else
+            echo "prev_version=$PREV_VERSION" >> $GITHUB_OUTPUT
+            echo "✓ Previous version: $PREV_VERSION"
+          fi
+
+      - name: Revert marketplace.json
+        if: steps.prev_version.outputs.prev_version != ''
+        run: |
+          VERSION=${{ inputs.version }}
+          PREV_VERSION=${{ steps.prev_version.outputs.prev_version }}
+          PREV_VERSION_NUM=${PREV_VERSION#v}
+
+          echo "Reverting marketplace.json to $PREV_VERSION ($PREV_VERSION_NUM)"
+
+          jq --arg ver "$PREV_VERSION_NUM" '.plugins[0].version = $ver' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
+          mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
+
+          echo "✓ marketplace.json reverted to $PREV_VERSION_NUM"
+
+      - name: Commit marketplace.json revert
+        if: steps.prev_version.outputs.prev_version != ''
+        run: |
+          VERSION=${{ inputs.version }}
+          PREV_VERSION=${{ steps.prev_version.outputs.prev_version }}
+
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add .claude-plugin/marketplace.json
+          git commit -m "chore: rollback release $VERSION to $PREV_VERSION" \
+            -m "Reverted marketplace.json version after rolling back $VERSION release."
+
+          git push
+
+          echo "✓ marketplace.json revert committed and pushed"
+
+      - name: Create rollback notice issue
+        run: |
+          VERSION=${{ inputs.version }}
+          PREV_VERSION=${{ steps.prev_version.outputs.prev_version }}
+
+          if [ -z "$PREV_VERSION" ]; then
+            PREV_VERSION="(none found)"
+          fi
+
+          cat > /tmp/issue-body.md <<EOF
+## Rollback Summary
+
+**Rolled back version:** $VERSION
+**Reverted to:** $PREV_VERSION
+
+### Actions Taken
+
+- GitHub release deleted
+- Git tag deleted (local and remote)
+- marketplace.json reverted
+- Changes committed and pushed
+
+### Next Steps
+
+1. Investigate why $VERSION needed to be rolled back
+2. Fix the issues
+3. Create a new release with proper version number
+4. Update CHANGELOG.md with rollback notice
+
+### Manual Verification
+
+Verify rollback completed successfully:
+\`\`\`bash
+git fetch --tags
+git tag | grep $VERSION  # Should be empty
+gh release view $VERSION  # Should fail
+\`\`\`
+EOF
+
+          gh issue create \
+            --title "Release $VERSION rolled back" \
+            --body-file /tmp/issue-body.md \
+            --label "release,rollback"
+
+          echo "✓ Rollback notice issue created"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Rollback summary
+        run: |
+          VERSION=${{ inputs.version }}
+          PREV_VERSION=${{ steps.prev_version.outputs.prev_version }}
+
+          echo "==================================="
+          echo "Rollback Complete"
+          echo "==================================="
+          echo ""
+          echo "Rolled back: $VERSION"
+          echo "Reverted to: ${PREV_VERSION:-(none)}"
+          echo ""
+          echo "✅ Release rollback completed successfully"
+          echo ""
+          echo "Check the created issue for details and next steps."

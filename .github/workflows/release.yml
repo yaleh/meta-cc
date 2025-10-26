@@ -43,7 +43,7 @@ jobs:
             echo "  Git tag: $VERSION ($VERSION_NUM)"
             echo "  marketplace.json: $MARKETPLACE_VERSION"
             echo ""
-            echo "This should not happen if you used scripts/release.sh"
+            echo "This should not happen if you used scripts/release/release.sh"
             echo "Please ensure the release script updated version files correctly."
             exit 1
           fi
@@ -99,8 +99,8 @@ jobs:
             cp -r lib/* $PKG_DIR/lib/
 
             # Copy scripts and metadata
-            cp scripts/install.sh $PKG_DIR/
-            cp scripts/uninstall.sh $PKG_DIR/
+            cp scripts/install/install.sh $PKG_DIR/
+            cp scripts/install/uninstall.sh $PKG_DIR/
             cp README.md $PKG_DIR/
             cp LICENSE $PKG_DIR/
 
@@ -110,32 +110,39 @@ jobs:
             cd ../..
           done
 
-      - name: Run smoke tests
+      - name: Run smoke tests (multi-platform)
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          PLATFORM=linux-amd64
-          PACKAGE=build/packages/meta-cc-plugin-${VERSION}-${PLATFORM}.tar.gz
 
           echo "========================================="
           echo "Running smoke tests for release artifacts"
           echo "========================================="
-          echo "Version:  $VERSION"
-          echo "Platform: $PLATFORM"
-          echo "Package:  $PACKAGE"
+          echo "Testing platforms: linux-amd64, darwin-arm64, windows-amd64"
           echo ""
 
-          bash scripts/smoke-tests.sh "$VERSION" "$PLATFORM" "$PACKAGE"
+          # Test key platforms (structure validation only for non-linux)
+          for PLATFORM in linux-amd64 darwin-arm64 windows-amd64; do
+            echo "--- Testing $PLATFORM ---"
+            PACKAGE=build/packages/meta-cc-plugin-${VERSION}-${PLATFORM}.tar.gz
 
-          if [ $? -ne 0 ]; then
+            # Full smoke tests for linux-amd64 (native), structure check for others
+            if [ "$PLATFORM" = "linux-amd64" ]; then
+              bash scripts/ci/smoke-tests.sh "$VERSION" "$PLATFORM" "$PACKAGE"
+            else
+              # Just verify package exists and structure
+              if [ -f "$PACKAGE" ]; then
+                echo "✓ Package exists: $PACKAGE"
+                tar -tzf "$PACKAGE" | head -20
+                echo "✓ Package structure verified"
+              else
+                echo "❌ ERROR: Package missing: $PACKAGE"
+                exit 1
+              fi
+            fi
             echo ""
-            echo "❌ SMOKE TESTS FAILED"
-            echo "Release has been blocked due to failed smoke tests."
-            echo "Please review the errors above and fix the issues."
-            exit 1
-          fi
+          done
 
-          echo ""
-          echo "✓ Smoke tests passed - proceeding with release"
+          echo "✓ All smoke tests passed - proceeding with release"
 
       - name: Calculate build duration
         run: |
@@ -147,7 +154,7 @@ jobs:
 
       - name: Track build duration metric
         run: |
-          bash scripts/track-metrics.sh build_duration ${{ env.BUILD_DURATION }} seconds
+          bash scripts/ci/track-metrics.sh build_duration ${{ env.BUILD_DURATION }} seconds
 
       - name: Generate checksums
         run: |
