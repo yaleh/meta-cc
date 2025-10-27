@@ -52,8 +52,8 @@ DEBUG_PRINTS=$(grep -rn \
     --exclude-dir="build" \
     --exclude-dir="dist" \
     -E "fmt\.Print(ln)?\(" . 2>/dev/null | \
-    grep -v "fmt\.Fprintf" | \
-    grep -v "fmt\.Fprint\(" | \
+    grep -v "fmt.Fprintf" | \
+    grep -v "fmt.Fprint(" | \
     grep -v "// allow" | \
     grep -v "//nolint" || true)
 

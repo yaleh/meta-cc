@@ -17,9 +17,10 @@ import (
 	"sync"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/yaleh/meta-cc/internal/config"
 	mcerrors "github.com/yaleh/meta-cc/internal/errors"
-	"gopkg.in/yaml.v3"
 )
 
 // SourceType represents the type of capability source
@@ -38,8 +39,27 @@ const (
 	DefaultCapabilitySource = "https://github.com/yaleh/meta-cc/releases/latest/download/capabilities-latest.tar.gz"
 
 	// LocalCapabilitySource defines the local capability source for development
-	LocalCapabilitySource = "capabilities/commands"
+	LocalCapabilitySource = "capabilities"
+
+	// DefaultCapabilityType is the default type when no type parameter is specified
+	DefaultCapabilityType CapabilityType = "commands"
 )
+
+// CapabilityType represents the type/category of capability
+type CapabilityType string
+
+const (
+	// CapabilityTypeCommands represents user-facing command capabilities
+	CapabilityTypeCommands CapabilityType = "commands"
+	// CapabilityTypePrompts represents internal prompt capabilities
+	CapabilityTypePrompts CapabilityType = "prompts"
+)
+
+// validCapabilityTypes defines the set of valid capability types
+var validCapabilityTypes = map[CapabilityType]bool{
+	CapabilityTypeCommands: true,
+	CapabilityTypePrompts:  true,
+}
 
 // CapabilitySource represents a source of capabilities
 type CapabilitySource struct {
@@ -258,6 +278,42 @@ func detectSourceType(location string) SourceType {
 	return SourceTypeLocal
 }
 
+// parseCapabilityReference parses a capability name and optional type parameter
+// Returns the resolved type and clean name
+// Supports backward compatibility by parsing "prompts/name" format
+func parseCapabilityReference(name string, typeParam string) (CapabilityType, string) {
+	// Priority 1: Explicit type parameter
+	if typeParam != "" {
+		capType := CapabilityType(typeParam)
+		if validCapabilityTypes[capType] {
+			return capType, name
+		}
+		// Invalid type will be validated by caller
+		return CapabilityType(typeParam), name
+	}
+
+	// Priority 2: Parse type prefix from name (e.g., "prompts/xxx")
+	if strings.Contains(name, "/") {
+		parts := strings.SplitN(name, "/", 2)
+		potentialType := CapabilityType(parts[0])
+		if validCapabilityTypes[potentialType] {
+			return potentialType, parts[1] // Return type and clean name
+		}
+	}
+
+	// Priority 3: Default to commands
+	return DefaultCapabilityType, name
+}
+
+// validateCapabilityType checks if a capability type is valid
+func validateCapabilityType(capType CapabilityType) error {
+	if !validCapabilityTypes[capType] {
+		return fmt.Errorf("invalid capability type '%s': must be one of: commands, prompts: %w",
+			capType, mcerrors.ErrInvalidInput)
+	}
+	return nil
+}
+
 // parseFrontmatter extracts capability metadata from markdown content
 func parseFrontmatter(content string) (CapabilityMetadata, error) {
 	// Regex to extract frontmatter between --- delimiters
@@ -299,20 +355,23 @@ func parseFrontmatter(content string) (CapabilityMetadata, error) {
 	return metadata, nil
 }
 
-// loadLocalCapabilities loads all capability files from a local directory
-func loadLocalCapabilities(path string) ([]CapabilityMetadata, error) {
+// loadLocalCapabilities loads all capability files from a local directory with specified type
+func loadLocalCapabilities(path string, capType CapabilityType) ([]CapabilityMetadata, error) {
+	// Construct full path with type subdirectory
+	fullPath := filepath.Join(path, string(capType))
+
 	// Check if directory exists
-	info, err := os.Stat(path)
+	info, err := os.Stat(fullPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to access capability source path '%s': %w", path, mcerrors.ErrFileIO)
+		return nil, fmt.Errorf("failed to access capability source path '%s': %w", fullPath, mcerrors.ErrFileIO)
 	}
 
 	if !info.IsDir() {
-		return nil, fmt.Errorf("capability source path '%s' is not a directory: %w", path, mcerrors.ErrInvalidInput)
+		return nil, fmt.Errorf("capability source path '%s' is not a directory: %w", fullPath, mcerrors.ErrInvalidInput)
 	}
 
-	// Find all .md files in directory
-	pattern := filepath.Join(path, "*.md")
+	// Find all .md files in type subdirectory
+	pattern := filepath.Join(fullPath, "*.md")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, fmt.Errorf("failed to glob .md files in '%s': %w", path, mcerrors.ErrFileIO)
@@ -349,7 +408,7 @@ func loadLocalCapabilities(path string) ([]CapabilityMetadata, error) {
 
 // loadGitHubCapabilities loads capabilities from a GitHub repository
 // This is a placeholder for future implementation
-func loadGitHubCapabilities(repo string) ([]CapabilityMetadata, error) {
+func loadGitHubCapabilities(repo string, capType CapabilityType) ([]CapabilityMetadata, error) {
 	// TODO: Implement GitHub API integration in future stage
 	return nil, fmt.Errorf("GitHub capability loading not yet implemented")
 }
@@ -543,9 +602,9 @@ func downloadAndExtractPackage(packageLocation string, cacheDir string) error {
 	return nil
 }
 
-// loadPackageCapabilities loads capabilities from a package source
+// loadPackageCapabilities loads capabilities from a package source with specified type
 // Downloads once per session, uses session cache for subsequent calls
-func loadPackageCapabilities(packageLocation string) ([]CapabilityMetadata, error) {
+func loadPackageCapabilities(packageLocation string, capType CapabilityType) ([]CapabilityMetadata, error) {
 	// Get cache directory
 	cacheDir, err := getPackageCacheDir(packageLocation)
 	if err != nil {
@@ -553,16 +612,16 @@ func loadPackageCapabilities(packageLocation string) ([]CapabilityMetadata, erro
 	}
 
 	// Check if already downloaded in this session
-	commandsDir := filepath.Join(cacheDir, "commands")
-	if _, err := os.Stat(commandsDir); os.IsNotExist(err) {
+	// Check for any type subdirectory (commands or prompts)
+	if _, err := os.Stat(filepath.Join(cacheDir, "commands")); os.IsNotExist(err) {
 		// Not yet downloaded, download and extract
 		if err := downloadAndExtractPackage(packageLocation, cacheDir); err != nil {
 			return nil, fmt.Errorf("failed to download package: %w", err)
 		}
 	}
 
-	// Load capabilities from extracted package
-	caps, err := loadLocalCapabilities(commandsDir)
+	// Load capabilities from extracted package with type subdirectory
+	caps, err := loadLocalCapabilities(cacheDir, capType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load package capabilities: %w", err)
 	}
@@ -570,8 +629,8 @@ func loadPackageCapabilities(packageLocation string) ([]CapabilityMetadata, erro
 	return caps, nil
 }
 
-// mergeSources merges capabilities from multiple sources with priority-based overriding
-func mergeSources(sources []CapabilitySource) (CapabilityIndex, error) {
+// mergeSources merges capabilities from multiple sources with priority-based overriding and specified type
+func mergeSources(sources []CapabilitySource, capType CapabilityType) (CapabilityIndex, error) {
 	index := make(CapabilityIndex)
 
 	// Process sources in reverse priority order (lower priority first)
@@ -584,11 +643,11 @@ func mergeSources(sources []CapabilitySource) (CapabilityIndex, error) {
 
 		switch source.Type {
 		case SourceTypeLocal:
-			capabilities, err = loadLocalCapabilities(source.Location)
+			capabilities, err = loadLocalCapabilities(source.Location, capType)
 		case SourceTypeGitHub:
-			capabilities, err = loadGitHubCapabilities(source.Location)
+			capabilities, err = loadGitHubCapabilities(source.Location, capType)
 		case SourceTypePackage:
-			capabilities, err = loadPackageCapabilities(source.Location)
+			capabilities, err = loadPackageCapabilities(source.Location, capType)
 		default:
 			return nil, fmt.Errorf("unknown source type '%s' for location '%s': %w", source.Type, source.Location, mcerrors.ErrInvalidInput)
 		}
@@ -617,27 +676,29 @@ type SessionCapabilityCache struct {
 var sessionCapabilityCache *SessionCapabilityCache
 var sessionCacheMutex sync.RWMutex
 
-// getCapabilityIndex returns capability index with session-scoped caching
+// getCapabilityIndex returns capability index with session-scoped caching and specified type
 // Local sources bypass cache, package sources use session temp directory
-func getCapabilityIndex(sources []CapabilitySource, disableCache bool) (CapabilityIndex, error) {
+func getCapabilityIndex(sources []CapabilitySource, capType CapabilityType, disableCache bool) (CapabilityIndex, error) {
 	// Local sources always bypass cache (for development workflow)
 	hasLocal := hasLocalSources(sources)
 
 	// Check session cache if enabled and no local sources
-	if !disableCache && !hasLocal && sessionCapabilityCache != nil {
+	// Note: We don't cache by type yet, so cache is only used for commands (default)
+	// This simplifies the implementation while maintaining correctness
+	if !disableCache && !hasLocal && capType == DefaultCapabilityType && sessionCapabilityCache != nil {
 		sessionCacheMutex.RLock()
 		defer sessionCacheMutex.RUnlock()
 		return sessionCapabilityCache.Index, nil
 	}
 
-	// Load fresh data
-	index, err := mergeSources(sources)
+	// Load fresh data with specified type
+	index, err := mergeSources(sources, capType)
 	if err != nil {
 		return nil, err
 	}
 
-	// Update session cache (skip if local sources present)
-	if !disableCache && !hasLocal {
+	// Update session cache (skip if local sources present, only cache default type)
+	if !disableCache && !hasLocal && capType == DefaultCapabilityType {
 		sessionCacheMutex.Lock()
 		sessionCapabilityCache = &SessionCapabilityCache{
 			Index:   index,
@@ -719,6 +780,18 @@ func executeListCapabilitiesTool(cfg *config.Config, args map[string]interface{}
 		sourcesEnv = override
 	}
 
+	// Parse type parameter (defaults to "commands")
+	capTypeStr := string(DefaultCapabilityType)
+	if typeParam, ok := args["type"].(string); ok && typeParam != "" {
+		capTypeStr = typeParam
+	}
+	capType := CapabilityType(capTypeStr)
+
+	// Validate capability type
+	if err := validateCapabilityType(capType); err != nil {
+		return "", err
+	}
+
 	// Parse sources
 	sources := parseCapabilitySources(sourcesEnv)
 	if len(sources) == 0 {
@@ -739,11 +812,12 @@ func executeListCapabilitiesTool(cfg *config.Config, args map[string]interface{}
 
 	slog.Debug("listing capabilities",
 		"source_count", len(sources),
+		"type", capType,
 		"disable_cache", disableCache,
 	)
 
-	// Get capability index
-	index, err := getCapabilityIndex(sources, disableCache)
+	// Get capability index with type
+	index, err := getCapabilityIndex(sources, capType, disableCache)
 	if err != nil {
 		slog.Error("failed to get capability index",
 			"source_count", len(sources),
@@ -808,8 +882,8 @@ func isNotFoundError(err error) bool {
 	return ok
 }
 
-// getCapabilityContent retrieves the complete content of a capability from sources
-func getCapabilityContent(name string, sources []CapabilitySource) (string, error) {
+// getCapabilityContent retrieves the complete content of a capability from sources with specified type
+func getCapabilityContent(name string, sources []CapabilitySource, capType CapabilityType) (string, error) {
 	if len(sources) == 0 {
 		return "", fmt.Errorf("capability '%s' not found: no sources configured: %w", name, mcerrors.ErrNotFound)
 	}
@@ -821,11 +895,11 @@ func getCapabilityContent(name string, sources []CapabilitySource) (string, erro
 
 		switch source.Type {
 		case SourceTypeLocal:
-			content, err = readLocalCapability(name, source.Location)
+			content, err = readLocalCapability(name, source.Location, capType)
 		case SourceTypeGitHub:
-			content, err = readGitHubCapability(name, source.Location)
+			content, err = readGitHubCapability(name, source.Location, capType)
 		case SourceTypePackage:
-			content, err = readPackageCapability(name, source.Location)
+			content, err = readPackageCapability(name, source.Location, capType)
 		default:
 			return "", fmt.Errorf("unknown source type '%s' for capability '%s' in location '%s': %w", source.Type, name, source.Location, mcerrors.ErrInvalidInput)
 		}
@@ -844,10 +918,10 @@ func getCapabilityContent(name string, sources []CapabilitySource) (string, erro
 	return "", fmt.Errorf("capability '%s' not found in any configured source: %w", name, mcerrors.ErrNotFound)
 }
 
-// readLocalCapability reads a capability file from local filesystem
-func readLocalCapability(name string, path string) (string, error) {
-	// Construct file path
-	filePath := filepath.Join(path, name+".md")
+// readLocalCapability reads a capability file from local filesystem with specified type
+func readLocalCapability(name string, path string, capType CapabilityType) (string, error) {
+	// Construct file path with type subdirectory
+	filePath := filepath.Join(path, string(capType), name+".md")
 
 	// Read file
 	content, err := os.ReadFile(filePath)
@@ -861,9 +935,9 @@ func readLocalCapability(name string, path string) (string, error) {
 	return string(content), nil
 }
 
-// readPackageCapability reads a capability file from a package source
+// readPackageCapability reads a capability file from a package source with specified type
 // Uses session cache, downloads once per session
-func readPackageCapability(name string, packageLocation string) (string, error) {
+func readPackageCapability(name string, packageLocation string, capType CapabilityType) (string, error) {
 	// Get cache directory
 	cacheDir, err := getPackageCacheDir(packageLocation)
 	if err != nil {
@@ -871,16 +945,17 @@ func readPackageCapability(name string, packageLocation string) (string, error) 
 	}
 
 	// Check if already downloaded in this session
-	commandsDir := filepath.Join(cacheDir, "commands")
-	if _, err := os.Stat(commandsDir); os.IsNotExist(err) {
+	// Check for any type subdirectory (commands or prompts)
+	capabilitiesDir := cacheDir
+	if _, err := os.Stat(filepath.Join(cacheDir, "commands")); os.IsNotExist(err) {
 		// Not yet downloaded, download and extract
 		if err := downloadAndExtractPackage(packageLocation, cacheDir); err != nil {
 			return "", fmt.Errorf("failed to download package: %w", err)
 		}
 	}
 
-	// Read capability file from extracted package
-	return readLocalCapability(name, commandsDir)
+	// Read capability file from extracted package with type subdirectory
+	return readLocalCapability(name, capabilitiesDir, capType)
 }
 
 // parseGitHubSource parses GitHub source with @ symbol
@@ -929,7 +1004,7 @@ func parseGitHubSource(location string) (GitHubSource, error) {
 
 // buildJsDelivrURL generates jsDelivr CDN URL from GitHub source
 // Format: https://cdn.jsdelivr.net/gh/owner/repo@branch/subdir/file.md
-func buildJsDelivrURL(source GitHubSource, filename string) string {
+func buildJsDelivrURL(source GitHubSource, filename string, capType CapabilityType) string {
 	// Base URL
 	url := fmt.Sprintf("https://cdn.jsdelivr.net/gh/%s/%s@%s",
 		source.Owner, source.Repo, source.Branch)
@@ -939,22 +1014,25 @@ func buildJsDelivrURL(source GitHubSource, filename string) string {
 		url += "/" + source.Subdir
 	}
 
+	// Add capability type subdirectory
+	url += "/" + string(capType)
+
 	// Add filename
 	url += "/" + filename
 
 	return url
 }
 
-// readGitHubCapability reads a capability file from GitHub repository via jsDelivr
-func readGitHubCapability(name string, repo string) (string, error) {
+// readGitHubCapability reads a capability file from GitHub repository via jsDelivr with specified type
+func readGitHubCapability(name string, repo string, capType CapabilityType) (string, error) {
 	// Parse GitHub source
 	source, err := parseGitHubSource(repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse GitHub source '%s': %w", repo, err)
 	}
 
-	// Build jsDelivr URL
-	url := buildJsDelivrURL(source, name+".md")
+	// Build jsDelivr URL with type subdirectory
+	url := buildJsDelivrURL(source, name+".md", capType)
 
 	// Retry logic for transient errors
 	var content string
@@ -1024,6 +1102,20 @@ func executeGetCapabilityTool(cfg *config.Config, args map[string]interface{}) (
 		return "", fmt.Errorf("missing required parameter 'name' for get_capability tool: %w", mcerrors.ErrMissingParameter)
 	}
 
+	// Parse type parameter (optional, supports smart parsing from name)
+	typeParam := ""
+	if typeArg, ok := args["type"].(string); ok {
+		typeParam = typeArg
+	}
+
+	// Smart parse capability reference (supports "prompts/name" format)
+	capType, cleanName := parseCapabilityReference(name, typeParam)
+
+	// Validate capability type
+	if err := validateCapabilityType(capType); err != nil {
+		return "", err
+	}
+
 	// Parse sources (test override or centralized config)
 	sourcesEnv := cfg.Capability.Sources
 	if override, ok := args["_sources"].(string); ok && override != "" {
@@ -1041,11 +1133,13 @@ func executeGetCapabilityTool(cfg *config.Config, args map[string]interface{}) (
 
 	slog.Debug("getting capability",
 		"name", name,
+		"clean_name", cleanName,
+		"type", capType,
 		"source_count", len(sources),
 	)
 
-	// Get capability content
-	content, err := getCapabilityContent(name, sources)
+	// Get capability content with type
+	content, err := getCapabilityContent(cleanName, sources, capType)
 	if err != nil {
 		slog.Error("failed to get capability",
 			"name", name,

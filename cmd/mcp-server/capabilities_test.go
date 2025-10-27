@@ -253,7 +253,7 @@ func TestLoadLocalCapabilities(t *testing.T) {
 		t.Skip("test fixtures not found")
 	}
 
-	capabilities, err := loadLocalCapabilities(fixturesPath)
+	capabilities, err := loadLocalCapabilities(fixturesPath, DefaultCapabilityType)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -298,6 +298,16 @@ func TestSourcePriorityMerging(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir2)
 
+	// Create commands subdirectories
+	commandsDir1 := filepath.Join(tempDir1, "commands")
+	commandsDir2 := filepath.Join(tempDir2, "commands")
+	if err := os.MkdirAll(commandsDir1, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(commandsDir2, 0755); err != nil {
+		t.Fatal(err)
+	}
+
 	// Create capability with same name but different description in both dirs
 	cap1Content := `---
 name: shared-cap
@@ -313,10 +323,10 @@ category: test
 ---
 # Content`
 
-	if err := os.WriteFile(filepath.Join(tempDir1, "cap.md"), []byte(cap1Content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(commandsDir1, "cap.md"), []byte(cap1Content), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(tempDir2, "cap.md"), []byte(cap2Content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(commandsDir2, "cap.md"), []byte(cap2Content), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -326,7 +336,7 @@ category: test
 		{Type: SourceTypeLocal, Location: tempDir2, Priority: 1},
 	}
 
-	index, err := mergeSources(sources)
+	index, err := mergeSources(sources, DefaultCapabilityType)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -371,7 +381,7 @@ func TestInvalidSourceHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := mergeSources(tt.sources)
+			_, err := mergeSources(tt.sources, DefaultCapabilityType)
 			if tt.expectErr && err == nil {
 				t.Error("expected error, got nil")
 			}
@@ -385,7 +395,7 @@ func TestInvalidSourceHandling(t *testing.T) {
 // TestEmptySourcesHandling tests handling of empty source list
 func TestEmptySourcesHandling(t *testing.T) {
 	sources := []CapabilitySource{}
-	index, err := mergeSources(sources)
+	index, err := mergeSources(sources, DefaultCapabilityType)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -412,7 +422,7 @@ func TestGetCapabilityIndexCaching(t *testing.T) {
 	}
 
 	// First call - should populate cache (but not use it because local source)
-	index1, err := getCapabilityIndex(sources, false)
+	index1, err := getCapabilityIndex(sources, DefaultCapabilityType, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -422,7 +432,7 @@ func TestGetCapabilityIndexCaching(t *testing.T) {
 	}
 
 	// Second call - should still bypass cache (local sources)
-	index2, err := getCapabilityIndex(sources, false)
+	index2, err := getCapabilityIndex(sources, DefaultCapabilityType, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -482,7 +492,7 @@ func TestGetCapabilityContent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			content, err := getCapabilityContent(tt.capName, tt.sources)
+			content, err := getCapabilityContent(tt.capName, tt.sources, DefaultCapabilityType)
 			if tt.expectError {
 				if err == nil {
 					t.Error("expected error, got nil")
@@ -517,6 +527,16 @@ func TestGetCapabilityContentPriority(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir2)
 
+	// Create commands subdirectories
+	commandsDir1 := filepath.Join(tempDir1, "commands")
+	commandsDir2 := filepath.Join(tempDir2, "commands")
+	if err := os.MkdirAll(commandsDir1, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(commandsDir2, 0755); err != nil {
+		t.Fatal(err)
+	}
+
 	// Create capability with same name but different content in both dirs
 	cap1Content := `---
 name: test-cap
@@ -532,10 +552,10 @@ category: test
 ---
 # Source 2 Content`
 
-	if err := os.WriteFile(filepath.Join(tempDir1, "test-cap.md"), []byte(cap1Content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(commandsDir1, "test-cap.md"), []byte(cap1Content), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(tempDir2, "test-cap.md"), []byte(cap2Content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(commandsDir2, "test-cap.md"), []byte(cap2Content), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -545,7 +565,7 @@ category: test
 		{Type: SourceTypeLocal, Location: tempDir2, Priority: 1},
 	}
 
-	content, err := getCapabilityContent("test-cap", sources)
+	content, err := getCapabilityContent("test-cap", sources, DefaultCapabilityType)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -597,7 +617,7 @@ func TestReadLocalCapability(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			content, err := readLocalCapability(tt.capName, tt.path)
+			content, err := readLocalCapability(tt.capName, tt.path, DefaultCapabilityType)
 			if tt.expectError {
 				if err == nil {
 					t.Error("expected error, got nil")
@@ -833,10 +853,10 @@ func TestBuildJsDelivrURL(t *testing.T) {
 				Owner:  "yaleh",
 				Repo:   "meta-cc",
 				Branch: "main",
-				Subdir: "commands",
+				Subdir: "capabilities", // Parent dir, type (commands) will be appended
 			},
 			filename: "meta-errors.md",
-			expected: "https://cdn.jsdelivr.net/gh/yaleh/meta-cc@main/commands/meta-errors.md",
+			expected: "https://cdn.jsdelivr.net/gh/yaleh/meta-cc@main/capabilities/commands/meta-errors.md",
 		},
 		{
 			name: "tag with subdirectory",
@@ -844,10 +864,10 @@ func TestBuildJsDelivrURL(t *testing.T) {
 				Owner:  "yaleh",
 				Repo:   "meta-cc",
 				Branch: "v1.0.0",
-				Subdir: "commands",
+				Subdir: "capabilities", // Parent dir, type (commands) will be appended
 			},
 			filename: "meta-errors.md",
-			expected: "https://cdn.jsdelivr.net/gh/yaleh/meta-cc@v1.0.0/commands/meta-errors.md",
+			expected: "https://cdn.jsdelivr.net/gh/yaleh/meta-cc@v1.0.0/capabilities/commands/meta-errors.md",
 		},
 		{
 			name: "branch without subdirectory",
@@ -855,10 +875,10 @@ func TestBuildJsDelivrURL(t *testing.T) {
 				Owner:  "yaleh",
 				Repo:   "meta-cc",
 				Branch: "develop",
-				Subdir: "",
+				Subdir: "", // No parent dir, only type (commands) will be appended
 			},
 			filename: "README.md",
-			expected: "https://cdn.jsdelivr.net/gh/yaleh/meta-cc@develop/README.md",
+			expected: "https://cdn.jsdelivr.net/gh/yaleh/meta-cc@develop/commands/README.md",
 		},
 		{
 			name: "commit hash without subdirectory",
@@ -866,16 +886,16 @@ func TestBuildJsDelivrURL(t *testing.T) {
 				Owner:  "community",
 				Repo:   "extras",
 				Branch: "abc123def",
-				Subdir: "",
+				Subdir: "", // No parent dir, only type (commands) will be appended
 			},
 			filename: "capability.md",
-			expected: "https://cdn.jsdelivr.net/gh/community/extras@abc123def/capability.md",
+			expected: "https://cdn.jsdelivr.net/gh/community/extras@abc123def/commands/capability.md",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildJsDelivrURL(tt.source, tt.filename)
+			result := buildJsDelivrURL(tt.source, tt.filename, DefaultCapabilityType)
 			if result != tt.expected {
 				t.Errorf("expected %q, got %q", tt.expected, result)
 			}
@@ -1176,7 +1196,7 @@ category: test
 	})
 
 	// Load capabilities from package
-	caps, err := loadPackageCapabilities(packagePath)
+	caps, err := loadPackageCapabilities(packagePath, DefaultCapabilityType)
 	if err != nil {
 		t.Fatalf("loadPackageCapabilities failed: %v", err)
 	}
@@ -1211,7 +1231,7 @@ category: test
 		{Type: SourceTypePackage, Location: packagePath, Priority: 0},
 	}
 
-	index, err := mergeSources(sources)
+	index, err := mergeSources(sources, DefaultCapabilityType)
 	if err != nil {
 		t.Fatalf("mergeSources failed: %v", err)
 	}

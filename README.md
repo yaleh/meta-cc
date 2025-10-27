@@ -222,6 +222,7 @@ Get personalized workflow guidance from the `@meta-coach` subagent:
 - 🔄 **Workflow pattern detection** - Find repeated sequences
 - 🚀 **Zero dependencies** - Single binary MCP server
 - 🔧 **Extensible** - Create custom capabilities with markdown
+- 💡 **Prompt Learning System** - Save, search, and reuse optimized prompts with project-specific intelligence
 
 ### Skills (16 Validated Methodologies)
 

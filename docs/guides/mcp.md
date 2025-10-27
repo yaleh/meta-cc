@@ -84,7 +84,9 @@ meta-cc-mcp provides **16 standardized tools** for analyzing Claude Code session
 - `query_tools`, `query_user_messages`
 
 **Utility Tools (3)**:
-- `cleanup_temp_files`, `list_capabilities`, `get_capability`
+- `cleanup_temp_files` - Remove old temporary MCP files
+- `list_capabilities` - List capabilities by type (commands/prompts)
+- `get_capability` - Retrieve capability content with type support
 
 ### Migration from v2.0
 
@@ -866,12 +868,26 @@ await execute_stage2_query({
 
 **Scope**: none (utility function)
 
-**Key Parameters**: None
+**Key Parameters**:
+- `type` (string, optional): Capability type: "commands" (default) or "prompts"
 
-**Example**:
+**Capability Types**:
+- **commands** (default): User-facing capabilities for `/meta` command
+- **prompts**: Internal prompt templates for meta-cognition workflows
+
+**Examples**:
 ```json
+// List commands (default)
 {}
-→ Returns compact capability index
+→ Returns command capabilities
+
+// List prompts explicitly
+{"type": "prompts"}
+→ Returns prompt capabilities
+
+// List commands explicitly
+{"type": "commands"}
+→ Returns command capabilities
 ```
 
 ---
@@ -884,11 +900,44 @@ await execute_stage2_query({
 
 **Key Parameters**:
 - `name` (string, **required**): Capability name (without .md extension)
+- `type` (string, optional): Capability type: "commands" (default) or "prompts"
 
-**Example**:
+**Smart Path Parsing**:
+
+For backward compatibility, the tool supports parsing type from the name parameter:
 ```json
+// These are equivalent:
+{"name": "prompts/meta-prompt-search"}
+{"name": "meta-prompt-search", "type": "prompts"}
+```
+
+**Examples**:
+```json
+// Get command capability (default)
 {"name": "meta-errors"}
-→ Returns full capability content
+→ Returns command capability content
+
+// Get prompt capability explicitly
+{"name": "meta-prompt-search", "type": "prompts"}
+→ Returns prompt capability content
+
+// Get prompt capability using path syntax (backward compatible)
+{"name": "prompts/meta-prompt-search"}
+→ Returns prompt capability content (auto-parsed)
+```
+
+**Directory Structure**:
+
+The `META_CC_CAPABILITY_SOURCES` environment variable points to the parent directory containing type subdirectories:
+
+```
+capabilities/
+├── commands/          # User-facing capabilities (type="commands")
+│   ├── meta-errors.md
+│   └── meta-quality-scan.md
+└── prompts/           # Internal prompts (type="prompts")
+    ├── meta-prompt-search.md
+    └── meta-prompt-save.md
 ```
 
 ---

@@ -1,11 +1,10 @@
 # golangci-lint configuration
 # Only lints that are critical for production code
-# Note: No version field for v1 compatibility with GitHub Actions
 
 run:
   timeout: 5m
   tests: true
-  go: '1.23'
+  go: '1.24'
 
 linters:
   enable:

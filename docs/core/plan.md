@@ -228,6 +228,7 @@ end note
 | 23-25 | 查询接口重构 (v2.0) | ✅ | jq-based 三层 API、零学习成本、已归档 | ~5,650 行 | [归档文档](../archive/phase-23-25-query-refactoring.md) |
 | 26 | CLI 代码清理（MCP 独立化） | ✅ | 移除 CLI 代码、MCP-only 架构、简化构建 | -19,500 行 | [详细计划](./phase-26-cli-removal-plan.md) |
 | 27 | 两阶段查询架构 | ✅ | 删除 query/query_raw，新增元数据+Stage 2 查询工具 | ~550 行 (净增) | [Phase 27 详情](#phase-27-两阶段查询架构详细) |
+| 28 | Prompt 优化学习系统 | ✅ | Capability 驱动的 prompt 优化、保存和重用机制 | ~450 行 | [Phase 28 详情](#phase-28-prompt-优化学习系统详细) |
 
 **注释**：
 - **状态标识**：✅ 已完成，🟡 部分实现，📋 计划中
@@ -1248,6 +1249,261 @@ results = execute_stage2_query(
 - 学习曲线：需要示例支持
 
 详细可行性分析见 [`docs/analysis/stage2-go-implementation-feasibility.md`](../analysis/stage2-go-implementation-feasibility.md)
+
+---
+
+## Phase 28: Prompt 优化学习系统（详细）
+
+**目标**：实现纯 Capability 驱动的 Prompt 学习系统，通过保存和重用优化后的 prompts 实现渐进式智能化
+
+**代码量**：~450 行（Markdown capabilities + 文档）
+
+**背景**：用户使用 `/meta Refine prompt: XXX` 优化 prompts 后，需要手动记录和重用。Phase 28 实现自动化的 prompt 保存、搜索和重用机制，通过项目级历史积累实现越用越智能。
+
+### 核心设计原则
+
+**零侵入性**：
+- ✅ 无需新 MCP 工具（纯 capability 实现）
+- ✅ 无需修改 `/meta` 命令（完全兼容）
+- ✅ 利用现有 capability 加载机制（子目录差异化）
+- ✅ 零 Go 代码修改
+
+**渐进式智能化**：
+- ✅ 首次使用：正常优化流程（无历史）
+- ✅ 再次使用：自动推荐历史版本（有匹配）
+- ✅ 持续改进：使用频率追踪和效果评分
+- ✅ 跨项目重用：统一数据结构（`.meta-cc/`）
+
+**用户体验**：
+- ✅ 自动初始化（静默创建目录）
+- ✅ 可选保存（用户确认）
+- ✅ 智能推荐（相似度匹配）
+- ✅ CLI 友好（grep/jq 可检索）
+
+### 架构设计
+
+#### 数据目录结构
+
+```
+<project-root>/.meta-cc/
+├── prompts/
+│   ├── library/                    # 优化后的 prompts（扁平存储）
+│   │   ├── release-full-ci-monitoring-001.md
+│   │   ├── debug-error-analysis-001.md
+│   │   └── refactor-extract-logic-001.md
+│   └── metadata/                   # 使用统计（可选）
+│       └── usage.jsonl
+└── config.json                     # 项目级配置（可选）
+```
+
+**文件命名约定**：`{category}-{short-description}-{id}.md`
+
+**文件格式**（YAML frontmatter + Markdown）：
+```markdown
+---
+id: release-full-ci-monitoring-001
+title: Full Release with CI Monitoring
+category: release
+keywords: [发布, release, 新版本, ci, 监控]
+created: 2025-10-27T09:00:00Z
+updated: 2025-10-27T09:10:00Z
+usage_count: 2
+effectiveness: 1.0
+variables: [VERSION]
+status: active
+---
+
+## Original Prompts
+- 提交和发布新版本
+- 发布新版本
+
+## Optimized Prompt
+使用预发布自动化工作流...
+```
+
+#### Capability 架构
+
+**利用现有差异化加载机制**：
+
+```
+capabilities/
+├── commands/                       # 公开（list_capabilities 可见）
+│   ├── meta-prompt.md             # 主入口（扩展版）
+│   └── ...
+└── prompts/                        # 内部（list_capabilities 不可见）
+    ├── meta-prompt-search.md      # 搜索历史 prompts
+    ├── meta-prompt-save.md        # 保存优化后的 prompt
+    ├── meta-prompt-list.md        # 列出 prompts
+    └── meta-prompt-utils.md       # 通用工具函数
+```
+
+**关键发现**：现有 MCP capability 加载机制原生支持差异化：
+- `list_capabilities()` 只扫描顶层 `*.md` 文件（不递归子目录）
+- `get_capability("prompts/xxx")` 可加载子目录文件
+- 零配置实现内部 capabilities
+
+### 用户工作流
+
+#### 场景 1：首次使用（自动初始化）
+
+```
+用户: /meta Refine prompt: 提交和发布新版本
+
+Claude (meta-prompt):
+[自动创建 .meta-cc/prompts/ 目录，用户无感知]
+
+未找到历史版本，生成优化 prompts...
+[显示 3 个优化选项]
+
+用户: 使用 Option 1
+
+Claude: 任务完成。是否保存以便重用？(Y/n)
+
+用户: Y
+
+Claude: ✓ 已保存到 .meta-cc/prompts/library/release-full-ci-monitoring-001.md
+```
+
+#### 场景 2：再次使用（智能推荐）
+
+```
+用户: /meta Refine prompt: 发布新版本
+
+Claude (meta-prompt):
+找到 1 个相关历史 prompt：
+
+| 标题 | 相似度 | 使用次数 | 效果 |
+|------|--------|---------|------|
+| Full Release with CI Monitoring | 95% | 1 | 1.0 |
+
+你可以：
+1. 使用这个历史版本
+2. 重新生成新版本
+
+用户: 1
+
+Claude: 检测到变量 {{VERSION}}，请提供值：
+
+用户: v2.1.0
+
+Claude: [执行优化 prompt]
+✓ 使用次数已更新: 1 → 2
+```
+
+### 实现策略
+
+#### Phase 1: 基础设施（MVP）
+
+**目标**：实现保存和基本重用功能
+
+**交付物**：
+- 扩展 `commands/meta-prompt.md`（集成自动初始化和保存）
+- 创建 `prompts/meta-prompt-save.md`（保存逻辑）
+- 定义文件格式规范
+- 更新文档（CLAUDE.md FAQ）
+
+**工作量**：4-6 小时
+
+**验收标准**：
+- ✅ 自动创建 `.meta-cc/prompts/library/` 目录
+- ✅ 用户可保存优化后的 prompt
+- ✅ 生成符合规范的 .md 文件
+- ✅ 文件包含完整 frontmatter 和内容
+
+#### Phase 2: 搜索和重用
+
+**目标**：实现历史搜索和智能推荐
+
+**交付物**：
+- 创建 `prompts/meta-prompt-search.md`（搜索匹配）
+- 在 `meta-prompt` 中集成历史查询
+- 实现相似度匹配算法（关键词重叠）
+- 实现使用追踪（更新 usage_count）
+
+**工作量**：4-6 小时
+
+**验收标准**：
+- ✅ 再次使用时自动搜索历史
+- ✅ 显示匹配的历史 prompts
+- ✅ 支持选择历史版本或生成新版本
+- ✅ 使用后自动更新 usage_count
+
+#### Phase 3: 管理和列表（可选）
+
+**目标**：提供 prompt 管理能力
+
+**交付物**：
+- 创建 `prompts/meta-prompt-list.md`（列表和过滤）
+- 支持按分类、使用频率排序
+- 支持查看详细信息
+
+**工作量**：2-3 小时
+
+**验收标准**：
+- ✅ 可列出所有保存的 prompts
+- ✅ 支持过滤和排序
+- ✅ 可查看详细信息
+
+### 技术亮点
+
+**差异化加载机制**：
+- 利用现有 MCP capability 加载的原生特性
+- 子目录文件不被 `list_capabilities` 列出
+- `/meta` 用户界面保持简洁
+- 内部 capabilities 通过 `get_capability("prompts/xxx")` 调用
+
+**CLI 友好设计**：
+- YAML frontmatter 便于快速提取元数据
+- 纯文本格式支持 grep/awk/jq 检索
+- 扁平目录便于 ls/find 浏览
+- 跨项目统一结构（`.meta-cc/`）
+
+**相似度匹配**（简单版）：
+- 关键词 Jaccard 相似度
+- 历史原始 prompts 匹配
+- 使用频率加权排序
+
+### 完成标准
+
+**代码实现**：
+- ✅ 扩展 `meta-prompt` capability（自动初始化 + 历史查询）
+- ✅ 3-4 个子 capabilities 实现
+- ✅ 文件格式规范定义
+- ✅ 使用追踪机制
+
+**用户体验**：
+- ✅ 首次使用静默初始化
+- ✅ 再次使用智能推荐
+- ✅ 保存确认流程
+- ✅ 变量替换支持
+
+**文档完整性**：
+- ✅ 用户指南（CLAUDE.md FAQ 更新）
+- ✅ 文件格式规范
+- ✅ CLI 工具使用示例
+- ✅ 跨项目迁移指南
+
+### 预期收益
+
+**用户价值**：
+- 🎯 快速重用优化的 prompts（减少 80% 优化时间）
+- 📊 基于使用频率的智能推荐
+- 🔄 持续改进机制（效果反馈）
+- 💾 项目级知识积累
+
+**技术价值**：
+- ✅ 零依赖（无需新 MCP 工具）
+- ✅ 零侵入（无需修改 /meta）
+- ✅ 跨项目兼容（统一数据结构）
+- ✅ CLI 友好（标准 Unix 工具可用）
+
+**未来扩展**：
+- Phase 28.4: 添加索引文件（性能优化）
+- Phase 28.5: 添加全局级存储（跨项目共享）
+- Phase 28.6: 添加效果反馈和智能推荐
+- Phase 28.7: 社区 prompt 库（公开共享）
+
+详细设计文档见 `plans/28/`
 
 ---
 

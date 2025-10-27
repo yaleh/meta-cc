@@ -17,8 +17,18 @@ func TestIntegrationMultiSourceLocal(t *testing.T) {
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
 
+	// Create commands subdirectories for type parameter system
+	commandsDir1 := filepath.Join(tmpDir1, "commands")
+	commandsDir2 := filepath.Join(tmpDir2, "commands")
+	if err := os.MkdirAll(commandsDir1, 0755); err != nil {
+		t.Fatalf("Failed to create commands directory 1: %v", err)
+	}
+	if err := os.MkdirAll(commandsDir2, 0755); err != nil {
+		t.Fatalf("Failed to create commands directory 2: %v", err)
+	}
+
 	// Create capabilities in first directory
-	cap1Path := filepath.Join(tmpDir1, "test-cap1.md")
+	cap1Path := filepath.Join(commandsDir1, "test-cap1.md")
 	cap1Content := `---
 name: test-cap1
 description: Test capability 1.
@@ -35,7 +45,7 @@ This is a test capability from the first source.
 	}
 
 	// Create capabilities in second directory
-	cap2Path := filepath.Join(tmpDir2, "test-cap2.md")
+	cap2Path := filepath.Join(commandsDir2, "test-cap2.md")
 	cap2Content := `---
 name: test-cap2
 description: Test capability 2.
@@ -102,8 +112,18 @@ func TestIntegrationPriorityOverride(t *testing.T) {
 	tmpDirHigh := t.TempDir()
 	tmpDirLow := t.TempDir()
 
+	// Create commands subdirectories
+	commandsDirHigh := filepath.Join(tmpDirHigh, "commands")
+	commandsDirLow := filepath.Join(tmpDirLow, "commands")
+	if err := os.MkdirAll(commandsDirHigh, 0755); err != nil {
+		t.Fatalf("Failed to create commands directory (high): %v", err)
+	}
+	if err := os.MkdirAll(commandsDirLow, 0755); err != nil {
+		t.Fatalf("Failed to create commands directory (low): %v", err)
+	}
+
 	// Create capability in high-priority directory
-	capHighPath := filepath.Join(tmpDirHigh, "duplicate.md")
+	capHighPath := filepath.Join(commandsDirHigh, "duplicate.md")
 	capHighContent := `---
 name: duplicate
 description: High priority version.
@@ -120,7 +140,7 @@ Content from high priority source.
 	}
 
 	// Create capability in low-priority directory (same name)
-	capLowPath := filepath.Join(tmpDirLow, "duplicate.md")
+	capLowPath := filepath.Join(commandsDirLow, "duplicate.md")
 	capLowContent := `---
 name: duplicate
 description: Low priority version.
@@ -195,8 +215,14 @@ func TestIntegrationCacheBehavior(t *testing.T) {
 	cfg, _ := config.Load()
 	tmpDir := t.TempDir()
 
+	// Create commands subdirectory
+	commandsDir := filepath.Join(tmpDir, "commands")
+	if err := os.MkdirAll(commandsDir, 0755); err != nil {
+		t.Fatalf("Failed to create commands directory: %v", err)
+	}
+
 	// Create initial capability
-	capPath := filepath.Join(tmpDir, "cached-test.md")
+	capPath := filepath.Join(commandsDir, "cached-test.md")
 	capContent := `---
 name: cached-test
 description: Initial version.
@@ -279,6 +305,12 @@ func TestIntegrationEndToEnd(t *testing.T) {
 	cfg, _ := config.Load()
 	tmpDir := t.TempDir()
 
+	// Create commands subdirectory
+	commandsDir := filepath.Join(tmpDir, "commands")
+	if err := os.MkdirAll(commandsDir, 0755); err != nil {
+		t.Fatalf("Failed to create commands directory: %v", err)
+	}
+
 	// Create multiple capabilities
 	caps := []struct {
 		name        string
@@ -293,7 +325,7 @@ func TestIntegrationEndToEnd(t *testing.T) {
 	}
 
 	for _, cap := range caps {
-		capPath := filepath.Join(tmpDir, cap.name+".md")
+		capPath := filepath.Join(commandsDir, cap.name+".md")
 		capContent := "---\n"
 		capContent += "name: " + cap.name + "\n"
 		capContent += "description: " + cap.description + "\n"

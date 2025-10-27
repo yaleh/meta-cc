@@ -1,0 +1,12 @@
+# Local prompt library
+# By default, prompts are not tracked by git
+# Commit selectively to share with team:
+#   git add .meta-cc/prompts/library/release-*.md
+#   git commit -m "docs: share release prompts"
+
+# Ignore all prompts by default
+*.md
+
+# To track specific prompts, use negative patterns:
+# !release-full-ci-001.md
+# !debug-error-analysis-001.md

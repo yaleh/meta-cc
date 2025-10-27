@@ -79,7 +79,7 @@ func TestReadGitHubCapability(t *testing.T) {
 
 			// Directly call the function (it will use real HTTP)
 			// In production code, we'd inject http.Client or base URL
-			result, err := readGitHubCapability(tt.capabilityName, tt.repo)
+			result, err := readGitHubCapability(tt.capabilityName, tt.repo, DefaultCapabilityType)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -235,7 +235,8 @@ This is a test capability for unit testing.
 			// For now, we test with a pre-extracted directory structure
 
 			// Read capability from local directory (simulating extracted package)
-			result, err := readLocalCapability(tt.capabilityName, commandsDir)
+			// Pass packageDir (parent), function will look in commands/ subdirectory
+			result, err := readLocalCapability(tt.capabilityName, packageDir, DefaultCapabilityType)
 
 			if tt.expectedError {
 				assert.Error(t, err)

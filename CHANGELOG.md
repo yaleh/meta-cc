@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.2.0] - 2025-10-27
 
+### Added
+
+- **Capability Type Parameter System** - Support for multiple capability types
+  - Add `type` parameter to `list_capabilities` MCP tool (commands/prompts)
+  - Add `type` parameter to `get_capability` MCP tool (commands/prompts)
+  - Add smart path parsing for backward compatibility ("prompts/name" → type="prompts", name="name")
+  - Add comprehensive E2E tests (6 test cases)
+  - Default type is "commands" for backward compatibility
+
+### Changed
+
+- Update `META_CC_CAPABILITY_SOURCES` to point to parent directory (capabilities/) instead of subdirectory (capabilities/commands/)
+- Update all capability loader functions to accept `CapabilityType` parameter
+- Update `.claude/commands/meta-prompt.md` to use explicit type parameter syntax
+- Update MCP documentation with capability type parameter examples
+
+### Documentation
+
+- Add capability type parameter documentation to MCP guide
+- Add directory structure explanation (commands/ vs prompts/ subdirectories)
+- Add smart path parsing examples for backward compatibility
 
 ## [2.1.1] - 2025-10-27
 

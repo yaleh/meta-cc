@@ -7,8 +7,8 @@ import (
 
 // TestLocalCapabilitySource tests the local capability source constant
 func TestLocalCapabilitySource(t *testing.T) {
-	if LocalCapabilitySource != "capabilities/commands" {
-		t.Errorf("LocalCapabilitySource = %v, want %v", LocalCapabilitySource, "capabilities/commands")
+	if LocalCapabilitySource != "capabilities" {
+		t.Errorf("LocalCapabilitySource = %v, want %v", LocalCapabilitySource, "capabilities")
 	}
 }
 

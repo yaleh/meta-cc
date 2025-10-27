@@ -396,7 +396,7 @@ lint-errors:
 lint-error-handling:
 	@echo "Checking error handling quality..."
 	@# Check for the specific patterns we fixed - unsupported output format errors
-	@UNSUPPORTED_FORMAT_ERRORS=$$(grep -r "unsupported output format.*supported:" cmd/*.go | grep -v "mcerrors\.ErrInvalidInput" | wc -l || true); \
+	@UNSUPPORTED_FORMAT_ERRORS=$$(grep -r "unsupported output format.*supported:" cmd/mcp-server/*.go | grep -v "mcerrors\.ErrInvalidInput" | wc -l || true); \
 	if [ "$$UNSUPPORTED_FORMAT_ERRORS" -gt 0 ]; then \
 		echo "❌ ERROR: Found $$UNSUPPORTED_FORMAT_ERRORS unsupported format errors without proper sentinel errors"; \
 		echo "All unsupported format errors should use mcerrors.ErrInvalidInput sentinel error"; \
@@ -405,7 +405,7 @@ lint-error-handling:
 		echo "✅ All unsupported format errors use proper sentinel errors"; \
 	fi
 	@# Check for invalid type errors (should use mcerrors.ErrInvalidInput)
-	@INVALID_TYPE_ERRORS=$$(grep -r "invalid type.*must be one of:" cmd/*.go | grep -v "mcerrors\.ErrInvalidInput" | wc -l); \
+	@INVALID_TYPE_ERRORS=$$(grep -r "invalid type.*must be one of:" cmd/mcp-server/*.go | grep -v "mcerrors\.ErrInvalidInput" | wc -l); \
 	if [ "$$INVALID_TYPE_ERRORS" -gt 0 ]; then \
 		echo "❌ ERROR: Found $$INVALID_TYPE_ERRORS invalid type errors without proper sentinel errors"; \
 		echo "All invalid type errors should use mcerrors.ErrInvalidInput sentinel error"; \
@@ -414,8 +414,8 @@ lint-error-handling:
 		echo "✅ All invalid type errors use proper sentinel errors"; \
 	fi
 	@# Check error wrapping consistency
-	@FILES_WITH_ERRORS=$$(grep -l "fmt\.Errorf.*%w" cmd/*.go | wc -l); \
-	FILES_WITH_MCERRORS=$$(grep -l "mcerrors" cmd/*.go | wc -l || true); \
+	@FILES_WITH_ERRORS=$$(grep -l "fmt\.Errorf.*%w" cmd/mcp-server/*.go | wc -l); \
+	FILES_WITH_MCERRORS=$$(grep -l "mcerrors" cmd/mcp-server/*.go | wc -l || true); \
 	echo "Files with error wrapping: $$FILES_WITH_ERRORS"; \
 	echo "Files with mcerrors imports: $$FILES_WITH_MCERRORS"; \
 	if [ $$FILES_WITH_ERRORS -gt 0 ]; then \

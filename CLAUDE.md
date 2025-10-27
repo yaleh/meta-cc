@@ -88,6 +88,60 @@ A: Skills are reusable methodologies packaged with the plugin (15 skills, ~1.5MB
 **Q: How do I use skills?**
 A: Skills are automatically available after plugin installation. Claude Code will suggest relevant skills based on your tasks. See skill descriptions in README.md.
 
+**Q: How does the prompt learning system work?**
+A: After using `/meta Refine prompt: XXX`, you can save the optimized version to `.meta-cc/prompts/library/`. The system automatically recommends these saved prompts when you try similar prompts in the future, making you more efficient over time. Browse your library with `/meta prompts/meta-prompt-list`.
+
+**Q: Where are saved prompts stored?**
+A: Project-local storage in `.meta-cc/prompts/library/` (not tracked by git by default). You can commit selectively if you want to share with your team. The directory is auto-created on first save.
+
+**Q: Can I search my saved prompts?**
+A: Yes, two methods:
+1. **Automatic**: The system searches your library when you use `/meta Refine prompt:` and suggests similar saved prompts
+2. **Manual**: Use `/meta prompts/meta-prompt-list` to browse, filter, and sort your library
+3. **CLI tools**: Files are plain markdown, use `grep`, `ack`, or `rg` to search content
+
+**Q: What if I don't want to save prompts?**
+A: Saving is completely optional. Just press Enter or answer "n" when prompted. The save option won't appear again until you optimize another prompt.
+
+**Q: How do I browse my saved prompts?**
+A: Three ways:
+1. **Capability**: `/meta prompts/meta-prompt-list` for formatted table view with statistics
+   - List all: `/meta prompts/meta-prompt-list`
+   - Filter by category: `/meta prompts/meta-prompt-list category=release`
+   - Sort by usage: `/meta prompts/meta-prompt-list sort=usage` (default)
+   - Sort by date: `/meta prompts/meta-prompt-list sort=date` (most recent first)
+   - Sort alphabetically: `/meta prompts/meta-prompt-list sort=alpha`
+   - View details: `/meta prompts/meta-prompt-list detail=<prompt-id>`
+2. **Shell commands**: `ls -lt .meta-cc/prompts/library/` to see files by date
+3. **Search tools**: `rg "keyword" .meta-cc/prompts/library/` to search content
+
+**Q: Can I delete or edit saved prompts?**
+A: Yes, they're just markdown files:
+- **Delete**: `rm .meta-cc/prompts/library/release-simple-001.md`
+- **Edit**: `vim .meta-cc/prompts/library/release-simple-001.md`
+- **Archive**: Edit YAML frontmatter, set `status: archived`
+
+**Q: Can I share prompts with my team?**
+A: Yes, commit to git:
+```bash
+git add .meta-cc/prompts/library/release-*.md
+git commit -m "docs: share release process prompts"
+git push
+```
+
+**Q: How do I back up my prompt library?**
+A: Simple directory copy:
+```bash
+# Backup
+cp -r .meta-cc/prompts ~/backups/project-prompts-$(date +%Y%m%d)
+
+# Restore
+cp -r ~/backups/project-prompts-20251027/.meta-cc/prompts .meta-cc/
+```
+
+**Q: Can I use prompts across multiple projects?**
+A: Currently project-local. Phase 28.5 will add global library in `~/.meta-cc/` for cross-project sharing.
+
 ---
 
 ## Project Overview
