@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,12 +15,13 @@ import (
 // Users should use the 10 shortcut query tools instead
 
 // executeQuery is an internal helper for convenience tools
-// It executes a jq query and returns JSON results
-func (e *ToolExecutor) executeQuery(scope string, jqFilter string, limit int) (string, error) {
+// It executes a jq query and returns results as []interface{}
+// This allows proper JSONL formatting by response adapters
+func (e *ToolExecutor) executeQuery(scope string, jqFilter string, limit int) ([]interface{}, error) {
 	// Get base directory using pipeline infrastructure
 	baseDir, err := getQueryBaseDir(scope)
 	if err != nil {
-		return "", fmt.Errorf("failed to get base directory: %w", err)
+		return nil, fmt.Errorf("failed to get base directory: %w", err)
 	}
 
 	// Create query executor
@@ -30,30 +30,26 @@ func (e *ToolExecutor) executeQuery(scope string, jqFilter string, limit int) (s
 	// Compile expression
 	code, err := executor.compileExpression(jqFilter)
 	if err != nil {
-		return "", fmt.Errorf("invalid jq expression: %w", err)
+		return nil, fmt.Errorf("invalid jq expression: %w", err)
 	}
 
 	// Get all JSONL files in directory
 	files, err := getJSONLFiles(baseDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to list JSONL files: %w", err)
+		return nil, fmt.Errorf("failed to list JSONL files: %w", err)
 	}
 
 	if len(files) == 0 {
-		return "", fmt.Errorf("no JSONL files found in %s", baseDir)
+		return nil, fmt.Errorf("no JSONL files found in %s", baseDir)
 	}
 
 	// Execute query with streaming
 	ctx := context.Background()
 	results := executor.streamFiles(ctx, files, code, limit)
 
-	// Serialize results to JSON
-	jsonData, err := json.Marshal(results)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal results: %w", err)
-	}
-
-	return string(jsonData), nil
+	// Return results directly as []interface{}
+	// Response adapters will handle serialization (inline or file_ref)
+	return results, nil
 }
 
 // getQueryBaseDir returns the base directory for the given scope

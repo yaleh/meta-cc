@@ -122,15 +122,12 @@ func TestHandleQueryUserMessages(t *testing.T) {
 	executor, cfg, cleanup := setupConvenienceToolTest(t)
 	defer cleanup()
 
-	output, err := executor.handleQueryUserMessages(cfg, "project", map[string]interface{}{})
+	results, err := executor.handleQueryUserMessages(cfg, "project", map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("handleQueryUserMessages() error = %v", err)
 	}
 
-	var results []map[string]interface{}
-	if err := json.Unmarshal([]byte(output), &results); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
+	// Results is now []interface{} directly, no need to unmarshal
 
 	// Should return at least one user message
 	if len(results) == 0 {
@@ -143,15 +140,12 @@ func TestHandleQueryTools(t *testing.T) {
 	executor, cfg, cleanup := setupConvenienceToolTest(t)
 	defer cleanup()
 
-	output, err := executor.handleQueryTools(cfg, "project", map[string]interface{}{})
+	results, err := executor.handleQueryTools(cfg, "project", map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("handleQueryTools() error = %v", err)
 	}
 
-	var results []map[string]interface{}
-	if err := json.Unmarshal([]byte(output), &results); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
+	// Results is now []interface{} directly, no need to unmarshal
 
 	// Should return at least one assistant message with tool_use
 	if len(results) == 0 {
@@ -164,15 +158,12 @@ func TestHandleQueryToolErrors(t *testing.T) {
 	executor, cfg, cleanup := setupConvenienceToolTest(t)
 	defer cleanup()
 
-	output, err := executor.handleQueryToolErrors(cfg, "project", map[string]interface{}{})
+	results, err := executor.handleQueryToolErrors(cfg, "project", map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("handleQueryToolErrors() error = %v", err)
 	}
 
-	var results []map[string]interface{}
-	if err := json.Unmarshal([]byte(output), &results); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
+	// Results is now []interface{} directly, no need to unmarshal
 
 	// Should return at least one error
 	if len(results) == 0 {
@@ -185,15 +176,12 @@ func TestHandleQueryTokenUsage(t *testing.T) {
 	executor, cfg, cleanup := setupConvenienceToolTest(t)
 	defer cleanup()
 
-	output, err := executor.handleQueryTokenUsage(cfg, "project", map[string]interface{}{})
+	results, err := executor.handleQueryTokenUsage(cfg, "project", map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("handleQueryTokenUsage() error = %v", err)
 	}
 
-	var results []map[string]interface{}
-	if err := json.Unmarshal([]byte(output), &results); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
+	// Results is now []interface{} directly, no need to unmarshal
 
 	// Should return at least one message with usage
 	if len(results) == 0 {
@@ -206,15 +194,12 @@ func TestHandleQueryConversationFlow(t *testing.T) {
 	executor, cfg, cleanup := setupConvenienceToolTest(t)
 	defer cleanup()
 
-	output, err := executor.handleQueryConversationFlow(cfg, "project", map[string]interface{}{})
+	results, err := executor.handleQueryConversationFlow(cfg, "project", map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("handleQueryConversationFlow() error = %v", err)
 	}
 
-	var results []map[string]interface{}
-	if err := json.Unmarshal([]byte(output), &results); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
+	// Results is now []interface{} directly, no need to unmarshal
 
 	// Should return user and assistant messages
 	if len(results) == 0 {
@@ -227,15 +212,12 @@ func TestHandleQuerySystemErrors(t *testing.T) {
 	executor, cfg, cleanup := setupConvenienceToolTest(t)
 	defer cleanup()
 
-	output, err := executor.handleQuerySystemErrors(cfg, "project", map[string]interface{}{})
+	results, err := executor.handleQuerySystemErrors(cfg, "project", map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("handleQuerySystemErrors() error = %v", err)
 	}
 
-	var results []map[string]interface{}
-	if err := json.Unmarshal([]byte(output), &results); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
+	// Results is now []interface{} directly, no need to unmarshal
 
 	// Should return at least one system error
 	if len(results) == 0 {
@@ -248,15 +230,12 @@ func TestHandleQueryFileSnapshots(t *testing.T) {
 	executor, cfg, cleanup := setupConvenienceToolTest(t)
 	defer cleanup()
 
-	output, err := executor.handleQueryFileSnapshots(cfg, "project", map[string]interface{}{})
+	results, err := executor.handleQueryFileSnapshots(cfg, "project", map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("handleQueryFileSnapshots() error = %v", err)
 	}
 
-	var results []map[string]interface{}
-	if err := json.Unmarshal([]byte(output), &results); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
+	// Results is now []interface{} directly, no need to unmarshal
 
 	// Should return at least one snapshot
 	if len(results) == 0 {
@@ -269,15 +248,12 @@ func TestHandleQueryTimestamps(t *testing.T) {
 	executor, cfg, cleanup := setupConvenienceToolTest(t)
 	defer cleanup()
 
-	output, err := executor.handleQueryTimestamps(cfg, "project", map[string]interface{}{})
+	results, err := executor.handleQueryTimestamps(cfg, "project", map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("handleQueryTimestamps() error = %v", err)
 	}
 
-	var results []map[string]interface{}
-	if err := json.Unmarshal([]byte(output), &results); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
+	// Results is now []interface{} directly, no need to unmarshal
 
 	// Should return entries with timestamps
 	if len(results) == 0 {
@@ -290,15 +266,12 @@ func TestHandleQuerySummaries(t *testing.T) {
 	executor, cfg, cleanup := setupConvenienceToolTest(t)
 	defer cleanup()
 
-	output, err := executor.handleQuerySummaries(cfg, "project", map[string]interface{}{})
+	results, err := executor.handleQuerySummaries(cfg, "project", map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("handleQuerySummaries() error = %v", err)
 	}
 
-	var results []map[string]interface{}
-	if err := json.Unmarshal([]byte(output), &results); err != nil {
-		t.Fatalf("failed to unmarshal: %v", err)
-	}
+	// Results is now []interface{} directly, no need to unmarshal
 
 	// Should return at least one summary
 	if len(results) == 0 {
@@ -323,7 +296,7 @@ func TestHandleQueryToolBlocks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output, err := executor.handleQueryToolBlocks(cfg, "project", map[string]interface{}{
+			results, err := executor.handleQueryToolBlocks(cfg, "project", map[string]interface{}{
 				"block_type": tt.blockType,
 			})
 
@@ -333,9 +306,9 @@ func TestHandleQueryToolBlocks(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				var results []map[string]interface{}
-				if err := json.Unmarshal([]byte(output), &results); err != nil {
-					t.Fatalf("failed to unmarshal: %v", err)
+				// Results is now []interface{} directly, no need to unmarshal
+				if results == nil {
+					t.Error("expected non-nil results for valid block type")
 				}
 			}
 		})

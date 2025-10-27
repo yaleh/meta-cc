@@ -13,7 +13,7 @@ import (
 
 // handleQueryUserMessages implements query_user_messages convenience tool
 // Maps to Query 1 from frequent-jsonl-queries.md
-func (e *ToolExecutor) handleQueryUserMessages(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
+func (e *ToolExecutor) handleQueryUserMessages(cfg *config.Config, scope string, args map[string]interface{}) ([]interface{}, error) {
 	pattern := getStringParam(args, "pattern", "")
 	contentType := getStringParam(args, "content_type", "string")
 	limit := getIntParam(args, "limit", 0)
@@ -38,7 +38,7 @@ func (e *ToolExecutor) handleQueryUserMessages(cfg *config.Config, scope string,
 
 // handleQueryTools implements query_tools convenience tool
 // Maps to Query 2 from frequent-jsonl-queries.md
-func (e *ToolExecutor) handleQueryTools(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
+func (e *ToolExecutor) handleQueryTools(cfg *config.Config, scope string, args map[string]interface{}) ([]interface{}, error) {
 	toolName := getStringParam(args, "tool_name", "")
 	limit := getIntParam(args, "limit", 0)
 
@@ -56,7 +56,7 @@ func (e *ToolExecutor) handleQueryTools(cfg *config.Config, scope string, args m
 
 // handleQueryToolErrors implements query_tool_errors convenience tool
 // Maps to Query 3 from frequent-jsonl-queries.md
-func (e *ToolExecutor) handleQueryToolErrors(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
+func (e *ToolExecutor) handleQueryToolErrors(cfg *config.Config, scope string, args map[string]interface{}) ([]interface{}, error) {
 	limit := getIntParam(args, "limit", 0)
 
 	// Fixed jq filter for tool errors
@@ -68,7 +68,7 @@ func (e *ToolExecutor) handleQueryToolErrors(cfg *config.Config, scope string, a
 
 // handleQueryTokenUsage implements query_token_usage convenience tool
 // Maps to Query 4 from frequent-jsonl-queries.md
-func (e *ToolExecutor) handleQueryTokenUsage(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
+func (e *ToolExecutor) handleQueryTokenUsage(cfg *config.Config, scope string, args map[string]interface{}) ([]interface{}, error) {
 	limit := getIntParam(args, "limit", 0)
 
 	// Filter for assistant messages with usage information
@@ -79,7 +79,7 @@ func (e *ToolExecutor) handleQueryTokenUsage(cfg *config.Config, scope string, a
 
 // handleQueryConversationFlow implements query_conversation_flow convenience tool
 // Maps to Query 5 from frequent-jsonl-queries.md
-func (e *ToolExecutor) handleQueryConversationFlow(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
+func (e *ToolExecutor) handleQueryConversationFlow(cfg *config.Config, scope string, args map[string]interface{}) ([]interface{}, error) {
 	limit := getIntParam(args, "limit", 0)
 
 	// Filter for user and assistant messages only
@@ -93,7 +93,7 @@ func (e *ToolExecutor) handleQueryConversationFlow(cfg *config.Config, scope str
 
 // handleQuerySystemErrors implements query_system_errors convenience tool
 // Maps to Query 6 from frequent-jsonl-queries.md
-func (e *ToolExecutor) handleQuerySystemErrors(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
+func (e *ToolExecutor) handleQuerySystemErrors(cfg *config.Config, scope string, args map[string]interface{}) ([]interface{}, error) {
 	limit := getIntParam(args, "limit", 0)
 
 	// Filter for system API errors
@@ -104,7 +104,7 @@ func (e *ToolExecutor) handleQuerySystemErrors(cfg *config.Config, scope string,
 
 // handleQueryFileSnapshots implements query_file_snapshots convenience tool
 // Maps to Query 7 from frequent-jsonl-queries.md
-func (e *ToolExecutor) handleQueryFileSnapshots(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
+func (e *ToolExecutor) handleQueryFileSnapshots(cfg *config.Config, scope string, args map[string]interface{}) ([]interface{}, error) {
 	limit := getIntParam(args, "limit", 0)
 
 	// Filter for file history snapshots with messageId
@@ -115,7 +115,7 @@ func (e *ToolExecutor) handleQueryFileSnapshots(cfg *config.Config, scope string
 
 // handleQueryTimestamps implements query_timestamps convenience tool
 // Maps to Query 8 from frequent-jsonl-queries.md
-func (e *ToolExecutor) handleQueryTimestamps(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
+func (e *ToolExecutor) handleQueryTimestamps(cfg *config.Config, scope string, args map[string]interface{}) ([]interface{}, error) {
 	limit := getIntParam(args, "limit", 0)
 
 	// Filter for entries with timestamp
@@ -126,7 +126,7 @@ func (e *ToolExecutor) handleQueryTimestamps(cfg *config.Config, scope string, a
 
 // handleQuerySummaries implements query_summaries convenience tool
 // Maps to Query 9 from frequent-jsonl-queries.md
-func (e *ToolExecutor) handleQuerySummaries(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
+func (e *ToolExecutor) handleQuerySummaries(cfg *config.Config, scope string, args map[string]interface{}) ([]interface{}, error) {
 	keyword := getStringParam(args, "keyword", "")
 	limit := getIntParam(args, "limit", 0)
 
@@ -144,13 +144,13 @@ func (e *ToolExecutor) handleQuerySummaries(cfg *config.Config, scope string, ar
 
 // handleQueryToolBlocks implements query_tool_blocks convenience tool
 // Maps to Query 10 from frequent-jsonl-queries.md
-func (e *ToolExecutor) handleQueryToolBlocks(cfg *config.Config, scope string, args map[string]interface{}) (string, error) {
+func (e *ToolExecutor) handleQueryToolBlocks(cfg *config.Config, scope string, args map[string]interface{}) ([]interface{}, error) {
 	blockType := getStringParam(args, "block_type", "tool_use")
 	limit := getIntParam(args, "limit", 0)
 
 	// Validate block_type
 	if blockType != "tool_use" && blockType != "tool_result" {
-		return "", fmt.Errorf("invalid block_type: %s (must be 'tool_use' or 'tool_result')", blockType)
+		return nil, fmt.Errorf("invalid block_type: %s (must be 'tool_use' or 'tool_result')", blockType)
 	}
 
 	var jqFilter string

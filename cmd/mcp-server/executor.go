@@ -162,7 +162,7 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 	}
 
 	config := newToolPipelineConfig(args)
-	var rawOutput string
+	var parsedData []interface{}
 	var err error
 
 	switch toolName {
@@ -170,26 +170,27 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 	// Use the 10 shortcut query tools instead
 
 	// Layer 1: Convenience Tools (10 high-frequency queries)
+	// Phase 27 Stage 27.5: These tools now return []interface{} directly
 	case "query_user_messages":
-		rawOutput, err = e.handleQueryUserMessages(cfg, scope, args)
+		parsedData, err = e.handleQueryUserMessages(cfg, scope, args)
 	case "query_tools":
-		rawOutput, err = e.handleQueryTools(cfg, scope, args)
+		parsedData, err = e.handleQueryTools(cfg, scope, args)
 	case "query_tool_errors":
-		rawOutput, err = e.handleQueryToolErrors(cfg, scope, args)
+		parsedData, err = e.handleQueryToolErrors(cfg, scope, args)
 	case "query_token_usage":
-		rawOutput, err = e.handleQueryTokenUsage(cfg, scope, args)
+		parsedData, err = e.handleQueryTokenUsage(cfg, scope, args)
 	case "query_conversation_flow":
-		rawOutput, err = e.handleQueryConversationFlow(cfg, scope, args)
+		parsedData, err = e.handleQueryConversationFlow(cfg, scope, args)
 	case "query_system_errors":
-		rawOutput, err = e.handleQuerySystemErrors(cfg, scope, args)
+		parsedData, err = e.handleQuerySystemErrors(cfg, scope, args)
 	case "query_file_snapshots":
-		rawOutput, err = e.handleQueryFileSnapshots(cfg, scope, args)
+		parsedData, err = e.handleQueryFileSnapshots(cfg, scope, args)
 	case "query_timestamps":
-		rawOutput, err = e.handleQueryTimestamps(cfg, scope, args)
+		parsedData, err = e.handleQueryTimestamps(cfg, scope, args)
 	case "query_summaries":
-		rawOutput, err = e.handleQuerySummaries(cfg, scope, args)
+		parsedData, err = e.handleQuerySummaries(cfg, scope, args)
 	case "query_tool_blocks":
-		rawOutput, err = e.handleQueryToolBlocks(cfg, scope, args)
+		parsedData, err = e.handleQueryToolBlocks(cfg, scope, args)
 	default:
 		// All query tools must be handled explicitly above.
 		// No CLI fallback - all tools use internal/query library.
@@ -208,49 +209,9 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 		return "", err
 	}
 
-	// Phase 25 Fix: All Phase 25 tools execute jq internally, so we should
-	// NOT apply jq_filter again to avoid double application.
-	//
-	// Phase 27 Update: query and query_raw removed
-	// Phase 25 tools (10 total):
-	// - 10 convenience tools: Execute jq internally
-	//
-	// Therefore, NO Phase 25 tool should have jq_filter applied post-processing.
-	phase25Tools := map[string]bool{
-		// Phase 27: query and query_raw removed
-		"query_user_messages": true, "query_tools": true, "query_tool_errors": true,
-		"query_token_usage": true, "query_conversation_flow": true, "query_system_errors": true,
-		"query_file_snapshots": true, "query_timestamps": true, "query_summaries": true,
-		"query_tool_blocks": true,
-	}
-
-	filtered := rawOutput
-	isPhase25Tool := phase25Tools[toolName]
-	shouldApplyJQFilter := !isPhase25Tool
-
-	if shouldApplyJQFilter {
-		var err error
-		filtered, err = querypkg.ApplyJQFilter(rawOutput, config.jqFilter)
-		if err != nil {
-			slog.Error("jq filter application failed",
-				"tool_name", toolName,
-				"jq_filter", config.jqFilter,
-				"error", err.Error(),
-				"error_type", "execution_error",
-			)
-			return "", fmt.Errorf("jq filter error for tool %s: %w", toolName, err)
-		}
-	}
-
-	parsedData, err := e.parseJSONL(filtered)
-	if err != nil {
-		slog.Error("JSONL parsing failed",
-			"tool_name", toolName,
-			"error", err.Error(),
-			"error_type", "parse_error",
-		)
-		return "", fmt.Errorf("JSONL parse error for tool %s: %w", toolName, mcerrors.ErrParseError)
-	}
+	// Phase 27 Stage 27.5: Convenience tools now return []interface{} directly
+	// No need to parse JSONL or apply jq filters (filters are already applied internally)
+	// Note: Phase 25 originally introduced these convenience tools with jq execution
 
 	if toolName == "query_user_messages" && config.requiresMessageFilters() {
 		parsedData = e.applyMessageFiltersToData(parsedData, config.maxMessageLength, config.contentSummary)
