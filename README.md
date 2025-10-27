@@ -20,6 +20,39 @@ meta-cc helps you understand and improve your Claude Code workflows through:
 
 **Zero configuration required** - works out of the box with Claude Code.
 
+## Real-World Use Cases
+
+**From actual user sessions**:
+
+### 📊 Project Analysis
+```bash
+/meta "show errors"              # Analyze error patterns and prevention
+/meta "quality check"            # Quick quality assessment with scorecard
+/meta "find repeated workflows"  # Detect repetitive tasks for automation
+/meta "which files change most"  # File operation statistics and hotspots
+```
+
+### 🎯 Next Steps & Planning
+```bash
+/meta "What to do now?"          # Get intelligent next-step recommendations
+/meta "propose optimizations"    # Workflow improvement suggestions
+/meta "help me prioritize"       # Action prioritization based on context
+```
+
+### 📈 Performance & Debugging
+```bash
+/meta "why are my tests failing"  # Root cause analysis for test failures
+/meta "optimize my workflow"      # Efficiency bottleneck identification
+/meta "show tool usage patterns"  # Most frequently used tools analysis
+```
+
+### 📋 Documentation & Quality
+```bash
+/meta "documentation gaps"       # Find missing or incomplete documentation
+/meta "technical debt overview"  # Track and prioritize technical debt
+/meta "visualize timeline"        # Project evolution timeline
+```
+
 ---
 
 ## Quick Install
