@@ -68,7 +68,7 @@ The meta-cc plugin includes everything you need:
 - **Unified /meta command** - Natural language interface for session analysis
 - **5 Specialized Agents** - Project planning, iteration management, knowledge extraction
 - **13 Capabilities** - Error analysis, quality scanning, workflow optimization
-- **20 MCP Tools** - Autonomous session data queries (v2.0 unified query interface)
+- **16 MCP Tools** - Autonomous session data queries (v2.1 two-stage query architecture)
 - **16 Validated Methodology Skills**:
   - **BAIME** (Bootstrapped AI Methodology Engineering) - Framework for developing methodologies
   - **Testing Strategy** - TDD, coverage-driven gap closure (3.1x speedup)
@@ -213,7 +213,7 @@ Get personalized workflow guidance from the `@meta-coach` subagent:
 ## Key Features
 
 - 🎯 **Natural language interface** - `/meta` command with semantic matching
-- 🔍 **20 MCP query tools** - Autonomous session data analysis with unified query API
+- 🔍 **16 MCP query tools** - Autonomous session data analysis with two-stage query architecture
 - 🎓 **Interactive coaching** - `@meta-coach` subagent for workflow optimization
 - 📚 **16 Validated Skills** - Reusable methodologies for testing, CI/CD, error recovery, documentation, and more
 - 🤖 **5 Specialized Agents** - Project planning, stage execution, iteration management
