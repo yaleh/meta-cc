@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Unit tests for scripts/track-metrics.sh
+# Unit tests for scripts/ci/track-metrics.sh
 #
 # Run with: bats tests/scripts/test-track-metrics.bats
 #
@@ -10,8 +10,8 @@ setup() {
     export TEST_DIR="$(mktemp -d)"
     export METRICS_DIR="$TEST_DIR/.ci-metrics"
 
-    # Copy script to test directory
-    cp scripts/track-metrics.sh "$TEST_DIR/"
+    # Copy script to test directory (new path: scripts/ci/)
+    cp scripts/ci/track-metrics.sh "$TEST_DIR/"
 
     # Override metrics directory in script
     export ORIGINAL_DIR="$(pwd)"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Unit tests for scripts/smoke-tests.sh
+# Unit tests for scripts/ci/smoke-tests.sh
 #
 # Run with: bats tests/scripts/test-smoke-tests.bats
 #
@@ -12,8 +12,8 @@ setup() {
     export TEST_DIR="$(mktemp -d)"
     export ORIGINAL_DIR="$(pwd)"
 
-    # Skip if smoke-tests.sh doesn't exist
-    if [ ! -f "scripts/smoke-tests.sh" ]; then
+    # Skip if smoke-tests.sh doesn't exist (new path: scripts/ci/)
+    if [ ! -f "scripts/ci/smoke-tests.sh" ]; then
         skip "smoke-tests.sh not found"
     fi
 }
@@ -24,7 +24,7 @@ teardown() {
 }
 
 @test "smoke-tests.sh: Requires 3 arguments" {
-    run bash scripts/smoke-tests.sh
+    run bash scripts/ci/smoke-tests.sh
 
     [ "$status" -ne 0 ]
     [[ "$output" =~ "Usage:" || "$output" =~ "ERROR" ]]
@@ -36,18 +36,18 @@ teardown() {
     PLATFORM="linux-amd64"
     PACKAGE="$TEST_DIR/nonexistent.tar.gz"
 
-    run bash scripts/smoke-tests.sh "$VERSION" "$PLATFORM" "$PACKAGE"
+    run bash scripts/ci/smoke-tests.sh "$VERSION" "$PLATFORM" "$PACKAGE"
 
     [ "$status" -ne 0 ]
 }
 
 @test "smoke-tests.sh: Script is executable" {
-    [ -x "scripts/smoke-tests.sh" ]
+    [ -x "scripts/ci/smoke-tests.sh" ]
 }
 
 @test "smoke-tests.sh: Contains test functions" {
     # Check script contains expected test functions
-    run grep -c "test_" scripts/smoke-tests.sh
+    run grep -c "test_" scripts/ci/smoke-tests.sh
 
     [ "$status" -eq 0 ]
     [ "$output" -gt 0 ]

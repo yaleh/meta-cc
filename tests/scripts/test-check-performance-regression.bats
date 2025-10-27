@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Unit tests for scripts/check-performance-regression.sh
+# Unit tests for scripts/ci/check-performance-regression.sh
 #
 # Run with: bats tests/scripts/test-check-performance-regression.bats
 #
@@ -11,8 +11,8 @@ setup() {
     export METRICS_DIR="$TEST_DIR/.ci-metrics"
     mkdir -p "$METRICS_DIR"
 
-    # Copy scripts to test directory
-    cp scripts/check-performance-regression.sh "$TEST_DIR/"
+    # Copy scripts to test directory (new path: scripts/ci/)
+    cp scripts/ci/check-performance-regression.sh "$TEST_DIR/"
 
     # Override metrics directory in script context
     export ORIGINAL_DIR="$(pwd)"
