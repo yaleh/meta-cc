@@ -5,6 +5,47 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-10-27
+
+### Added
+
+- **Two-Stage Query Architecture (Phase 27)** - 100-600x performance improvement
+  - Add `get_session_directory` tool - List session files with metadata
+  - Add `inspect_session_files` tool - Examine file contents and samples
+  - Add `execute_stage2_query` tool - Execute queries on selected files
+  - Add comprehensive documentation:
+    - docs/guides/two-stage-query-guide.md (16KB architecture guide)
+    - docs/examples/two-stage-query-examples.md (19KB with 7 examples)
+  - Update MCP guide with Phase 27 tools section (+187 lines)
+
+### Changed
+
+- Update tool count from 20 to 16 MCP tools (query consolidation)
+- Update README.md to reflect v2.1 two-stage query architecture
+- Mark Phase 27 as complete in implementation plan (📋 → ✅)
+
+### Removed
+
+- **Breaking Changes (v2.1.0)**:
+  - Remove `query` tool - Use two-stage workflow instead
+  - Remove `query_raw` tool - Use `execute_stage2_query` with jq expressions
+  - Migration: Use two-stage workflow or convenience tools for simple queries
+
+### Performance
+
+- Stage 1 tools: 8-12ms (directory listing and inspection)
+- Stage 2 queries: 19ms average (vs 2-5 seconds for legacy query)
+- Overall speedup: 100-600x faster than legacy single-stage queries
+
+### Documentation
+
+- Complete two-stage query architecture documentation
+- 7 practical examples with step-by-step workflows
+- Performance comparisons and migration guide
+- Updated all tool counts and references across documentation
+
+See docs/guides/two-stage-query-guide.md for complete documentation.
+
 ## [2.0.3] - 2025-10-26
 
 
