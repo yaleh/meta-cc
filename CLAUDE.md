@@ -31,7 +31,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 A: Run `make dev` for quick iteration, then `make commit` to validate. Fix issues iteratively. If tests fail after multiple attempts, HALT development and document blockers.
 
 **Q: How much code can I write in one phase?**
-A: Maximum 500 lines per phase, 200 lines per stage. See [docs/core/principles.md](docs/core/principles.md).
+A: Maximum 500 lines of code modifications per phase, 200 lines per stage. See [docs/core/principles.md](docs/core/principles.md).
 
 **Q: Should I use MCP, Slash Commands, or Subagent?**
 A: Quick rule: Natural questions → MCP | Repeated workflows → Slash | Exploration → Subagent. See [docs/guides/integration.md](docs/guides/integration.md).
@@ -118,8 +118,8 @@ See [docs/reference/repository-structure.md](docs/reference/repository-structure
 See [docs/core/principles.md](docs/core/principles.md) for complete details.
 
 **Code Limits**:
-- Phase: ≤500 lines of changes
-- Stage: ≤200 lines of changes
+- Phase: ≤500 lines of code modifications
+- Stage: ≤200 lines of code modifications
 
 **Development Methodology**:
 - **TDD**: Write tests before implementation

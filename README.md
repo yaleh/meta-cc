@@ -232,6 +232,21 @@ cd meta-cc
 make build-mcp  # Build MCP server
 ```
 
+### Development Workflow (3-Tier)
+
+Use the optimized 3-tier workflow for efficient development:
+
+```bash
+make dev           # Quick dev build (format + build, <10s)
+make commit        # Pre-commit validation (workspace + tests, <60s)
+make push          # Full check before push (all checks + lint, <120s)
+```
+
+**Workflow**:
+1. **Iterate**: Use `make dev` for fast feedback during development
+2. **Commit**: Run `make commit` to validate before committing
+3. **Push**: Run `make push` for full verification before pushing to remote
+
 ### Run Tests
 
 ```bash
@@ -239,6 +254,8 @@ make test           # Unit tests (fast)
 make test-all       # Including E2E tests (~30s)
 make test-coverage  # With coverage report
 ```
+
+**Coverage Requirement**: Maintain ≥80% test coverage for all code changes.
 
 ### Create Custom Capabilities
 
