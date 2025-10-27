@@ -11,7 +11,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ### Development Workflow
 - **Current plan**: [docs/core/plan.md](docs/core/plan.md) - Phase roadmap and status
-- **Build and test**: Run `make all` after each stage
+- **Build and test**: Run `make dev` (quick) → `make commit` (validate) → `make push` (full check)
 - **Plugin development**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md) - Complete workflow
 
 ### MCP Server Usage
@@ -19,7 +19,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 - **Quick test**: Use MCP tool `get_session_stats`
 
 ### Common Tasks
-- **Fix test failures**: `make test` → Review errors → Fix → `make all`
+- **Fix test failures**: `make dev` → Review errors → Fix → `make commit`
 - **Query session data**: Use MCP tools (see [MCP Guide](docs/guides/mcp.md))
 - **Update plugin**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md)
 
@@ -28,7 +28,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 ## FAQ
 
 **Q: Tests failed after my changes - what should I do?**
-A: Run `make all` to see lint + test + build errors. Fix issues iteratively. If tests fail after multiple attempts, HALT development and document blockers.
+A: Run `make dev` for quick iteration, then `make commit` to validate. Fix issues iteratively. If tests fail after multiple attempts, HALT development and document blockers.
 
 **Q: How much code can I write in one phase?**
 A: Maximum 500 lines per phase, 200 lines per stage. See [docs/core/principles.md](docs/core/principles.md).
@@ -80,7 +80,7 @@ query({resource: "tools", jq_filter: '.[] | select(.tool_name == "Bash" and .sta
 Test jq locally first: `echo '[{"tool":"Bash"}]' | jq '.[]'`. See [MCP Query Tools Reference](docs/guides/mcp-query-tools.md#jq-syntax-quick-reference) for common patterns.
 
 **Q: How do I update plugin version?**
-A: Install git hooks (`./scripts/install-hooks.sh`) for automatic bumping, or use `./scripts/bump-plugin-version.sh [patch|minor|major]`. See [docs/guides/git-hooks.md](docs/guides/git-hooks.md).
+A: Install git hooks (`./scripts/install/install-hooks.sh`) for automatic bumping, or use `./scripts/release/bump-plugin-version.sh [patch|minor|major]`. See [docs/guides/git-hooks.md](docs/guides/git-hooks.md).
 
 **Q: What are skills and how do they relate to capabilities?**
 A: Skills are reusable methodologies packaged with the plugin (15 skills, ~1.5MB). Capabilities are lightweight content files for the `/meta` command. Skills provide full workflow templates; capabilities provide focused command content.
@@ -124,7 +124,7 @@ See [docs/core/principles.md](docs/core/principles.md) for complete details.
 **Development Methodology**:
 - **TDD**: Write tests before implementation
 - **Test Coverage**: ≥80%
-- **Testing Protocol**: Run `make all` after each Stage
+- **Testing Protocol**: Run `make commit` after each Stage
 
 **Testing Failure Protocol**:
 - If tests repeatedly fail → Stop immediately
@@ -136,16 +136,18 @@ See [docs/core/principles.md](docs/core/principles.md) for complete details.
 ### Build and Test
 
 ```bash
-make all           # Lint + test + build
-make test          # Run tests
+make dev           # Quick dev build (format + build, <10s)
+make commit        # Pre-commit validation (workspace + tests, <60s)
+make push          # Full check before push (all checks + lint, <120s)
+make test          # Run tests only
 make lint          # Static analysis
 make test-coverage # Coverage report
 ```
 
 **Before committing**:
-1. Run `make all` to ensure code passes linting, tests, and builds
+1. Run `make commit` to ensure code passes essential validation
 2. Fix any issues reported
-3. Ensure all tests pass
+3. Before pushing, run `make push` for full verification
 
 ### Plugin Development
 
@@ -161,7 +163,7 @@ export META_CC_CAPABILITY_SOURCES="capabilities/commands"
 # 3. Test in Claude Code (no build needed)
 
 # 4. Run tests
-make all
+make commit
 ```
 
 **See**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md) for complete workflow.
@@ -172,18 +174,18 @@ make all
 
 1. **Git Hook (automatic)**:
    ```bash
-   ./scripts/install-hooks.sh  # One-time setup
+   ./scripts/install/install-hooks.sh  # One-time setup
    # Then: git commit auto-bumps version on .claude/ changes
    ```
 
 2. **Manual script**:
    ```bash
-   ./scripts/bump-plugin-version.sh patch   # or minor/major
+   ./scripts/release/bump-plugin-version.sh patch   # or minor/major
    ```
 
 3. **Full release**:
    ```bash
-   ./scripts/release.sh v1.0.0
+   ./scripts/release/release.sh v1.0.0
    ```
 
 **See**: [docs/guides/git-hooks.md](docs/guides/git-hooks.md) and [docs/guides/release-process.md](docs/guides/release-process.md).
@@ -219,7 +221,7 @@ make test
 vim path/to/failing_test.go
 
 # 4. Verify fix
-make all
+make commit
 ```
 
 ### Query Session Data (via MCP)
