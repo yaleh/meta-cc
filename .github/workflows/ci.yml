@@ -14,13 +14,13 @@ jobs:
         include:
           # Primary development target
           - os: ubuntu-latest
-            go: '1.22'
+            go: '1.24'
           # Mac users matter (most Claude Code users)
           - os: macos-latest
-            go: '1.22'
+            go: '1.24'
           # Backward compatibility check
           - os: ubuntu-latest
-            go: '1.21'
+            go: '1.23'
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -69,11 +69,11 @@ jobs:
         run: make test
 
       - name: Generate coverage report
-        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.24'
         run: make test-coverage
 
       - name: Cache golangci-lint
-        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.24'
         uses: actions/cache@v3
         with:
           path: ~/.cache/golangci-lint
@@ -82,11 +82,11 @@ jobs:
             ${{ runner.os }}-golangci-
 
       - name: Run linter
-        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.24'
         run: make lint
 
       - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.24'
         uses: codecov/codecov-action@v3
         with:
           files: ./coverage.out
@@ -94,12 +94,12 @@ jobs:
           name: codecov-umbrella
 
       - name: Check coverage threshold
-        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.24'
         shell: bash
         run: bash scripts/checks/check-coverage.sh 75
 
       - name: Calculate test duration
-        if: always() && matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.go == '1.24'
         shell: bash
         run: |
           START=${{ steps.test_start.outputs.TEST_START }}
@@ -109,13 +109,13 @@ jobs:
           echo "TEST_DURATION=${DURATION}" >> $GITHUB_ENV
 
       - name: Track test duration metric
-        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.24'
         shell: bash
         run: |
           bash scripts/ci/track-metrics.sh test_duration ${{ env.TEST_DURATION }} seconds
 
       - name: Check performance regression
-        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22' && github.event_name == 'pull_request'
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.24' && github.event_name == 'pull_request'
         shell: bash
         run: |
           # Check test duration regression (20% threshold)
@@ -123,7 +123,7 @@ jobs:
           bash scripts/ci/check-performance-regression.sh test_duration ${{ env.TEST_DURATION }} 20 || [ $? -eq 2 ]
 
       - name: Commit and push metrics
-        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22' && github.event_name == 'push'
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.24' && github.event_name == 'push'
         shell: bash
         run: |
           # Configure git
@@ -169,7 +169,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.22'
+          go-version: '1.24'
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
