@@ -741,6 +741,315 @@ func TestPerformanceBenchmarks(t *testing.T) {
 	t.Logf("100KB write completed in %v", elapsed)
 }
 
+// TestJSONLOutputFormatE2E verifies query tools output proper multi-line JSONL format
+// This is an end-to-end test for the JSONL format fix (Phase 27 Stage 27.5)
+func TestJSONLOutputFormatE2E(t *testing.T) {
+	cfg, _ := config.Load()
+
+	// Test Case 1: Verify file_ref output is multi-line JSONL (not single-line JSON array)
+	t.Run("file_ref_multiline_jsonl", func(t *testing.T) {
+		// Generate large dataset to trigger file_ref mode
+		data := make([]interface{}, 200)
+		for i := 0; i < 200; i++ {
+			data[i] = map[string]interface{}{
+				"type":      "user",
+				"id":        i,
+				"timestamp": "2025-10-27T10:00:00Z",
+				"content":   "test message content for JSONL format verification",
+			}
+		}
+
+		params := map[string]interface{}{}
+
+		// Execute query through response adapter
+		response, err := adaptResponse(cfg, data, params, "query_user_messages")
+		if err != nil {
+			t.Fatalf("adaptResponse failed: %v", err)
+		}
+
+		respMap, ok := response.(map[string]interface{})
+		if !ok {
+			t.Fatalf("response is not a map")
+		}
+
+		// Verify file_ref mode
+		mode, ok := respMap["mode"].(string)
+		if !ok || mode != "file_ref" {
+			t.Fatalf("expected file_ref mode, got %v", mode)
+		}
+
+		// Get file path
+		fileRef, ok := respMap["file_ref"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected file_ref object")
+		}
+
+		path, ok := fileRef["path"].(string)
+		if !ok {
+			t.Fatalf("file_ref missing path")
+		}
+
+		// Read file content
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("failed to read temp file: %v", err)
+		}
+
+		// CRITICAL: Verify file is multi-line JSONL, not single-line JSON array
+		lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+
+		// Should have 200 lines (one per record), not 1 line (JSON array)
+		if len(lines) == 1 {
+			t.Errorf("FAIL: Output is single-line JSON array, should be multi-line JSONL")
+			t.Errorf("Expected 200 lines, got 1 line")
+			t.Errorf("This indicates the JSONL format fix is not working")
+		}
+
+		if len(lines) != 200 {
+			t.Errorf("expected 200 lines (multi-line JSONL), got %d", len(lines))
+		}
+
+		// Verify each line is valid JSON (not part of array)
+		for i, line := range lines {
+			if i >= 5 {
+				break // Check first 5 lines only
+			}
+
+			var record map[string]interface{}
+			if err := json.Unmarshal([]byte(line), &record); err != nil {
+				t.Errorf("line %d is not valid JSON: %v", i+1, err)
+			}
+
+			// Verify it's an object, not array element
+			if record["type"] != "user" {
+				t.Errorf("line %d: expected type=user, got %v", i+1, record["type"])
+			}
+		}
+
+		// Verify file does NOT start with '[' (JSON array)
+		if len(content) > 0 && content[0] == '[' {
+			t.Error("FAIL: File starts with '[' - this is a JSON array, not JSONL format")
+		}
+
+		// Clean up
+		os.Remove(path)
+		t.Logf("✅ PASS: File is proper multi-line JSONL format (%d lines)", len(lines))
+	})
+
+	// Test Case 2: Verify Claude Code Read tool can process line-by-line
+	t.Run("claude_read_tool_compatibility", func(t *testing.T) {
+		// Generate larger dataset to ensure file_ref mode
+		data := make([]interface{}, 200)
+		for i := 0; i < 200; i++ {
+			data[i] = map[string]interface{}{
+				"tool_name": "Bash",
+				"status":    "success",
+				"index":     i,
+				"args":      strings.Repeat("x", 50), // Add padding to ensure >8KB
+			}
+		}
+
+		params := map[string]interface{}{}
+		response, err := adaptResponse(cfg, data, params, "query_tools")
+		if err != nil {
+			t.Fatalf("adaptResponse failed: %v", err)
+		}
+
+		respMap, ok := response.(map[string]interface{})
+		if !ok {
+			t.Fatalf("response is not a map")
+		}
+
+		// Verify file_ref mode
+		mode, ok := respMap["mode"].(string)
+		if !ok || mode != "file_ref" {
+			t.Skipf("Skipping test - got mode=%v, expected file_ref", mode)
+		}
+
+		fileRef, ok := respMap["file_ref"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected file_ref object")
+		}
+
+		path, ok := fileRef["path"].(string)
+		if !ok {
+			t.Fatalf("file_ref missing path")
+		}
+
+		// Simulate Claude Code Read tool: read with offset and limit
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("Claude would fail to read file: %v", err)
+		}
+
+		lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+
+		// Simulate reading lines 10-20 (Claude Code offset/limit)
+		if len(lines) < 20 {
+			t.Fatalf("not enough lines for offset test")
+		}
+
+		for i := 10; i < 20; i++ {
+			var record map[string]interface{}
+			if err := json.Unmarshal([]byte(lines[i]), &record); err != nil {
+				t.Errorf("Claude would fail to parse line %d: %v", i, err)
+			}
+		}
+
+		os.Remove(path)
+		t.Logf("✅ PASS: Claude Code Read tool can process line-by-line")
+	})
+
+	// Test Case 3: Verify Claude Code Search/Grep can filter line-by-line
+	t.Run("claude_search_tool_compatibility", func(t *testing.T) {
+		// Generate larger dataset with mixed statuses to ensure file_ref mode
+		data := make([]interface{}, 200)
+		for i := 0; i < 200; i++ {
+			status := "success"
+			if i%3 == 0 {
+				status = "error"
+			}
+			data[i] = map[string]interface{}{
+				"tool_name": "Bash",
+				"status":    status,
+				"index":     i,
+				"args":      strings.Repeat("x", 50), // Add padding to ensure >8KB
+			}
+		}
+
+		params := map[string]interface{}{}
+		response, err := adaptResponse(cfg, data, params, "query_tools")
+		if err != nil {
+			t.Fatalf("adaptResponse failed: %v", err)
+		}
+
+		respMap, ok := response.(map[string]interface{})
+		if !ok {
+			t.Fatalf("response is not a map")
+		}
+
+		// Verify file_ref mode
+		mode, ok := respMap["mode"].(string)
+		if !ok || mode != "file_ref" {
+			t.Skipf("Skipping test - got mode=%v, expected file_ref", mode)
+		}
+
+		fileRef, ok := respMap["file_ref"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected file_ref object")
+		}
+
+		path, ok := fileRef["path"].(string)
+		if !ok {
+			t.Fatalf("file_ref missing path")
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("failed to read file: %v", err)
+		}
+
+		// Simulate Claude Code Search: grep for "error"
+		lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+		matchCount := 0
+		for _, line := range lines {
+			if strings.Contains(line, `"status":"error"`) {
+				matchCount++
+			}
+		}
+
+		// Should find 67 error entries (0, 3, 6, 9, ..., 198) - every 3rd index
+		expectedErrors := 67
+		if matchCount != expectedErrors {
+			t.Errorf("expected %d error matches, got %d", expectedErrors, matchCount)
+		}
+
+		os.Remove(path)
+		t.Logf("✅ PASS: Claude Code Search can filter line-by-line (%d matches)", matchCount)
+	})
+
+	// Test Case 4: End-to-end test with executeQuery
+	t.Run("e2e_execute_query_to_file", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("Skipping E2E test in short mode")
+		}
+
+		// Setup test session directory
+		testData := `{"type":"user","timestamp":"2025-10-27T10:00:00Z","message":{"content":"test 1"}}
+{"type":"user","timestamp":"2025-10-27T10:00:01Z","message":{"content":"test 2"}}
+{"type":"user","timestamp":"2025-10-27T10:00:02Z","message":{"content":"test 3"}}
+{"type":"assistant","timestamp":"2025-10-27T10:00:03Z","message":{"content":"response"}}
+`
+		projectPath := setupTestSessionDir(t, testData)
+
+		// Change to project directory
+		originalWd, _ := os.Getwd()
+		defer os.Chdir(originalWd)
+		os.Chdir(projectPath)
+
+		executor := NewToolExecutor()
+
+		// Execute query tool (full E2E)
+		args := map[string]interface{}{
+			"pattern": "test",
+			"scope":   "session",
+		}
+
+		result, err := executor.ExecuteTool(cfg, "query_user_messages", args)
+		if err != nil {
+			t.Fatalf("ExecuteTool failed: %v", err)
+		}
+
+		// Parse response
+		var response map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &response); err != nil {
+			t.Fatalf("failed to parse response: %v", err)
+		}
+
+		// Check mode (should be inline for small dataset)
+		mode, ok := response["mode"].(string)
+		if !ok {
+			t.Fatalf("response missing mode")
+		}
+
+		// Verify data format
+		if mode == "inline" {
+			data, ok := response["data"].([]interface{})
+			if !ok {
+				t.Fatalf("inline response missing data array")
+			}
+			if len(data) == 0 {
+				t.Error("expected at least one result")
+			}
+		} else if mode == "file_ref" {
+			fileRef, ok := response["file_ref"].(map[string]interface{})
+			if !ok {
+				t.Fatalf("file_ref response missing file_ref object")
+			}
+
+			path, ok := fileRef["path"].(string)
+			if !ok {
+				t.Fatalf("file_ref missing path")
+			}
+
+			// Verify JSONL format
+			content, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("failed to read temp file: %v", err)
+			}
+
+			lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+			if len(lines) <= 1 {
+				t.Error("FAIL: E2E test produced single-line output, expected multi-line JSONL")
+			}
+
+			os.Remove(path)
+		}
+
+		t.Logf("✅ PASS: E2E query executed successfully (mode=%s)", mode)
+	})
+}
+
 // TestExecuteToolE2E_AllTools verifies all tools execute without errors
 func TestExecuteToolE2E_AllTools(t *testing.T) {
 	cfg, _ := config.Load()
