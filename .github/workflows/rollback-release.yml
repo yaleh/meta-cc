@@ -16,6 +16,7 @@ jobs:
   rollback:
     name: Rollback Release
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
@@ -140,35 +141,36 @@ jobs:
             PREV_VERSION="(none found)"
           fi
 
-          cat > /tmp/issue-body.md <<EOF
-## Rollback Summary
-
-**Rolled back version:** $VERSION
-**Reverted to:** $PREV_VERSION
-
-### Actions Taken
-
-- GitHub release deleted
-- Git tag deleted (local and remote)
-- marketplace.json reverted
-- Changes committed and pushed
-
-### Next Steps
-
-1. Investigate why $VERSION needed to be rolled back
-2. Fix the issues
-3. Create a new release with proper version number
-4. Update CHANGELOG.md with rollback notice
-
-### Manual Verification
-
-Verify rollback completed successfully:
-\`\`\`bash
-git fetch --tags
-git tag | grep $VERSION  # Should be empty
-gh release view $VERSION  # Should fail
-\`\`\`
-EOF
+          # Create issue body (avoiding heredoc to prevent YAML parsing issues)
+          {
+            echo "## Rollback Summary"
+            echo ""
+            echo "- Rolled back version: $VERSION"
+            echo "- Reverted to: $PREV_VERSION"
+            echo ""
+            echo "### Actions Taken"
+            echo ""
+            echo "- GitHub release deleted"
+            echo "- Git tag deleted (local and remote)"
+            echo "- marketplace.json reverted"
+            echo "- Changes committed and pushed"
+            echo ""
+            echo "### Next Steps"
+            echo ""
+            echo "1. Investigate why $VERSION needed to be rolled back"
+            echo "2. Fix the issues"
+            echo "3. Create a new release with proper version number"
+            echo "4. Update CHANGELOG.md with rollback notice"
+            echo ""
+            echo "### Manual Verification"
+            echo ""
+            echo "Verify rollback completed successfully:"
+            echo "\`\`\`bash"
+            echo "git fetch --tags"
+            echo "git tag | grep $VERSION  # Should be empty"
+            echo "gh release view $VERSION  # Should fail"
+            echo "\`\`\`"
+          } > /tmp/issue-body.md
 
           gh issue create \
             --title "Release $VERSION rolled back" \

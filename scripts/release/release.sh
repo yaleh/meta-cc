@@ -2,8 +2,9 @@
 # Automated release script
 #
 # Purpose: Create and publish a new release with full validation
-# Usage: ./scripts/release.sh <version> [--skip-checks]
+# Usage: ./scripts/release.sh <version> [--skip-checks] [--dry-run]
 # Example: ./scripts/release.sh v2.0.3
+# Example: ./scripts/release.sh v2.0.3 --dry-run
 #
 # This script:
 # 1. Runs pre-release validation checks
@@ -17,11 +18,31 @@ set -e
 
 VERSION=$1
 VERSION_NUM=${VERSION#v}  # Remove 'v' prefix
-SKIP_CHECKS=${2:-}
+SKIP_CHECKS=""
+DRY_RUN=""
+
+# Parse optional flags
+shift || true
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --skip-checks)
+            SKIP_CHECKS="--skip-checks"
+            ;;
+        --dry-run)
+            DRY_RUN="--dry-run"
+            ;;
+        *)
+            echo "Error: Unknown option: $1"
+            echo "Usage: ./scripts/release.sh v1.0.0 [--skip-checks] [--dry-run]"
+            exit 1
+            ;;
+    esac
+    shift
+done
 
 if [ -z "$VERSION" ]; then
     echo "Error: Version required"
-    echo "Usage: ./scripts/release.sh v1.0.0 [--skip-checks]"
+    echo "Usage: ./scripts/release.sh v1.0.0 [--skip-checks] [--dry-run]"
     exit 1
 fi
 
@@ -36,6 +57,13 @@ if ! command -v jq &> /dev/null; then
     echo "Error: jq is required but not installed"
     echo "Install with: sudo apt-get install jq (Ubuntu/Debian) or brew install jq (macOS)"
     exit 1
+fi
+
+if [ -n "$DRY_RUN" ]; then
+    echo "========================================"
+    echo "DRY RUN MODE - No changes will be made"
+    echo "========================================"
+    echo ""
 fi
 
 echo "=== Release $VERSION ==="
@@ -106,10 +134,15 @@ echo "  Current version: v$CURRENT_VERSION"
 echo "  Target version:  $VERSION ($VERSION_NUM)"
 echo ""
 
-jq --arg ver "$VERSION_NUM" '.plugins[0].version = $ver' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
-mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
-echo "✓ marketplace.json updated to $VERSION_NUM"
-echo ""
+if [ -n "$DRY_RUN" ]; then
+    echo "[DRY RUN] Would update marketplace.json: v$CURRENT_VERSION → $VERSION_NUM"
+    echo ""
+else
+    jq --arg ver "$VERSION_NUM" '.plugins[0].version = $ver' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
+    mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
+    echo "✓ marketplace.json updated to $VERSION_NUM"
+    echo ""
+fi
 
 # ==================================================================
 # STEP 3: Generate CHANGELOG Entry
@@ -118,31 +151,60 @@ echo ""
 echo "Step 3: Generating CHANGELOG entry..."
 echo ""
 
-if [ -f "scripts/generate-changelog-entry.sh" ]; then
-    if bash scripts/generate-changelog-entry.sh "$VERSION"; then
-        echo "✓ CHANGELOG.md updated automatically"
+if [ -n "$DRY_RUN" ]; then
+    echo "[DRY RUN] Would generate CHANGELOG entry for $VERSION"
+    if [ -f "scripts/release/generate-changelog-entry.sh" ]; then
+        echo "[DRY RUN] Using: scripts/release/generate-changelog-entry.sh"
     else
-        echo "⚠️  Failed to generate CHANGELOG entry automatically"
-        echo ""
-        echo "Would you like to edit CHANGELOG.md manually? (y/N)"
-        read -r response
-        if [[ "$response" =~ ^[Yy]$ ]]; then
-            echo "Please update CHANGELOG.md with release notes for $VERSION"
-            echo "Press Enter when ready to continue, or Ctrl+C to abort..."
-            read
+        echo "[DRY RUN] Warning: scripts/release/generate-changelog-entry.sh not found"
+        echo "[DRY RUN] Would require manual CHANGELOG update"
+    fi
+    echo ""
+else
+    # CHANGELOG generation is MANDATORY for releases
+    if [ -f "scripts/release/generate-changelog-entry.sh" ]; then
+        echo "Attempting automatic CHANGELOG generation..."
+        if bash scripts/release/generate-changelog-entry.sh "$VERSION"; then
+            echo "✓ CHANGELOG.md updated automatically"
+            echo ""
         else
-            echo "Aborted - CHANGELOG entry required for releases"
+            echo ""
+            echo "❌ ERROR: Automatic CHANGELOG generation failed"
+            echo ""
+            echo "CHANGELOG.md must be updated for release $VERSION."
+            echo "Please manually add a CHANGELOG entry, then press Enter to continue..."
+            echo "(Or press Ctrl+C to abort and fix the issue)"
+            read
+
+            # Verify CHANGELOG was actually updated
+            if ! grep -q "\[$VERSION_NUM\]" CHANGELOG.md; then
+                echo ""
+                echo "❌ ERROR: CHANGELOG.md does not contain entry for [$VERSION_NUM]"
+                echo "Release aborted - CHANGELOG entry is required"
+                exit 1
+            fi
+            echo "✓ CHANGELOG.md entry verified"
+            echo ""
+        fi
+    else
+        echo "❌ ERROR: scripts/release/generate-changelog-entry.sh not found"
+        echo ""
+        echo "CHANGELOG.md must be updated for release $VERSION."
+        echo "Please manually add a CHANGELOG entry, then press Enter to continue..."
+        echo "(Or press Ctrl+C to abort)"
+        read
+
+        # Verify CHANGELOG was actually updated
+        if ! grep -q "\[$VERSION_NUM\]" CHANGELOG.md; then
+            echo ""
+            echo "❌ ERROR: CHANGELOG.md does not contain entry for [$VERSION_NUM]"
+            echo "Release aborted - CHANGELOG entry is required"
             exit 1
         fi
+        echo "✓ CHANGELOG.md entry verified"
+        echo ""
     fi
-else
-    echo "⚠️  scripts/generate-changelog-entry.sh not found"
-    echo ""
-    echo "Please update CHANGELOG.md with release notes for $VERSION"
-    echo "Press Enter when ready to continue, or Ctrl+C to abort..."
-    read
 fi
-echo ""
 
 # ==================================================================
 # STEP 4: Commit Version Updates
@@ -151,16 +213,25 @@ echo ""
 echo "Step 4: Committing version updates..."
 echo ""
 
-git add .claude-plugin/marketplace.json CHANGELOG.md
-git commit -m "chore: release $VERSION
+if [ -n "$DRY_RUN" ]; then
+    echo "[DRY RUN] Would run: git add .claude-plugin/marketplace.json CHANGELOG.md"
+    echo "[DRY RUN] Would commit with message:"
+    echo "    chore: release $VERSION"
+    echo ""
+    echo "    Update marketplace.json and CHANGELOG.md to version $VERSION_NUM."
+    echo ""
+else
+    git add .claude-plugin/marketplace.json CHANGELOG.md
+    git commit -m "chore: release $VERSION
 
 Update marketplace.json and CHANGELOG.md to version $VERSION_NUM.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
-echo "✓ Version updates committed"
-echo ""
+    echo "✓ Version updates committed"
+    echo ""
+fi
 
 # ==================================================================
 # STEP 5: Create Git Tag
@@ -169,15 +240,21 @@ echo ""
 echo "Step 5: Creating git tag..."
 echo ""
 
-git tag -a "$VERSION" -m "Release $VERSION
+if [ -n "$DRY_RUN" ]; then
+    echo "[DRY RUN] Would create annotated tag: $VERSION"
+    echo "[DRY RUN] Tag message: Release $VERSION"
+    echo ""
+else
+    git tag -a "$VERSION" -m "Release $VERSION
 
 See CHANGELOG.md for release notes.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
-echo "✓ Tag $VERSION created"
-echo ""
+    echo "✓ Tag $VERSION created"
+    echo ""
+fi
 
 # ==================================================================
 # STEP 6: Push to Remote
@@ -186,29 +263,53 @@ echo ""
 echo "Step 6: Pushing to remote..."
 echo ""
 
-git push origin "$BRANCH"
-git push origin "$VERSION"
-echo "✓ Pushed commits and tag to remote"
-echo ""
+if [ -n "$DRY_RUN" ]; then
+    echo "[DRY RUN] Would run: git push origin $BRANCH"
+    echo "[DRY RUN] Would run: git push origin $VERSION"
+    echo ""
+else
+    git push origin "$BRANCH"
+    git push origin "$VERSION"
+    echo "✓ Pushed commits and tag to remote"
+    echo ""
+fi
 
 # ==================================================================
 # RELEASE COMPLETE
 # ==================================================================
 
-echo "========================================="
-echo "Release $VERSION Complete"
-echo "========================================="
-echo ""
-echo "GitHub Actions will now:"
-echo "  1. Verify marketplace.json version"
-echo "  2. Build MCP server binaries (5 platforms)"
-echo "  3. Run smoke tests"
-echo "  4. Create GitHub Release"
-echo "  5. Upload release artifacts"
-echo ""
-echo "Monitor progress:"
-echo "  https://github.com/yaleh/meta-cc/actions"
-echo ""
-echo "Expected release URL:"
-echo "  https://github.com/yaleh/meta-cc/releases/tag/$VERSION"
-echo ""
+if [ -n "$DRY_RUN" ]; then
+    echo "========================================="
+    echo "DRY RUN COMPLETE - No changes were made"
+    echo "========================================="
+    echo ""
+    echo "To perform the actual release, run:"
+    echo "  ./scripts/release/release.sh $VERSION"
+    echo ""
+    echo "Summary of what would happen:"
+    echo "  1. Update marketplace.json: v$CURRENT_VERSION → $VERSION_NUM"
+    echo "  2. Generate/update CHANGELOG.md entry"
+    echo "  3. Commit changes to $BRANCH branch"
+    echo "  4. Create annotated tag: $VERSION"
+    echo "  5. Push commits and tag to origin"
+    echo "  6. Trigger GitHub Actions release workflow"
+    echo ""
+else
+    echo "========================================="
+    echo "Release $VERSION Complete"
+    echo "========================================="
+    echo ""
+    echo "GitHub Actions will now:"
+    echo "  1. Verify marketplace.json version"
+    echo "  2. Build MCP server binaries (5 platforms)"
+    echo "  3. Run smoke tests"
+    echo "  4. Create GitHub Release"
+    echo "  5. Upload release artifacts"
+    echo ""
+    echo "Monitor progress:"
+    echo "  https://github.com/yaleh/meta-cc/actions"
+    echo ""
+    echo "Expected release URL:"
+    echo "  https://github.com/yaleh/meta-cc/releases/tag/$VERSION"
+    echo ""
+fi
