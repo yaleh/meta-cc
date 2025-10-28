@@ -22,6 +22,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 - **Fix test failures**: `make dev` → Review errors → Fix → `make commit`
 - **Query session data**: Use MCP tools (see [MCP Guide](docs/guides/mcp.md))
 - **Update plugin**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md)
+- **Manage prompts**: `/prompt-list` (browse) | `/prompt-find <keywords>` (search) | `/prompt-show <id>` (view)
 
 ---
 
@@ -89,31 +90,44 @@ A: Skills are reusable methodologies packaged with the plugin (15 skills, ~1.5MB
 A: Skills are automatically available after plugin installation. Claude Code will suggest relevant skills based on your tasks. See skill descriptions in README.md.
 
 **Q: How does the prompt learning system work?**
-A: After using `/meta Refine prompt: XXX`, you can save the optimized version to `.meta-cc/prompts/library/`. The system automatically recommends these saved prompts when you try similar prompts in the future, making you more efficient over time. Browse your library with `/meta prompts/meta-prompt-list`.
+A: After using `/meta Refine prompt: XXX`, you can save the optimized version to `.meta-cc/prompts/library/`. The system automatically recommends these saved prompts when you try similar prompts in the future, making you more efficient over time. Browse your library with `/prompt-list`.
 
 **Q: Where are saved prompts stored?**
 A: Project-local storage in `.meta-cc/prompts/library/` (not tracked by git by default). You can commit selectively if you want to share with your team. The directory is auto-created on first save.
 
-**Q: Can I search my saved prompts?**
-A: Yes, two methods:
-1. **Automatic**: The system searches your library when you use `/meta Refine prompt:` and suggests similar saved prompts
-2. **Manual**: Use `/meta prompts/meta-prompt-list` to browse, filter, and sort your library
-3. **CLI tools**: Files are plain markdown, use `grep`, `ack`, or `rg` to search content
+**Q: How do I find a saved prompt?**
+A: Three methods (from fastest to most flexible):
+1. **Direct search** (recommended): `/prompt-find <keywords>` - Fast, deterministic search
+   - Example: `/prompt-find phase plan execute`
+   - Uses keyword matching, no LLM overhead
+2. **Semantic search**: `/meta Find prompt: <description>` - Natural language understanding
+   - Example: `/meta Find prompt: plan and execute phase 28`
+   - Uses LLM to understand intent, slower but more flexible
+3. **Manual search**: `grep`, `rg`, or file browser
+   - Files are plain markdown in `.meta-cc/prompts/library/`
 
 **Q: What if I don't want to save prompts?**
 A: Saving is completely optional. Just press Enter or answer "n" when prompted. The save option won't appear again until you optimize another prompt.
 
 **Q: How do I browse my saved prompts?**
-A: Three ways:
-1. **Capability**: `/meta prompts/meta-prompt-list` for formatted table view with statistics
-   - List all: `/meta prompts/meta-prompt-list`
-   - Filter by category: `/meta prompts/meta-prompt-list category=release`
-   - Sort by usage: `/meta prompts/meta-prompt-list sort=usage` (default)
-   - Sort by date: `/meta prompts/meta-prompt-list sort=date` (most recent first)
-   - Sort alphabetically: `/meta prompts/meta-prompt-list sort=alpha`
-   - View details: `/meta prompts/meta-prompt-list detail=<prompt-id>`
-2. **Shell commands**: `ls -lt .meta-cc/prompts/library/` to see files by date
-3. **Search tools**: `rg "keyword" .meta-cc/prompts/library/` to search content
+A: Use the new slash commands (recommended) or shell tools:
+1. **List all prompts**: `/prompt-list`
+   - Filter by category: `/prompt-list category=release`
+   - Sort by usage: `/prompt-list sort=usage` (default, most used first)
+   - Sort by date: `/prompt-list sort=date` (most recent first)
+   - Sort alphabetically: `/prompt-list sort=alpha`
+2. **View prompt details**: `/prompt-show <prompt-id>`
+   - Example: `/prompt-show phase-execution-001`
+   - Supports partial ID matching: `/prompt-show phase`
+3. **Search prompts**: `/prompt-find <keywords>`
+   - Example: `/prompt-find debug error analysis`
+4. **Shell commands**: `ls -lt .meta-cc/prompts/library/` to see files by date
+5. **Search tools**: `rg "keyword" .meta-cc/prompts/library/` to search content
+
+**Slash Command Summary**:
+- `/prompt-find <keywords>` - Search for prompts
+- `/prompt-list [category=X] [sort=usage|date|alpha]` - List all prompts
+- `/prompt-show <prompt-id>` - View full prompt details
 
 **Q: Can I delete or edit saved prompts?**
 A: Yes, they're just markdown files:
