@@ -1,10 +1,42 @@
 ---
 name: meta-prompt-search
-description: Internal capability to search and rank similar prompts from history
+description: Search for existing prompts in the library that match user query.
 category: internal
+internal: true
 ---
 
-λ(query_prompt) → ranked_matches | ∀prompt ∈ library: similarity(query, prompt) > threshold
+search_library :: Query_Prompt → Search_Result
+search_library(Q) = {
+  # Initialize library path
+  library_path: get_library_root(),
+
+  if (not exists(library_path)):
+    return: {action: "continue", matches: [], message: "No library found. Will create on first save."},
+
+  # Extract keywords from query
+  keywords: extract_keywords(Q),
+
+  # Search for matching prompts
+  candidates: ∀file ∈ glob(library_path + "*.md"): {
+    metadata: parse_frontmatter(file),
+    content: read_file(file),
+    original_prompts: extract_section(content, "Original Prompts"),
+    similarity: calculate_similarity(keywords, metadata.keywords ∪ extract_keywords(original_prompts)),
+    usage_score: normalize_usage(metadata.usage_count),
+    combined_score: (similarity * 0.7) + (usage_score * 0.3)
+  },
+
+  # Filter and sort matches
+  matches: filter(candidates, c → c.similarity > 0.2)
+           |> sort_desc(combined_score)
+           |> take(5),
+
+  if (|matches| > 0):
+    display: format_matches(matches, Q),
+    return: {action: "select", matches: matches},
+  else:
+    return: {action: "continue", matches: [], message: "No similar prompts found."}
+}
 
 query_prompt :: String  # User's current prompt to optimize
 
