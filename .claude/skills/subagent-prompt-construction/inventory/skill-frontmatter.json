@@ -1,0 +1,25 @@
+{
+  "skill": "subagent-prompt-construction",
+  "frontmatter": {
+    "name": "subagent-prompt-construction",
+    "description": "Systematic methodology for constructing compact (<150 lines), expressive, Claude Code-integrated subagent prompts using lambda contracts and symbolic logic. Use when creating new specialized subagents for Claude Code with agent composition, MCP tool integration, or skill references. Validated with phase-planner-executor (V_instance=0.895).",
+    "version": 1.0,
+    "status": "validated",
+    "v_meta": 0.709,
+    "v_instance": 0.895,
+    "transferability": 95
+  },
+  "lambda_contract": "\u03bb(use_case, complexity) \u2192 subagent_prompt |",
+  "metrics": {
+    "skill_md_lines": 39,
+    "examples_count": 1,
+    "reference_files_count": 3,
+    "case_studies_count": 1
+  },
+  "compliance": {
+    "skill_md_under_40_lines": true,
+    "has_lambda_contract": true,
+    "has_examples": true,
+    "has_reference": true
+  }
+}

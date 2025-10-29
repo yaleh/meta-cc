@@ -1,0 +1,72 @@
+{
+  "skill": "subagent-prompt-construction",
+  "version": "1.0",
+  "status": "validated",
+  "extraction_date": "2025-10-29",
+  "source_experiment": "experiments/subagent-prompt-methodology",
+  "metrics": {
+    "v_meta": 0.709,
+    "v_instance": 0.895,
+    "transferability": "95%"
+  },
+  "structure": {
+    "skill_md": {
+      "lines": 38,
+      "target": 40,
+      "compliant": true
+    },
+    "templates": {
+      "count": 1,
+      "files": [
+        "subagent-template.md"
+      ]
+    },
+    "examples": {
+      "count": 1,
+      "files": [
+        "phase-planner-executor.md"
+      ],
+      "total_lines": 86,
+      "target_per_file": 150,
+      "compliant": true
+    },
+    "reference": {
+      "count": 3,
+      "files": [
+        "patterns.md",
+        "integration-patterns.md",
+        "symbolic-language.md"
+      ],
+      "total_lines": 1187
+    },
+    "case_studies": {
+      "count": 1,
+      "files": [
+        "phase-planner-executor-analysis.md"
+      ],
+      "total_lines": 484
+    },
+    "scripts": {
+      "count": 4,
+      "files": [
+        "count-artifacts.sh",
+        "extract-patterns.py",
+        "generate-frontmatter.py",
+        "validate-skill.sh"
+      ]
+    }
+  },
+  "content_summary": {
+    "core_patterns": 4,
+    "integration_patterns": 4,
+    "symbolic_operators": 20,
+    "validated_artifacts": 1,
+    "total_lines": 1842
+  },
+  "compactness": {
+    "skill_and_examples": 124,
+    "target": 190,
+    "compliant": true,
+    "efficiency": "34.7% below target"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "experiment": {
+    "name": "subagent-prompt-construction",
+    "domain": "Subagent prompt construction for Claude Code",
+    "status": "near_convergence",
+    "v_meta": 0.709,
+    "v_instance": 0.895
+  },
+  "meta_objective": {
+    "components": [
+      {
+        "name": "compactness",
+        "weight": 0.25,
+        "priority": "high",
+        "targets": {
+          "subagent_prompts": 150,
+          "examples": 150,
+          "SKILL_md": 40
+        },
+        "enforcement": "strict",
+        "notes": "1 - (lines / 150), target ≤150 lines"
+      },
+      {
+        "name": "generality",
+        "weight": 0.20,
+        "priority": "high",
+        "targets": {
+          "min_domains": 3,
+          "cross_domain_applicability": true
+        },
+        "enforcement": "validate",
+        "notes": "successful_domains / total_domains, need 3+ use cases"
+      },
+      {
+        "name": "integration",
+        "weight": 0.25,
+        "priority": "high",
+        "targets": {
+          "min_features": 3,
+          "feature_types": ["agents", "mcp_tools", "skills"]
+        },
+        "enforcement": "strict",
+        "notes": "features_used / total_features, use ≥3 Claude Code features"
+      },
+      {
+        "name": "maintainability",
+        "weight": 0.15,
+        "priority": "medium",
+        "targets": {
+          "clear_structure": true,
+          "easy_to_modify": true,
+          "cross_references": "extensive"
+        },
+        "enforcement": "validate",
+        "notes": "Subjective 0-1, clear structure and easy modification"
+      },
+      {
+        "name": "effectiveness",
+        "weight": 0.15,
+        "priority": "medium",
+        "targets": {
+          "success_rate": 0.85,
+          "generated_agents_work": true
+        },
+        "enforcement": "best_effort",
+        "notes": "success_rate of generated subagents, pending practical test"
+      }
+    ]
+  },
+  "extraction_rules": {
+    "examples_strategy": "compact_only",
+    "case_studies": true,
+    "automation_priority": "high",
+    "notes": "Compactness is high priority (weight 0.25), use compact_only strategy"
+  },
+  "validated_artifacts": [
+    {
+      "name": "phase-planner-executor",
+      "type": "subagent",
+      "path": ".claude/agents/phase-planner-executor.md",
+      "lines": 109,
+      "v_instance": 0.895,
+      "features": {
+        "agents": 2,
+        "mcp_tools": 2,
+        "skills": 0
+      }
+    }
+  ]
+}

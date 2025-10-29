@@ -1,0 +1,60 @@
+{
+  "skill": "subagent-prompt-construction",
+  "patterns": {
+    "patterns_count": 4,
+    "patterns": [
+      {
+        "name": "Orchestration Agent",
+        "use_case": "Coordinate multiple subagents for complex workflows",
+        "structure": "orchestrate :: Task \u2192 Result\norchestrate(task) =\n  plan = agent(planner, task.spec) \u2192\n  \u2200stage \u2208 plan.stages:\n    result = agent(executor, stage) \u2192\n    validate(result) \u2192\n  aggregate(results)"
+      },
+      {
+        "name": "Analysis Agent",
+        "use_case": "Analyze data via MCP tools and generate insights",
+        "structure": "analyze :: Query \u2192 Report\nanalyze(query) =\n  data = mcp::query_tool(query.params) \u2192\n  patterns = extract_patterns(data) \u2192\n  insights = generate_insights(patterns) \u2192\n  report(patterns, insights)"
+      },
+      {
+        "name": "Enhancement Agent",
+        "use_case": "Apply skill guidelines to improve artifacts",
+        "structure": "enhance :: Artifact \u2192 ImprovedArtifact\nenhance(artifact) =\n  guidelines = skill(domain-skill) \u2192\n  analysis = analyze(artifact, guidelines) \u2192\n  improvements = generate(analysis) \u2192\n  apply(improvements, artifact)"
+      },
+      {
+        "name": "Validation Agent",
+        "use_case": "Validate artifacts against criteria",
+        "structure": "validate :: Artifact \u2192 ValidationReport\nvalidate(artifact) =\n  criteria = load_criteria() \u2192\n  results = check_all(artifact, criteria) \u2192\n  report(passes, failures, warnings)"
+      }
+    ]
+  },
+  "integration_patterns": {
+    "integration_patterns_count": 4,
+    "integration_patterns": [
+      {
+        "name": "Subagent Composition",
+        "pattern": "agent(type, description) :: Context \u2192 Output"
+      },
+      {
+        "name": "MCP Tool Integration",
+        "pattern": "mcp::tool_name(params) :: \u2192 Data"
+      },
+      {
+        "name": "Skill Reference",
+        "pattern": "skill(name) :: Context \u2192 Result"
+      },
+      {
+        "name": "Resource Loading",
+        "pattern": "read(path) :: Path \u2192 Content"
+      }
+    ]
+  },
+  "symbolic_language": {
+    "logic_operators": 5,
+    "quantifiers": 9,
+    "set_operations": 6,
+    "total_symbols": 20
+  },
+  "summary": {
+    "total_patterns": 4,
+    "total_integration_patterns": 4,
+    "total_symbols": 20
+  }
+}
