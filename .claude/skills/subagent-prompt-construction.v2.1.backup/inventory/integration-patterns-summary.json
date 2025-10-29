@@ -1,0 +1,22 @@
+{
+  "skill": "subagent-prompt-construction",
+  "integration_pattern_count": 4,
+  "patterns": [
+    {
+      "name": "Pattern 1: Subagent Composition",
+      "syntax": "agent(type, description) :: Context \u2192 Output"
+    },
+    {
+      "name": "Pattern 2: MCP Tool Usage",
+      "syntax": "mcp::tool_name(params) :: \u2192 Data"
+    },
+    {
+      "name": "Pattern 3: Skill Reference",
+      "syntax": "skill(name) :: Context \u2192 Result"
+    },
+    {
+      "name": "Pattern 4: Resource Loading",
+      "syntax": "read(path) :: Path \u2192 Content"
+    }
+  ]
+}

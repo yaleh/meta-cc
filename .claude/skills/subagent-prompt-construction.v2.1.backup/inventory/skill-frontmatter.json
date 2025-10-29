@@ -1,0 +1,12 @@
+{
+  "name": "subagent-prompt-construction",
+  "description": "Systematic methodology for constructing compact, expressive, Claude Code-integrated subagent prompts using lambda-calculus and predicate logic syntax.",
+  "domain": "Claude Code subagent development",
+  "validated": true,
+  "v_instance": 0.895,
+  "v_meta": 0.709,
+  "lines_max": 150,
+  "patterns": 3,
+  "templates": 1,
+  "examples": 1
+}

@@ -1,0 +1,39 @@
+{
+  "skill": "subagent-prompt-construction",
+  "pattern_count": 3,
+  "patterns": [
+    {
+      "name": "Pattern 1: Orchestration Agent",
+      "use_case": "Coordinate multiple subagents to accomplish complex multi-stage tasks.",
+      "when_to_use": [
+        "Need to compose existing agents",
+        "Sequential stage execution required",
+        "Progress tracking needed",
+        "Error handling between stages"
+      ],
+      "validated": false
+    },
+    {
+      "name": "Pattern 2: Analysis Agent",
+      "use_case": "Query MCP tools to extract patterns and generate insights from session data.",
+      "when_to_use": [
+        "Need to analyze session history",
+        "Extract patterns from tool calls",
+        "Generate recommendations",
+        "Identify trends or anomalies"
+      ],
+      "validated": false
+    },
+    {
+      "name": "Pattern 3: Enhancement Agent",
+      "use_case": "Apply skill guidelines to improve or refactor artifacts.",
+      "when_to_use": [
+        "Code refactoring needed",
+        "Documentation improvement",
+        "Test coverage enhancement",
+        "Style/quality improvements"
+      ],
+      "validated": false
+    }
+  ]
+}
