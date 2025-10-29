@@ -5,6 +5,44 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2025-10-29
+
+### Added
+
+- **Phase 28: Prompt Learning System** - Progressive prompt optimization with reusable library
+  - Add `/prompt-find` slash command - Fast keyword-based prompt search
+  - Add `/prompt-list` slash command - Browse prompts with filtering and sorting
+  - Add `/prompt-show` slash command - View full prompt details
+  - Add prompt library integration in `/meta` command for automated recommendations
+  - Add project-local prompt storage in `.meta-cc/prompts/library/`
+  - Add comprehensive prompt learning guide (docs/guides/prompt-learning-system.md)
+
+- **Subagent Prompt Construction Skill** - BAIME-validated methodology for compact subagent prompts
+  - Add complete skill package with templates, patterns, and integration guides
+  - Add phase-planner-executor example (92 lines, V_instance=0.895)
+  - Add symbolic language reference and integration patterns
+  - Add validation scripts and metrics automation
+  - Validated with V_meta=0.709, 95% transferability
+
+- **Knowledge Extractor v3.0** - Meta-objective aware skill extraction
+  - Upgrade knowledge-extractor agent with meta-objective compliance
+  - Add compactness enforcement (λ-contract skills, compact examples)
+  - Add quality validation with dual-layer value functions
+  - Add comprehensive upgrade analysis documentation
+
+### Changed
+
+- Update meta-prompt capability with prompt library search integration
+- Update CLAUDE.md with prompt learning FAQ and slash command reference
+- Mark Phase 28 as complete in implementation plan
+
+### Documentation
+
+- Add prompt learning system guide with usage patterns
+- Add subagent-prompt-construction skill documentation
+- Add knowledge-extractor v3.0 upgrade analysis
+- Add subagent usage patterns analysis
+
 ## [2.2.0] - 2025-10-27
 
 ### Added
