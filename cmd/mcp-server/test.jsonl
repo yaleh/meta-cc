@@ -1,0 +1,3 @@
+{"type": "user", "timestamp": "2025-10-30T10:00:00Z", "message": {"content": "Test message 1", "role": "user"}}
+{"type": "assistant", "timestamp": "2025-10-30T10:00:01Z", "message": {"content": [{"type": "text", "text": "Test response 1"}], "role": "assistant"}}
+{"type": "user", "timestamp": "2025-10-30T10:00:02Z", "message": {"content": [{"type": "tool_result", "is_error": true, "name": "Bash", "content": "Error message"}], "role": "user"}}

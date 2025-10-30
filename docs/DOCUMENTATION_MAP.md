@@ -190,13 +190,14 @@ graph TD
 | Will this doc become stale? | `/meta doc-evolution` | Monthly | Phase transitions, archival probability |
 | What docs am I missing? | `/meta doc-gaps` | Quarterly, pre-release | Undocumented features, knowledge silos |
 | Are my docs effective? | `/meta doc-usage` | Quarterly | Resolution rates, task alignment |
+| Is my doc structure compliant? | `/meta doc-structure` | Quarterly, pre-commit | DRY violations, hierarchy issues, size violations |
 
 **Typical Maintenance Workflow**:
 ```
 Bootstrap:       /meta doc-health (establish baseline)
 Monthly:         /meta doc-health + /meta doc-evolution (15 min)
-Quarterly:       All 4 capabilities + comprehensive review (90 min)
-Pre-Release:     /meta doc-gaps (ensure completeness)
+Quarterly:       All 5 capabilities + comprehensive review (90 min)
+Pre-Release:     /meta doc-gaps + /meta doc-structure (ensure completeness)
 ```
 
 See [Role-Based Documentation Architecture](methodology/role-based-documentation.md) for complete methodology.

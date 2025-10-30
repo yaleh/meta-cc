@@ -379,7 +379,7 @@ deps:
 	$(GOMOD) download
 	$(GOMOD) tidy
 
-lint: fmt vet lint-errors lint-error-handling
+lint: fmt vet lint-errors lint-error-handling lint-markdown
 	@echo "Running static analysis..."
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run ./...; \
@@ -424,6 +424,18 @@ lint-error-handling:
 		echo "⚠️  No files with error wrapping found (this may be expected)"; \
 	fi
 	@echo "✅ Error handling quality check passed"
+
+lint-markdown:
+	@echo "Running markdown linting..."
+	@if command -v markdownlint >/dev/null 2>&1; then \
+		markdownlint --config .markdownlint.json **/*.md; \
+	elif command -v npm >/dev/null 2>&1 && npm list -g markdownlint-cli >/dev/null 2>&1; then \
+		npx markdownlint-cli --config .markdownlint.json **/*.md; \
+	else \
+		echo "markdownlint not found. Install with:"; \
+		echo "  npm install -g markdownlint-cli"; \
+		echo "Skipping markdown linting..."; \
+	fi
 
 fmt:
 	@echo "Formatting code..."
@@ -476,7 +488,8 @@ help:
 	@echo "  make test-all                - Run all tests (including slow E2E tests ~30s)"
 	@echo "  make test-coverage           - Run tests with coverage report"
 	@echo "  make test-coverage-check     - Check test coverage meets 75% threshold"
-	@echo "  make lint                    - Run static analysis (fmt + vet + error-linting + golangci-lint)"
+	@echo "  make lint                    - Run static analysis (fmt + vet + error-linting + golangci-lint + markdown)"
+	@echo "  make lint-markdown           - Run markdown linting"
 	@echo "  make fmt                     - Format code with gofmt"
 	@echo "  make vet                     - Run go vet"
 	@echo ""

@@ -1,0 +1,18 @@
+# Template for filtering tool errors
+name: tool_errors
+description: Filter for tool execution errors in JSONL session files
+category: error_analysis
+filter: |
+  select(.type == "user" and (.message.content | type == "array")) | select(.message.content[] | select(.type == "tool_result" and .is_error == true))
+examples:
+  - description: "Get all tool errors"
+    command: |
+      cat *.jsonl | jq -c 'select(.type == "user" and (.message.content | type == "array")) | select(.message.content[] | select(.type == "tool_result" and .is_error == true))'
+  - description: "Get tool errors for specific tool"
+    command: |
+      cat *.jsonl | jq -c 'select(.type == "user" and (.message.content | type == "array")) | select(.message.content[] | select(.type == "tool_result" and .is_error == true and .name == "Bash"))'
+parameters:
+  - name: tool_name
+    type: string
+    description: "Specific tool name to filter errors for"
+    optional: true

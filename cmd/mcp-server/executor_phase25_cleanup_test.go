@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/yaleh/meta-cc/internal/config"
 )
 
@@ -172,16 +173,16 @@ func TestLegacyToolsRemoved(t *testing.T) {
 func TestPhase25ToolCount(t *testing.T) {
 	tools := getToolDefinitions()
 
-	// Expected: 16 tools total (Phase 27 Stage 27.4 update)
+	// Expected: 17 tools total (Phase 27 Stage 27.5 update)
 	// - 10 convenience tools (Layer 1)
 	// - 3 utility tools (cleanup_temp_files, list_capabilities, get_capability)
-	// - 3 two-stage query tools (get_session_directory, inspect_session_files, execute_stage2_query)
+	// - 4 two-stage query tools (get_session_directory, inspect_session_files, execute_stage2_query, get_session_metadata)
 	//
 	// Phase 27 Removed: query, query_raw (simplified query interface)
-	// Phase 27 Added: inspect_session_files (Stage 27.3), execute_stage2_query (Stage 27.4)
+	// Phase 27 Added: inspect_session_files (Stage 27.3), execute_stage2_query (Stage 27.4), get_session_metadata (Stage 27.5)
 	// Phase 25 Removed: 5 legacy tools (query_tool_sequences, query_file_access, get_session_stats,
 	//                    query_project_state, query_successful_prompts)
-	expectedCount := 16
+	expectedCount := 17
 
 	actualCount := len(tools)
 	require.Equal(t, expectedCount, actualCount,

@@ -147,6 +147,23 @@ func (e *ToolExecutor) executeSpecialTool(cfg *config.Config, toolName, scope st
 		recordToolSuccess(toolName, scope, start)
 		return string(jsonData), true, nil
 
+	case "get_session_metadata":
+		result, err := handleGetSessionMetadata(context.Background(), args)
+		if err != nil {
+			errorType := classifyError(err)
+			recordToolFailure(toolName, scope, start, errorType)
+			return "", true, err
+		}
+		// Convert result to JSON string
+		jsonData, err := json.Marshal(result)
+		if err != nil {
+			errorType := classifyError(err)
+			recordToolFailure(toolName, scope, start, errorType)
+			return "", true, fmt.Errorf("failed to marshal result: %w", err)
+		}
+		recordToolSuccess(toolName, scope, start)
+		return string(jsonData), true, nil
+
 	default:
 		return "", false, nil
 	}

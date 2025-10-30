@@ -319,6 +319,12 @@ func getToolDefinitions() []Tool {
 				Required: []string{"files", "filter"},
 			},
 		},
+		buildTool("get_session_metadata", "Get session metadata including JSONL schema, file info, and query templates. Default scope: project.", map[string]Property{
+			"scope": {
+				Type:        "string",
+				Description: "Query scope: 'project' (default) or 'session'",
+			},
+		}),
 	}
 }
 

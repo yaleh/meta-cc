@@ -1,0 +1,18 @@
+# Template for filtering user messages
+name: user_messages
+description: Filter for user messages in JSONL session files
+category: message_type
+filter: |
+  select(.type == "user")
+examples:
+  - description: "Get all user messages"
+    command: |
+      cat *.jsonl | jq -c 'select(.type == "user")'
+  - description: "Get user messages with specific content pattern"
+    command: |
+      cat *.jsonl | jq -c 'select(.type == "user") | select(.message.content | test("pattern"))'
+parameters:
+  - name: content_pattern
+    type: string
+    description: "Regex pattern to match in message content"
+    optional: true

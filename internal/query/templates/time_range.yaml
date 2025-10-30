@@ -1,0 +1,22 @@
+# Template for filtering by time range
+name: time_range
+description: Filter records by timestamp range in JSONL session files
+category: time_filtering
+filter: |
+  select(.timestamp >= "{{start_time}}" and .timestamp <= "{{end_time}}")
+examples:
+  - description: "Get records from last 24 hours"
+    command: |
+      cat *.jsonl | jq -c 'select(.timestamp >= "2025-10-29T00:00:00Z" and .timestamp <= "2025-10-30T00:00:00Z")'
+  - description: "Get records from specific date"
+    command: |
+      cat *.jsonl | jq -c 'select(.timestamp >= "2025-10-30T00:00:00Z" and .timestamp <= "2025-10-30T23:59:59Z")'
+parameters:
+  - name: start_time
+    type: string
+    description: "Start timestamp in ISO8601 format (e.g., 2025-10-29T00:00:00Z)"
+    optional: false
+  - name: end_time
+    type: string
+    description: "End timestamp in ISO8601 format (e.g., 2025-10-30T00:00:00Z)"
+    optional: false

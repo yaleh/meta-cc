@@ -171,6 +171,17 @@ jobs:
         with:
           go-version: '1.24'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+
+      - name: Run markdown linting
+        run: markdownlint --config .markdownlint.json **/*.md
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:

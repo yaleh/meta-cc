@@ -52,3 +52,4 @@ Thumbs.db
 /.tmp/
 coverage_mcp.out
 coverage_parser.out
+/cmd/mcp-server/mcp-server

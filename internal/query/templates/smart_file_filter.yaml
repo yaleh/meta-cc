@@ -1,0 +1,27 @@
+# Template for smart file filtering based on metadata
+name: smart_file_filter
+description: Smart file filtering based on file metadata from get_session_metadata
+category: file_filtering
+filter: |
+  # This template is used with file metadata to construct efficient file selection
+  # Use the file paths from get_session_metadata response to select specific files
+examples:
+  - description: "Filter files by modification time using metadata"
+    command: |
+      # First get metadata
+      # meta-cc-mcp '{"method":"tools/call","params":{"name":"get_session_metadata","arguments":{"scope":"project"}}}'
+      # Then use file paths from metadata to construct efficient query
+      cat session_2025-10-30.jsonl | jq -c 'select(.type == "user")'
+  - description: "Filter files by size using metadata"
+    command: |
+      # Use metadata to identify large files and process them separately
+      cat large_file.jsonl | jq -c 'select(.type == "assistant")' | head -100
+parameters:
+  - name: file_paths
+    type: array
+    description: "Array of file paths to process (from get_session_metadata response)"
+    optional: false
+  - name: max_records
+    type: integer
+    description: "Maximum number of records to process per file"
+    optional: true
