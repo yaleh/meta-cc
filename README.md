@@ -100,6 +100,7 @@ claude mcp add meta-cc meta-cc-mcp
 
 ```bash
 /meta "show stats"         # Should display session statistics
+/meta "show errors"        # Should analyze error patterns
 ```
 
 **Troubleshooting**: See [Installation Guide](docs/tutorials/installation.md#troubleshooting) for common issues.

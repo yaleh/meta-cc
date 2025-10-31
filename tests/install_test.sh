@@ -66,22 +66,19 @@ test_binary_installation() {
     TEST_BIN_DIR="$TEST_DIR/bin"
     mkdir -p "$TEST_BIN_DIR"
 
-    # Create mock binaries
-    echo "#!/bin/bash" > "$TEST_BIN_DIR/meta-cc"
-    echo "echo 'meta-cc v0.12.0'" >> "$TEST_BIN_DIR/meta-cc"
+    # Create mock binary
     echo "#!/bin/bash" > "$TEST_BIN_DIR/meta-cc-mcp"
     echo "echo 'meta-cc-mcp v0.12.0'" >> "$TEST_BIN_DIR/meta-cc-mcp"
 
     # Test installation
     mkdir -p "$TEST_INSTALL_DIR"
-    cp "$TEST_BIN_DIR/meta-cc" "$TEST_INSTALL_DIR/"
     cp "$TEST_BIN_DIR/meta-cc-mcp" "$TEST_INSTALL_DIR/"
-    chmod +x "$TEST_INSTALL_DIR/meta-cc" "$TEST_INSTALL_DIR/meta-cc-mcp"
+    chmod +x "$TEST_INSTALL_DIR/meta-cc-mcp"
 
-    if [ -x "$TEST_INSTALL_DIR/meta-cc" ] && [ -x "$TEST_INSTALL_DIR/meta-cc-mcp" ]; then
-        pass "binaries installed and executable"
+    if [ -x "$TEST_INSTALL_DIR/meta-cc-mcp" ]; then
+        pass "binary installed and executable"
     else
-        fail "binaries not installed correctly"
+        fail "binary not installed correctly"
     fi
 
     # Cleanup
@@ -168,11 +165,11 @@ EOF
 test_installation_verification() {
     test_start "installation verification"
 
-    # Check if meta-cc binary exists in path or local bin
-    if command -v meta-cc >/dev/null 2>&1 || [ -x "$HOME/.local/bin/meta-cc" ]; then
-        pass "meta-cc binary found and executable"
+    # Check if meta-cc-mcp binary exists in path or local bin
+    if command -v meta-cc-mcp >/dev/null 2>&1 || [ -x "$HOME/.local/bin/meta-cc-mcp" ]; then
+        pass "meta-cc-mcp binary found and executable"
     else
-        echo "SKIP (meta-cc not installed)"
+        echo "SKIP (meta-cc-mcp not installed)"
     fi
 }
 
@@ -198,18 +195,16 @@ test_uninstall_removes_components() {
     mkdir -p "$TEST_INSTALL_DIR" "$TEST_CLAUDE_DIR/commands" "$TEST_CLAUDE_DIR/agents"
 
     # Create mock files
-    touch "$TEST_INSTALL_DIR/meta-cc"
     touch "$TEST_INSTALL_DIR/meta-cc-mcp"
     touch "$TEST_CLAUDE_DIR/commands/meta-stats.md"
     touch "$TEST_CLAUDE_DIR/agents/meta-coach.md"
 
     # Simulate uninstall
-    rm -f "$TEST_INSTALL_DIR/meta-cc" "$TEST_INSTALL_DIR/meta-cc-mcp"
+    rm -f "$TEST_INSTALL_DIR/meta-cc-mcp"
     rm -rf "$TEST_CLAUDE_DIR/commands/meta-"*
     rm -rf "$TEST_CLAUDE_DIR/agents/meta-"*
 
-    if [ ! -f "$TEST_INSTALL_DIR/meta-cc" ] && \
-       [ ! -f "$TEST_INSTALL_DIR/meta-cc-mcp" ] && \
+    if [ ! -f "$TEST_INSTALL_DIR/meta-cc-mcp" ] && \
        [ ! -f "$TEST_CLAUDE_DIR/commands/meta-stats.md" ] && \
        [ ! -f "$TEST_CLAUDE_DIR/agents/meta-coach.md" ]; then
         pass "uninstall removes all components"

@@ -53,3 +53,4 @@ Thumbs.db
 coverage_mcp.out
 coverage_parser.out
 /cmd/mcp-server/mcp-server
+/internal/query/test

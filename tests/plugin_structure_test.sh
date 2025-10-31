@@ -143,7 +143,7 @@ test_binaries_list() {
     test_start "binaries list"
     BINARIES=$(jq -r '.binaries[]' plugin.json 2>/dev/null)
 
-    if echo "$BINARIES" | grep -q "bin/meta-cc" && echo "$BINARIES" | grep -q "bin/meta-cc-mcp"; then
+    if echo "$BINARIES" | grep -q "bin/meta-cc-mcp"; then
         pass "binaries list is correct"
     else
         fail "binaries list is incomplete or incorrect"

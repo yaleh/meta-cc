@@ -31,11 +31,17 @@ echo "Uninstalling meta-cc..."
 echo ""
 
 # Remove binaries
-if [ -f "$INSTALL_DIR/meta-cc" ] || [ -f "$INSTALL_DIR/meta-cc-mcp" ]; then
-    rm -f "$INSTALL_DIR/meta-cc" "$INSTALL_DIR/meta-cc-mcp" 2>/dev/null || true
-    info "Binaries removed from $INSTALL_DIR"
+if [ -f "$INSTALL_DIR/meta-cc-mcp" ]; then
+    rm -f "$INSTALL_DIR/meta-cc-mcp" 2>/dev/null || true
+    info "Binary removed from $INSTALL_DIR"
 else
-    warn "No binaries found in $INSTALL_DIR"
+    warn "No binary found in $INSTALL_DIR"
+fi
+
+# Remove legacy CLI binary if present (optional - for backwards compatibility)
+if [ -f "$INSTALL_DIR/meta-cc" ]; then
+    rm -f "$INSTALL_DIR/meta-cc" 2>/dev/null || true
+    info "Legacy CLI binary removed from $INSTALL_DIR"
 fi
 
 # Remove slash commands

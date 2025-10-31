@@ -59,24 +59,20 @@ install_binaries() {
         BINARY_EXT=""
     fi
 
-    # Check if binaries exist in bin/ directory
-    if [ ! -f "bin/meta-cc${BINARY_EXT}" ]; then
-        error_exit "meta-cc binary not found in bin/"
-    fi
+    # Check if binary exists in bin/ directory
     if [ ! -f "bin/meta-cc-mcp${BINARY_EXT}" ]; then
         error_exit "meta-cc-mcp binary not found in bin/"
     fi
 
-    # Copy binaries
-    cp "bin/meta-cc${BINARY_EXT}" "$INSTALL_DIR/" || error_exit "Failed to copy meta-cc binary"
+    # Copy binary
     cp "bin/meta-cc-mcp${BINARY_EXT}" "$INSTALL_DIR/" || error_exit "Failed to copy meta-cc-mcp binary"
 
     # Set executable permissions (not needed on Windows)
     if [ "$PLATFORM" != "windows" ]; then
-        chmod +x "$INSTALL_DIR/meta-cc" "$INSTALL_DIR/meta-cc-mcp"
+        chmod +x "$INSTALL_DIR/meta-cc-mcp"
     fi
 
-    info "Binaries installed to $INSTALL_DIR"
+    info "Binary installed to $INSTALL_DIR"
 }
 
 # Install Claude Code integration files
@@ -145,35 +141,27 @@ merge_mcp_config() {
 verify_installation() {
     INSTALL_DIR="${INSTALL_DIR:-${HOME}/.local/bin}"
 
-    # Check binaries exist
-    if [ ! -f "$INSTALL_DIR/meta-cc" ]; then
-        error_exit "meta-cc binary not found at $INSTALL_DIR/meta-cc"
-    fi
-
+    # Check binary exists
     if [ ! -f "$INSTALL_DIR/meta-cc-mcp" ]; then
         error_exit "meta-cc-mcp binary not found at $INSTALL_DIR/meta-cc-mcp"
     fi
 
-    # Check binaries are executable
-    if [ ! -x "$INSTALL_DIR/meta-cc" ]; then
-        error_exit "meta-cc binary is not executable"
-    fi
-
+    # Check binary is executable
     if [ ! -x "$INSTALL_DIR/meta-cc-mcp" ]; then
         error_exit "meta-cc-mcp binary is not executable"
     fi
 
     # Test binary runs (if in PATH or if we can run it directly)
-    if command -v meta-cc >/dev/null 2>&1; then
-        if ! meta-cc --version >/dev/null 2>&1; then
-            warn "meta-cc binary found but fails to execute (check dependencies)"
+    if command -v meta-cc-mcp >/dev/null 2>&1; then
+        if ! meta-cc-mcp --version >/dev/null 2>&1; then
+            warn "meta-cc-mcp binary found but fails to execute (check dependencies)"
         else
             info "Installation verified successfully"
         fi
-    elif "$INSTALL_DIR/meta-cc" --version >/dev/null 2>&1; then
+    elif "$INSTALL_DIR/meta-cc-mcp" --version >/dev/null 2>&1; then
         info "Installation verified successfully"
     else
-        warn "meta-cc binary installed but not in PATH"
+        warn "meta-cc-mcp binary installed but not in PATH"
     fi
 }
 
@@ -196,7 +184,7 @@ main() {
     echo "Next steps:"
     echo "1. Add to PATH (if needed): export PATH=\"\$HOME/.local/bin:\$PATH\""
     echo "2. Restart Claude Code to load the plugin"
-    echo "3. Test with: meta-cc --version"
+    echo "3. Configure MCP server: claude mcp add meta-cc meta-cc-mcp"
     echo ""
 }
 

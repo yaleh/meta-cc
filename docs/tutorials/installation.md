@@ -49,40 +49,35 @@ cd meta-cc-plugin-windows-amd64
 
 If the automated installer fails, follow these steps:
 
-### 1. Download Binaries
+### 1. Download Binary
 
 **Linux (x86_64):**
 ```bash
-wget https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-linux-amd64
 wget https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-linux-amd64
 ```
 
 **macOS (Apple Silicon):**
 ```bash
-wget https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-darwin-arm64
 wget https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-darwin-arm64
 ```
 
 **Windows (x86_64):**
 ```bash
-wget https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-windows-amd64.exe
 wget https://github.com/yaleh/meta-cc/releases/latest/download/meta-cc-mcp-windows-amd64.exe
 ```
 
-### 2. Install Binaries
+### 2. Install Binary
 
 **Linux/macOS:**
 ```bash
 mkdir -p ~/.local/bin
-mv meta-cc-<platform> ~/.local/bin/meta-cc
 mv meta-cc-mcp-<platform> ~/.local/bin/meta-cc-mcp
-chmod +x ~/.local/bin/meta-cc ~/.local/bin/meta-cc-mcp
+chmod +x ~/.local/bin/meta-cc-mcp
 ```
 
 **Windows:**
 ```bash
 mkdir -p ~/.local/bin
-mv meta-cc-windows-amd64.exe ~/.local/bin/meta-cc.exe
 mv meta-cc-mcp-windows-amd64.exe ~/.local/bin/meta-cc-mcp.exe
 ```
 
@@ -123,10 +118,10 @@ After installation, verify the setup:
 
 ```bash
 # Check binary version
-meta-cc --version
+meta-cc-mcp --version
 
 # Check binary location
-which meta-cc
+which meta-cc-mcp
 
 # Test MCP server binary
 meta-cc-mcp --version
@@ -134,7 +129,7 @@ meta-cc-mcp --version
 
 **In Claude Code:**
 
-1. **Test Slash Command**: Type `/meta-stats` and press Enter
+1. **Test Slash Command**: Type `/meta "show stats"` and press Enter
 2. **Test Subagent**: Type `@meta-coach` in a new conversation
 3. **Test MCP Tools**: In conversation, ask "What are my recent tool usage patterns?"
 
@@ -142,7 +137,7 @@ meta-cc-mcp --version
 
 ### Binary not found
 
-**Issue**: `meta-cc: command not found`
+**Issue**: `meta-cc-mcp: command not found`
 
 **Solution**: Add `~/.local/bin` to PATH:
 
@@ -230,7 +225,6 @@ source ~/.bash_profile
 
 1. **Allow unsigned binary**:
    ```bash
-   xattr -d com.apple.quarantine ~/.local/bin/meta-cc
    xattr -d com.apple.quarantine ~/.local/bin/meta-cc-mcp
    ```
 2. **Or use System Settings**:
@@ -267,7 +261,7 @@ source ~/.bash_profile
    ```
 3. **Verify .exe extensions**:
    ```bash
-   ls -l ~/.local/bin/meta-cc.exe
+   ls -l ~/.local/bin/meta-cc-mcp.exe
    ```
 
 ## Uninstallation
@@ -284,8 +278,11 @@ cd meta-cc-plugin-<platform>
 ### Manual uninstallation
 
 ```bash
-# Remove binaries
-rm ~/.local/bin/meta-cc ~/.local/bin/meta-cc-mcp
+# Remove binary
+rm ~/.local/bin/meta-cc-mcp
+
+# Remove legacy CLI binary if present (optional)
+rm ~/.local/bin/meta-cc
 
 # Remove Claude Code files
 rm -rf ~/.claude/commands/meta-*
@@ -335,7 +332,7 @@ If you encounter issues not covered in this guide:
    - Operating system and version
    - Installation method used
    - Complete error messages
-   - Output of `meta-cc --version` (if binary runs)
+   - Output of `meta-cc-mcp --version` (if binary runs)
 3. **Community support**: See [Discussions](https://github.com/yaleh/meta-cc/discussions)
 
 ## Next Steps

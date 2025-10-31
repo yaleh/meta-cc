@@ -48,11 +48,9 @@ Test installation on all supported platforms:
 Verify all components function correctly:
 
 #### Binaries
-- [ ] `meta-cc --version` shows correct version
-- [ ] `meta-cc --help` displays help text
 - [ ] `meta-cc-mcp --version` shows correct version
-- [ ] Binaries are in PATH after installation
-- [ ] Binaries have correct permissions (executable)
+- [ ] Binary is in PATH after installation
+- [ ] Binary has correct permissions (executable)
 
 #### Slash Commands
 - [ ] `/meta-stats` displays session statistics
@@ -169,8 +167,7 @@ Verify GitHub Release workflow:
 - [ ] Artifacts uploaded to GitHub Release
 
 #### Package Contents
-- [ ] Each package contains `bin/meta-cc` (or `.exe`)
-- [ ] Each package contains `bin/meta-cc-mcp` (or `.exe`)
+- [x] Each package contains `bin/meta-cc-mcp` (or `.exe`)
 - [ ] Each package contains `.claude/commands/` files
 - [ ] Each package contains `.claude/agents/` files
 - [ ] Each package contains `.claude/lib/` files
@@ -179,6 +176,8 @@ Verify GitHub Release workflow:
 - [ ] Each package contains `plugin.json`
 - [ ] Each package contains `README.md`
 - [ ] Each package contains `LICENSE`
+
+**Note**: `bin/meta-cc` (CLI binary) was removed in Phase 26 - MCP-only architecture. Only `bin/meta-cc-mcp` is required.
 
 #### Checksums
 - [ ] `checksums.txt` file created
