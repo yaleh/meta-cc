@@ -11,7 +11,7 @@
       "name": "meta-cc",
       "source": "./.claude",
       "description": "Meta-Cognition tool for Claude Code with unified /meta command, 5 specialized agents, 13 capabilities, 15 MCP tools, and 18 validated methodology skills (testing, CI/CD, error recovery, documentation, refactoring, and more). Based on BAIME with proven 10-50x speedup.",
-      "version": "2.3.0",
+      "version": "2.3.1",
       "author": {
         "name": "Yale Huang",
         "email": "yaleh@ieee.org",
