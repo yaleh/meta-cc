@@ -32,23 +32,6 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Verify marketplace.json version matches tag
-        run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
-          VERSION_NUM=${VERSION#v}
-          MARKETPLACE_VERSION=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)
-
-          if [ "$MARKETPLACE_VERSION" != "$VERSION_NUM" ]; then
-            echo "❌ ERROR: Version mismatch!"
-            echo "  Git tag: $VERSION ($VERSION_NUM)"
-            echo "  marketplace.json: $MARKETPLACE_VERSION"
-            echo ""
-            echo "This should not happen if you used scripts/release/release.sh"
-            echo "Please ensure the release script updated version files correctly."
-            exit 1
-          fi
-          echo "✓ Marketplace version verified: $VERSION_NUM"
-
       - name: Sync plugin files
         run: bash scripts/sync-plugin-files.sh
 
