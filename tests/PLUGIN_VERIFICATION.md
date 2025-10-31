@@ -217,54 +217,65 @@ Ensure no breaking changes:
 Verify acceptable performance:
 
 #### Installation
+
 - [ ] Installation completes in <2 minutes
 - [ ] No unnecessary network calls
 - [ ] Efficient file copying
 
 #### MCP Server
+
 - [ ] Server starts in <5 seconds
 - [ ] Query responses in <10 seconds (small datasets)
 - [ ] Hybrid mode activates correctly (>8KB results)
 - [ ] No memory leaks during extended use
 
 #### Slash Commands
+
 - [ ] Commands respond in <30 seconds
 - [ ] No timeout errors
 - [ ] Results display correctly
 
+
 ## Testing Environments
 
 ### Primary Testing (Required)
+
 - **Linux x86_64**: Ubuntu 22.04 or later
 - **macOS ARM64**: macOS 12 (Monterey) or later
 
 ### Secondary Testing (Recommended)
+
 - **Linux ARM64**: Ubuntu 22.04 on ARM64
 - **macOS Intel**: macOS 12 or later
 - **Windows x86_64**: Windows 10/11 with Git Bash
 
 ### CI Testing (Automated)
+
 - All 5 platforms via GitHub Actions
 - Workflow validation on every tag push
 
 ## Testing Tools
 
 ### Required
+
 - `bash` (installation scripts)
 - `tar` (package extraction)
 - `jq` (JSON validation)
 - `curl` or `wget` (downloading packages)
 
 ### Optional
+
 - `yamllint` (workflow validation)
 - `shellcheck` (script linting)
 - `sha256sum` (checksum verification)
+
 
 ## Acceptance Criteria
 
 All checklist items must be completed before public release.
 
 ### Critical (Must Pass)
+
 - ✅ Installation works on Linux x86_64
 - ✅ Installation works on macOS ARM64
 - ✅ All binaries execute successfully
@@ -276,6 +287,7 @@ All checklist items must be completed before public release.
 - ✅ All 5 platform packages created
 
 ### Important (Should Pass)
+
 - ✅ Installation works on all 5 platforms
 - ✅ MCP config merge preserves existing servers
 - ✅ Documentation accurate and complete
@@ -283,23 +295,30 @@ All checklist items must be completed before public release.
 - ✅ Checksums validate correctly
 
 ### Nice-to-Have (May Pass)
+
 - ⚠️ Installation completes in <1 minute
 - ⚠️ Zero installation errors on first attempt
 - ⚠️ Perfect cross-platform consistency
 
+
 ## Issue Tracking
 
 ### Critical Issues (Block Release)
+
 - [ ] No critical issues identified
 
 ### High Priority Issues (Should Fix)
+
 - [ ] No high priority issues identified
 
 ### Medium Priority Issues (Can Fix Later)
+
 - [ ] No medium priority issues identified
 
 ### Low Priority Issues (Future Enhancement)
+
 - [ ] No low priority issues identified
+
 
 ## Sign-off
 
