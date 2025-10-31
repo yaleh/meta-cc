@@ -1338,3 +1338,61 @@ func TestExpandTilde(t *testing.T) {
 		})
 	}
 }
+
+// TestCleanupSessionCache tests the CleanupSessionCache function
+func TestCleanupSessionCache(t *testing.T) {
+	// Test with empty cache dir (should return nil)
+	err := CleanupSessionCache()
+	if err != nil {
+		t.Fatalf("CleanupSessionCache with empty dir failed: %v", err)
+	}
+}
+
+// TestGetSessionCacheDir tests the getSessionCacheDir function
+func TestGetSessionCacheDir(t *testing.T) {
+	// Test getting cache directory (should succeed)
+	cacheDir, err := getSessionCacheDir()
+	if err != nil {
+		t.Fatalf("getSessionCacheDir failed: %v", err)
+	}
+	if cacheDir == "" {
+		t.Fatal("getSessionCacheDir returned empty string")
+	}
+}
+
+// TestValidateCapabilityType tests the validateCapabilityType function
+func TestValidateCapabilityType(t *testing.T) {
+	// Test valid capability type
+	err := validateCapabilityType(CapabilityTypeCommands)
+	if err != nil {
+		t.Fatalf("validateCapabilityType with valid type failed: %v", err)
+	}
+
+	// Test invalid capability type
+	invalidType := CapabilityType("invalid")
+	err = validateCapabilityType(invalidType)
+	if err == nil {
+		t.Fatal("validateCapabilityType with invalid type should return error")
+	}
+}
+
+// TestParseCapabilityReference tests the parseCapabilityReference function
+func TestParseCapabilityReference(t *testing.T) {
+	// Test Priority 1: Explicit type parameter
+	capType, name := parseCapabilityReference("test", "commands")
+	if capType != CapabilityTypeCommands || name != "test" {
+		t.Errorf("parseCapabilityReference with explicit type failed: got (%v, %q), want (commands, %q)", capType, name, "test")
+	}
+
+	// Test Priority 2: Parse type from name with prefix
+	capType, name = parseCapabilityReference("prompts/test", "")
+	if capType != CapabilityTypePrompts || name != "test" {
+		t.Errorf("parseCapabilityReference with prefix failed: got (%v, %q), want (prompts, %q)", capType, name, "test")
+	}
+
+	// Test Priority 3: Default to commands
+	capType, name = parseCapabilityReference("test", "")
+	if capType != CapabilityTypeCommands || name != "test" {
+		t.Errorf("parseCapabilityReference with default failed: got (%v, %q), want (commands, %q)", capType, name, "test")
+	}
+}
