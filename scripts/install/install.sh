@@ -151,18 +151,10 @@ verify_installation() {
         error_exit "meta-cc-mcp binary is not executable"
     fi
 
-    # Test binary runs (if in PATH or if we can run it directly)
-    if command -v meta-cc-mcp >/dev/null 2>&1; then
-        if ! meta-cc-mcp --version >/dev/null 2>&1; then
-            warn "meta-cc-mcp binary found but fails to execute (check dependencies)"
-        else
-            info "Installation verified successfully"
-        fi
-    elif "$INSTALL_DIR/meta-cc-mcp" --version >/dev/null 2>&1; then
-        info "Installation verified successfully"
-    else
-        warn "meta-cc-mcp binary installed but not in PATH"
-    fi
+    # Skip version test (binary doesn't support --version yet)
+    # This prevents installation from hanging on systems where --version is tested
+    # TODO: Re-enable when --version flag is added to meta-cc-mcp
+    info "Binary installed successfully"
 }
 
 # Main installation flow
