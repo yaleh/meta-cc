@@ -337,6 +337,10 @@ install-user: stage
 	@mkdir -p ~/.local/share/meta-cc
 	@rsync -a --delete plugin-src/ ~/.local/share/meta-cc/
 	@echo "✓ Copied plugin-src/ to ~/.local/share/meta-cc/ (includes .claude-plugin/marketplace.json with source='.')"
+	@VERSION=$$(jq -r '.version' plugin-src/.claude-plugin/plugin.json); \
+	 jq --arg ver "$$VERSION" '.plugins[0].version = $$ver' ~/.local/share/meta-cc/.claude-plugin/marketplace.json > /tmp/mcc-mkt.tmp && \
+	 mv /tmp/mcc-mkt.tmp ~/.local/share/meta-cc/.claude-plugin/marketplace.json; \
+	 echo "✓ Stamped installed marketplace.json version: $$VERSION"
 	@mkdir -p ~/.claude; \
 	SETTINGS=~/.claude/settings.json; \
 	if [ ! -f "$$SETTINGS" ]; then \
