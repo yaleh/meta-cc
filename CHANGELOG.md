@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.3.4] - 2026-06-23
 
 
+### Changed
+
+- Documentation: add CHANGELOG entry for v3.3.4
+
+## [3.3.4] - 2026-06-23
+
+
 ## [3.3.3] - 2026-06-23
 
 
