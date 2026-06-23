@@ -68,6 +68,20 @@ if [ "$VERIFY_MODE" = true ]; then
     echo "✓ Codex plugin source files verified"
     echo ""
 
+    echo "[5/5] Verifying version consistency across plugin manifests..."
+    PLUGIN_VERSION=$(jq -r '.version' "$PROJECT_ROOT/plugin-src/.claude-plugin/plugin.json")
+    MARKETPLACE_VERSION=$(jq -r '.plugins[0].version' "$PROJECT_ROOT/.claude-plugin/marketplace.json")
+    if [ "$PLUGIN_VERSION" != "$MARKETPLACE_VERSION" ]; then
+        echo "❌ ERROR: Version mismatch between plugin manifests:"
+        echo "  plugin-src/.claude-plugin/plugin.json: $PLUGIN_VERSION"
+        echo "  .claude-plugin/marketplace.json:       $MARKETPLACE_VERSION"
+        echo ""
+        echo "Run 'scripts/release/bump-plugin-version.sh' to sync both files."
+        exit 1
+    fi
+    echo "✓ Version consistent: $PLUGIN_VERSION"
+    echo ""
+
     echo "✅ Plugin file sync verification passed"
 else
     # SYNC MODE: Perform the sync

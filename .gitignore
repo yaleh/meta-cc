@@ -59,3 +59,10 @@ coverage_parser.out
 /internal/query/test
 /.archguard/
 CHANGELOG.md.bak
+
+# loop-backlog runtime files
+backlog/.basic-daemon.pid
+backlog/.basic-daemon.log
+backlog/.loop-stop
+backlog/.caps/
+backlog/.agent-done-*
