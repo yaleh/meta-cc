@@ -135,24 +135,7 @@ func (l *SessionLocator) sessionsFromProject(projectPath, projectHash string) ([
 		return sessions, nil
 	}
 
-	for _, root := range l.TranscriptRoots() {
-		if root.ProjectHashed {
-			continue
-		}
-		if _, err := os.Stat(root.Path); os.IsNotExist(err) {
-			continue
-		}
-
-		rootSessions, err := findProjectJSONLFilesRecursive(root.Path, projectPath)
-		if err == nil {
-			sessions = append(sessions, rootSessions...)
-		}
-	}
-	if len(sessions) == 0 {
-		return nil, fmt.Errorf("checked transcript roots: %s", strings.Join(checked, ", "))
-	}
-
-	return sessions, nil
+	return nil, fmt.Errorf("checked transcript roots: %s", strings.Join(checked, ", "))
 }
 
 func findSessionFilesRecursive(rootPath, filename string) ([]string, error) {
