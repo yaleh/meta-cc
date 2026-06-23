@@ -155,34 +155,6 @@ func handleQueryTimestamps(e *ToolExecutor, scope string, args map[string]interf
 	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, tr)
 }
 
-func handleQuerySummaries(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
-	keyword := GetStringParam(args, "keyword", "")
-	limit := GetIntParam(args, "limit", 0)
-	workingDir := GetStringParam(args, "working_dir", "")
-
-	jqFilter := `select(.type == "summary")`
-
-	if keyword != "" {
-		escapedKeyword := EscapeJQ(keyword)
-		jqFilter = fmt.Sprintf(`%s | select(.summary | test("%s"; "i"))`, jqFilter, escapedKeyword)
-	}
-
-	result, err := e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir)
-	if err != nil {
-		return mcquery.QueryResult{}, err
-	}
-	if len(result.Entries) == 0 {
-		result.Entries = []interface{}{map[string]interface{}{
-			"count":  0,
-			"reason": "no_summaries_generated",
-			"hint":   `No summary records found. Summaries are a separate artifact type from raw messages. Use query_session_content(role="user") for message statistics, or get_timeline(scope="session") for current session events.`,
-		}}
-		result.BypassStats = true
-	}
-	return result, nil
-}
-
 func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := GetStringParam(args, "provider", "claude")
 	blockType := GetStringParam(args, "block_type", "tool_use")
