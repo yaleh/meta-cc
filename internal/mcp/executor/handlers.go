@@ -167,9 +167,9 @@ func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interf
 
 	var jqFilter string
 	if blockType == "tool_use" {
-		jqFilter = `select(.type == "assistant") | .message.content[] | select(.type == "tool_use")`
+		jqFilter = `select(.type == "assistant") | . as $rec | .message.content[] | select(.type == "tool_use") | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
 	} else {
-		jqFilter = `select(.type == "user" and (.message.content | type == "array")) | .message.content[] | select(.type == "tool_result")`
+		jqFilter = `select(.type == "user" and (.message.content | type == "array")) | . as $rec | .message.content[] | select(.type == "tool_result") | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
 	}
 
 	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir)

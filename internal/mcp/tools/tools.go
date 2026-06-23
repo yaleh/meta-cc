@@ -254,7 +254,7 @@ func GetToolDefinitions() []Tool {
 				},
 				"block_type": {
 					Type:        "string",
-					Description: "When role=tool: 'tool_use' or 'tool_result' (default: 'tool_use')",
+					Description: "When role=tool: 'tool_use' or 'tool_result' (default: 'tool_use'). Each result includes outer context fields: timestamp, sessionId, turn.",
 				},
 				"content_type": {
 					Type:        "string",
