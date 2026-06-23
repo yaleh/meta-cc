@@ -112,6 +112,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 CODEX_HOME="$TMP_DIR/codex-home"
 CLAUDE_DIR="$TMP_DIR/claude-home"
 INSTALL_DIR="$TMP_DIR/bin"
+PLUGIN_DATA_DIR="$TMP_DIR/plugin-data"
 SESSION_ID="codex-e2e-session"
 UNIQUE_MESSAGE="codex-e2e-message-$RANDOM-$(date +%s)"
 UNIQUE_ERROR="codex-e2e-error-$RANDOM-$(date +%s)"
@@ -164,6 +165,7 @@ cp "$PROJECT_DIR/scripts/install/install.sh" "$FULL_PKG/install.sh"
 (
     cd "$FULL_PKG"
     INSTALL_DIR="$INSTALL_DIR" CLAUDE_DIR="$CLAUDE_DIR" CODEX_HOME="$CODEX_HOME" \
+        PLUGIN_DATA_DIR="$PLUGIN_DATA_DIR" \
         bash ./install.sh >/dev/null
 )
 
