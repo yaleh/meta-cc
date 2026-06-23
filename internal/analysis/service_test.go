@@ -11,10 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	_ "modernc.org/sqlite"
+
 	"github.com/yaleh/meta-cc/internal/analysis"
 	"github.com/yaleh/meta-cc/internal/analyzer"
 	"github.com/yaleh/meta-cc/internal/parser"
-	_ "modernc.org/sqlite"
 )
 
 var _ analysis.AnalysisService = (*analysis.Service)(nil)
@@ -319,4 +320,31 @@ func TestService_WithStubErrorAnalyzer_Error(t *testing.T) {
 	_, err := svc.AnalyzeErrors(map[string]interface{}{"working_dir": projectPath})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to analyze errors")
+}
+
+func TestService_QueryEditSequences_NoSessionData_ReturnsEmptyResult(t *testing.T) {
+	// Set META_CC_PROJECTS_ROOT to a temp dir with no hashed entry for any project
+	projectsRoot := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex-home"))
+
+	// Use a project path that has no session data (do NOT use setupEmptyProjectDir)
+	noSessionPath := t.TempDir()
+
+	svc := analysis.New()
+	out, err := svc.QueryEditSequences(map[string]interface{}{
+		"working_dir": noSessionPath,
+		"files":       []interface{}{"/some/file.go"},
+	})
+
+	// Must not return an error
+	require.NoError(t, err)
+	require.NotEmpty(t, out)
+
+	// Must return a valid JSON with "files" and "summary" keys
+	var result map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(out), &result))
+	assert.Contains(t, result, "files", "result should contain 'files' key")
+	assert.Contains(t, result, "summary", "result should contain 'summary' key")
 }

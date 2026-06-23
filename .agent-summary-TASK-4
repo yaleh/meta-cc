@@ -1,0 +1,19 @@
+# Agent Summary - TASK-4
+
+## Task
+Fix query_edit_sequences hang when no session files found
+
+## Plan
+- Phase A: Remove expensive non-hashed fallback from sessionsFromProject + add regression test
+- Phase B: Return empty result instead of error in QueryEditSequences + add test
+
+## Progress
+- Phase A: COMPLETE
+  - Added TestSessionsFromProject_NoHashedSessions_ReturnsImmediately test
+  - Removed non-hashed fallback loop from sessionsFromProject in args.go
+  - Updated TestFromProjectPath_CodexSessionsFallback and TestFromProjectPath_CodexSessionsFallbackIgnoresMessageMentions to expect errors (fallback removed)
+  - All locator tests pass
+- Phase B: COMPLETE
+  - Added TestService_QueryEditSequences_NoSessionData_ReturnsEmptyResult test
+  - In QueryEditSequences: moved files extraction ABOVE loadData call; on "failed to locate project sessions" error returns empty BuildEditSequences result instead of error
+  - All tests pass; go build ./... succeeds

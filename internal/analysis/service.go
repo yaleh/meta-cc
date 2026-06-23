@@ -329,11 +329,7 @@ func gitProjectRoot() string {
 
 // QueryEditSequences implements the query_edit_sequences MCP tool.
 func (s *Service) QueryEditSequences(args map[string]interface{}) (string, error) {
-	entries, _, err := s.loadData(args)
-	if err != nil {
-		return "", fmt.Errorf("failed to load session data: %w", err)
-	}
-
+	// Extract files before loadData so we can build an empty result on no-session errors.
 	var files []string
 	if raw, ok := args["files"]; ok {
 		switch v := raw.(type) {
@@ -356,6 +352,18 @@ func (s *Service) QueryEditSequences(args map[string]interface{}) (string, error
 
 	includeContent := boolArg(args, "include_content")
 	limitPerFile := intArg(args, "limit_per_file")
+
+	entries, _, err := s.loadData(args)
+	if err != nil {
+		// When no session files are found, return an empty result immediately
+		// rather than propagating the error. This prevents hangs in git worktrees,
+		// CI environments, and new clones that have no Claude session data.
+		if strings.Contains(err.Error(), "failed to locate project sessions") {
+			result := analyzer.BuildEditSequences(nil, files, includeContent, limitPerFile)
+			return marshalResult(result)
+		}
+		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
 
 	result := analyzer.BuildEditSequences(entries, files, includeContent, limitPerFile)
 	return marshalResult(result)

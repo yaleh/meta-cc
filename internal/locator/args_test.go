@@ -1,10 +1,12 @@
 package locator
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yaleh/meta-cc/internal/testutil"
 )
@@ -232,6 +234,9 @@ func TestFromProjectPath_NoSessions(t *testing.T) {
 }
 
 func TestFromProjectPath_CodexSessionsFallback(t *testing.T) {
+	// The non-hashed Codex sessions content-scan fallback has been removed to prevent
+	// O(n×file_size) hangs. Codex project sessions are now looked up via the explicit
+	// provider path (provider="codex") rather than content-scanning all JSONL files.
 	t.Setenv(projectsRootEnv, "")
 	home := t.TempDir()
 	codexHome := filepath.Join(t.TempDir(), "codex-home")
@@ -259,16 +264,19 @@ func TestFromProjectPath_CodexSessionsFallback(t *testing.T) {
 	}
 
 	locator := NewSessionLocator()
-	path, err := locator.FromProjectPath(projectPath)
-	if err != nil {
-		t.Fatalf("Expected Codex sessions fallback to succeed, got: %v", err)
-	}
-	if path != newSession {
-		t.Errorf("Expected newest Codex session %s, got %s", newSession, path)
+	// The content-scan fallback is removed; without a hashed Claude session dir,
+	// FromProjectPath returns an error even if matching Codex JSONL files exist.
+	// Use provider="codex" via the analysis service to query Codex sessions.
+	_, err := locator.FromProjectPath(projectPath)
+	if err == nil {
+		t.Fatal("Expected error after content-scan fallback removal, but got success")
 	}
 }
 
 func TestFromProjectPath_CodexSessionsFallbackIgnoresMessageMentions(t *testing.T) {
+	// The non-hashed Codex sessions content-scan fallback has been removed.
+	// This test verifies that FromProjectPath returns an error without scanning
+	// Codex JSONL content when no hashed Claude session directory exists.
 	t.Setenv(projectsRootEnv, "")
 	home := t.TempDir()
 	codexHome := filepath.Join(t.TempDir(), "codex-home")
@@ -297,12 +305,11 @@ func TestFromProjectPath_CodexSessionsFallbackIgnoresMessageMentions(t *testing.
 	}
 
 	locator := NewSessionLocator()
-	path, err := locator.FromProjectPath(projectPath)
-	if err != nil {
-		t.Fatalf("Expected Codex sessions fallback to succeed, got: %v", err)
-	}
-	if path != matching {
-		t.Errorf("Expected structured cwd match %s, got %s", matching, path)
+	// After removing the content-scan fallback, no Codex session will be found
+	// via FromProjectPath; users should use provider="codex" via analysis service.
+	_, err := locator.FromProjectPath(projectPath)
+	if err == nil {
+		t.Fatal("Expected error after content-scan fallback removal, but got success")
 	}
 }
 
@@ -425,6 +432,57 @@ func TestAllSessionsFromProject_NoSessions(t *testing.T) {
 
 	if sessions != nil {
 		t.Errorf("Expected nil sessions on error, got: %v", sessions)
+	}
+}
+
+func TestSessionsFromProject_NoHashedSessions_ReturnsImmediately(t *testing.T) {
+	// Set META_CC_PROJECTS_ROOT to a temp dir with no hashed subdir matching the probe path
+	projectsRoot := t.TempDir()
+	t.Setenv(projectsRootEnv, projectsRoot)
+	t.Setenv("HOME", t.TempDir())
+
+	// Set Codex root to a temp dir with 50 synthetic .jsonl files x 10 lines each
+	// so findProjectJSONLFilesRecursive would take noticeable time if called
+	codexHome := t.TempDir()
+	t.Setenv(codexHomeEnv, codexHome)
+	codexSessionsDir := filepath.Join(codexHome, "sessions")
+	if err := os.MkdirAll(codexSessionsDir, 0755); err != nil {
+		t.Fatalf("failed to create codex sessions dir: %v", err)
+	}
+	// Create 50 synthetic .jsonl files x 10 lines each
+	syntheticContent := []byte(`{"cwd":"/some/other/project","type":"user"}` + "\n" +
+		`{"cwd":"/some/other/project","type":"assistant"}` + "\n" +
+		`{"cwd":"/some/other/project","type":"user"}` + "\n" +
+		`{"cwd":"/some/other/project","type":"assistant"}` + "\n" +
+		`{"cwd":"/some/other/project","type":"user"}` + "\n" +
+		`{"cwd":"/some/other/project","type":"assistant"}` + "\n" +
+		`{"cwd":"/some/other/project","type":"user"}` + "\n" +
+		`{"cwd":"/some/other/project","type":"assistant"}` + "\n" +
+		`{"cwd":"/some/other/project","type":"user"}` + "\n" +
+		`{"cwd":"/some/other/project","type":"assistant"}` + "\n")
+	for i := 0; i < 50; i++ {
+		fname := filepath.Join(codexSessionsDir, fmt.Sprintf("synthetic-%d.jsonl", i))
+		if err := os.WriteFile(fname, syntheticContent, 0644); err != nil {
+			t.Fatalf("failed to write synthetic file: %v", err)
+		}
+	}
+
+	// Use a project path that is not in any JSONL file and not in projectsRoot
+	noSessionPath := t.TempDir()
+
+	locator := NewSessionLocator()
+
+	start := time.Now()
+	_, err := locator.AllSessionsFromProject(noSessionPath)
+	elapsed := time.Since(start)
+
+	// Must return an error (no sessions found)
+	if err == nil {
+		t.Error("Expected error for project with no sessions")
+	}
+	// Must complete in under 200ms (fallback not called)
+	if elapsed >= 200*time.Millisecond {
+		t.Errorf("AllSessionsFromProject took %v, expected < 200ms (fallback must not be called)", elapsed)
 	}
 }
 
