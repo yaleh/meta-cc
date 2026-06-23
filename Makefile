@@ -336,10 +336,7 @@ install-user: stage
 	@echo "Installing plugin at user scope (~/.local/share/meta-cc)..."
 	@mkdir -p ~/.local/share/meta-cc
 	@rsync -a --delete plugin-src/ ~/.local/share/meta-cc/
-	@echo "✓ Copied plugin-src/ to ~/.local/share/meta-cc/"
-	@jq '.plugins[0].source = "."' .claude-plugin/marketplace.json \
-		> ~/.local/share/meta-cc/.claude-plugin/marketplace.json
-	@echo "✓ Installed ~/.local/share/meta-cc/.claude-plugin/marketplace.json"
+	@echo "✓ Copied plugin-src/ to ~/.local/share/meta-cc/ (includes .claude-plugin/marketplace.json with source='.')"
 	@mkdir -p ~/.claude; \
 	SETTINGS=~/.claude/settings.json; \
 	if [ ! -f "$$SETTINGS" ]; then \
