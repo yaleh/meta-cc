@@ -1,6 +1,6 @@
 # Proposal: Query Architecture Cleanup — Three Structural Improvements
 
-**Status**: Draft
+**Status**: Implemented (Phases 78–80)
 **Date**: 2026-03-12
 **Author**: Yale Huang
 

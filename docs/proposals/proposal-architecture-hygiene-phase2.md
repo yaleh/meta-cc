@@ -1,6 +1,6 @@
 # Proposal: Architecture Hygiene Phase 2 — Five Structural Improvements
 
-**Status**: Draft (Architect-Reviewed 2026-03-11)
+**Status**: Implemented (Phases 60–64; TimeRange in types, pkg/ removed, cmd/mcp-server split; see audit 2026-06-23)
 **Date**: 2026-03-11
 **Author**: Yale Huang
 

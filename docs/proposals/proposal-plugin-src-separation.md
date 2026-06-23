@@ -1,6 +1,6 @@
 # Proposal: plugin-src/ — Source/Deployed Separation for Claude Code Plugin
 
-**Status**: Revised after Architectural Review
+**Status**: Implemented (plugin-src/ directory exists with bin/, commands/, skills/, marketplace.json; see audit 2026-06-23)
 **Date**: 2026-03-09
 **Author**: Yale Huang / Claude Code Analysis
 **Reviewed by**: Strict architectural review (2026-03-09) — 17 issues identified and addressed

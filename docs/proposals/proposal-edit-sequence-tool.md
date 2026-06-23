@@ -1,6 +1,6 @@
 # query_edit_sequences: Ordered Read/Edit Timeline per File
 
-> Status: Draft (rev 1)
+> Status: Implemented (2026-06-23, see internal/analyzer/edit_sequences.go + internal/mcp/executor/edit_sequences_handler.go)
 > Scope: New MCP tool — exposes ordered Read/Edit event sequences per file from session
 >        history; enables LLM to classify AI behavioral patterns (A/B/C)
 > Related: archguard `proposal-cognitive-analysis-layer.md`

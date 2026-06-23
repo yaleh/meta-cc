@@ -1,6 +1,6 @@
 # Plan 60–64: Architecture Hygiene Phase 2
 
-**Status**: Draft
+**Status**: Mostly Completed (Phase 61 ✅ TimeRange in types; Phase 62 ✅ pkg/ removed; Phase 60 ✅ cmd/mcp-server <900 LOC; Phase 63/64 — verify testability seams and depguard; see audit note 2026-06-23)
 **Proposal**: [docs/proposals/proposal-architecture-hygiene-phase2.md](../proposals/proposal-architecture-hygiene-phase2.md)
 
 ---

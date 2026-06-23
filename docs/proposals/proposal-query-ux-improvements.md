@@ -1,6 +1,6 @@
 # Proposal: Query UX Improvements — group_by_session, preview_length, context_turns, session-level stats
 
-**Status**: Draft
+**Status**: Implemented (Phases 47–55; since/until/preview_length/group_by_session/stats_level/context_turns all in internal/mcp/)
 **Phase**: 52–55
 **Priority**: P1
 **Date**: 2026-03-09

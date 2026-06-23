@@ -1,6 +1,6 @@
 # Plan 66–70: JSONL Streaming Reader with Early Image Filtering
 
-**Status**: Draft
+**Status**: Completed (see internal/parser/streaming_reader.go)
 **Proposal**: [docs/proposals/proposal-jsonl-streaming-reader.md](../proposals/proposal-jsonl-streaming-reader.md)
 
 ---

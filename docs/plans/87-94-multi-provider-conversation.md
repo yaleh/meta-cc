@@ -3,7 +3,7 @@
 **Created**: 2026-06-14
 **Proposal**: [proposal-multi-provider-conversation.md](../proposals/proposal-multi-provider-conversation.md)
 **Preceding plan**: [81-86-arch-cleanup.md](81-86-arch-cleanup.md)
-**Status**: Pending
+**Status**: Completed (internal/provider/, internal/conversation/ implemented; query_conversation_flow MCP tool live)
 
 ---
 

@@ -1,6 +1,6 @@
 # Proposal: Analyzer Layer Clarification and Dead-Code Removal
 
-**Status**: Draft
+**Status**: Implemented (Phase 65; internal/pipeline deleted, see audit 2026-06-23)
 **Date**: 2026-03-12
 **Author**: Yale Huang
 **Reviewed**: 2026-03-12 (architectural review pass — corrections and additions inline)

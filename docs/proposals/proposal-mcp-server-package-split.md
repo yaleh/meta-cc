@@ -1,6 +1,6 @@
 # Proposal: Finish Splitting `cmd/mcp-server` into a Thin MCP Entry Point
 
-**Status**: Draft (Architect-Reviewed 2026-03-12)  
+**Status**: Implemented via Phases 71–75 (internal/mcp/* packages created; cmd/mcp-server reduced to thin wiring)
 **Date**: 2026-03-12  
 **Supersedes**: the original package-split framing in `docs/plans/31-mcp-server-package-split.md`
 

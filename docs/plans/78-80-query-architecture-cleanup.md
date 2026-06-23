@@ -1,6 +1,6 @@
 # Plan 78–80: Query Architecture Cleanup
 
-**Status**: Planned
+**Status**: Completed (internal/query/jq/ deleted; turnindex/, sequences/, assistant/ sub-packages created)
 **Proposal**: [docs/proposals/proposal-query-architecture-cleanup.md](../proposals/proposal-query-architecture-cleanup.md)
 
 ---
