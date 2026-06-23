@@ -5,6 +5,18 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.2] - 2026-06-23
+
+
+### Changed
+
+- Maintenance: remove project-local basic-daemon scripts (now bundled in BAIME plugin)
+- Maintenance: remove leaked agent summary, add .agent-summary-* to gitignore
+
+### Other
+
+- merge: Fix install-user marketplace.json source path (TASK-9)
+
 ## [3.3.1] - 2026-06-23
 
 
