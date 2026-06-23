@@ -11,38 +11,9 @@ import (
 // Each tool is registered via init() so executor.go needs no switch statement.
 // Exported Handle* methods are kept for backward compatibility with cmd/mcp-server.
 
-func init() {
-	registerQueryHandler("query_user_messages", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryUserMessages(e, scope, args)
-	})
-	registerQueryHandler("query_tools", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryTools(e, scope, args)
-	})
-	registerQueryHandler("query_tool_errors", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryToolErrors(e, scope, args)
-	})
-	registerQueryHandler("query_token_usage", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryTokenUsage(e, scope, args)
-	})
-	registerQueryHandler("query_conversation_flow", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryConversationFlow(e, scope, args)
-	})
-	registerQueryHandler("query_system_errors", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQuerySystemErrors(e, scope, args)
-	})
-	registerQueryHandler("query_file_snapshots", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryFileSnapshots(e, scope, args)
-	})
-	registerQueryHandler("query_timestamps", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryTimestamps(e, scope, args)
-	})
-	registerQueryHandler("query_summaries", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQuerySummaries(e, scope, args)
-	})
-	registerQueryHandler("query_tool_blocks", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryToolBlocks(e, scope, args)
-	})
-}
+// Old tool registrations removed in Phase D.
+// The private handler functions (handleQueryUserMessages, handleQueryTools, etc.)
+// are kept because consolidated_handlers.go delegates to them.
 
 // ─── Private implementations ──────────────────────────────────────────────────
 
@@ -205,7 +176,7 @@ func handleQuerySummaries(e *ToolExecutor, scope string, args map[string]interfa
 		result.Entries = []interface{}{map[string]interface{}{
 			"count":  0,
 			"reason": "no_summaries_generated",
-			"hint":   `No summary records found. Summaries are a separate artifact type from raw messages. Use query_user_messages for message statistics, or get_timeline(scope="session") for current session events.`,
+			"hint":   `No summary records found. Summaries are a separate artifact type from raw messages. Use query_session_content(role="user") for message statistics, or get_timeline(scope="session") for current session events.`,
 		}}
 		result.BypassStats = true
 	}

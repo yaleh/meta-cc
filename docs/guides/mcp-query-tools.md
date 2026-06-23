@@ -15,12 +15,14 @@ Convenience query tools accept a standard `provider` parameter:
 Use `provider: "all"` only when your filters can handle records from both providers.
 
 ```javascript
-query_tools({
+query_session_signals({
+  type: "tool_stats",
   provider: "codex",
   limit: 20
 })
 
-query_user_messages({
+query_session_content({
+  role: "user",
   provider: "all",
   pattern: "refactor",
   limit: 20
@@ -39,54 +41,130 @@ Codex rollout normalization covers:
 - user and assistant messages
 - function/custom tool calls
 - function/custom tool outputs
-- token usage exposed through `query_token_usage`
+- token usage exposed through `query_session_signals(type="tokens")`
 
 Claude-specific records without Codex equivalents remain host-specific: `file-history-snapshot`, top-level `summary`, and `system` records with `subtype: "api_error"`.
 
 ## Tool Catalog
 
-### Convenience Queries
+### Consolidated Query Tools
 
-These tools scan the current project by default and accept `scope`, `provider`, `working_dir`, `limit`, `stats_only`, `stats_first`, and output parameters where applicable.
+These three tools replace the previous 10 individual `query_*` tools. They scan the current project by default and accept `scope`, `provider`, `working_dir`, `limit`, `stats_only`, `stats_first`, and output parameters.
 
-| Tool | Purpose | Claude Code | Codex |
+#### `query_session_content`
+
+Query session messages by role. The `role` parameter is required.
+
+| Role | Purpose | Claude Code | Codex |
 |------|---------|-------------|-------|
-| `query_user_messages` | Search user messages by regex | Yes | Yes |
-| `query_tools` | Query assistant tool calls | Yes | Yes |
-| `query_tool_errors` | Query failed tool results | Yes | Yes |
-| `query_token_usage` | Query assistant token usage | Yes | Yes |
-| `query_conversation_flow` | Query user/assistant turns | Yes | Yes |
-| `query_tool_blocks` | Query `tool_use` or `tool_result` blocks | Yes | Yes |
-| `query_timestamps` | Query timestamped records | Yes | Yes |
-| `query_system_errors` | Query Claude API system errors | Yes | Host-specific empty |
-| `query_file_snapshots` | Query Claude file history snapshots | Yes | Host-specific empty |
-| `query_summaries` | Query Claude session summaries | Yes | Host-specific empty |
+| `user` | Search user messages by regex pattern | Yes | Yes |
+| `assistant` | Query assistant messages (optionally filter by `contains`) | Yes | Yes |
+| `tool` | Query `tool_use` or `tool_result` blocks | Yes | Yes |
+| `all` | Query user/assistant conversation flow | Yes | Yes |
+
+Additional parameters when `role=user`:
+- `pattern` — regex filter applied to message content
+- `content_type` — `string` (default) or `array` (tool results)
+- `exclude_system_messages` — exclude Claude Code system-injected messages
+- `max_message_length` — truncate content at N characters
+- `min_content_length` / `max_content_length` — filter by content length
+- `content_summary` — return summary only (session_id/turn/timestamp/preview)
+- `group_by_session` — group results by session
+- `context_turns` — include N turns before/after each match
+- `since` / `until` — RFC3339 time range filter
+
+Additional parameters when `role=assistant`:
+- `contains` — substring filter (case-insensitive); use `"## Summary"` to retrieve summaries
+
+Additional parameters when `role=tool`:
+- `block_type` — `tool_use` (default) or `tool_result`
 
 Examples:
 
 ```javascript
-query_user_messages({
+// User messages about migration
+query_session_content({
+  role: "user",
   provider: "codex",
   pattern: "migration",
   limit: 20
 })
 
-query_tools({
-  provider: "all",
-  tool: "exec_command",
-  working_dir: "/path/to/project",
-  limit: 50
+// Session summaries
+query_session_content({
+  role: "assistant",
+  contains: "## Summary",
+  stats_first: true
 })
 
-query_tool_errors({
+// Conversation flow
+query_session_content({
+  role: "all",
+  scope: "session"
+})
+```
+
+#### `query_session_signals`
+
+Query structured session signals. The `type` parameter is required.
+
+| Type | Purpose | Claude Code | Codex |
+|------|---------|-------------|-------|
+| `errors` | Failed tool results | Yes | Yes |
+| `tokens` | Assistant token usage | Yes | Yes |
+| `system_errors` | Claude API system errors | Yes | Host-specific empty |
+| `timestamps` | All timestamped entries | Yes | Yes |
+| `tool_stats` | Assistant tool calls | Yes | Yes |
+
+Additional parameters when `type=tool_stats`:
+- `tool` — filter by tool name
+- `status` — filter by status (`error` or `success`)
+
+All types support `since` / `until` RFC3339 time range filters.
+
+Examples:
+
+```javascript
+// Tool errors with stats
+query_session_signals({
+  type: "errors",
   provider: "claude",
   scope: "session",
   stats_first: true
 })
 
-query_token_usage({
+// Token usage
+query_session_signals({
+  type: "tokens",
   provider: "codex",
   stats_first: true,
+  limit: 20
+})
+
+// Tool calls filtered by name
+query_session_signals({
+  type: "tool_stats",
+  tool: "exec_command",
+  provider: "all",
+  working_dir: "/path/to/project",
+  limit: 50
+})
+```
+
+#### `query_file_activity`
+
+Query file history and activity. The `type` parameter is required.
+
+| Type | Purpose | Claude Code | Codex |
+|------|---------|-------------|-------|
+| `snapshots` | File history snapshots with messageId | Yes | Host-specific empty |
+
+Example:
+
+```javascript
+query_file_activity({
+  type: "snapshots",
+  scope: "project",
   limit: 20
 })
 ```
@@ -148,13 +226,11 @@ analyze_errors({
 })
 ```
 
-### Cleanup and Capabilities
+### Cleanup
 
 | Tool | Purpose |
 |------|---------|
 | `cleanup_temp_files` | Remove old temporary MCP output files |
-| `list_capabilities` | List prompt/command capabilities |
-| `get_capability` | Retrieve a capability by name/type |
 
 ## Standard Parameters
 
@@ -171,9 +247,7 @@ Most query tools accept:
 | `output_format` | string | `jsonl` or `tsv` |
 | `inline_threshold_bytes` | number | Threshold for inline vs file reference output |
 
-`query_user_messages` also supports `pattern`, `content_type`, length filters, `context_turns`, `group_by_session`, and RFC3339 `since` / `until`.
-
-## Output Mode
+## Hybrid Output Mode
 
 meta-cc uses hybrid output:
 
@@ -187,7 +261,8 @@ This keeps MCP responses usable for both short interactive questions and large p
 Find Codex user prompts about a topic:
 
 ```javascript
-query_user_messages({
+query_session_content({
+  role: "user",
   provider: "codex",
   pattern: "release|deploy",
   limit: 20
@@ -205,7 +280,8 @@ get_work_patterns({
 Inspect token usage:
 
 ```javascript
-query_token_usage({
+query_session_signals({
+  type: "tokens",
   provider: "codex",
   stats_first: true
 })
@@ -221,6 +297,23 @@ execute_stage2_query({
   limit: 100
 })
 ```
+
+## Migration from Previous Tools
+
+The 10 previous individual query tools have been replaced:
+
+| Old tool | New equivalent |
+|----------|---------------|
+| `query_user_messages` | `query_session_content(role="user")` |
+| `query_tool_blocks` | `query_session_content(role="tool")` |
+| `query_summaries` | `query_session_content(role="assistant", contains="## Summary")` |
+| `query_conversation_flow` | `query_session_content(role="all")` |
+| `query_tool_errors` | `query_session_signals(type="errors")` |
+| `query_token_usage` | `query_session_signals(type="tokens")` |
+| `query_system_errors` | `query_session_signals(type="system_errors")` |
+| `query_timestamps` | `query_session_signals(type="timestamps")` |
+| `query_tools` | `query_session_signals(type="tool_stats")` |
+| `query_file_snapshots` | `query_file_activity(type="snapshots")` |
 
 ## See Also
 

@@ -112,222 +112,6 @@ func GetToolDefinitions() []Tool {
 		// Phase 27 Stage 27.1: query and query_raw tools removed
 		// Use the 10 shortcut query tools instead
 
-		// Layer 1: Convenience Tools (10 high-frequency queries)
-		// Note: query_user_messages and query_tools already exist above
-		BuildTool("query_tool_errors", "Query tool execution errors. Default scope: project.", map[string]Property{
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			"working_dir": {
-				Type:        "string",
-				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
-			},
-		}),
-		BuildTool("query_token_usage", "Query assistant messages with token usage stats. Default scope: project.", map[string]Property{
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			"working_dir": {
-				Type:        "string",
-				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
-			},
-		}),
-		BuildTool("query_conversation_flow", "Query user and assistant conversation flow. Default scope: project.", map[string]Property{
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			"transform": {
-				Type:        "string",
-				Description: "Optional jq transform for parent-child relationships",
-			},
-			"working_dir": {
-				Type:        "string",
-				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
-			},
-			"since": {
-				Type:        "string",
-				Description: `Include only records with timestamp >= this value (RFC3339, e.g. "2026-03-07T00:00:00Z")`,
-			},
-			"until": {
-				Type:        "string",
-				Description: `Include only records with timestamp < this value (RFC3339)`,
-			},
-		}),
-		BuildTool("query_system_errors", "Query system API errors. Default scope: project.", map[string]Property{
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			"working_dir": {
-				Type:        "string",
-				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
-			},
-		}),
-		BuildTool("query_file_snapshots", "Query file history snapshots. Default scope: project.", map[string]Property{
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			"working_dir": {
-				Type:        "string",
-				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
-			},
-		}),
-		BuildTool("query_timestamps", "Query all entries with timestamps. Default scope: project.", map[string]Property{
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			"working_dir": {
-				Type:        "string",
-				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
-			},
-			"since": {
-				Type:        "string",
-				Description: `Include only records with timestamp >= this value (RFC3339, e.g. "2026-03-07T00:00:00Z")`,
-			},
-			"until": {
-				Type:        "string",
-				Description: `Include only records with timestamp < this value (RFC3339)`,
-			},
-		}),
-		BuildTool("query_summaries", "Query session summaries. Default scope: project.", map[string]Property{
-			"keyword": {
-				Type:        "string",
-				Description: "Keyword to search in summary (case-insensitive)",
-			},
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			"working_dir": {
-				Type:        "string",
-				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
-			},
-		}),
-		BuildTool("query_tool_blocks", "Query tool use or tool result blocks. Default scope: project.", map[string]Property{
-			"block_type": {
-				Type:        "string",
-				Description: "Block type: 'tool_use' or 'tool_result' (required)",
-			},
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			"working_dir": {
-				Type:        "string",
-				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
-			},
-		}, "block_type"),
-
-		BuildTool("query_tools", "Query assistant's internal tool calls. Large output, not for user analysis. Default scope: project.", map[string]Property{
-			// Tier 2: Filtering
-			"tool": {
-				Type:        "string",
-				Description: "Filter by tool name",
-			},
-			"status": {
-				Type:        "string",
-				Description: "Filter by status (error/success)",
-			},
-			// Tier 4: Output Control
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			"working_dir": {
-				Type:        "string",
-				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
-			},
-			// Override jq_filter with schema (snake_case fields)
-			"jq_filter": JqFilterWithSchema(map[string]string{
-				"tool_name": "string - Tool identifier (e.g., \"Bash\", \"Read\", \"mcp__meta-cc__query_tools\")",
-				"status":    "string - Execution status (\"success\" or \"error\")",
-				"timestamp": "string - ISO8601 timestamp",
-				"error":     "string - Error message if status is \"error\"",
-				"input":     "object - Tool input parameters",
-				"output":    "object - Tool output/result",
-				"uuid":      "string - Unique call identifier",
-			}, ".[] | select(.tool_name == \"Bash\" and .status == \"error\")"),
-		}),
-		BuildTool("query_user_messages", "Search user messages with regex. May contain large outputs. Default scope: project.", map[string]Property{
-			// Tier 1: Required
-			"pattern": {
-				Type:        "string",
-				Description: "Regex pattern to match (required)",
-			},
-			// Tier 2: Content type
-			"content_type": {
-				Type:        "string",
-				Description: "Content type filter: 'string' (default) or 'array' (tool results)",
-			},
-			// Tier 3: Range / Length filtering
-			"max_message_length": {
-				Type:        "number",
-				Description: "Max chars per message content (default: 0 = no truncation, rely on hybrid mode for large results). Truncates content, does not filter.",
-			},
-			"min_content_length": {
-				Type:        "number",
-				Description: "Minimum content length in characters. Only messages with content at least this long are returned. Only applies to string content type.",
-			},
-			"max_content_length": {
-				Type:        "number",
-				Description: "Maximum content length in characters. Only messages with content at most this long are returned. Only applies to string content type. Unlike max_message_length which truncates, this filters out messages entirely.",
-			},
-			// Tier 5: Cross-project
-			"working_dir": {
-				Type:        "string",
-				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
-			},
-			// Tier 4: Output Control
-			"limit": {
-				Type:        "number",
-				Description: "Max results (no limit by default, rely on hybrid output mode)",
-			},
-			"content_summary": {
-				Type:        "boolean",
-				Description: "Return only session_id/turn/timestamp/preview (100 chars), skip full content. Use hybrid mode instead for better information preservation.",
-			},
-			"preview_length": {
-				Type:        "integer",
-				Description: "Max characters (runes) per content_preview when content_summary=true. Default: 100. For CJK content, set to 30 for ~30 readable characters (CJK chars are 3 bytes each in UTF-8).",
-			},
-			// Tier 3: Time range filtering
-			"since": {
-				Type:        "string",
-				Description: `Include only records with timestamp >= this value (RFC3339, e.g. "2026-03-07T00:00:00Z")`,
-			},
-			"until": {
-				Type:        "string",
-				Description: `Include only records with timestamp < this value (RFC3339)`,
-			},
-			"exclude_system_messages": {
-				Type:        "boolean",
-				Description: `If true, exclude Claude Code system-injected messages whose content starts with <local-command-caveat>, <command-name>, <local-command-stdout>, or <task-notification>. Only applies to string content type. Default: false.`,
-			},
-			"group_by_session": {
-				Type:        "boolean",
-				Description: "Group results by session. Returns one object per session with session_id, match_count, first_match, last_match, and turns array. Mutually exclusive with stats_only.",
-			},
-			"stats_level": {
-				Type:        "string",
-				Description: "Aggregation level for stats_only/stats_first: 'turn' (default, hourly buckets) or 'session' (per-session match_count and duration).",
-			},
-			"context_turns": {
-				Type:        "integer",
-				Description: "Number of turns to include before and after each matched turn (same session). Context turns are marked with 'context': true; matched turns with 'context': false. Default: 0 (disabled). Only applies to string content_type.",
-			},
-			// Override jq_filter with schema
-			"jq_filter": JqFilterWithSchema(map[string]string{
-				"sessionId": "string - Session identifier",
-				"turn":      "number - Turn sequence number",
-				"timestamp": "string - ISO8601 timestamp",
-				"content":   "string - User message content",
-			}, ".[] | select(.content | test(\"error|bug\"; \"i\"))"),
-		}, "pattern"),
 		{
 			Name:        "cleanup_temp_files",
 			Description: "Remove old temporary MCP files. Default scope: none.",
@@ -451,6 +235,135 @@ func GetToolDefinitions() []Tool {
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 		}),
+		// ─── New consolidated query tools (replacing the 10 legacy query_* tools) ───
+
+		BuildTool("query_session_content",
+			"Query session messages by role (user/assistant/tool/all). Default scope: project.",
+			map[string]Property{
+				"role": {
+					Type:        "string",
+					Description: "Message role to query: 'user' (user messages), 'assistant' (assistant messages), 'tool' (tool use/result blocks), or 'all' (user+assistant conversation flow)",
+				},
+				"contains": {
+					Type:        "string",
+					Description: "Optional substring filter applied to message content (case-insensitive). When role=assistant, use '## Summary' to retrieve summaries.",
+				},
+				"pattern": {
+					Type:        "string",
+					Description: "Regex pattern to match in message content (only applies when role=user). If omitted with role=user, matches all messages.",
+				},
+				"block_type": {
+					Type:        "string",
+					Description: "When role=tool: 'tool_use' or 'tool_result' (default: 'tool_use')",
+				},
+				"content_type": {
+					Type:        "string",
+					Description: "When role=user: 'string' (default) or 'array' (tool results)",
+				},
+				"exclude_system_messages": {
+					Type:        "boolean",
+					Description: "When role=user: exclude Claude Code system-injected messages. Default: false.",
+				},
+				"max_message_length": {
+					Type:        "number",
+					Description: "When role=user: max chars per message content (default: 0 = no truncation). Truncates content, does not filter.",
+				},
+				"min_content_length": {
+					Type:        "number",
+					Description: "When role=user: min content length. Only messages with content at least this long are returned.",
+				},
+				"max_content_length": {
+					Type:        "number",
+					Description: "When role=user: max content length. Filters out messages longer than this (unlike max_message_length which truncates).",
+				},
+				"content_summary": {
+					Type:        "boolean",
+					Description: "Return only session_id/turn/timestamp/preview (100 chars), skip full content.",
+				},
+				"preview_length": {
+					Type:        "integer",
+					Description: "Max characters per content_preview when content_summary=true. Default: 100.",
+				},
+				"group_by_session": {
+					Type:        "boolean",
+					Description: "When role=user: group results by session. Mutually exclusive with stats_only.",
+				},
+				"stats_level": {
+					Type:        "string",
+					Description: "Aggregation level for stats_only/stats_first: 'turn' (default) or 'session'.",
+				},
+				"context_turns": {
+					Type:        "integer",
+					Description: "When role=user: number of turns to include before/after each matched turn. Default: 0.",
+				},
+				"since": {
+					Type:        "string",
+					Description: `Include only records with timestamp >= this value (RFC3339, e.g. "2026-03-07T00:00:00Z")`,
+				},
+				"until": {
+					Type:        "string",
+					Description: `Include only records with timestamp < this value (RFC3339)`,
+				},
+				"limit": {
+					Type:        "number",
+					Description: "Max results (no limit by default, rely on hybrid output mode)",
+				},
+				"working_dir": {
+					Type:        "string",
+					Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
+				},
+			}, "role"),
+
+		BuildTool("query_session_signals",
+			"Query session signals: errors/tokens/system_errors/timestamps/tool_stats. Default scope: project.",
+			map[string]Property{
+				"type": {
+					Type:        "string",
+					Description: "Signal type: 'errors' (tool execution errors), 'tokens' (assistant token usage), 'system_errors' (API errors), 'timestamps' (all timestamped entries), or 'tool_stats' (assistant tool calls)",
+				},
+				"tool": {
+					Type:        "string",
+					Description: "When type=tool_stats: filter by tool name",
+				},
+				"status": {
+					Type:        "string",
+					Description: "When type=tool_stats: filter by status (error/success)",
+				},
+				"since": {
+					Type:        "string",
+					Description: `Include only records with timestamp >= this value (RFC3339, e.g. "2026-03-07T00:00:00Z")`,
+				},
+				"until": {
+					Type:        "string",
+					Description: `Include only records with timestamp < this value (RFC3339)`,
+				},
+				"limit": {
+					Type:        "number",
+					Description: "Max results (no limit by default, rely on hybrid output mode)",
+				},
+				"working_dir": {
+					Type:        "string",
+					Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
+				},
+			}, "type"),
+
+		BuildTool("query_file_activity",
+			"Query file history and activity (type=snapshots). Default scope: project.",
+			map[string]Property{
+				"type": {
+					Type:        "string",
+					Description: "Activity type: 'snapshots' (file history snapshots with messageId)",
+				},
+				"limit": {
+					Type:        "number",
+					Description: "Max results (no limit by default, rely on hybrid output mode)",
+				},
+				"working_dir": {
+					Type:        "string",
+					Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
+				},
+			}, "type"),
+
 		BuildTool("query_edit_sequences", "Analyze file edit/read patterns: docRole, co-accessed docs, DocVoid. Default scope: project.", map[string]Property{
 			"files": {
 				Type:        "array",

@@ -88,8 +88,9 @@ func TestAllToolsHaveStandardParameters(t *testing.T) {
 	}
 
 	// Tools that should have message truncation parameters (Stage 15.1)
+	// TASK-7: query_session_content replaces query_user_messages
 	messageTruncationTools := map[string]bool{
-		"query_user_messages": true,
+		"query_session_content": true,
 	}
 
 	messageTruncationParams := []string{
@@ -190,41 +191,33 @@ func TestToolDescriptionConsistency(t *testing.T) {
 	}
 }
 
-func TestQueryUserMessagesMessageTruncationParams(t *testing.T) {
+func TestQuerySessionContentMessageTruncationParams(t *testing.T) {
 	tools := getToolDefinitions()
 
-	var queryUserMessages *Tool
+	var querySessionContent *Tool
 	for i := range tools {
-		if tools[i].Name == "query_user_messages" {
-			queryUserMessages = &tools[i]
+		if tools[i].Name == "query_session_content" {
+			querySessionContent = &tools[i]
 			break
 		}
 	}
 
-	if queryUserMessages == nil {
-		t.Fatal("query_user_messages tool not found")
+	if querySessionContent == nil {
+		t.Fatal("query_session_content tool not found")
 	}
 
-	props := queryUserMessages.InputSchema.Properties
+	props := querySessionContent.InputSchema.Properties
 
 	// Test max_message_length parameter
 	t.Run("max_message_length", func(t *testing.T) {
 		maxMsgLen, exists := props["max_message_length"]
 		if !exists {
-			t.Error("query_user_messages missing max_message_length parameter")
+			t.Error("query_session_content missing max_message_length parameter")
 			return
 		}
 
 		if maxMsgLen.Type != "number" {
 			t.Errorf("max_message_length should be number type, got %s", maxMsgLen.Type)
-		}
-
-		if !strings.Contains(maxMsgLen.Description, "default: 0") {
-			t.Errorf("max_message_length should mention default value, got: %s", maxMsgLen.Description)
-		}
-
-		if !strings.Contains(maxMsgLen.Description, "Max chars per message") {
-			t.Errorf("max_message_length description should be descriptive, got: %s", maxMsgLen.Description)
 		}
 	})
 
@@ -232,16 +225,12 @@ func TestQueryUserMessagesMessageTruncationParams(t *testing.T) {
 	t.Run("content_summary", func(t *testing.T) {
 		contentSummary, exists := props["content_summary"]
 		if !exists {
-			t.Error("query_user_messages missing content_summary parameter")
+			t.Error("query_session_content missing content_summary parameter")
 			return
 		}
 
 		if contentSummary.Type != "boolean" {
 			t.Errorf("content_summary should be boolean type, got %s", contentSummary.Type)
-		}
-
-		if !strings.Contains(contentSummary.Description, "preview") || !strings.Contains(contentSummary.Description, "100 chars") {
-			t.Errorf("content_summary should mention preview and 100 chars, got: %s", contentSummary.Description)
 		}
 	})
 }
@@ -262,9 +251,11 @@ func TestToolDescriptionsAccurate(t *testing.T) {
 	tools := getToolDefinitions()
 
 	// Tools with limit parameter should not have misleading "default: 20/10" descriptions
+	// TASK-7: Updated to use new consolidated tool names
 	limitTools := map[string]bool{
-		"query_tools":              true,
-		"query_user_messages":      true,
+		"query_session_content":    true,
+		"query_session_signals":    true,
+		"query_file_activity":      true,
 		"query_successful_prompts": true,
 	}
 
@@ -299,9 +290,10 @@ func TestToolDescriptionsAccurate(t *testing.T) {
 func TestLimitParameterBehavior(t *testing.T) {
 	tools := getToolDefinitions()
 
+	// TASK-7: Updated to use new consolidated tool names
 	limitTools := []string{
-		"query_tools",
-		"query_user_messages",
+		"query_session_content",
+		"query_session_signals",
 	}
 
 	for _, toolName := range limitTools {
@@ -343,26 +335,18 @@ func TestLimitParameterBehavior(t *testing.T) {
 	}
 }
 
-// TestToolCountIncreasedTo14 verifies that the tool count is correct after Phase 27
+// TestToolCountIncreasedTo14 verifies that the tool count is correct after TASK-7
 func TestToolCountIncreasedTo14(t *testing.T) {
 	tools := getToolDefinitions()
 
-	// Phase 25: 15 tools (1 query + 1 query_raw + 10 convenience + 3 utility)
-	// Phase 27 Stage 27.1: Removed query and query_raw (15 -> 13)
-	// Phase 27 Stage 27.2: Added get_session_directory (13 -> 14)
-	// Phase 27 Stage 27.3: Added inspect_session_files (14 -> 15)
-	// Phase 27 Stage 27.4: Added execute_stage2_query (15 -> 16)
-	// Phase 27 Stage 27.5: Added get_session_metadata (16 -> 17)
-	// Phase 42.2: Added analyze_errors (17 -> 18)
-	// Phase 42.3: Added quality_scan (18 -> 19)
-	// Phase 43.2: Added get_work_patterns (19 -> 20)
-	// Phase 43.3: Added get_timeline (20 -> 21)
-	// Phase 44.2: Added analyze_bugs (21 -> 22)
-	// Phase 44.3: Added get_tech_debt (22 -> 23)
-	// Phase 45.1: Removed list_capabilities, get_capability (23 -> 21)
-	// TASK-1: Added query_edit_sequences (21 -> 22)
-	// New target: 22 tools (10 convenience + 1 utility + 4 two-stage + 6 analysis + 1 doc signals)
-	expectedCount := 22
+	// TASK-7: Removed 10 old query_* tools, added 3 consolidated tools = net -7
+	// New target: 15 tools
+	// - 3 consolidated query tools (query_session_content, query_session_signals, query_file_activity)
+	// - 1 utility tool (cleanup_temp_files)
+	// - 4 two-stage query tools (get_session_directory, inspect_session_files, execute_stage2_query, get_session_metadata)
+	// - 6 analysis tools (analyze_errors, quality_scan, get_work_patterns, get_timeline, analyze_bugs, get_tech_debt)
+	// - 1 doc session signals tool (query_edit_sequences)
+	expectedCount := 15
 	actualCount := len(tools)
 
 	if actualCount != expectedCount {

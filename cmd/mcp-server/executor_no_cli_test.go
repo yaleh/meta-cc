@@ -26,15 +26,17 @@ func TestQueryToolsDoNotUseCLI(t *testing.T) {
 		args map[string]interface{}
 	}{
 		{
-			name: "query_tools",
+			name: "query_session_signals",
 			args: map[string]interface{}{
 				"scope": "session",
+				"type":  "tool_stats",
 			},
 		},
 		{
-			name: "query_user_messages",
+			name: "query_session_content",
 			args: map[string]interface{}{
 				"scope":   "session",
+				"role":    "user",
 				"pattern": "test",
 			},
 		},

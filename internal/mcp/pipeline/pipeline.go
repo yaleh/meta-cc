@@ -115,10 +115,11 @@ func pipelineStringArg(args map[string]interface{}, key string, defaultVals ...s
 // These tools return records that lack a tool/ToolName field but have timestamp data,
 // so time-bucketed stats are more meaningful than the meaningless "unknown" key.
 var TimestampStatsTools = map[string]bool{
-	"query_user_messages":     true,
-	"query_conversation_flow": true,
-	"query_timestamps":        true,
-	"query_summaries":         true,
+	// New consolidated tools that use time-bucketed stats:
+	// query_session_content covers: user messages, conversation flow, summaries
+	// query_session_signals covers: timestamps (when type=timestamps)
+	"query_session_content": true,
+	"query_session_signals": true,
 }
 
 // InjectWarnings adds a "warnings" field to a JSON response string.
