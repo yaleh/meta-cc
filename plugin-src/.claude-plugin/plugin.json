@@ -31,8 +31,8 @@
     "./commands/prompt-show.md"
   ],
   "skills": [
-    "./skills/prompt-find/SKILL.md",
-    "./skills/prompt-list/SKILL.md",
-    "./skills/prompt-show/SKILL.md"
+    "./skills/prompt-find",
+    "./skills/prompt-list",
+    "./skills/prompt-show"
   ]
 }
