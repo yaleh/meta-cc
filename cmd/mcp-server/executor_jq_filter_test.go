@@ -27,18 +27,20 @@ func TestConvenienceToolsExecuteCorrectly(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name:     "query_user_messages should execute correctly",
-			toolName: "query_user_messages",
+			name:     "query_session_content should execute correctly",
+			toolName: "query_session_content",
 			args: map[string]interface{}{
+				"role":    "user",
 				"pattern": ".*",
 				"limit":   float64(2),
 			},
 			expectError: false,
 		},
 		{
-			name:     "query_tools should execute correctly",
-			toolName: "query_tools",
+			name:     "query_session_signals should execute correctly",
+			toolName: "query_session_signals",
 			args: map[string]interface{}{
+				"type":  "tool_stats",
 				"limit": float64(2),
 			},
 			expectError: false,

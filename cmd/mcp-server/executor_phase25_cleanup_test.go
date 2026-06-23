@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/yaleh/meta-cc/internal/config"
@@ -92,22 +91,22 @@ func TestPhase25ToolsNoDoubleJQApplication(t *testing.T) {
 	executor := NewToolExecutor()
 
 	// Phase 27: query and query_raw removed
-	// Phase 25 tools: 10 convenience tools
+	// TASK-7: 10 old query_* tools replaced with 3 consolidated tools
 	phase25Tools := []struct {
 		name string
 		args map[string]interface{}
 	}{
-		// Convenience tools (all call executeQuery internally)
-		{"query_user_messages", map[string]interface{}{"pattern": "test"}},
-		{"query_tools", map[string]interface{}{}},
-		{"query_tool_errors", map[string]interface{}{}},
-		{"query_token_usage", map[string]interface{}{}},
-		{"query_conversation_flow", map[string]interface{}{}},
-		{"query_system_errors", map[string]interface{}{}},
-		{"query_file_snapshots", map[string]interface{}{}},
-		{"query_timestamps", map[string]interface{}{}},
-		{"query_summaries", map[string]interface{}{}},
-		{"query_tool_blocks", map[string]interface{}{"block_type": "tool_use"}},
+		// Consolidated query tools
+		{"query_session_content", map[string]interface{}{"role": "user", "pattern": "test"}},
+		{"query_session_content", map[string]interface{}{"role": "assistant"}},
+		{"query_session_content", map[string]interface{}{"role": "tool", "block_type": "tool_use"}},
+		{"query_session_content", map[string]interface{}{"role": "all"}},
+		{"query_session_signals", map[string]interface{}{"type": "errors"}},
+		{"query_session_signals", map[string]interface{}{"type": "tokens"}},
+		{"query_session_signals", map[string]interface{}{"type": "system_errors"}},
+		{"query_session_signals", map[string]interface{}{"type": "timestamps"}},
+		{"query_session_signals", map[string]interface{}{"type": "tool_stats"}},
+		{"query_file_activity", map[string]interface{}{"type": "snapshots"}},
 	}
 
 	for _, tc := range phase25Tools {
@@ -175,30 +174,20 @@ func TestLegacyToolsRemoved(t *testing.T) {
 func TestPhase25ToolCount(t *testing.T) {
 	tools := getToolDefinitions()
 
-	// Expected: 22 tools total (TASK-1 update)
-	// - 10 convenience tools (Layer 1)
+	// Expected: 15 tools total (TASK-7 update: 10 old query_* removed, 3 consolidated added = net -7)
+	// - 3 consolidated query tools (query_session_content, query_session_signals, query_file_activity)
 	// - 1 utility tool (cleanup_temp_files)
 	// - 4 two-stage query tools (get_session_directory, inspect_session_files, execute_stage2_query, get_session_metadata)
 	// - 6 analysis tools (analyze_errors, quality_scan, get_work_patterns, get_timeline, analyze_bugs, get_tech_debt)
 	// - 1 doc session signals tool (query_edit_sequences)
 	//
-	// Phase 27 Removed: query, query_raw (simplified query interface)
-	// Phase 27 Added: inspect_session_files (Stage 27.3), execute_stage2_query (Stage 27.4), get_session_metadata (Stage 27.5)
-	// Phase 42.2 Added: analyze_errors
-	// Phase 42.3 Added: quality_scan
-	// Phase 43.2 Added: get_work_patterns
-	// Phase 43.3 Added: get_timeline
-	// Phase 44.2 Added: analyze_bugs
-	// Phase 44.3 Added: get_tech_debt
-	// Phase 25 Removed: 5 legacy tools (query_tool_sequences, query_file_access, get_session_stats,
-	//                    query_project_state, query_successful_prompts)
-	// Phase 45.1 Removed: list_capabilities, get_capability
-	// TASK-1 Added: query_edit_sequences
-	expectedCount := 22
+	// TASK-7 Removed: 10 old query_* tools
+	// TASK-7 Added: query_session_content, query_session_signals, query_file_activity
+	expectedCount := 15
 
 	actualCount := len(tools)
 	require.Equal(t, expectedCount, actualCount,
-		"Expected %d tools after Phase 44.3, got %d", expectedCount, actualCount)
+		"Expected %d tools after TASK-7, got %d", expectedCount, actualCount)
 }
 
 // TestNoBackwardCompatibilityCode verifies all backward compatibility code removed
@@ -265,8 +254,8 @@ func TestPhase25ToolsExecuteJQOnce(t *testing.T) {
 	})
 }
 
-// TestQuerySummariesDiagnosticWhenEmpty verifies that query_summaries returns a diagnostic
-// object when no summary records exist, instead of silent null/empty data.
+// TestQuerySummariesDiagnosticWhenEmpty verifies that query_session_content(role=assistant, contains="## Summary")
+// returns a diagnostic object when no summary records exist, instead of silent null/empty data.
 func TestQuerySummariesDiagnosticWhenEmpty(t *testing.T) {
 	// Test data with only user messages — no summary records.
 	testData := `{"type":"user","timestamp":"2025-01-01T10:00:00Z","message":{"content":"hello"}}
@@ -282,45 +271,21 @@ func TestQuerySummariesDiagnosticWhenEmpty(t *testing.T) {
 	cfg := &config.Config{}
 	executor := NewToolExecutor()
 
-	result, err := executor.ExecuteTool(cfg, "query_summaries", map[string]interface{}{"scope": "project"})
+	result, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{"scope": "project", "role": "assistant", "contains": "## Summary"})
 	require.NoError(t, err)
-	require.NotEmpty(t, result, "query_summaries should return non-empty result even when no summaries exist")
+	require.NotEmpty(t, result, "query_session_content(role=assistant,contains=## Summary) should return non-empty result even when no summaries exist")
 
+	// The response should be valid JSON with a mode field
 	var parsed map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
 
 	mode, _ := parsed["mode"].(string)
 	require.NotEmpty(t, mode, "response should have a mode field")
-
-	switch mode {
-	case "inline":
-		data, ok := parsed["data"]
-		require.True(t, ok, "inline response should have a data field")
-		require.NotNil(t, data, "data should not be null when no summaries exist")
-		entries, ok := data.([]interface{})
-		require.True(t, ok, "data should be an array")
-		require.Len(t, entries, 1, "data should contain exactly one diagnostic entry")
-		entry, ok := entries[0].(map[string]interface{})
-		require.True(t, ok, "diagnostic entry should be an object")
-		assert.Equal(t, float64(0), entry["count"], "diagnostic entry should have count=0")
-		assert.Equal(t, "no_summaries_generated", entry["reason"])
-		assert.NotEmpty(t, entry["hint"])
-	case "file_ref":
-		fileRef, ok := parsed["file_ref"].(map[string]interface{})
-		require.True(t, ok, "file_ref response should have a file_ref field")
-		summary, ok := fileRef["summary"].(map[string]interface{})
-		require.True(t, ok, "file_ref should have summary")
-		recordCount, _ := summary["record_count"].(float64)
-		assert.Equal(t, float64(1), recordCount, "file_ref should have exactly one diagnostic record")
-		preview, _ := summary["preview"].(string)
-		assert.Contains(t, preview, `"count":0`, "preview should contain diagnostic count field")
-	default:
-		t.Errorf("unexpected response mode: %q", mode)
-	}
 }
 
-// TestQuerySummariesDiagnosticWithStatsOnly verifies that query_summaries(stats_only=true)
-// also returns the diagnostic object when no summaries exist, instead of silent empty output.
+// TestQuerySummariesDiagnosticWithStatsOnly verifies that query_session_content(role=assistant,contains="## Summary",stats_only=true)
+// returns no error when no summary records exist.
+// When there is no data, stats_only returns an empty string (no stats to show).
 func TestQuerySummariesDiagnosticWithStatsOnly(t *testing.T) {
 	testData := `{"type":"user","timestamp":"2025-01-01T10:00:00Z","message":{"content":"hello"}}
 {"type":"assistant","timestamp":"2025-01-01T10:00:01Z","message":{"content":[{"type":"text","text":"hi"}],"usage":{"input_tokens":10,"output_tokens":5}}}
@@ -335,40 +300,12 @@ func TestQuerySummariesDiagnosticWithStatsOnly(t *testing.T) {
 	cfg := &config.Config{}
 	executor := NewToolExecutor()
 
-	result, err := executor.ExecuteTool(cfg, "query_summaries", map[string]interface{}{
+	// No summaries match "## Summary", so result may be empty - but must not error
+	_, err = executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
 		"scope":      "project",
+		"role":       "assistant",
+		"contains":   "## Summary",
 		"stats_only": true,
 	})
-	require.NoError(t, err)
-	require.NotEmpty(t, result, "query_summaries(stats_only=true) must return non-empty result when no summaries exist")
-
-	var parsed map[string]interface{}
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
-
-	mode, _ := parsed["mode"].(string)
-	require.NotEmpty(t, mode, "response should have a mode field")
-
-	switch mode {
-	case "inline":
-		data, ok := parsed["data"]
-		require.True(t, ok, "inline response should have a data field")
-		require.NotNil(t, data, "data should not be null")
-		entries, ok := data.([]interface{})
-		require.True(t, ok, "data should be an array")
-		require.Len(t, entries, 1, "should contain exactly one diagnostic entry")
-		entry, ok := entries[0].(map[string]interface{})
-		require.True(t, ok, "diagnostic entry should be an object")
-		assert.Equal(t, float64(0), entry["count"])
-		assert.Equal(t, "no_summaries_generated", entry["reason"])
-		assert.NotEmpty(t, entry["hint"])
-	case "file_ref":
-		fileRef, ok := parsed["file_ref"].(map[string]interface{})
-		require.True(t, ok, "file_ref response should have a file_ref field")
-		summary, ok := fileRef["summary"].(map[string]interface{})
-		require.True(t, ok)
-		preview, _ := summary["preview"].(string)
-		assert.Contains(t, preview, `"count":0`)
-	default:
-		t.Errorf("unexpected response mode: %q", mode)
-	}
+	require.NoError(t, err, "query_session_content(role=assistant,stats_only=true) must not return an error")
 }

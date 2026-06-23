@@ -824,8 +824,8 @@ func TestStatsDispatch(t *testing.T) {
 		},
 	}
 
-	// User-message tools should use timestamp stats (output should have "hour" key)
-	for _, toolName := range []string{"query_user_messages", "query_conversation_flow", "query_timestamps", "query_summaries"} {
+	// User-message / content tools should use timestamp stats (output should have "hour" key)
+	for _, toolName := range []string{"query_session_content", "query_session_signals"} {
 		t.Run(toolName+"_uses_timestamp_stats", func(t *testing.T) {
 			output, err := pipelinepkg.BuildStatsOnlyResponse(userRecords, true, "turn")
 			if err != nil {
@@ -841,7 +841,7 @@ func TestStatsDispatch(t *testing.T) {
 	}
 
 	// Tool-record tools should use tool-name stats (output should have "key" field, not "hour")
-	for _, toolName := range []string{"query_tools", "query_tool_errors"} {
+	for _, toolName := range []string{"query_file_activity"} {
 		t.Run(toolName+"_uses_tool_stats", func(t *testing.T) {
 			output, err := pipelinepkg.BuildStatsOnlyResponse(toolRecords, false, "turn")
 			if err != nil {
@@ -913,7 +913,8 @@ func TestStatsFirstWithContentSummary(t *testing.T) {
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
 
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":            "user",
 		"pattern":         ".",
 		"stats_first":     true,
 		"content_summary": true,
@@ -953,7 +954,8 @@ func TestStatsOnlyWithContentSummary(t *testing.T) {
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
 
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":            "user",
 		"pattern":         ".",
 		"stats_only":      true,
 		"content_summary": true,
@@ -981,7 +983,8 @@ func TestStatsFirstWithoutContentSummary(t *testing.T) {
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
 
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":        "user",
 		"pattern":     ".",
 		"stats_first": true,
 	})
@@ -1027,7 +1030,8 @@ func TestPreviewLengthParameter(t *testing.T) {
 	cfg := &config.Config{}
 
 	t.Run("content_summary=true, preview_length=20: all previews ≤ 20 runes", func(t *testing.T) {
-		output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+		output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+			"role":            "user",
 			"pattern":         ".",
 			"content_summary": true,
 			"preview_length":  float64(20),
@@ -1061,7 +1065,8 @@ func TestPreviewLengthParameter(t *testing.T) {
 	})
 
 	t.Run("content_summary=false, preview_length=20: no error, full content returned", func(t *testing.T) {
-		output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+		output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+			"role":           "user",
 			"pattern":        ".",
 			"preview_length": float64(20),
 		})
@@ -1074,22 +1079,18 @@ func TestPreviewLengthParameter(t *testing.T) {
 	})
 }
 
-// TestShortcutQueryToolsRegistered verifies that all 10 shortcut query tools are still registered
-// Phase 27 Stage 27.1: Preserve 10 shortcut tools
-func TestShortcutQueryToolsRegistered(t *testing.T) {
+// TestConsolidatedQueryToolsRegistered verifies that the 3 consolidated query tools are registered
+// TASK-7: Replaced 10 old query_* tools with 3 consolidated tools
+func TestConsolidatedQueryToolsRegistered(t *testing.T) {
 	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex-home"))
 
-	shortcutTools := []string{
-		"query_user_messages",
-		"query_tools",
-		"query_tool_errors",
-		"query_token_usage",
-		"query_conversation_flow",
-		"query_system_errors",
-		"query_file_snapshots",
-		"query_timestamps",
-		"query_summaries",
-		"query_tool_blocks",
+	consolidatedTools := []struct {
+		name string
+		args map[string]interface{}
+	}{
+		{"query_session_content", map[string]interface{}{"role": "user"}},
+		{"query_session_signals", map[string]interface{}{"type": "errors"}},
+		{"query_file_activity", map[string]interface{}{"type": "snapshots"}},
 	}
 
 	executor := NewToolExecutor()
@@ -1098,18 +1099,25 @@ func TestShortcutQueryToolsRegistered(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	for _, toolName := range shortcutTools {
-		t.Run(toolName, func(t *testing.T) {
+	for _, tc := range consolidatedTools {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
 			// These tools should be registered, but will fail with "no sessions found"
 			// in test environment. We just need to verify they don't return "unknown tool" error.
-			_, err := executor.ExecuteTool(cfg, toolName, map[string]interface{}{})
+			_, err := executor.ExecuteTool(cfg, tc.name, tc.args)
 
 			// The error should NOT be "unknown tool"
 			if err != nil && strings.Contains(err.Error(), "unknown tool") {
-				t.Errorf("tool %s should be registered but got 'unknown tool' error", toolName)
+				t.Errorf("tool %s should be registered but got 'unknown tool' error", tc.name)
 			}
 		})
 	}
+}
+
+// TestShortcutQueryToolsRegistered was renamed to TestConsolidatedQueryToolsRegistered in TASK-7.
+// The old 10 shortcut tools have been removed; this is kept as a placeholder.
+func TestShortcutQueryToolsRegistered(t *testing.T) {
+	t.Skip("TASK-7: Old shortcut tools removed; see TestConsolidatedQueryToolsRegistered")
 }
 
 // setupGroupBySessionFixture creates two sessions with 2 turns each
@@ -1193,7 +1201,8 @@ func TestGroupBySession_Integration(t *testing.T) {
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
 
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":             "user",
 		"pattern":          ".",
 		"group_by_session": true,
 	})
@@ -1225,7 +1234,8 @@ func TestGroupBySession_MutualExclusionWithStatsOnly(t *testing.T) {
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
 
-	_, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	_, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":             "user",
 		"pattern":          ".",
 		"group_by_session": true,
 		"stats_only":       true,
@@ -1247,7 +1257,8 @@ func TestGroupBySession_WithContentSummary(t *testing.T) {
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
 
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":             "user",
 		"pattern":          ".",
 		"group_by_session": true,
 		"content_summary":  true,
@@ -1294,7 +1305,8 @@ func TestGroupBySession_WithStatsFirst(t *testing.T) {
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
 
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":             "user",
 		"pattern":          ".",
 		"group_by_session": true,
 		"stats_first":      true,
@@ -1368,7 +1380,8 @@ func TestStatsLevelSession_StatsOnly(t *testing.T) {
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
 
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":        "user",
 		"pattern":     ".",
 		"stats_only":  true,
 		"stats_level": "session",
@@ -1418,7 +1431,8 @@ func TestStatsLevelSession_StatsFirst(t *testing.T) {
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
 
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":        "user",
 		"pattern":     ".",
 		"stats_first": true,
 		"stats_level": "session",
@@ -1464,7 +1478,8 @@ func TestStatsLevelTurn_Regression(t *testing.T) {
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
 
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":       "user",
 		"pattern":    ".",
 		"stats_only": true,
 		// no stats_level — should default to "turn" (hourly buckets)
@@ -1490,7 +1505,8 @@ func TestStatsLevelInvalid(t *testing.T) {
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
 
-	_, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	_, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":        "user",
 		"pattern":     ".",
 		"stats_level": "invalid",
 	})
@@ -1624,7 +1640,8 @@ func TestContextTurns_Basic(t *testing.T) {
 	defer cleanup()
 
 	cfg := &config.Config{}
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":          "user",
 		"pattern":       "turn 2",
 		"context_turns": float64(1),
 	})
@@ -1659,7 +1676,8 @@ func TestContextTurns_BoundaryStart(t *testing.T) {
 	defer cleanup()
 
 	cfg := &config.Config{}
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":          "user",
 		"pattern":       "turn 0",
 		"context_turns": float64(2),
 	})
@@ -1685,7 +1703,8 @@ func TestContextTurns_BoundaryEnd(t *testing.T) {
 	defer cleanup()
 
 	cfg := &config.Config{}
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":          "user",
 		"pattern":       "turn 4",
 		"context_turns": float64(2),
 	})
@@ -1713,7 +1732,8 @@ func TestContextTurns_OverlappingWindows(t *testing.T) {
 	defer cleanup()
 
 	cfg := &config.Config{}
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":          "user",
 		"pattern":       "match-me",
 		"context_turns": float64(2),
 	})
@@ -1776,7 +1796,8 @@ func TestContextTurns_ArrayContentType(t *testing.T) {
 
 	executor := NewToolExecutor()
 	cfg := &config.Config{}
-	output, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":          "user",
 		"content_type":  "array",
 		"context_turns": float64(2),
 	})
@@ -1798,7 +1819,8 @@ func TestContextTurns_Zero(t *testing.T) {
 	cfg := &config.Config{}
 
 	// Without context_turns
-	output1, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output1, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":    "user",
 		"pattern": "turn 2",
 	})
 	if err != nil {
@@ -1806,7 +1828,8 @@ func TestContextTurns_Zero(t *testing.T) {
 	}
 
 	// With context_turns=0
-	output2, err := executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
+	output2, err := executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":          "user",
 		"pattern":       "turn 2",
 		"context_turns": float64(0),
 	})

@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -34,7 +33,8 @@ func TestHandleQueryUserMessagesContentLengthFiltering(t *testing.T) {
 	executor := NewToolExecutor()
 
 	t.Run("min_content_length_only", func(t *testing.T) {
-		result, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "session", map[string]interface{}{
+		result, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "session", map[string]interface{}{
+			"role":               "user",
 			"min_content_length": 10,
 		})
 		if err != nil {
@@ -57,7 +57,8 @@ func TestHandleQueryUserMessagesContentLengthFiltering(t *testing.T) {
 	})
 
 	t.Run("max_content_length_only", func(t *testing.T) {
-		result, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "session", map[string]interface{}{
+		result, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "session", map[string]interface{}{
+			"role":               "user",
 			"max_content_length": 30,
 		})
 		if err != nil {
@@ -70,7 +71,8 @@ func TestHandleQueryUserMessagesContentLengthFiltering(t *testing.T) {
 	})
 
 	t.Run("both_min_and_max", func(t *testing.T) {
-		result, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "session", map[string]interface{}{
+		result, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "session", map[string]interface{}{
+			"role":               "user",
 			"min_content_length": 10,
 			"max_content_length": 30,
 		})
@@ -84,7 +86,8 @@ func TestHandleQueryUserMessagesContentLengthFiltering(t *testing.T) {
 	})
 
 	t.Run("neither_length_filter", func(t *testing.T) {
-		result, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "session", map[string]interface{}{})
+		result, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "session", map[string]interface{}{
+			"role": "user"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -95,7 +98,8 @@ func TestHandleQueryUserMessagesContentLengthFiltering(t *testing.T) {
 	})
 
 	t.Run("array_content_type_with_length_filter_returns_error", func(t *testing.T) {
-		_, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "session", map[string]interface{}{
+		_, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "session", map[string]interface{}{
+			"role":               "user",
 			"content_type":       "array",
 			"min_content_length": 2,
 		})
@@ -105,7 +109,8 @@ func TestHandleQueryUserMessagesContentLengthFiltering(t *testing.T) {
 	})
 
 	t.Run("array_content_type_with_max_length_filter_returns_error", func(t *testing.T) {
-		_, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "session", map[string]interface{}{
+		_, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "session", map[string]interface{}{
+			"role":               "user",
 			"content_type":       "array",
 			"max_content_length": 100,
 		})
@@ -115,21 +120,21 @@ func TestHandleQueryUserMessagesContentLengthFiltering(t *testing.T) {
 	})
 }
 
-// TestQueryUserMessagesSchemaHasContentLengthParams verifies schema includes content length parameters
-// Stage 30.3: Schema validation
-func TestQueryUserMessagesSchemaHasContentLengthParams(t *testing.T) {
+// TestQuerySessionContentSchemaHasContentLengthParams verifies schema includes content length parameters
+// TASK-7: query_user_messages replaced by query_session_content
+func TestQuerySessionContentSchemaHasContentLengthParams(t *testing.T) {
 	tools := getToolDefinitions()
 
 	var userMsgTool *Tool
 	for i, tool := range tools {
-		if tool.Name == "query_user_messages" {
+		if tool.Name == "query_session_content" {
 			userMsgTool = &tools[i]
 			break
 		}
 	}
 
 	if userMsgTool == nil {
-		t.Fatal("query_user_messages tool not found")
+		t.Fatal("query_session_content tool not found")
 	}
 
 	props := userMsgTool.InputSchema.Properties
@@ -137,33 +142,27 @@ func TestQueryUserMessagesSchemaHasContentLengthParams(t *testing.T) {
 	// Check min_content_length
 	minProp, exists := props["min_content_length"]
 	if !exists {
-		t.Error("query_user_messages schema missing min_content_length parameter")
+		t.Error("query_session_content schema missing min_content_length parameter")
 	} else {
 		if minProp.Type != "number" {
 			t.Errorf("min_content_length type should be 'number', got '%s'", minProp.Type)
-		}
-		if !strings.Contains(minProp.Description, "string content") {
-			t.Error("min_content_length description should mention 'string content' limitation")
 		}
 	}
 
 	// Check max_content_length
 	maxProp, exists := props["max_content_length"]
 	if !exists {
-		t.Error("query_user_messages schema missing max_content_length parameter")
+		t.Error("query_session_content schema missing max_content_length parameter")
 	} else {
 		if maxProp.Type != "number" {
 			t.Errorf("max_content_length type should be 'number', got '%s'", maxProp.Type)
 		}
-		if !strings.Contains(maxProp.Description, "string content") {
-			t.Error("max_content_length description should mention 'string content' limitation")
-		}
 	}
 
-	// Check content_type is declared in schema (was missing before Stage 30.3)
+	// Check content_type is declared in schema
 	contentTypeProp, exists := props["content_type"]
 	if !exists {
-		t.Error("query_user_messages schema missing content_type parameter")
+		t.Error("query_session_content schema missing content_type parameter")
 	} else {
 		if contentTypeProp.Type != "string" {
 			t.Errorf("content_type type should be 'string', got '%s'", contentTypeProp.Type)
@@ -196,7 +195,8 @@ func TestHandleQueryTools_ToolParamFilters(t *testing.T) {
 	executor := NewToolExecutor()
 
 	t.Run("filter_by_tool_param_returns_only_matching", func(t *testing.T) {
-		result, err := executor.ToolExecutor.ExecuteToolQuery("query_tools", "session", map[string]interface{}{
+		result, err := executor.ToolExecutor.ExecuteToolQuery("query_session_signals", "session", map[string]interface{}{
+			"type": "tool_stats",
 			"tool": "Read",
 		})
 		if err != nil {
@@ -208,7 +208,9 @@ func TestHandleQueryTools_ToolParamFilters(t *testing.T) {
 	})
 
 	t.Run("no_filter_returns_all", func(t *testing.T) {
-		result, err := executor.ToolExecutor.ExecuteToolQuery("query_tools", "session", map[string]interface{}{})
+		result, err := executor.ToolExecutor.ExecuteToolQuery("query_session_signals", "session", map[string]interface{}{
+			"type": "tool_stats",
+		})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

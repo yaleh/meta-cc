@@ -15,9 +15,8 @@ func TestQueryToolsHaveSchemaDocumentation(t *testing.T) {
 	tools := getToolDefinitions()
 
 	// Tools that should have schema documentation in jq_filter (all fields are snake_case)
+	// TASK-7: Updated to use new consolidated tool names
 	schemaRequired := map[string][]string{
-		"query_tools":              {"tool_name", "status", "timestamp", "error", "input", "output", "uuid"},
-		"query_user_messages":      {"turn", "timestamp", "content"},
 		"query_file_access":        {"file", "total_accesses", "operations", "timeline"},
 		"query_tool_sequences":     {"pattern", "count", "occurrences", "time_span_minutes"},
 		"query_successful_prompts": {"turn", "content", "quality_score"},
@@ -108,18 +107,11 @@ func TestGetToolSchemaByName_KnownTools(t *testing.T) {
 	// Reset cached index to ensure clean test
 	toolSchemaIndex = nil
 
-	// All 10 query tool names that should have schemas
+	// New consolidated query tool names that should have schemas
 	queryTools := []string{
-		"query_user_messages",
-		"query_tools",
-		"query_tool_errors",
-		"query_token_usage",
-		"query_conversation_flow",
-		"query_system_errors",
-		"query_file_snapshots",
-		"query_timestamps",
-		"query_summaries",
-		"query_tool_blocks",
+		"query_session_content",
+		"query_session_signals",
+		"query_file_activity",
 	}
 
 	for _, name := range queryTools {
@@ -138,16 +130,16 @@ func TestGetToolSchemaByName_KnownTools(t *testing.T) {
 	}
 }
 
-func TestGetToolSchemaByName_QueryUserMessages_HasPattern(t *testing.T) {
+func TestGetToolSchemaByName_QuerySessionContent_HasRole(t *testing.T) {
 	toolSchemaIndex = nil
 
-	schema, err := getToolSchemaByName("query_user_messages")
+	schema, err := getToolSchemaByName("query_session_content")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if _, ok := schema.Properties["pattern"]; !ok {
-		t.Error("expected 'pattern' in query_user_messages properties")
+	if _, ok := schema.Properties["role"]; !ok {
+		t.Error("expected 'role' in query_session_content properties")
 	}
 }
 
@@ -217,10 +209,10 @@ func TestExecuteTool_UnknownParameterReturnsError(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	// "match" is not a valid parameter for query_user_messages
-	_, err = executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
-		"match":   "foo",
-		"pattern": "test",
+	// "match" is not a valid parameter for query_session_content
+	_, err = executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"match": "foo",
+		"role":  "user",
 	})
 	if err == nil {
 		t.Fatal("expected error for unknown parameter 'match', got nil")
@@ -243,10 +235,10 @@ func TestExecuteTool_ValidParameterSucceeds(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	// "pattern" is a valid parameter for query_user_messages
+	// "role" is a valid parameter for query_session_content
 	// This may fail with session-not-found but should NOT fail with parameter validation error
-	_, err = executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
-		"pattern": "test",
+	_, err = executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role": "user",
 	})
 	if err != nil && strings.Contains(err.Error(), "unknown parameter") {
 		t.Errorf("valid parameter 'pattern' should not trigger validation error, got: %v", err)
@@ -263,9 +255,9 @@ func TestExecuteTool_InvalidScopeReturnsError(t *testing.T) {
 	}
 
 	// "sessions" is not a valid scope value (should be "session")
-	_, err = executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
-		"pattern": "test",
-		"scope":   "sessions",
+	_, err = executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":  "user",
+		"scope": "sessions",
 	})
 	if err == nil {
 		t.Fatal("expected error for invalid scope 'sessions', got nil")
@@ -289,9 +281,9 @@ func TestExecuteTool_ValidScopeSucceeds(t *testing.T) {
 	}
 
 	// "session" is a valid scope value
-	_, err = executor.ExecuteTool(cfg, "query_user_messages", map[string]interface{}{
-		"pattern": "test",
-		"scope":   "session",
+	_, err = executor.ExecuteTool(cfg, "query_session_content", map[string]interface{}{
+		"role":  "user",
+		"scope": "session",
 	})
 	if err != nil && strings.Contains(err.Error(), "invalid scope") {
 		t.Errorf("valid scope 'session' should not trigger scope validation error, got: %v", err)
@@ -328,7 +320,8 @@ func TestExecuteTool_MultipleUnknownParamsListsAll(t *testing.T) {
 	}
 
 	// Both "match" and "foo" are unknown params
-	_, err = executor.ExecuteTool(cfg, "query_tool_errors", map[string]interface{}{
+	_, err = executor.ExecuteTool(cfg, "query_session_signals", map[string]interface{}{
+		"type":  "errors",
 		"match": "bar",
 		"foo":   "baz",
 	})

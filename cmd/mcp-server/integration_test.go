@@ -26,7 +26,7 @@ func TestQueryToolsInlineMode(t *testing.T) {
 	}
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(cfg, data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestQueryToolsFileRefMode(t *testing.T) {
 
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(cfg, data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -241,7 +241,7 @@ func TestMultipleQueriesConcurrent(t *testing.T) {
 				"output_mode": "file_ref", // Force file_ref mode
 			}
 
-			response, err := adaptResponse(cfg, data, params, "query_tools")
+			response, err := adaptResponse(cfg, data, params, "query_session_signals")
 			if err != nil {
 				errors <- err
 				return
@@ -291,7 +291,7 @@ func TestFileRefWithReadToolSimulation(t *testing.T) {
 	params := map[string]interface{}{}
 
 	// Execute query (should create file_ref)
-	response, err := adaptResponse(cfg, data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -362,7 +362,7 @@ func BenchmarkLargeQueryFileWrite(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		response, err := adaptResponse(cfg, data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_session_signals")
 		if err != nil {
 			b.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -408,7 +408,7 @@ func TestQueryToolsNoLimit(t *testing.T) {
 	// No limit parameter - should return all results
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(cfg, data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -473,7 +473,7 @@ func TestNoTruncationLargeData(t *testing.T) {
 
 	params := map[string]interface{}{}
 
-	response, err := adaptResponse(cfg, data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals")
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -551,7 +551,7 @@ func TestConfigurableThresholdParameter(t *testing.T) {
 	// Test 1: Default threshold (32KB) - should use file_ref
 	t.Run("default_threshold", func(t *testing.T) {
 		params := map[string]interface{}{}
-		response, err := adaptResponse(cfg, data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_session_signals")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -579,7 +579,7 @@ func TestConfigurableThresholdParameter(t *testing.T) {
 		params := map[string]interface{}{
 			"inline_threshold_bytes": 50 * 1024, // 50KB
 		}
-		response, err := adaptResponse(cfg, data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_session_signals")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -600,7 +600,7 @@ func TestConfigurableThresholdParameter(t *testing.T) {
 		params := map[string]interface{}{
 			"inline_threshold_bytes": 1024, // 1KB
 		}
-		response, err := adaptResponse(cfg, data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_session_signals")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -647,7 +647,7 @@ func TestConfigurableThresholdEnvironment(t *testing.T) {
 		cfg, _ := config.Load()
 
 		params := map[string]interface{}{}
-		response, err := adaptResponse(cfg, data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_session_signals")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -674,7 +674,7 @@ func TestConfigurableThresholdEnvironment(t *testing.T) {
 		params := map[string]interface{}{
 			"inline_threshold_bytes": 1024, // 1KB parameter should override env
 		}
-		response, err := adaptResponse(cfg, data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_session_signals")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -720,7 +720,7 @@ func TestPerformanceBenchmarks(t *testing.T) {
 
 	// Measure write time
 	start := time.Now()
-	response, err := adaptResponse(cfg, data, params, "query_tools")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals")
 	elapsed := time.Since(start)
 
 	if err != nil {
@@ -765,7 +765,7 @@ func TestJSONLOutputFormatE2E(t *testing.T) {
 		params := map[string]interface{}{}
 
 		// Execute query through response adapter
-		response, err := adaptResponse(cfg, data, params, "query_user_messages")
+		response, err := adaptResponse(cfg, data, params, "query_session_content")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -853,7 +853,7 @@ func TestJSONLOutputFormatE2E(t *testing.T) {
 		}
 
 		params := map[string]interface{}{}
-		response, err := adaptResponse(cfg, data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_session_signals")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -921,7 +921,7 @@ func TestJSONLOutputFormatE2E(t *testing.T) {
 		}
 
 		params := map[string]interface{}{}
-		response, err := adaptResponse(cfg, data, params, "query_tools")
+		response, err := adaptResponse(cfg, data, params, "query_session_signals")
 		if err != nil {
 			t.Fatalf("adaptResponse failed: %v", err)
 		}
@@ -998,7 +998,8 @@ func TestJSONLOutputFormatE2E(t *testing.T) {
 			"scope":   "session",
 		}
 
-		result, err := executor.ExecuteTool(cfg, "query_user_messages", args)
+		args["role"] = "user"
+		result, err := executor.ExecuteTool(cfg, "query_session_content", args)
 		if err != nil {
 			t.Fatalf("ExecuteTool failed: %v", err)
 		}
@@ -1076,18 +1077,20 @@ func TestExecuteToolE2E_AllTools(t *testing.T) {
 		args     map[string]interface{}
 	}{
 		{
-			name:     "query_tools",
-			toolName: "query_tools",
+			name:     "query_session_signals_tool_stats",
+			toolName: "query_session_signals",
 			args: map[string]interface{}{
+				"type":        "tool_stats",
 				"limit":       10,
 				"scope":       "project",
 				"working_dir": projectPath,
 			},
 		},
 		{
-			name:     "query_user_messages",
-			toolName: "query_user_messages",
+			name:     "query_session_content_user",
+			toolName: "query_session_content",
 			args: map[string]interface{}{
+				"role":        "user",
 				"pattern":     "test",
 				"limit":       5,
 				"scope":       "project",

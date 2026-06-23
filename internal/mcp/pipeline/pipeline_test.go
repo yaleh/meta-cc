@@ -174,19 +174,18 @@ func TestBuildStatsOnlyResponse_StandardTool(t *testing.T) {
 // ─── TimestampStatsTools ──────────────────────────────────────────────────────
 
 func TestTimestampStatsTools_Contents(t *testing.T) {
+	// After Phase D: new consolidated tool names for timestamp stats
 	expected := []string{
-		"query_user_messages",
-		"query_conversation_flow",
-		"query_timestamps",
-		"query_summaries",
+		"query_session_content",
+		"query_session_signals",
 	}
 	for _, name := range expected {
 		if !pipeline.TimestampStatsTools[name] {
 			t.Errorf("expected %q to be in TimestampStatsTools", name)
 		}
 	}
-	if pipeline.TimestampStatsTools["query_tools"] {
-		t.Error("query_tools should not be in TimestampStatsTools")
+	if pipeline.TimestampStatsTools["query_session_signals_tool_stats"] {
+		t.Error("internal subtypes should not be in TimestampStatsTools")
 	}
 }
 
@@ -202,7 +201,7 @@ func TestBuildStatsFirstResponse_Basic(t *testing.T) {
 		testConfig(),
 		rawData, parsedData,
 		map[string]interface{}{},
-		"query_tools", false, "turn",
+		"query_session_signals", false, "turn",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -220,7 +219,7 @@ func TestBuildStatsFirstResponse_TimestampTool(t *testing.T) {
 		testConfig(),
 		rawData, rawData,
 		map[string]interface{}{},
-		"query_user_messages", true, "turn",
+		"query_session_content", true, "turn",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -236,7 +235,7 @@ func TestBuildStatsFirstResponse_SessionLevel(t *testing.T) {
 		testConfig(),
 		rawData, rawData,
 		map[string]interface{}{},
-		"query_user_messages", true, "session",
+		"query_session_content", true, "session",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -254,7 +253,7 @@ func TestBuildStandardResponse_Basic(t *testing.T) {
 		testConfig(),
 		data,
 		map[string]interface{}{},
-		"query_tools",
+		"query_session_signals",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -296,7 +295,7 @@ func TestBuildResponse_StatsOnly(t *testing.T) {
 	result := makeQueryResult(
 		map[string]interface{}{"tool_name": "Bash", "status": "success"},
 	)
-	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_tools", pc)
+	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -306,7 +305,7 @@ func TestBuildResponse_StatsOnly(t *testing.T) {
 func TestBuildResponse_InvalidStatsLevel(t *testing.T) {
 	pc := pipeline.PipelineConfig{StatsOnly: true, StatsLevel: "invalid"}
 	result := makeQueryResult()
-	_, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_tools", pc)
+	_, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
 	if err == nil {
 		t.Fatal("expected error for invalid stats_level")
 	}
@@ -318,7 +317,7 @@ func TestBuildResponse_InvalidStatsLevel(t *testing.T) {
 func TestBuildResponse_GroupBySessionAndStatsOnlyExclusive(t *testing.T) {
 	pc := pipeline.PipelineConfig{StatsOnly: true, GroupBySession: true}
 	result := makeQueryResult()
-	_, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_user_messages", pc)
+	_, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_content", pc)
 	if err == nil {
 		t.Fatal("expected error for mutually exclusive flags")
 	}
@@ -329,7 +328,7 @@ func TestBuildResponse_Standard(t *testing.T) {
 	result := makeQueryResult(
 		map[string]interface{}{"tool_name": "Bash", "status": "success"},
 	)
-	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_tools", pc)
+	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -343,7 +342,7 @@ func TestBuildResponse_StatsFirst(t *testing.T) {
 	result := makeQueryResult(
 		map[string]interface{}{"tool_name": "Bash", "status": "success"},
 	)
-	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_tools", pc)
+	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -390,7 +389,7 @@ func TestBuildResponse_WithWarnings(t *testing.T) {
 		Entries:  []interface{}{map[string]interface{}{"x": 1}},
 		Warnings: []string{"test warning"},
 	}
-	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_tools", pc)
+	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

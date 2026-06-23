@@ -72,8 +72,21 @@ func TestRegisterHandler_AddsToRegistry(t *testing.T) {
 
 // ─── QueryHandlerRegistry ─────────────────────────────────────────────────────
 
-func TestQueryHandlerRegistry_AllConvenienceTools(t *testing.T) {
-	convenienceTools := []string{
+func TestQueryHandlerRegistry_AllConsolidatedTools(t *testing.T) {
+	consolidatedTools := []string{
+		"query_session_content",
+		"query_session_signals",
+		"query_file_activity",
+	}
+	for _, tool := range consolidatedTools {
+		if _, ok := queryHandlerRegistry[tool]; !ok {
+			t.Errorf("consolidated query tool %q not registered in queryHandlerRegistry", tool)
+		}
+	}
+}
+
+func TestQueryHandlerRegistry_OldToolsRemoved(t *testing.T) {
+	removedTools := []string{
 		"query_user_messages",
 		"query_tools",
 		"query_tool_errors",
@@ -85,9 +98,9 @@ func TestQueryHandlerRegistry_AllConvenienceTools(t *testing.T) {
 		"query_summaries",
 		"query_tool_blocks",
 	}
-	for _, tool := range convenienceTools {
-		if _, ok := queryHandlerRegistry[tool]; !ok {
-			t.Errorf("query tool %q not registered in queryHandlerRegistry", tool)
+	for _, tool := range removedTools {
+		if _, ok := queryHandlerRegistry[tool]; ok {
+			t.Errorf("old query tool %q should have been removed from queryHandlerRegistry in Phase D", tool)
 		}
 	}
 }

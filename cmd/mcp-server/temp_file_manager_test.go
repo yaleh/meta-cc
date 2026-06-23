@@ -12,7 +12,7 @@ import (
 
 func TestCreateTempFilePath(t *testing.T) {
 	sessionHash := "abc12345"
-	queryType := "query_tools"
+	queryType := "query_session_signals"
 
 	path := createTempFilePath(sessionHash, queryType)
 
