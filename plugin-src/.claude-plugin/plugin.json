@@ -1,6 +1,6 @@
 {
   "name": "meta-cc",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "Meta-Cognition tool for Claude Code with 22 MCP tools for session history analysis, error tracking, quality scanning, work patterns, timelines, and bug detection. Focused, fast, and data-driven.",
   "author": {
     "name": "Yale Huang",

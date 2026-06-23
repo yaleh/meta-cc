@@ -5,6 +5,23 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-06-23
+
+
+### Added
+
+- TASK-7 consolidate 10 query_* tools into 3 semantic tools
+
+### Fixed
+
+- remove orphaned handleQuerySummaries after TASK-7 tool consolidation
+- update codex E2E tests to use consolidated query_* tool names (TASK-7)
+
+### Other
+
+- merge: consolidate query_* MCP tools 10→3 (TASK-7)
+- merge: register prompt-library skills in plugin.json (TASK-8)
+
 ## [3.2.0] - 2026-06-23
 
 
