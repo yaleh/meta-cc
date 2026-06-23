@@ -175,11 +175,12 @@ func TestLegacyToolsRemoved(t *testing.T) {
 func TestPhase25ToolCount(t *testing.T) {
 	tools := getToolDefinitions()
 
-	// Expected: 21 tools total (Phase 45.1 update)
+	// Expected: 22 tools total (TASK-1 update)
 	// - 10 convenience tools (Layer 1)
 	// - 1 utility tool (cleanup_temp_files)
 	// - 4 two-stage query tools (get_session_directory, inspect_session_files, execute_stage2_query, get_session_metadata)
 	// - 6 analysis tools (analyze_errors, quality_scan, get_work_patterns, get_timeline, analyze_bugs, get_tech_debt)
+	// - 1 doc session signals tool (query_edit_sequences)
 	//
 	// Phase 27 Removed: query, query_raw (simplified query interface)
 	// Phase 27 Added: inspect_session_files (Stage 27.3), execute_stage2_query (Stage 27.4), get_session_metadata (Stage 27.5)
@@ -192,7 +193,8 @@ func TestPhase25ToolCount(t *testing.T) {
 	// Phase 25 Removed: 5 legacy tools (query_tool_sequences, query_file_access, get_session_stats,
 	//                    query_project_state, query_successful_prompts)
 	// Phase 45.1 Removed: list_capabilities, get_capability
-	expectedCount := 21
+	// TASK-1 Added: query_edit_sequences
+	expectedCount := 22
 
 	actualCount := len(tools)
 	require.Equal(t, expectedCount, actualCount,

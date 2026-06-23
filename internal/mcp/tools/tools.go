@@ -451,6 +451,27 @@ func GetToolDefinitions() []Tool {
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 		}),
+		BuildTool("query_edit_sequences", "Analyze file edit/read patterns: docRole, co-accessed docs, DocVoid. Default scope: project.", map[string]Property{
+			"files": {
+				Type:        "array",
+				Description: "Array of absolute file paths to analyze (required)",
+				Items: &Property{
+					Type: "string",
+				},
+			},
+			"include_content": {
+				Type:        "boolean",
+				Description: "If true, include full old/new string content in edit events (default: false)",
+			},
+			"limit_per_file": {
+				Type:        "number",
+				Description: "Maximum events to return per file (default: 50)",
+			},
+			"working_dir": {
+				Type:        "string",
+				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
+			},
+		}, "files"),
 	}
 }
 

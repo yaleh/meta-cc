@@ -111,9 +111,10 @@ func TestHandleToolsList(t *testing.T) {
 	// Phase 44.2: Added analyze_bugs (21 -> 22)
 	// Phase 44.3: Added get_tech_debt (22 -> 23)
 	// Phase 45.1: Removed list_capabilities, get_capability (23 -> 21)
-	// Final: 21 tools (10 convenience + 1 utility + 4 two-stage + 6 analysis)
-	if len(toolsSlice) != 21 {
-		t.Errorf("expected 21 tools after Phase 45.1, got %d", len(toolsSlice))
+	// TASK-1: Added query_edit_sequences (21 -> 22)
+	// Final: 22 tools (10 convenience + 1 utility + 4 two-stage + 6 analysis + 1 doc signals)
+	if len(toolsSlice) != 22 {
+		t.Errorf("expected 22 tools after TASK-1, got %d", len(toolsSlice))
 	}
 }
 

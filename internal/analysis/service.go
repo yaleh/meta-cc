@@ -296,6 +296,34 @@ func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
 	return marshalResult(result)
 }
 
+// QueryEditSequences implements the query_edit_sequences MCP tool.
+func (s *Service) QueryEditSequences(args map[string]interface{}) (string, error) {
+	entries, _, err := s.loadData(args)
+	if err != nil {
+		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+
+	var files []string
+	if raw, ok := args["files"]; ok {
+		switch v := raw.(type) {
+		case []interface{}:
+			for _, item := range v {
+				if str, ok := item.(string); ok {
+					files = append(files, str)
+				}
+			}
+		case []string:
+			files = v
+		}
+	}
+
+	includeContent := boolArg(args, "include_content")
+	limitPerFile := intArg(args, "limit_per_file")
+
+	result := analyzer.BuildEditSequences(entries, files, includeContent, limitPerFile)
+	return marshalResult(result)
+}
+
 // AnalysisService is the interface implemented by *Service.
 // It allows cmd/mcp-server to use a mock in tests.
 type AnalysisService interface {
@@ -305,4 +333,5 @@ type AnalysisService interface {
 	GetWorkPatterns(args map[string]interface{}) (string, error)
 	GetTimeline(args map[string]interface{}) (string, error)
 	GetTechDebt(args map[string]interface{}) (string, error)
+	QueryEditSequences(args map[string]interface{}) (string, error)
 }
