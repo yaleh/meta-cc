@@ -66,3 +66,4 @@ backlog/.basic-daemon.log
 backlog/.loop-stop
 backlog/.caps/
 backlog/.agent-done-*
+.agent-summary-*
