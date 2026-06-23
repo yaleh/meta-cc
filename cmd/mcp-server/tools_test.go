@@ -360,8 +360,9 @@ func TestToolCountIncreasedTo14(t *testing.T) {
 	// Phase 44.2: Added analyze_bugs (21 -> 22)
 	// Phase 44.3: Added get_tech_debt (22 -> 23)
 	// Phase 45.1: Removed list_capabilities, get_capability (23 -> 21)
-	// New target: 21 tools (10 convenience + 1 utility + 4 two-stage + 6 analysis)
-	expectedCount := 21
+	// TASK-1: Added query_edit_sequences (21 -> 22)
+	// New target: 22 tools (10 convenience + 1 utility + 4 two-stage + 6 analysis + 1 doc signals)
+	expectedCount := 22
 	actualCount := len(tools)
 
 	if actualCount != expectedCount {
