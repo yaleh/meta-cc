@@ -245,6 +245,24 @@ func TestValidateToolArgs_QueryFileActivity(t *testing.T) {
 	}
 }
 
+// TestQuerySessionContentSchema_ToolRole_DescribesContextFields verifies that the
+// block_type parameter description mentions context fields (timestamp/sessionId/turn).
+func TestQuerySessionContentSchema_ToolRole_DescribesContextFields(t *testing.T) {
+	index := tools.BuildToolSchemaIndex()
+	s, err := tools.GetToolSchemaByName(index, "query_session_content")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	prop, ok := s.Properties["block_type"]
+	if !ok {
+		t.Fatal("query_session_content must have 'block_type' parameter")
+	}
+	desc := prop.Description
+	if !strings.Contains(desc, "timestamp") && !strings.Contains(desc, "sessionId") {
+		t.Errorf("block_type description should mention context fields (timestamp/sessionId), got: %q", desc)
+	}
+}
+
 // Phase D: Old tools must be removed from tool definitions.
 func TestOldToolsRemovedFromDefinitions(t *testing.T) {
 	removedTools := []string{
