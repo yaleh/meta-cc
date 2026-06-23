@@ -135,24 +135,14 @@ echo "  Target version:  $VERSION ($VERSION_NUM)"
 echo ""
 
 if [ -n "$DRY_RUN" ]; then
-    echo "[DRY RUN] Would update marketplace.json: v$CURRENT_VERSION → $VERSION_NUM"
+    echo "[DRY RUN] Would call bump-plugin-version.sh --version $VERSION_NUM --non-interactive"
     echo ""
 else
-    jq --arg ver "$VERSION_NUM" '.plugins[0].version = $ver' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
-    mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
-    echo "✓ marketplace.json updated to $VERSION_NUM"
+    bash scripts/release/bump-plugin-version.sh --version "$VERSION_NUM" --non-interactive
     echo ""
 
-    # Update plugin.json version (must match marketplace.json)
-    PLUGIN_JSON="plugin-src/.claude-plugin/plugin.json"
-    if [ -f "$PLUGIN_JSON" ]; then
-        jq --arg ver "$VERSION_NUM" '.version = $ver' "$PLUGIN_JSON" > "$PLUGIN_JSON.tmp"
-        mv "$PLUGIN_JSON.tmp" "$PLUGIN_JSON"
-        echo "✓ plugin.json updated to $VERSION_NUM"
-        echo ""
-    fi
-
     # Verify version parity
+    PLUGIN_JSON="plugin-src/.claude-plugin/plugin.json"
     MARKET_VER=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)
     PLUGIN_VER=$(jq -r '.version' "$PLUGIN_JSON" 2>/dev/null || echo "N/A")
     if [ "$MARKET_VER" != "$PLUGIN_VER" ]; then
