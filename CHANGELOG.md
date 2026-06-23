@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.3.3] - 2026-06-23
 
 
+### Changed
+
+- Documentation: add CHANGELOG entry for v3.3.3
+- Documentation: add TASK-10 backlog task file
+
+### Fixed
+
+- handle null directory in mcp-e2e-simple.sh when no sessions found
+- sync plugin-src marketplace.json version to 3.3.2 (pre-existing mismatch)
+
+### Other
+
+- merge: Unify version source-of-truth: release.sh delegates to bump-plugin-version.sh, install-user reads version from plugin.json at runtime (TASK-10)
+
+## [3.3.3] - 2026-06-23
+
+
 ### Fixed
 
 - handle null directory in mcp-e2e-simple.sh when no sessions found
