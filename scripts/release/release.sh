@@ -230,7 +230,7 @@ if [ -n "$DRY_RUN" ]; then
     echo "    Update marketplace.json, plugin.json, and CHANGELOG.md to version $VERSION_NUM."
     echo ""
 else
-    git add .claude-plugin/marketplace.json plugin-src/.claude-plugin/plugin.json CHANGELOG.md
+    git add .claude-plugin/marketplace.json plugin-src/.claude-plugin/plugin.json plugin-src/.claude-plugin/marketplace.json CHANGELOG.md
     git commit -m "chore: release $VERSION
 
 Update marketplace.json, plugin.json, and CHANGELOG.md to version $VERSION_NUM.
