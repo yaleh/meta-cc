@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/yaleh/meta-cc/internal/analyzer"
 	"github.com/yaleh/meta-cc/internal/conversation"
@@ -296,6 +298,35 @@ func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
 	return marshalResult(result)
 }
 
+// resolveFilePaths converts any relative paths in the slice to absolute paths
+// using projectRoot as the base directory. Paths that are already absolute are
+// returned unchanged. If projectRoot is empty, the slice is returned as-is.
+func resolveFilePaths(files []string, projectRoot string) []string {
+	if projectRoot == "" {
+		return files
+	}
+	resolved := make([]string, len(files))
+	for i, f := range files {
+		if filepath.IsAbs(f) {
+			resolved[i] = f
+		} else {
+			resolved[i] = filepath.Join(projectRoot, f)
+		}
+	}
+	return resolved
+}
+
+// gitProjectRoot attempts to discover the git repository root via
+// "git rev-parse --show-toplevel". Returns an empty string on any error so
+// that callers can degrade gracefully.
+func gitProjectRoot() string {
+	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
 // QueryEditSequences implements the query_edit_sequences MCP tool.
 func (s *Service) QueryEditSequences(args map[string]interface{}) (string, error) {
 	entries, _, err := s.loadData(args)
@@ -315,6 +346,12 @@ func (s *Service) QueryEditSequences(args map[string]interface{}) (string, error
 		case []string:
 			files = v
 		}
+	}
+
+	// Auto-resolve relative paths to absolute using the git project root.
+	// Degrades gracefully: if git is unavailable, paths are used as-is.
+	if len(files) > 0 {
+		files = resolveFilePaths(files, gitProjectRoot())
 	}
 
 	includeContent := boolArg(args, "include_content")

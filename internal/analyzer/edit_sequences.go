@@ -259,6 +259,31 @@ func BuildEditSequences(entries []types.SessionEntry, files []string, includeCon
 
 	// ─── Phase C: CoAccessedDocs + DocVoid + SpecPrecisionGap ────────────────
 
+	// Build globalDocStats: doc file path → {reads, edits} across ALL tool calls
+	// (not just the filtered files). This allows DocRole to be computed for doc
+	// files that were co-accessed but NOT in the input files list.
+	type docStats struct{ reads, edits int }
+	globalDocStats := make(map[string]*docStats)
+	for _, tc := range toolCalls {
+		action := types.FileActionType(tc.ToolName)
+		if action == "" {
+			continue
+		}
+		fp, _ := tc.Input["file_path"].(string)
+		if fp == "" || classifyFileType(fp) != "doc" {
+			continue
+		}
+		if globalDocStats[fp] == nil {
+			globalDocStats[fp] = &docStats{}
+		}
+		switch action {
+		case "Read":
+			globalDocStats[fp].reads++
+		case "Edit", "Write":
+			globalDocStats[fp].edits++
+		}
+	}
+
 	// Build sessionToFiles: sessionID → set of file paths touched
 	sessionToFiles := make(map[string]map[string]bool)
 	for _, tc := range toolCalls {
@@ -316,10 +341,14 @@ func BuildEditSequences(entries []types.SessionEntry, files []string, includeCon
 					continue
 				}
 				if docCoAccess[docFP] == nil {
-					// Determine docRole from the doc's own FileEditSequence if available
+					// Determine docRole: prefer the doc's own FileEditSequence (if it was
+					// in the queried files list), otherwise fall back to globalDocStats so
+					// that non-queried doc files still get a computed role.
 					docDocRole := ""
 					if docSeq, ok := result.Files[docFP]; ok {
 						docDocRole = computeDocRole(docSeq.TotalReads, docSeq.TotalEdits)
+					} else if gs, ok := globalDocStats[docFP]; ok {
+						docDocRole = computeDocRole(gs.reads, gs.edits)
 					}
 					docCoAccess[docFP] = &CoAccessedDoc{FilePath: docFP, DocRole: docDocRole}
 				}

@@ -700,6 +700,9 @@ func TestConfigurableThresholdEnvironment(t *testing.T) {
 
 // TestPerformanceBenchmarks verifies 100KB write meets <200ms requirement
 func TestPerformanceBenchmarks(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping performance benchmark in short mode")
+	}
 	cfg, _ := config.Load()
 	// Generate 100KB dataset
 	data := make([]interface{}, 1000)
