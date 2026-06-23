@@ -235,54 +235,54 @@ finally:
 PY
 
 REQUEST=$(jq -nc --arg cwd "$PROJECT_DIR" --arg pattern "$UNIQUE_MESSAGE" \
-    '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query_user_messages","arguments":{"provider":"codex","scope":"project","working_dir":$cwd,"pattern":$pattern,"limit":5}}}')
+    '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query_session_content","arguments":{"role":"user","provider":"codex","scope":"project","working_dir":$cwd,"pattern":$pattern,"limit":5}}}')
 # shellcheck disable=SC2097,SC2098,SC1007  # env-prefix on shell function; shellcheck false positive
 RESPONSE=$(HOME="$TMP_DIR/home" CODEX_HOME="$CODEX_HOME" META_CC_CODEX_ROOT="$CODEX_HOME" META_CC_PROJECTS_ROOT= \
     send_request "$REQUEST")
-[ -n "$RESPONSE" ] || fail "no JSON-RPC response for provider-backed query_user_messages"
+[ -n "$RESPONSE" ] || fail "no JSON-RPC response for provider-backed query_session_content(role=user)"
 echo "$RESPONSE" | jq -e '.result.content[0].text | contains("'"$UNIQUE_MESSAGE"'")' >/dev/null \
-    || fail "provider-backed query_user_messages did not return the Codex rollout message"
-pass "provider-backed query_user_messages returned data from Codex SQLite + rollout"
+    || fail "provider-backed query_session_content(role=user) did not return the Codex rollout message"
+pass "provider-backed query_session_content(role=user) returned data from Codex SQLite + rollout"
 
 REQUEST=$(jq -nc --arg cwd "$PROJECT_DIR" --arg pattern "$UNIQUE_MESSAGE" \
-    '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query_user_messages","arguments":{"provider":"codex","scope":"project","working_dir":$cwd,"pattern":$pattern,"limit":5}}}')
+    '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query_session_content","arguments":{"role":"user","provider":"codex","scope":"project","working_dir":$cwd,"pattern":$pattern,"limit":5}}}')
 # shellcheck disable=SC2097,SC2098,SC1007  # env-prefix on shell function; shellcheck false positive
 RESPONSE=$(HOME="$TMP_DIR/home" CODEX_HOME="$CODEX_HOME" META_CC_CODEX_ROOT="$CODEX_HOME" META_CC_PROJECTS_ROOT= \
     send_request "$REQUEST")
-[ -n "$RESPONSE" ] || fail "no JSON-RPC response for query_user_messages"
+[ -n "$RESPONSE" ] || fail "no JSON-RPC response for query_session_content(role=user)"
 echo "$RESPONSE" | jq -e '.result.content[0].text | contains("'"$UNIQUE_MESSAGE"'")' >/dev/null \
-    || fail "query_user_messages did not return the Codex transcript message"
-pass "query_user_messages returned data from the Codex transcript"
+    || fail "query_session_content(role=user) did not return the Codex transcript message"
+pass "query_session_content(role=user) returned data from the Codex transcript"
 
 REQUEST=$(jq -nc --arg cwd "$PROJECT_DIR" \
-    '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query_tools","arguments":{"provider":"codex","scope":"project","working_dir":$cwd,"tool":"exec_command","limit":5}}}')
+    '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query_session_signals","arguments":{"type":"tool_stats","provider":"codex","scope":"project","working_dir":$cwd,"tool":"exec_command","limit":5}}}')
 # shellcheck disable=SC2097,SC2098,SC1007  # env-prefix on shell function; shellcheck false positive
 RESPONSE=$(HOME="$TMP_DIR/home" CODEX_HOME="$CODEX_HOME" META_CC_CODEX_ROOT="$CODEX_HOME" META_CC_PROJECTS_ROOT= \
     send_request "$REQUEST")
-[ -n "$RESPONSE" ] || fail "no JSON-RPC response for query_tools"
+[ -n "$RESPONSE" ] || fail "no JSON-RPC response for query_session_signals(type=tool_stats)"
 echo "$RESPONSE" | jq -e '.result.content[0].text | contains("exec_command")' >/dev/null \
-    || fail "query_tools did not return Codex function_call tool data"
-pass "query_tools returned Codex function_call data"
+    || fail "query_session_signals(type=tool_stats) did not return Codex function_call tool data"
+pass "query_session_signals(type=tool_stats) returned Codex function_call data"
 
 REQUEST=$(jq -nc --arg cwd "$PROJECT_DIR" --arg error "$UNIQUE_ERROR" \
-    '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"query_tool_errors","arguments":{"provider":"codex","scope":"project","working_dir":$cwd,"limit":5}}}')
+    '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"query_session_signals","arguments":{"type":"errors","provider":"codex","scope":"project","working_dir":$cwd,"limit":5}}}')
 # shellcheck disable=SC2097,SC2098,SC1007  # env-prefix on shell function; shellcheck false positive
 RESPONSE=$(HOME="$TMP_DIR/home" CODEX_HOME="$CODEX_HOME" META_CC_CODEX_ROOT="$CODEX_HOME" META_CC_PROJECTS_ROOT= \
     send_request "$REQUEST")
-[ -n "$RESPONSE" ] || fail "no JSON-RPC response for query_tool_errors"
+[ -n "$RESPONSE" ] || fail "no JSON-RPC response for query_session_signals(type=errors)"
 echo "$RESPONSE" | jq -e '.result.content[0].text | contains("'"$UNIQUE_ERROR"'")' >/dev/null \
-    || fail "query_tool_errors did not return Codex failed tool output"
-pass "query_tool_errors returned Codex failed tool output"
+    || fail "query_session_signals(type=errors) did not return Codex failed tool output"
+pass "query_session_signals(type=errors) returned Codex failed tool output"
 
 REQUEST=$(jq -nc --arg cwd "$PROJECT_DIR" \
-    '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"query_token_usage","arguments":{"provider":"codex","scope":"project","working_dir":$cwd,"limit":5}}}')
+    '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"query_session_signals","arguments":{"type":"tokens","provider":"codex","scope":"project","working_dir":$cwd,"limit":5}}}')
 # shellcheck disable=SC2097,SC2098,SC1007  # env-prefix on shell function; shellcheck false positive
 RESPONSE=$(HOME="$TMP_DIR/home" CODEX_HOME="$CODEX_HOME" META_CC_CODEX_ROOT="$CODEX_HOME" META_CC_PROJECTS_ROOT= \
     send_request "$REQUEST")
-[ -n "$RESPONSE" ] || fail "no JSON-RPC response for query_token_usage"
+[ -n "$RESPONSE" ] || fail "no JSON-RPC response for query_session_signals(type=tokens)"
 echo "$RESPONSE" | jq -e '.result.content[0].text | fromjson | .data[] | select(.message.usage.input_tokens == 10 and .message.usage.output_tokens == 3)' >/dev/null \
-    || fail "query_token_usage did not return Codex token_count usage"
-pass "query_token_usage returned Codex token_count usage"
+    || fail "query_session_signals(type=tokens) did not return Codex token_count usage"
+pass "query_session_signals(type=tokens) returned Codex token_count usage"
 
 REQUEST=$(jq -nc --arg cwd "$PROJECT_DIR" \
     '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"get_work_patterns","arguments":{"provider":"codex","scope":"project","working_dir":$cwd}}}')
