@@ -1,16 +1,11 @@
 package locator
 
 import (
-	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // FromSessionID 通过会话 ID 查找会话文件
@@ -159,100 +154,6 @@ func findSessionFilesRecursive(rootPath, filename string) ([]string, error) {
 		return nil, errors.New("no matching session files")
 	}
 	return matches, nil
-}
-
-func findJSONLFilesRecursive(rootPath string) ([]string, error) {
-	var matches []string
-	err := filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if filepath.Ext(path) == ".jsonl" {
-			matches = append(matches, path)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(matches) == 0 {
-		return nil, errors.New("no jsonl session files")
-	}
-	return matches, nil
-}
-
-func findProjectJSONLFilesRecursive(rootPath, projectPath string) ([]string, error) {
-	all, err := findJSONLFilesRecursive(rootPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var matches []string
-	for _, path := range all {
-		if fileContains(path, projectPath) {
-			matches = append(matches, path)
-		}
-	}
-	if len(matches) == 0 {
-		return nil, errors.New("no project-matching jsonl session files")
-	}
-	return matches, nil
-}
-
-func fileContains(path, projectPath string) bool {
-	if projectPath == "" {
-		return false
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		return false
-	}
-	defer file.Close()
-
-	cleanProject := filepath.Clean(projectPath)
-	reader := bufio.NewReader(file)
-	for {
-		line, _, readErr := parser.ReadLineFiltered(reader, parser.StrategyDefault)
-		if len(line) == 0 && readErr == io.EOF {
-			break
-		}
-		if readErr != nil && readErr != io.EOF {
-			return false
-		}
-		var record map[string]interface{}
-		if err := json.Unmarshal(line, &record); err != nil {
-			if readErr == io.EOF {
-				break
-			}
-			continue
-		}
-		if recordProjectPath(record, cleanProject) {
-			return true
-		}
-		if readErr == io.EOF {
-			break
-		}
-	}
-	return false
-}
-
-func recordProjectPath(record map[string]interface{}, cleanProject string) bool {
-	if cwd, ok := record["cwd"].(string); ok && filepath.Clean(cwd) == cleanProject {
-		return true
-	}
-	payload, ok := record["payload"].(map[string]interface{})
-	if !ok {
-		return false
-	}
-	for _, key := range []string{"cwd", "working_dir", "workingDir"} {
-		if cwd, ok := payload[key].(string); ok && filepath.Clean(cwd) == cleanProject {
-			return true
-		}
-	}
-	return false
 }
 
 func formatRoot(root SessionRoot) string {
