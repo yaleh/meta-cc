@@ -87,7 +87,11 @@ install_plugin_manifest() {
 
     mkdir -p "$PLUGIN_MANIFEST_DIR"
     cp .claude-plugin/plugin.json "$PLUGIN_MANIFEST_DIR/plugin.json" || error_exit "Failed to copy plugin.json"
-    cp .claude-plugin/marketplace.json "$PLUGIN_MANIFEST_DIR/marketplace.json" || error_exit "Failed to copy marketplace.json"
+    if [ -f ".claude-plugin/marketplace.json" ]; then
+        cp .claude-plugin/marketplace.json "$PLUGIN_MANIFEST_DIR/marketplace.json" || error_exit "Failed to copy marketplace.json"
+    else
+        warn "marketplace.json not found, skipping marketplace metadata"
+    fi
 
     info "Plugin manifest installed to $PLUGIN_MANIFEST_DIR"
 }

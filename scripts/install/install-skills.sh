@@ -22,8 +22,6 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-PLUGIN_SRC="$PROJECT_ROOT/plugin-src"
 CLAUDE_DIR="${CLAUDE_DIR:-${HOME}/.claude}"
 CODEX_HOME="${CODEX_HOME:-${CODEX_DIR:-${HOME}/.codex}}"
 INSTALL_CLAUDE="${INSTALL_CLAUDE:-1}"
@@ -33,8 +31,32 @@ info()  { echo -e "${GREEN}✓${NC} $1"; }
 warn()  { echo -e "${YELLOW}⚠${NC} $1"; }
 error_exit() { echo -e "${RED}ERROR: $1${NC}" >&2; exit 1; }
 
+find_source_dir() {
+    local name="$1"
+
+    if [ -d "$SCRIPT_DIR/$name" ]; then
+        echo "$SCRIPT_DIR/$name"
+        return
+    fi
+
+    local repo_root
+    repo_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    if [ -d "$repo_root/plugin-src/$name" ]; then
+        echo "$repo_root/plugin-src/$name"
+        return
+    fi
+
+    if [ -d "$repo_root/$name" ]; then
+        echo "$repo_root/$name"
+        return
+    fi
+
+    return 1
+}
+
 install_commands() {
-    local cmd_src="$PLUGIN_SRC/commands"
+    local cmd_src
+    cmd_src="$(find_source_dir commands)" || error_exit "commands/ directory not found"
     local cmd_dst="$CLAUDE_DIR/commands"
 
     [ -d "$cmd_src" ] || error_exit "commands/ directory not found at $cmd_src"
@@ -52,7 +74,8 @@ install_commands() {
 }
 
 install_claude_skills() {
-    local skill_src="$PLUGIN_SRC/skills"
+    local skill_src
+    skill_src="$(find_source_dir skills)" || error_exit "skills/ directory not found"
     local skill_dst="$CLAUDE_DIR/skills"
 
     [ -d "$skill_src" ] || error_exit "skills/ directory not found at $skill_src"
@@ -70,7 +93,8 @@ install_claude_skills() {
 }
 
 install_codex_skills() {
-    local skill_src="$PLUGIN_SRC/skills"
+    local skill_src
+    skill_src="$(find_source_dir skills)" || error_exit "skills/ directory not found"
     local skill_dst="$CODEX_HOME/skills"
 
     [ -d "$skill_src" ] || error_exit "skills/ directory not found at $skill_src"
@@ -88,10 +112,9 @@ install_codex_skills() {
 }
 
 install_lib() {
-    local lib_src="$PLUGIN_SRC/lib"
+    local lib_src
+    lib_src="$(find_source_dir lib)" || { warn "lib/ not found, skipping"; return; }
     local lib_dst="$CLAUDE_DIR/lib"
-
-    [ -d "$lib_src" ] || { warn "lib/ not found, skipping"; return; }
 
     mkdir -p "$lib_dst"
     cp -r "$lib_src"/. "$lib_dst/"

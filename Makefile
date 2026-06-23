@@ -114,7 +114,12 @@ check-mod-tidy:
 test-bats:
 	@echo "=== Bats Pipeline Tests ==="
 	@echo ""
-	@if ! command -v bats >/dev/null 2>&1; then \
+	@if command -v bats >/dev/null 2>&1; then \
+		echo "Running Bats tests..."; \
+		bats tests/scripts/*.bats; \
+		echo ""; \
+		echo "✅ Bats tests passed"; \
+	else \
 		echo "⚠️  WARNING: bats not installed"; \
 		echo ""; \
 		echo "Install with:"; \
@@ -124,10 +129,6 @@ test-bats:
 		echo "Skipping Bats tests..."; \
 		exit 0; \
 	fi
-	@echo "Running Bats tests..."
-	@bats tests/scripts/*.bats
-	@echo ""
-	@echo "✅ Bats tests passed"
 
 check-release-ready:
 	@echo "=== Release Readiness Check ==="
@@ -545,7 +546,7 @@ lint: fmt vet lint-errors lint-error-handling lint-markdown check-no-scanner
 		golangci-lint run ./...; \
 	else \
 		echo "golangci-lint not found. Install with:"; \
-		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8"; \
+		echo "  go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2"; \
 		echo "Skipping lint checks..."; \
 	fi
 
@@ -620,7 +621,7 @@ lint-fix:
 		golangci-lint run --fix ./...; \
 	else \
 		echo "golangci-lint not found. Install with:"; \
-		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8"; \
+		echo "  go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2"; \
 		exit 1; \
 	fi
 
