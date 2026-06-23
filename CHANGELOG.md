@@ -5,6 +5,25 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-06-23
+
+
+### Changed
+
+- Maintenance: prepare v3.2.0 release — plugin bump, backlog setup, loop-backlog daemon
+
+### Fixed
+
+- remove unused functions and dead imports from locator/args.go
+- query_edit_sequences returns immediately with empty result when no session files (TASK-4)
+- auto-resolve relative paths and populate CoAccessedDoc.DocRole for non-queried docs
+
+### Other
+
+- merge: Fix query_edit_sequences hang when no session files found (TASK-4)
+- merge: Fix query_edit_sequences: auto-resolve relative paths and populate CoAccessedDoc.DocRole (TASK-2)
+- merge: Documentation Session Signals: File Type Classification and Co-Access Pairs (TASK-1)
+
 ## [3.1.5] - 2026-06-20
 
 
