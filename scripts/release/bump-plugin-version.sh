@@ -72,6 +72,7 @@ echo ""
 echo "This will update:"
 echo "  - plugin-src/.claude-plugin/plugin.json: $CURRENT → $NEW_VERSION"
 echo "  - .claude-plugin/marketplace.json: $CURRENT → $NEW_VERSION"
+echo "  - plugin-src/.claude-plugin/marketplace.json: $CURRENT → $NEW_VERSION"
 echo ""
 echo "Press Enter to continue, or Ctrl+C to abort..."
 read
@@ -87,11 +88,17 @@ echo "Updating marketplace.json..."
 jq --arg ver "$NEW_VERSION" '.plugins[0].version = $ver' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
 mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
 echo "✓ marketplace.json updated to $NEW_VERSION"
+
+# Update plugin-src/.claude-plugin/marketplace.json version
+echo "Updating plugin-src/.claude-plugin/marketplace.json..."
+jq --arg ver "$NEW_VERSION" '.plugins[0].version = $ver' plugin-src/.claude-plugin/marketplace.json > plugin-src/.claude-plugin/marketplace.json.tmp
+mv plugin-src/.claude-plugin/marketplace.json.tmp plugin-src/.claude-plugin/marketplace.json
+echo "✓ plugin-src/.claude-plugin/marketplace.json updated to $NEW_VERSION"
 echo ""
 
 # Commit changes
 echo "Committing version bump..."
-git add plugin-src/.claude-plugin/plugin.json .claude-plugin/marketplace.json
+git add plugin-src/.claude-plugin/plugin.json .claude-plugin/marketplace.json plugin-src/.claude-plugin/marketplace.json
 git commit -m "chore: bump plugin version to $NEW_VERSION
 
 Updated plugin.json and marketplace.json version.

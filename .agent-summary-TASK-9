@@ -1,0 +1,7 @@
+Phase A ✓ 2026-06-23T00:00:00Z
+Created plugin-src marketplace.json, updated bump script, Makefile, sync script
+DoD #0: PASS — go test ./...
+DoD #1: PASS — grep -q '"source": "."' plugin-src/.claude-plugin/marketplace.json
+DoD #2: PASS — make install-user && grep -q '"source": "."' ~/.local/share/meta-cc/.claude-plugin/marketplace.json
+DoD #3: PASS — make test
+DoD #4: PASS — ! grep -rn "jq.*plugins\[0\]\.source" Makefile

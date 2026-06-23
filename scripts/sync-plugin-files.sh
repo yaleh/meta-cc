@@ -68,7 +68,7 @@ if [ "$VERIFY_MODE" = true ]; then
     echo "✓ Codex plugin source files verified"
     echo ""
 
-    echo "[5/5] Verifying version consistency across plugin manifests..."
+    echo "[5/6] Verifying version consistency across plugin manifests..."
     PLUGIN_VERSION=$(jq -r '.version' "$PROJECT_ROOT/plugin-src/.claude-plugin/plugin.json")
     MARKETPLACE_VERSION=$(jq -r '.plugins[0].version' "$PROJECT_ROOT/.claude-plugin/marketplace.json")
     if [ "$PLUGIN_VERSION" != "$MARKETPLACE_VERSION" ]; then
@@ -80,6 +80,33 @@ if [ "$VERIFY_MODE" = true ]; then
         exit 1
     fi
     echo "✓ Version consistent: $PLUGIN_VERSION"
+    echo ""
+
+    echo "[6/6] Verifying plugin-src/.claude-plugin/marketplace.json..."
+    PLUGIN_SRC_MARKETPLACE="$PROJECT_ROOT/plugin-src/.claude-plugin/marketplace.json"
+    if [ ! -f "$PLUGIN_SRC_MARKETPLACE" ]; then
+        echo "❌ ERROR: plugin-src/.claude-plugin/marketplace.json does not exist"
+        echo "  This file is required for 'make install-user' to work correctly."
+        echo "  Create it with source='.' to match the installed path."
+        exit 1
+    fi
+    PLUGIN_SRC_MARKETPLACE_VERSION=$(jq -r '.plugins[0].version' "$PLUGIN_SRC_MARKETPLACE")
+    if [ "$PLUGIN_SRC_MARKETPLACE_VERSION" != "$PLUGIN_VERSION" ]; then
+        echo "❌ ERROR: Version mismatch in plugin-src/.claude-plugin/marketplace.json:"
+        echo "  plugin-src/.claude-plugin/plugin.json:          $PLUGIN_VERSION"
+        echo "  plugin-src/.claude-plugin/marketplace.json:     $PLUGIN_SRC_MARKETPLACE_VERSION"
+        echo ""
+        echo "Run 'scripts/release/bump-plugin-version.sh' to sync all files."
+        exit 1
+    fi
+    PLUGIN_SRC_MARKETPLACE_SOURCE=$(jq -r '.plugins[0].source' "$PLUGIN_SRC_MARKETPLACE")
+    if [ "$PLUGIN_SRC_MARKETPLACE_SOURCE" != "." ]; then
+        echo "❌ ERROR: plugin-src/.claude-plugin/marketplace.json has wrong source field:"
+        echo "  Expected: \".\""
+        echo "  Got:      \"$PLUGIN_SRC_MARKETPLACE_SOURCE\""
+        exit 1
+    fi
+    echo "✓ plugin-src/.claude-plugin/marketplace.json verified (version=$PLUGIN_SRC_MARKETPLACE_VERSION, source='.')"
     echo ""
 
     echo "✅ Plugin file sync verification passed"
