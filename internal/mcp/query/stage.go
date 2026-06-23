@@ -227,6 +227,11 @@ func HandleExecuteStage2Query(ctx context.Context, args map[string]interface{}) 
 		return nil, fmt.Errorf("failed to execute stage 2 query: %w", err)
 	}
 
+	warnings := result.Warnings
+	if warnings == nil {
+		warnings = []string{}
+	}
+
 	return map[string]interface{}{
 		"results": result.Results,
 		"metadata": map[string]interface{}{
@@ -236,6 +241,7 @@ func HandleExecuteStage2Query(ctx context.Context, args map[string]interface{}) 
 			"results_returned":      result.Metadata.ResultsReturned,
 			"truncated":             result.Metadata.Truncated,
 		},
+		"warnings": warnings,
 	}, nil
 }
 
