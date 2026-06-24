@@ -87,6 +87,16 @@ func TestGetTechDebt_DetectsOpenIssues(t *testing.T) {
 	}
 }
 
+func TestGetTechDebt_DataSource(t *testing.T) {
+	result, err := GetTechDebt(nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.DataSource != DataSourceMeasured {
+		t.Errorf("Expected DataSource=%q, got %q", DataSourceMeasured, result.DataSource)
+	}
+}
+
 func TestGetTechDebt_EmptySession(t *testing.T) {
 	result, err := GetTechDebt(nil, nil)
 	if err != nil {

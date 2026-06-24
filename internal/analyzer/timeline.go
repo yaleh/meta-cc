@@ -17,11 +17,14 @@ type TimelineEvent struct {
 }
 
 // TimelineResult holds the chronological event list and total span.
+// DataSource is always "measured": Events are parsed directly from session
+// entries with no heuristic inference.
 type TimelineResult struct {
 	Events      []TimelineEvent `json:"events"`
 	TotalSpan   string          `json:"total_span"`
 	Truncated   bool            `json:"truncated,omitempty"`
 	TotalEvents int             `json:"total_events,omitempty"`
+	DataSource  DataSource      `json:"data_source"`
 }
 
 // TimelineStats holds aggregate statistics for a set of session entries.
@@ -85,7 +88,7 @@ func formatSpan(d time.Duration) string {
 // GetTimeline converts session entries to a sorted, merged timeline.
 func GetTimeline(entries []types.SessionEntry, limit int) (*TimelineResult, error) {
 	if len(entries) == 0 {
-		return &TimelineResult{Events: []TimelineEvent{}, TotalSpan: "0s"}, nil
+		return &TimelineResult{Events: []TimelineEvent{}, TotalSpan: "0s", DataSource: DataSourceMeasured}, nil
 	}
 
 	// Convert to events and sort by timestamp.
@@ -149,7 +152,7 @@ func GetTimeline(entries []types.SessionEntry, limit int) (*TimelineResult, erro
 		span = formatSpan(last.Sub(first))
 	}
 
-	result := &TimelineResult{Events: merged, TotalSpan: span}
+	result := &TimelineResult{Events: merged, TotalSpan: span, DataSource: DataSourceMeasured}
 	if truncated {
 		result.Truncated = true
 		result.TotalEvents = totalMerged

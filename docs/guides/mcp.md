@@ -102,6 +102,18 @@ query_token_usage({
 | `get_timeline` | Chronological session events | Yes | Yes |
 | `get_tech_debt` | TODO/FIXME/HACK markers and unresolved errors | Yes | Yes |
 
+All six analysis tools include a `data_source` field in their response (see
+[Data Source Provenance](#data-source-provenance-baime-layer-7) below).
+
+| Tool | `data_source` value | Notes on mixed provenance |
+|------|---------------------|---------------------------|
+| `analyze_errors` | `measured` | TotalErrors/ByTool/ByType are direct counts |
+| `analyze_bugs` | `measured` | Patterns/TotalPairs are direct error→success pair counts |
+| `quality_scan` | `measured` | All four dimensions are ratios of direct counts |
+| `get_work_patterns` | `measured` | ToolFrequency/HourlyActivity/PeakHour are direct counts; `context_switches` uses a heuristic (file changes within 5 min) |
+| `get_timeline` | `measured` | Events parsed directly from session entries |
+| `get_tech_debt` | `measured` | Markers/HotspotFiles scanned from tool output; `open_issues` uses a heuristic (error with no subsequent success) |
+
 ### Two-Stage Query Tools
 
 Use these when you need file selection control or custom jq over selected JSONL files:
@@ -216,6 +228,38 @@ Some tools query Claude Code-only record types:
 - `query_system_errors`
 
 Empty results are expected for Codex unless Codex adds equivalent local records.
+
+## Data Source Provenance (BAIME Layer 7)
+
+Every analysis tool response includes a top-level `data_source` field that
+classifies how the result was produced. This implements the BAIME Layer 7
+provenance standard and enables callers to detect and correct for systematic
+self-observation bias (e.g., delta_H inflation observed in BAIME TASK-152).
+
+### Values
+
+| Value | Meaning |
+|-------|---------|
+| `"measured"` | The value was computed by directly counting or aggregating observable events from the session trace (tool calls, entries, timestamps). High confidence; no inferential leap. |
+| `"estimated"` | The value was inferred via a heuristic rule rather than directly observed. Lower confidence; treat as approximate. |
+
+### Mixed-Provenance Structs
+
+Some result structs combine measured and estimated fields. In these cases the
+top-level `data_source` reflects the **dominant** provenance (always `measured`
+for the current analysis tools), and mixed fields are documented in code
+comments:
+
+- **`TechDebtResult.open_issues`** — estimated: based on the heuristic "an
+  error call with no subsequent success for the same tool". The rest of the
+  struct (Markers, HotspotFiles) is measured.
+
+- **`WorkPatternsResult.context_switches`** — estimated: based on the heuristic
+  "file-path changes between consecutive tool calls within a 5-minute window".
+  The rest of the struct (ToolFrequency, HourlyActivity, PeakHour) is measured.
+
+When building automated pipelines that depend on precise values, treat
+fields with known estimated provenance with appropriate uncertainty margins.
 
 ## See Also
 

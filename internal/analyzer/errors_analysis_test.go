@@ -111,6 +111,16 @@ func TestAnalyzeErrors_TimeRange(t *testing.T) {
 	}
 }
 
+func TestAnalyzeErrors_DataSource(t *testing.T) {
+	result, err := AnalyzeErrors([]parser.SessionEntry{}, []parser.ToolCall{}, 0)
+	if err != nil {
+		t.Fatalf("AnalyzeErrors returned error: %v", err)
+	}
+	if result.DataSource != DataSourceMeasured {
+		t.Errorf("Expected DataSource=%q, got %q", DataSourceMeasured, result.DataSource)
+	}
+}
+
 func TestAnalyzeErrors_EmptySession(t *testing.T) {
 	result, err := AnalyzeErrors([]parser.SessionEntry{}, []parser.ToolCall{}, 10)
 	if err != nil {

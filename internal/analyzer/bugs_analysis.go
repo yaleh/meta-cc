@@ -14,10 +14,13 @@ type BugPattern struct {
 	Examples       []string `json:"examples"`
 }
 
-// BugAnalysisResult holds the result of bug pattern analysis
+// BugAnalysisResult holds the result of bug pattern analysis.
+// DataSource is always "measured": Patterns and TotalPairs are derived
+// from direct counts of error→success tool-call pairs in the session trace.
 type BugAnalysisResult struct {
 	Patterns   []BugPattern `json:"patterns"`
 	TotalPairs int          `json:"total_pairs"`
+	DataSource DataSource   `json:"data_source"`
 }
 
 // AnalyzeBugs scans toolCalls for error→success fix pairs, groups them by
@@ -85,5 +88,6 @@ func AnalyzeBugs(entries []types.SessionEntry, toolCalls []types.ToolCall, limit
 	return &BugAnalysisResult{
 		Patterns:   patterns,
 		TotalPairs: totalPairs,
+		DataSource: DataSourceMeasured,
 	}, nil
 }
