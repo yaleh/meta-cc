@@ -67,3 +67,7 @@ backlog/.loop-stop
 backlog/.caps/
 backlog/.agent-done-*
 .agent-summary-*
+backlog/.loop-lock
+backlog/.loop-checkpoint
+backlog/.active-agents
+backlog/.merge-lock
