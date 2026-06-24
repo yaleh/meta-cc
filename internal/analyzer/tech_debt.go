@@ -22,10 +22,15 @@ type FileDebt struct {
 }
 
 // TechDebtResult is the output of GetTechDebt.
+// DataSource is "measured": Markers and HotspotFiles are scanned directly
+// from tool output text. NOTE: OpenIssues uses a heuristic (error call with
+// no subsequent success for the same tool) and is technically "estimated";
+// the top-level DataSource reflects the dominant measured provenance.
 type TechDebtResult struct {
 	Markers      []MarkerCount `json:"markers"`
 	HotspotFiles []FileDebt    `json:"hotspot_files"`
 	OpenIssues   int           `json:"open_issues"`
+	DataSource   DataSource    `json:"data_source"`
 }
 
 // scannerToolNames is the set of tool names whose Output we scan for markers.
@@ -103,6 +108,7 @@ func GetTechDebt(entries []types.SessionEntry, toolCalls []types.ToolCall) (*Tec
 		Markers:      markers,
 		HotspotFiles: hotspots,
 		OpenIssues:   openIssues,
+		DataSource:   DataSourceMeasured,
 	}, nil
 }
 

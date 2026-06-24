@@ -101,3 +101,13 @@ func TestAnalyzeBugs_EmptySession(t *testing.T) {
 		t.Errorf("Expected TotalPairs=0, got %d", result.TotalPairs)
 	}
 }
+
+func TestAnalyzeBugs_DataSource(t *testing.T) {
+	result, err := AnalyzeBugs([]parser.SessionEntry{}, []parser.ToolCall{}, 0)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if result.DataSource != DataSourceMeasured {
+		t.Errorf("Expected DataSource=%q, got %q", DataSourceMeasured, result.DataSource)
+	}
+}

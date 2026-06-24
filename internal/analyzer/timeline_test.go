@@ -144,6 +144,13 @@ func TestGetTimelineStats_Basic(t *testing.T) {
 	assert.NotEmpty(t, stats.TimeRange.Span)
 }
 
+func TestGetTimeline_DataSource(t *testing.T) {
+	result, err := GetTimeline([]parser.SessionEntry{}, 0)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, DataSourceMeasured, result.DataSource, "TimelineResult.DataSource should be measured")
+}
+
 func TestGetTimelineStats_Empty(t *testing.T) {
 	stats := GetTimelineStats([]parser.SessionEntry{})
 	require.NotNil(t, stats)

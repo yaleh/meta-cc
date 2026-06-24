@@ -153,6 +153,13 @@ func TestQualityScan_CompletionRate(t *testing.T) {
 	assert.LessOrEqual(t, dim.Score, 1.0)
 }
 
+func TestQualityScan_DataSource(t *testing.T) {
+	result, err := QualityScan(nil, []parser.ToolCall{})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, DataSourceMeasured, result.DataSource, "QualityScanResult.DataSource should be measured")
+}
+
 func TestQualityScan_AllDimensionsPresent(t *testing.T) {
 	toolCalls := makeToolCalls("Bash", "success", "")
 

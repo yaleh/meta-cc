@@ -21,18 +21,21 @@ type ErrorTypeGroup struct {
 	Examples  []string `json:"examples"`
 }
 
-// ErrorAnalysisResult holds the full error analysis output
+// ErrorAnalysisResult holds the full error analysis output.
+// DataSource is always "measured": TotalErrors, ByTool, and ByType are
+// all derived from direct counts of error-status tool calls in the session trace.
 type ErrorAnalysisResult struct {
 	TimeRange   types.TimeRange  `json:"time_range"`
 	TotalErrors int              `json:"total_errors"`
 	ByTool      []ToolErrorGroup `json:"by_tool"`
 	ByType      []ErrorTypeGroup `json:"by_type"`
+	DataSource  DataSource       `json:"data_source"`
 }
 
 // AnalyzeErrors analyzes tool call errors and groups them by tool and error type.
 // limit controls the maximum number of example messages per group (0 = no limit).
 func AnalyzeErrors(entries []types.SessionEntry, toolCalls []types.ToolCall, limit int) (*ErrorAnalysisResult, error) {
-	result := &ErrorAnalysisResult{}
+	result := &ErrorAnalysisResult{DataSource: DataSourceMeasured}
 
 	// Calculate TimeRange from entries using internal time.Time for comparison,
 	// then store as RFC3339 strings in the result.

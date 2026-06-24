@@ -79,6 +79,16 @@ func TestGetWorkPatterns_ContextSwitches(t *testing.T) {
 	}
 }
 
+func TestGetWorkPatterns_DataSource(t *testing.T) {
+	result, err := GetWorkPatterns([]parser.SessionEntry{}, []parser.ToolCall{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.DataSource != DataSourceMeasured {
+		t.Errorf("Expected DataSource=%q, got %q", DataSourceMeasured, result.DataSource)
+	}
+}
+
 func TestGetWorkPatterns_EmptySession(t *testing.T) {
 	result, err := GetWorkPatterns([]parser.SessionEntry{}, []parser.ToolCall{})
 	if err != nil {
