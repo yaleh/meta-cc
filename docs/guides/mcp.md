@@ -221,5 +221,6 @@ Empty results are expected for Codex unless Codex adds equivalent local records.
 
 - [MCP Query Tools Reference](mcp-query-tools.md)
 - [Two-Stage Query Guide](two-stage-query-guide.md)
+- [GCL Gate Annotation Format](gcl-annotation.md)
 - [JSONL Schema Reference](../reference/jsonl-schema.md)
 - [Installation Guide](../tutorials/installation.md)
