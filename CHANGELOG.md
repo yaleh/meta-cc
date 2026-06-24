@@ -5,6 +5,26 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.13] - 2026-06-24
+
+
+### Added
+
+- add data_source field to all six MCP analysis result structs
+
+### Changed
+
+- Maintenance: bump plugin version to 3.3.13
+- Maintenance: gitignore loop-backlog runtime files
+- Maintenance: add backlog tasks for TASK-14, TASK-15, TASK-16, TASK-17
+- Documentation: add Layer 2.5 oracle fixture suite for MCP tool behavioral testing
+
+### Other
+
+- merge: MCP 分析类工具输出加入 data_source 字段区分实测 vs 估算 (TASK-16)
+- merge: 建立 MCP 工具 Layer 2.5 oracle fixture 集合 (TASK-15)
+- merge: 引入 GCL 前提台账标注格式到 meta-cc 工作流 (TASK-14)
+
 ## [3.3.12] - 2026-06-23
 
 
