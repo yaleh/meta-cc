@@ -1,10 +1,10 @@
 ---
 id: TASK-13
 title: 'D: 在 MCP 工具 description 字段嵌入使用指引（时间过滤/字段路径/先 inspect 再 transform）'
-status: 'Basic: Backlog'
+status: 'Basic: Done'
 assignee: []
 created_date: '2026-06-23 15:50'
-updated_date: '2026-06-23 15:52'
+updated_date: '2026-06-25 11:23'
 labels:
   - 'kind:basic'
 dependencies:
@@ -14,7 +14,7 @@ references:
   - internal/mcp/tools/tools.go
   - docs/guides/mcp-query-tools.md
 priority: medium
-ordinal: 5000
+ordinal: 1000
 ---
 
 ## Description
@@ -111,4 +111,24 @@ meta-cc 安装后，MCP 工具 schema（含 description 字段）在每个 sessi
 
 <!-- SECTION:NOTES:BEGIN -->
 Proposal + Plan APPROVED (1 phase, ~20 LOC). Ready for implementation after TASK-11 and TASK-12.
+
+claimed: 2026-06-25T11:18:13Z
+
+workerLoop DoD #0: PASS — go test ./... -run TestQuerySessionContentDescriptionHints
+
+workerLoop DoD #1: PASS — go test ./... -run TestQuerySessionSignalsDescriptionHints
+
+workerLoop DoD #2: PASS — go test ./... -run TestExecuteStage2QueryDescriptionHints
+
+workerLoop DoD #3: PASS — grep -q 'inspect_session_files' internal/mcp/tools/tools.go
+
+workerLoop DoD #4: PASS — grep -q 'since' internal/mcp/tools/tools.go
+
+workerLoop DoD #5: PASS — go test ./...
+
+## Execution Summary
+Result: Done
+Commit: 5233c9a
+
+Completed: 2026-06-25T11:23:12Z
 <!-- SECTION:NOTES:END -->
