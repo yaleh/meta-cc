@@ -71,3 +71,4 @@ backlog/.loop-lock
 backlog/.loop-checkpoint
 backlog/.active-agents
 backlog/.merge-lock
+backlog/.monitor-task-id
