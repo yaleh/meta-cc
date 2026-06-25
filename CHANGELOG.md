@@ -5,6 +5,18 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.14] - 2026-06-25
+
+
+### Changed
+
+- Maintenance: gitignore .monitor-task-id runtime file
+- Maintenance: update README MCP tool count and mark TASK-13 done
+
+### Other
+
+- merge: D: 在 MCP 工具 description 字段嵌入使用指引 (TASK-13)
+
 ## [3.3.13] - 2026-06-24
 
 
