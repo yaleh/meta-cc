@@ -263,6 +263,56 @@ func TestQuerySessionContentSchema_ToolRole_DescribesContextFields(t *testing.T)
 	}
 }
 
+// Phase D-description: Description hints tests (TASK-13)
+
+func TestQuerySessionContentDescriptionHints(t *testing.T) {
+	defs := tools.GetToolDefinitions()
+	for _, tool := range defs {
+		if tool.Name == "query_session_content" {
+			if !strings.Contains(tool.Description, "timestamp") {
+				t.Errorf("query_session_content description should contain 'timestamp', got: %q", tool.Description)
+			}
+			if !strings.Contains(tool.Description, "inspect_session_files") {
+				t.Errorf("query_session_content description should contain 'inspect_session_files', got: %q", tool.Description)
+			}
+			return
+		}
+	}
+	t.Fatal("query_session_content not found in tool definitions")
+}
+
+func TestQuerySessionSignalsDescriptionHints(t *testing.T) {
+	defs := tools.GetToolDefinitions()
+	for _, tool := range defs {
+		if tool.Name == "query_session_signals" {
+			if !strings.Contains(tool.Description, "since") {
+				t.Errorf("query_session_signals description should contain 'since', got: %q", tool.Description)
+			}
+			if !strings.Contains(tool.Description, "until") {
+				t.Errorf("query_session_signals description should contain 'until', got: %q", tool.Description)
+			}
+			return
+		}
+	}
+	t.Fatal("query_session_signals not found in tool definitions")
+}
+
+func TestExecuteStage2QueryDescriptionHints(t *testing.T) {
+	defs := tools.GetToolDefinitions()
+	for _, tool := range defs {
+		if tool.Name == "execute_stage2_query" {
+			if !strings.Contains(tool.Description, "inspect_session_files") {
+				t.Errorf("execute_stage2_query description should contain 'inspect_session_files', got: %q", tool.Description)
+			}
+			if !strings.Contains(tool.Description, "transform") {
+				t.Errorf("execute_stage2_query description should contain 'transform', got: %q", tool.Description)
+			}
+			return
+		}
+	}
+	t.Fatal("execute_stage2_query not found in tool definitions")
+}
+
 // Phase D: Old tools must be removed from tool definitions.
 func TestOldToolsRemovedFromDefinitions(t *testing.T) {
 	removedTools := []string{

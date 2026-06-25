@@ -146,7 +146,7 @@ func GetToolDefinitions() []Tool {
 		}, "files"),
 		{
 			Name:        "execute_stage2_query",
-			Description: "Execute Stage 2 query on selected files with filtering, sorting, and limits.",
+			Description: "Execute Stage 2 query on selected files with filtering, sorting, and limits. Align transform field paths with inspect_session_files(include_samples=true) samples. Empty results trigger a warning.",
 			InputSchema: ToolSchema{
 				Type: "object",
 				Properties: map[string]Property{
@@ -238,7 +238,7 @@ func GetToolDefinitions() []Tool {
 		// ─── New consolidated query tools (replacing the 10 legacy query_* tools) ───
 
 		BuildTool("query_session_content",
-			"Query session messages by role (user/assistant/tool/all). Default scope: project.",
+			"Query session messages by role (user/assistant/tool/all). Default scope: project. role=tool outputs: {timestamp, session_id, turn, ...block fields}. For custom transform, first call inspect_session_files(include_samples=true).",
 			map[string]Property{
 				"role": {
 					Type:        "string",
@@ -315,7 +315,7 @@ func GetToolDefinitions() []Tool {
 			}, "role"),
 
 		BuildTool("query_session_signals",
-			"Query session signals: errors/tokens/system_errors/timestamps/tool_stats. Default scope: project.",
+			"Query session signals: errors/tokens/system_errors/timestamps/tool_stats. Default scope: project. Time filtering: use since/until params directly—no need for jq_filter time conditions.",
 			map[string]Property{
 				"type": {
 					Type:        "string",

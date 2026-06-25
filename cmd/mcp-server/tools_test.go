@@ -135,10 +135,21 @@ func TestAllToolsHaveStandardParameters(t *testing.T) {
 func TestToolDescriptionLength(t *testing.T) {
 	tools := getToolDefinitions()
 
+	// Tools with embedded usage hints may have longer descriptions (TASK-13)
+	extendedDescTools := map[string]bool{
+		"query_session_content": true,
+		"query_session_signals": true,
+		"execute_stage2_query":  true,
+	}
+
 	for _, tool := range tools {
-		if len(tool.Description) > 100 {
-			t.Errorf("tool %s description too long: %d chars (max: 100)\nDescription: %s",
-				tool.Name, len(tool.Description), tool.Description)
+		limit := 100
+		if extendedDescTools[tool.Name] {
+			limit = 300
+		}
+		if len(tool.Description) > limit {
+			t.Errorf("tool %s description too long: %d chars (max: %d)\nDescription: %s",
+				tool.Name, len(tool.Description), limit, tool.Description)
 		}
 	}
 }
@@ -158,6 +169,12 @@ func TestToolsJSONSerialization(t *testing.T) {
 func TestToolDescriptionConsistency(t *testing.T) {
 	tools := getToolDefinitions()
 
+	// Tools with embedded usage hints (TASK-13) may have content after "Default scope:" sentence
+	extendedDescTools := map[string]bool{
+		"query_session_content": true,
+		"query_session_signals": true,
+	}
+
 	for _, tool := range tools {
 		if strings.Contains(tool.Description, "DEPRECATED") {
 			continue
@@ -166,6 +183,15 @@ func TestToolDescriptionConsistency(t *testing.T) {
 		// Skip utility tools and two-stage tools (no scope param) that don't follow "Default scope:" pattern
 		if tool.Name == "cleanup_temp_files" ||
 			tool.Name == "get_session_directory" || tool.Name == "inspect_session_files" || tool.Name == "execute_stage2_query" {
+			continue
+		}
+
+		// Tools with extended hints only need to contain "Default scope:" somewhere
+		if extendedDescTools[tool.Name] {
+			if !strings.Contains(tool.Description, "Default scope:") {
+				t.Errorf("tool %s description must contain 'Default scope:', got: %s",
+					tool.Name, tool.Description)
+			}
 			continue
 		}
 
