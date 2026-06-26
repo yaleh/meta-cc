@@ -120,6 +120,12 @@ var TimestampStatsTools = map[string]bool{
 	// query_session_signals covers: timestamps (when type=timestamps)
 	"query_session_content": true,
 	"query_session_signals": true,
+
+	// query_summaries was removed in Phase D (it used select(.type=="summary") which never
+	// matched any Claude Code records — that type does not exist in the JSONL schema).
+	// The correct replacement is: query_session_content(role=assistant, contains="## Summary")
+	// Root cause documented in: docs/tasks/fix-query-summaries-root-cause.md
+	"query_summaries": true,
 }
 
 // InjectWarnings adds a "warnings" field to a JSON response string.
