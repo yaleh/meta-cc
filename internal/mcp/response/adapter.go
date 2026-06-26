@@ -33,8 +33,13 @@ func AdaptResponse(cfg *config.Config, data []interface{}, params map[string]int
 	}
 }
 
-// BuildInlineResponse constructs inline mode response
+// BuildInlineResponse constructs inline mode response.
+// A nil data slice is normalized to an empty slice so JSON serialization
+// produces "data":[] instead of "data":null (fixes query_summaries null return).
 func BuildInlineResponse(data []interface{}) map[string]interface{} {
+	if data == nil {
+		data = []interface{}{}
+	}
 	return map[string]interface{}{
 		"mode": OutputModeInline,
 		"data": data,

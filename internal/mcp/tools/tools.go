@@ -224,6 +224,14 @@ func GetToolDefinitions() []Tool {
 				Type:        "boolean",
 				Description: "Return summary statistics (total entries, time range, event type counts) instead of the full event list. Safe for large project scopes.",
 			},
+			"since": {
+				Type:        "string",
+				Description: `Include only entries with timestamp >= this value (ISO 8601 / RFC3339, e.g. "2026-01-01T00:00:00Z"). Enables full event stream for a focused time range even in large projects.`,
+			},
+			"until": {
+				Type:        "string",
+				Description: `Include only entries with timestamp < this value (ISO 8601 / RFC3339, e.g. "2026-06-01T00:00:00Z").`,
+			},
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",

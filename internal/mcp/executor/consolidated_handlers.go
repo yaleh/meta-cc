@@ -56,7 +56,10 @@ func handleQuerySessionContent(e *ToolExecutor, scope string, args map[string]in
 		jqFilter := `select(.type == "assistant")`
 		if contains != "" {
 			escaped := EscapeJQ(contains)
-			jqFilter = fmt.Sprintf(`%s | select((.message.content | tostring) | test("%s"; "i"))`, jqFilter, escaped)
+			// Guard against null/missing content: use `// empty` so records without
+			// a content field are skipped rather than producing a jq error.
+			// This fixes query_summaries null return when content is null or absent.
+			jqFilter = fmt.Sprintf(`%s | select((.message.content // empty | tostring) | test("%s"; "i"))`, jqFilter, escaped)
 		}
 		return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir)
 

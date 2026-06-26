@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/yaleh/meta-cc/internal/analyzer"
 	"github.com/yaleh/meta-cc/internal/conversation"
@@ -260,14 +261,39 @@ func (s *Service) GetWorkPatterns(args map[string]interface{}) (string, error) {
 	return marshalResult(result)
 }
 
+// timelineAutoStatsThreshold is the entry count above which get_timeline switches to
+// stats summary mode automatically when no since/until clipping is provided.
+// This prevents context truncation in large projects (e.g., baime with 126 sessions).
+const timelineAutoStatsThreshold = 1000
+
 // GetTimeline implements the get_timeline MCP tool.
+// Supports optional since/until ISO 8601 time-clipping params.
+// When no since/until is set and entry count exceeds timelineAutoStatsThreshold,
+// defaults to stats summary mode to prevent context overflow.
 func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
 	entries, _, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
 
+	// Apply since/until time-clipping if provided.
+	since := stringArg(args, "since")
+	until := stringArg(args, "until")
+	if since != "" || until != "" {
+		entries, err = filterEntriesByTimeRange(entries, since, until)
+		if err != nil {
+			return "", err
+		}
+	}
+
 	if boolArg(args, "stats_only") {
+		stats := analyzer.GetTimelineStats(entries)
+		return marshalResult(stats)
+	}
+
+	// When no time clipping and entry count exceeds threshold, default to stats mode
+	// to prevent the 737K+ character context truncation observed in large projects.
+	if since == "" && until == "" && len(entries) > timelineAutoStatsThreshold {
 		stats := analyzer.GetTimelineStats(entries)
 		return marshalResult(stats)
 	}
@@ -283,6 +309,69 @@ func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
 		return "", fmt.Errorf("get timeline failed: %w", err)
 	}
 	return marshalResult(result)
+}
+
+// filterEntriesByTimeRange filters session entries to those within the since/until range.
+// Both since and until are optional ISO 8601 strings. Since is inclusive, until is exclusive.
+func filterEntriesByTimeRange(entries []types.SessionEntry, since, until string) ([]types.SessionEntry, error) {
+	var sinceTime, untilTime time.Time
+	var hasSince, hasUntil bool
+
+	if since != "" {
+		t, err := time.Parse(time.RFC3339, since)
+		if err != nil {
+			return nil, fmt.Errorf("invalid since value %q: must be ISO 8601 / RFC3339 (e.g. 2026-01-01T00:00:00Z)", since)
+		}
+		sinceTime = t
+		hasSince = true
+	}
+	if until != "" {
+		t, err := time.Parse(time.RFC3339, until)
+		if err != nil {
+			return nil, fmt.Errorf("invalid until value %q: must be ISO 8601 / RFC3339 (e.g. 2026-06-01T00:00:00Z)", until)
+		}
+		untilTime = t
+		hasUntil = true
+	}
+
+	filtered := make([]types.SessionEntry, 0, len(entries))
+	for _, e := range entries {
+		if e.Timestamp == "" {
+			filtered = append(filtered, e)
+			continue
+		}
+		// Try multiple timestamp formats as done in analyzer/timeline.go
+		ts, err := parseEntryTimestamp(e.Timestamp)
+		if err != nil {
+			// Keep entries with unparseable timestamps
+			filtered = append(filtered, e)
+			continue
+		}
+		if hasSince && ts.Before(sinceTime) {
+			continue
+		}
+		if hasUntil && !ts.Before(untilTime) {
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	return filtered, nil
+}
+
+// parseEntryTimestamp parses an entry timestamp string into time.Time.
+// Tries multiple formats to match the formats supported by the analyzer package.
+func parseEntryTimestamp(ts string) (time.Time, error) {
+	formats := []string{
+		"2006-01-02T15:04:05.000Z",
+		time.RFC3339Nano,
+		time.RFC3339,
+	}
+	for _, f := range formats {
+		if t, err := time.Parse(f, ts); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unrecognized timestamp format: %s", ts)
 }
 
 // GetTechDebt implements the get_tech_debt MCP tool.
