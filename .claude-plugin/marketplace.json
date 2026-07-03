@@ -10,8 +10,8 @@
     {
       "name": "meta-cc",
       "source": "./plugin-src",
-      "description": "Meta-Cognition tool for Claude Code with 21 MCP tools for session history analysis, error tracking, quality scanning, work patterns, timelines, and bug detection. Focused, fast, and data-driven.",
-      "version": "3.1.5",
+      "description": "Meta-Cognition tool for Claude Code with 22 MCP tools for session history analysis, error tracking, quality scanning, work patterns, timelines, and bug detection. Focused, fast, and data-driven.",
+      "version": "3.3.14",
       "author": {
         "name": "Yale Huang",
         "email": "yaleh@ieee.org",

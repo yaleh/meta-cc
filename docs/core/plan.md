@@ -17,6 +17,19 @@
 - ✅ **Phase 18-22 已完成**（开源发布与生态建设：GitHub Release + 插件分发 + 统一 /meta 命令 + 消息查询完整化）
 - ✅ **Phase 23-25 已完成并归档**（查询接口重构 v2.0：jq-based API + 零学习成本）
 - ✅ **Phase 26 已完成**（CLI 代码清理 + MCP-only 架构 + 文档更新）
+- ✅ **Phase 29-30 已完成**（Query Reliability Improvements）
+- ✅ **Phase 38 已完成**（Standard Plugin Packaging — Option M implemented）
+- ✅ **Phase 41-46 已完成**（Project Split）
+- ✅ **Phase 50-51 已完成**（Query Noise Reduction + session_count fix）
+- ✅ **Phase 56-57 已完成**（Core Type Decoupling）
+- ✅ **Phase 58-59 已完成**（Architecture Hygiene Phase 1）
+- ✅ **Phase 60-64 已完成**（Architecture Hygiene Phase 2：TimeRange 规范化、pkg/ 移除）
+- ✅ **Phase 66-70 已完成**（JSONL Streaming Reader with early image truncation）
+- ✅ **Phase 71-75 已完成**（MCP Server Final Split into internal/mcp/*）
+- ✅ **Phase 76-77 已完成**（Cleanup MCP Server Duplicates）
+- ✅ **Phase 78-80 已完成**（Query Architecture Cleanup：jq/ 删除、子包拆分）
+- 🟡 **Phase 81-86 部分完成**（Phases 81-84 done；Phase 85 ExecuteSpecialTool 重构、Phase 86 parser→types 迁移 待完成）
+- ✅ **Phase 87-94 已完成**（Multi-Provider Conversation：Codex + Claude provider）
 - ✅ 单元测试全部通过（新增 assistant messages + conversation 测试）
 - ✅ 3 个真实项目验证通过（0% 错误率）
 - ✅ 11 个 Slash Commands 可用
@@ -229,6 +242,20 @@ end note
 | 26 | CLI 代码清理（MCP 独立化） | ✅ | 移除 CLI 代码、MCP-only 架构、简化构建 | -19,500 行 | [详细计划](./phase-26-cli-removal-plan.md) |
 | 27 | 两阶段查询架构 | ✅ | 删除 query/query_raw，新增元数据+Stage 2 查询工具 | ~550 行 (净增) | [Phase 27 详情](#phase-27-两阶段查询架构详细) |
 | 28 | Prompt 优化学习系统 | ✅ | Capability 驱动的 prompt 优化、保存和重用机制 | ~450 行 | [Phase 28 详情](#phase-28-prompt-优化学习系统详细) |
+| 29-30 | Query Reliability Improvements | ✅ | 严格参数验证、buffer 限制扩展、schema 修复 | — | [plans/29-30/](../plans/29-30/PLAN.md) |
+| 38 | Standard Plugin Packaging (Option M) | ✅ | marketplace.json 对齐官方标准 | — | [plans/38-standard-plugin-packaging.md](../plans/38-standard-plugin-packaging.md) |
+| 41-46 | Project Split | ✅ | 拆分 meta-cc 项目；MCP 工具迁移至 internal | — | [plans/41-46-project-split.md](../plans/41-46-project-split.md) |
+| 50-51 | Query Noise Reduction | ✅ | exclude_system_messages 参数；session_count bug 修复 | — | [plans/50-51](../plans/50-51-query-noise-reduction.md) |
+| 56-57 | Core Type Decoupling | ✅ | types 包规范化；parser 类型别名 | — | [plans/56-57](../plans/56-57-core-type-decoupling.md) |
+| 58-59 | Architecture Hygiene Phase 1 | ✅ | 五个结构性问题修复 | — | [plans/58-59](../plans/58-59-architecture-hygiene.md) |
+| 60-64 | Architecture Hygiene Phase 2 | ✅ | TimeRange 规范化；pkg/ 移除；cmd/mcp-server 瘦身 | — | [plans/60-64](../plans/60-64-architecture-hygiene-phase2.md) |
+| 66-70 | JSONL Streaming Reader | ✅ | bufio.Reader.ReadBytes；early image truncation | — | [plans/66-70](../plans/66-70-jsonl-streaming-reader.md) |
+| 71-75 | MCP Server Final Split | ✅ | internal/mcp/{executor,query,filters,...} 包拆分 | — | [plans/71-75](../plans/71-75-mcp-server-final-split.md) |
+| 76-77 | Cleanup MCP Server Duplicates | ✅ | 删除 cmd/mcp-server 中的 JQRunner/QueryExecutor 重复 | — | [plans/76-77](../plans/76-77-cleanup-mcp-server-duplicates.md) |
+| 78-80 | Query Architecture Cleanup | ✅ | internal/query/jq/ 删除；turnindex/sequences/assistant 子包 | — | [plans/78-80](../plans/78-80-query-architecture-cleanup.md) |
+| 81-84 | Architecture Cleanup Part 1 | ✅ | ParseTimestamp 导出；workflow.go 瘦身；interfaces.go types 迁移 | — | [plans/81-86](../plans/81-86-arch-cleanup.md) |
+| 85-86 | Architecture Cleanup Part 2 | 🟡 | ExecuteSpecialTool 重构 (85)；parser→types 完整迁移 (86) | — | [plans/81-86](../plans/81-86-arch-cleanup.md) |
+| 87-94 | Multi-Provider Conversation | ✅ | internal/provider/{claude,codex}；query_conversation_flow 工具 | — | [plans/87-94](../plans/87-94-multi-provider-conversation.md) |
 
 **注释**：
 - **状态标识**：✅ 已完成，🟡 部分实现，📋 计划中

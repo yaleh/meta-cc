@@ -6,7 +6,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/yaleh/meta-cc)](go.mod)
 [![Host Support](https://img.shields.io/badge/Hosts-Claude_Code%20%2B%20Codex-blue)](https://github.com/yaleh/meta-cc)
 
-**Meta-cognition tool for Claude Code and Codex** - Analyze session history, detect patterns, optimize workflows.
+**Meta-cognition tool for Claude Code and Codex** - Analyze session history, detect patterns, optimize workflows. 15 MCP tools.
 
 > **Note**: Skills and agents from previous versions have been moved to [yaleh/baime](https://github.com/yaleh/baime). meta-cc 3.0.0 focuses exclusively on session history analysis via MCP tools.
 
@@ -17,7 +17,7 @@
 meta-cc helps you understand and improve your Claude Code and Codex workflows through:
 
 - **Autonomous analysis** - Claude Code or Codex can query session data via MCP tools
-- **21 MCP tools** - Error analysis, quality scanning, work patterns, timelines, bug detection, and more
+- **15 MCP tools** - Error analysis, quality scanning, work patterns, timelines, bug detection, edit sequence analysis, and more
 - **Prompt library** - Save, search, and reuse optimized prompts with Claude Code slash commands or Codex skills
 
 **Native host integrations** - Claude Code marketplace/archive support plus Codex plugin and skills packaging.
@@ -37,7 +37,7 @@ Restart Claude Code. The MCP server is automatically configured via `.mcp.json` 
 
 The meta-cc plugin includes:
 - **3 Slash Commands** - `/prompt-find`, `/prompt-list`, `/prompt-show` for prompt library management
-- **21 MCP Tools** - Session data analysis with two-stage query architecture (v2.1)
+- **15 MCP Tools** - Session data analysis with consolidated query and two-stage architecture
 
 ### Method 2: Archive Install (Claude Code + Codex)
 
@@ -102,37 +102,44 @@ Ask Claude Code or Codex naturally - MCP tools are invoked automatically:
 "Find bug fix pairs in my session"
 ```
 
-**21 MCP tools with convenience queries, two-stage jq, and analysis tools**:
+**15 MCP tools: consolidated query tools, two-stage jq, and analysis tools**:
 
 ```javascript
-// Convenience tools - optimized for common queries
-query_tool_errors({limit: 10})
-query_token_usage({stats_first: true})
-query_conversation_flow({scope: "session"})
+// Consolidated query tools - cover the most common access patterns
+query_session_signals({type: "errors", limit: 10})       // tool execution errors
+query_session_signals({type: "tokens", stats_first: true}) // token usage stats
+query_session_content({role: "user", pattern: "refactor"}) // user messages
+query_session_content({role: "tool", block_type: "tool_use"}) // tool calls with context
+query_file_activity({type: "snapshots"})                  // file history
 
 // Two-stage jq - maximum flexibility for power users
+const dir = get_session_directory({scope: "project"})
 execute_stage2_query({
-  files: ["/path/to/session.jsonl"],
+  files: dir.files,
   filter: 'select(.type == "assistant")',
   transform: '{timestamp, usage: .message.usage}'
 })
 
-// Analysis tools
-analyze_errors({})          // Aggregate errors by tool and type
-quality_scan({})             // Compute error/retry/diversity scores
-get_work_patterns({})        // Hourly activity and context switches
-get_timeline({})             // Chronological session events
-analyze_bugs({})             // Error-fix pairs and recurring patterns
-get_tech_debt({})            // TODO/FIXME markers and unresolved errors
+// Analysis tools - aggregate and detect patterns
+analyze_errors({})          // Aggregate errors by tool and type; result includes data_source field
+quality_scan({})            // Compute error/retry/diversity scores
+get_work_patterns({})       // Hourly activity and context switches
+get_timeline({})            // Chronological session events
+analyze_bugs({})            // Error-fix pairs and recurring patterns
+get_tech_debt({})           // TODO/FIXME markers and unresolved errors
+query_edit_sequences({files: ["/path/to/file.go"]})  // File edit/read patterns, docRole, co-accessed docs
+get_session_metadata({})    // JSONL schema, file info, and query templates
 ```
 
 **Key Features**:
 - **Claude Code + Codex support**: Reads Claude transcripts from `~/.claude/projects/` and Codex conversations from `${META_CC_CODEX_ROOT:-~/.codex}/state_5.sqlite` plus rollout JSONL files
-- **Provider-aware normalization**: Use `provider: "claude" | "codex" | "all"` on convenience query and analysis tools; Codex `response_item`, `event_msg`, function/custom tool calls, tool outputs, and token counts are normalized through the same MCP surface
+- **Provider-aware normalization**: Use `provider: "claude" | "codex" | "all"` on query and analysis tools; Codex `response_item`, `event_msg`, function/custom tool calls, tool outputs, and token counts are normalized through the same MCP surface
 - **Hybrid Output Mode**: Auto-switches between inline (<8KB) and file_ref (≥8KB)
-- **jq Integration**: Native jq filtering for complex queries
+- **jq Integration**: Native jq filtering for complex queries; warns when a transform produces all-null results
+- **Time Filtering**: `since`/`until` (RFC3339) on all query tools for narrowing to a time window
 - **No Limits by Default**: Returns all results, relies on hybrid mode
-- **21 Tools**: 10 convenience + 4 session/query utility + 1 cleanup + 6 analysis tools
+- **data_source field**: All six analysis tools label results as `measured` (from session data) or `estimated` so callers know data provenance
+- **15 Tools**: 3 consolidated query + 4 utility (directory/inspect/stage2/edit-sequences) + 1 metadata + 1 cleanup + 6 analysis
 
 **Resources**:
 - [MCP Query Tools Reference](docs/guides/mcp-query-tools.md) - Complete tool documentation
@@ -161,8 +168,9 @@ Save and reuse your best prompts with 3 built-in Claude Code slash commands or C
 
 ### Integration
 
-- **[MCP Guide](docs/guides/mcp.md)** - Complete MCP tool reference (21 tools)
+- **[MCP Guide](docs/guides/mcp.md)** - Complete MCP tool reference (15 tools)
 - **[Integration Guide](docs/guides/integration.md)** - MCP and Slash Commands
+- **[MCP Query Tools Reference](docs/guides/mcp-query-tools.md)** - Consolidated query tools, two-stage jq, hybrid output
 
 ### Advanced
 
@@ -187,16 +195,17 @@ Save and reuse your best prompts with 3 built-in Claude Code slash commands or C
 
 ## Key Features
 
-- **21 MCP tools** - Autonomous session data analysis with two-stage query architecture
+- **15 MCP tools** - Autonomous session data analysis: 3 consolidated query + 4 utility + 1 metadata + 1 cleanup + 6 analysis
 - **Claude Code + Codex transcript analysis** - Shared query/analysis surface over both host schemas
 - **3 Prompt Library commands/skills** - Prompt management (`prompt-find`, `prompt-list`, `prompt-show`)
-- **Advanced analytics** - jq-based filtering, aggregation, time series
-- **Error analysis** - Aggregate tool errors by name and type
+- **Advanced analytics** - jq-based filtering, aggregation, time series; `since`/`until` time filtering on all query tools
+- **Error analysis** - Aggregate tool errors by name and type, with `data_source` provenance field
 - **Quality scanning** - Error/retry/diversity/completion dimensions
 - **Work pattern detection** - Tool frequency, hourly activity, context switches
 - **Timeline visualization** - Chronological session events as JSON
 - **Bug detection** - Error-fix pairs and recurring patterns
 - **Tech debt tracking** - TODO/FIXME markers and unresolved errors
+- **Edit sequence analysis** - File edit/read patterns, docRole classification, co-accessed document detection
 - **File operation tracking** - Identify hotspots and churn
 - **Zero dependencies** - Single binary MCP server
 - **Prompt Learning System** - Save, search, and reuse optimized prompts with project-specific intelligence

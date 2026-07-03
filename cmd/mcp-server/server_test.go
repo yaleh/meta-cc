@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"strings"
 	"testing"
 )
 
@@ -97,23 +96,15 @@ func TestHandleToolsList(t *testing.T) {
 		t.Fatalf("expected tools to be a slice, got %T", toolsInterface)
 	}
 
-	// Should have 21 tools after Phase 45.1
-	// Phase 25: 15 tools (1 query + 1 query_raw + 10 convenience + 3 utility)
-	// Phase 27 Stage 27.1: Removed query and query_raw (15 -> 13)
-	// Phase 27 Stage 27.2: Added get_session_directory (13 -> 14)
-	// Phase 27 Stage 27.3: Added inspect_session_files (14 -> 15)
-	// Phase 27 Stage 27.4: Added execute_stage2_query (15 -> 16)
-	// Phase 27 Stage 27.5: Added get_session_metadata (16 -> 17)
-	// Phase 42.2: Added analyze_errors (17 -> 18)
-	// Phase 42.3: Added quality_scan (18 -> 19)
-	// Phase 43.2: Added get_work_patterns (19 -> 20)
-	// Phase 43.3: Added get_timeline (20 -> 21)
-	// Phase 44.2: Added analyze_bugs (21 -> 22)
-	// Phase 44.3: Added get_tech_debt (22 -> 23)
-	// Phase 45.1: Removed list_capabilities, get_capability (23 -> 21)
-	// Final: 21 tools (10 convenience + 1 utility + 4 two-stage + 6 analysis)
-	if len(toolsSlice) != 21 {
-		t.Errorf("expected 21 tools after Phase 45.1, got %d", len(toolsSlice))
+	// TASK-7: Consolidated 10 old query_* tools into 3 new tools
+	// Total: 15 tools
+	// - 3 consolidated query tools (query_session_content, query_session_signals, query_file_activity)
+	// - 1 utility tool (cleanup_temp_files)
+	// - 4 two-stage query tools (get_session_directory, inspect_session_files, execute_stage2_query, get_session_metadata)
+	// - 6 analysis tools (analyze_errors, quality_scan, get_work_patterns, get_timeline, analyze_bugs, get_tech_debt)
+	// - 1 doc session signals tool (query_edit_sequences)
+	if len(toolsSlice) != 15 {
+		t.Errorf("expected 15 tools after TASK-7, got %d", len(toolsSlice))
 	}
 }
 
@@ -306,35 +297,24 @@ func TestHandleRequest_AllMethods(t *testing.T) {
 	}
 }
 
-func TestQueryUserMessagesHasOutputWarning(t *testing.T) {
+func TestQuerySessionContentHasOutputWarning(t *testing.T) {
 	tools := getToolDefinitions()
 
-	var queryUserMessagesTool *Tool
+	var querySessionContentTool *Tool
 	for _, tool := range tools {
-		if tool.Name == "query_user_messages" {
-			queryUserMessagesTool = &tool
+		if tool.Name == "query_session_content" {
+			querySessionContentTool = &tool
 			break
 		}
 	}
 
-	if queryUserMessagesTool == nil {
-		t.Fatal("query_user_messages tool not found")
-	}
-
-	// Check that description mentions output size concern
-	desc := strings.ToLower(queryUserMessagesTool.Description)
-	hasWarning := strings.Contains(desc, "large") ||
-		strings.Contains(desc, "truncat") ||
-		strings.Contains(desc, "may contain")
-
-	if !hasWarning {
-		t.Errorf("query_user_messages description should warn about large outputs.\nCurrent: %s",
-			queryUserMessagesTool.Description)
+	if querySessionContentTool == nil {
+		t.Fatal("query_session_content tool not found")
 	}
 
 	// Verify max_message_length parameter exists
-	props := queryUserMessagesTool.InputSchema.Properties
+	props := querySessionContentTool.InputSchema.Properties
 	if _, hasParam := props["max_message_length"]; !hasParam {
-		t.Error("query_user_messages should have max_message_length parameter")
+		t.Error("query_session_content should have max_message_length parameter")
 	}
 }

@@ -1,6 +1,6 @@
 # Proposal: Query Noise Reduction and Stats Fix
 
-**Status**: Reviewed
+**Status**: Implemented (Phases 50–51)
 **Phase**: 50-51
 **Priority**: P0
 **Date**: 2026-03-09

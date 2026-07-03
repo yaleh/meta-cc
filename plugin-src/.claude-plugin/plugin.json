@@ -1,7 +1,7 @@
 {
   "name": "meta-cc",
-  "version": "3.1.5",
-  "description": "Meta-Cognition tool for Claude Code: session history analysis, workflow optimization, and 21 MCP tools for deep session insights.",
+  "version": "3.3.14",
+  "description": "Meta-Cognition tool for Claude Code with 22 MCP tools for session history analysis, error tracking, quality scanning, work patterns, timelines, and bug detection. Focused, fast, and data-driven.",
   "author": {
     "name": "Yale Huang",
     "email": "yaleh@ieee.org",
@@ -30,5 +30,10 @@
     "./commands/prompt-list.md",
     "./commands/prompt-show.md"
   ],
-  "skills": "./skills/"
+  "skills": [
+    "./skills/meta-cc-insights",
+    "./skills/prompt-find",
+    "./skills/prompt-list",
+    "./skills/prompt-show"
+  ]
 }

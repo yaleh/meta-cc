@@ -38,11 +38,12 @@ A: Maximum 500 lines of code modifications per phase, 200 lines per stage. See [
 A: Quick rule: Natural questions → MCP | Repeated workflows → Slash. See [docs/guides/integration.md](docs/guides/integration.md).
 
 **Q: How do I query session data?**
-A: Use convenience tools for common questions and the two-stage tools for custom jq:
+A: Use consolidated query tools for common questions and the two-stage tools for custom jq:
 ```javascript
-// Convenience tools
-query_tool_errors({limit: 10})
-query_token_usage({stats_first: true})
+// Consolidated query tools
+query_session_signals({type: "errors", limit: 10})
+query_session_signals({type: "tokens", stats_first: true})
+query_session_content({role: "user", pattern: "fix.*bug"})
 
 // Custom jq over selected files
 execute_stage2_query({
@@ -61,10 +62,11 @@ A: No, by default queries return all results (hybrid mode handles large data). O
 
 **Q: Which MCP query tool should I use?**
 A: Follow this decision tree:
-- **Common queries** → Use convenience tools (`query_tool_errors`, `query_token_usage`, etc.)
-- **Search prompts/messages/tools** → Use `query_user_messages`, `query_tools`, or `query_tool_blocks`
+- **Query messages/content** → Use `query_session_content(role=user|assistant|tool|all)`
+- **Query signals/stats** → Use `query_session_signals(type=errors|tokens|system_errors|timestamps|tool_stats)`
+- **Query file history** → Use `query_file_activity(type=snapshots)`
 - **Maximum flexibility** → Use `get_session_directory` → `inspect_session_files` → `execute_stage2_query`
-- **Cross-provider history** → Pass `provider: "claude"`, `provider: "codex"`, or `provider: "all"` to convenience and analysis tools
+- **Cross-provider history** → Pass `provider: "claude"`, `provider: "codex"`, or `provider: "all"` to query and analysis tools
 See [MCP Query Tools Reference](docs/guides/mcp-query-tools.md) for detailed guidance.
 
 **Q: How do I write jq expressions for MCP queries?**
@@ -290,11 +292,11 @@ make commit
 
 ### Query Session Data (via MCP)
 
-**Convenience tools**:
+**Consolidated query tools**:
 ```javascript
-query_tool_errors({limit: 10})
-query_tools({tool: "Read", limit: 20})
-query_user_messages({pattern: "fix.*bug"})
+query_session_signals({type: "errors", limit: 10})
+query_session_signals({type: "tool_stats", tool: "Read", limit: 20})
+query_session_content({role: "user", pattern: "fix.*bug"})
 ```
 
 **Two-stage jq**:

@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/yaleh/meta-cc/internal/analyzer"
 	"github.com/yaleh/meta-cc/internal/conversation"
@@ -296,6 +298,77 @@ func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
 	return marshalResult(result)
 }
 
+// resolveFilePaths converts any relative paths in the slice to absolute paths
+// using projectRoot as the base directory. Paths that are already absolute are
+// returned unchanged. If projectRoot is empty, the slice is returned as-is.
+func resolveFilePaths(files []string, projectRoot string) []string {
+	if projectRoot == "" {
+		return files
+	}
+	resolved := make([]string, len(files))
+	for i, f := range files {
+		if filepath.IsAbs(f) {
+			resolved[i] = f
+		} else {
+			resolved[i] = filepath.Join(projectRoot, f)
+		}
+	}
+	return resolved
+}
+
+// gitProjectRoot attempts to discover the git repository root via
+// "git rev-parse --show-toplevel". Returns an empty string on any error so
+// that callers can degrade gracefully.
+func gitProjectRoot() string {
+	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// QueryEditSequences implements the query_edit_sequences MCP tool.
+func (s *Service) QueryEditSequences(args map[string]interface{}) (string, error) {
+	// Extract files before loadData so we can build an empty result on no-session errors.
+	var files []string
+	if raw, ok := args["files"]; ok {
+		switch v := raw.(type) {
+		case []interface{}:
+			for _, item := range v {
+				if str, ok := item.(string); ok {
+					files = append(files, str)
+				}
+			}
+		case []string:
+			files = v
+		}
+	}
+
+	// Auto-resolve relative paths to absolute using the git project root.
+	// Degrades gracefully: if git is unavailable, paths are used as-is.
+	if len(files) > 0 {
+		files = resolveFilePaths(files, gitProjectRoot())
+	}
+
+	includeContent := boolArg(args, "include_content")
+	limitPerFile := intArg(args, "limit_per_file")
+
+	entries, _, err := s.loadData(args)
+	if err != nil {
+		// When no session files are found, return an empty result immediately
+		// rather than propagating the error. This prevents hangs in git worktrees,
+		// CI environments, and new clones that have no Claude session data.
+		if strings.Contains(err.Error(), "failed to locate project sessions") {
+			result := analyzer.BuildEditSequences(nil, files, includeContent, limitPerFile)
+			return marshalResult(result)
+		}
+		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+
+	result := analyzer.BuildEditSequences(entries, files, includeContent, limitPerFile)
+	return marshalResult(result)
+}
+
 // AnalysisService is the interface implemented by *Service.
 // It allows cmd/mcp-server to use a mock in tests.
 type AnalysisService interface {
@@ -305,4 +378,5 @@ type AnalysisService interface {
 	GetWorkPatterns(args map[string]interface{}) (string, error)
 	GetTimeline(args map[string]interface{}) (string, error)
 	GetTechDebt(args map[string]interface{}) (string, error)
+	QueryEditSequences(args map[string]interface{}) (string, error)
 }

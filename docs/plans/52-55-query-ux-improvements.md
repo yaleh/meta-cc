@@ -1,7 +1,7 @@
 # Plan: Query UX Improvements (Phases 52–55)
 
 **Proposal**: docs/proposals/proposal-query-ux-improvements.md
-**Status**: Draft
+**Status**: Completed (preview_length, group_by_session, stats_level, context_turns all implemented; see audit 2026-06-23)
 **Date**: 2026-03-09
 
 ---

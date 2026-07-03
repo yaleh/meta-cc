@@ -5,6 +5,165 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.14] - 2026-06-25
+
+
+### Changed
+
+- Maintenance: gitignore .monitor-task-id runtime file
+- Maintenance: update README MCP tool count and mark TASK-13 done
+
+### Other
+
+- merge: D: 在 MCP 工具 description 字段嵌入使用指引 (TASK-13)
+
+## [3.3.13] - 2026-06-24
+
+
+### Added
+
+- add data_source field to all six MCP analysis result structs
+
+### Changed
+
+- Maintenance: bump plugin version to 3.3.13
+- Maintenance: gitignore loop-backlog runtime files
+- Maintenance: add backlog tasks for TASK-14, TASK-15, TASK-16, TASK-17
+- Documentation: add Layer 2.5 oracle fixture suite for MCP tool behavioral testing
+
+### Other
+
+- merge: MCP 分析类工具输出加入 data_source 字段区分实测 vs 估算 (TASK-16)
+- merge: 建立 MCP 工具 Layer 2.5 oracle fixture 集合 (TASK-15)
+- merge: 引入 GCL 前提台账标注格式到 meta-cc 工作流 (TASK-14)
+
+## [3.3.12] - 2026-06-23
+
+
+### Added
+
+- embed usage guidelines in MCP tool descriptions for time filtering and field paths
+
+### Fixed
+
+- query_session_content(role=tool) includes timestamp/sessionId/turn from outer JSONL record
+
+### Other
+
+- merge: B-1 query_session_content(role=tool) includes outer context fields (TASK-11)
+- merge: B-2 jq transform all-null warning (TASK-12)
+
+## [3.3.11] - 2026-06-23
+
+
+## [3.3.10] - 2026-06-23
+
+
+## [3.3.9] - 2026-06-23
+
+
+## [3.3.8] - 2026-06-23
+
+
+## [3.3.7] - 2026-06-23
+
+
+## [3.3.6] - 2026-06-23
+
+
+## [3.3.5] - 2026-06-23
+
+
+## [3.3.4] - 2026-06-23
+
+
+### Changed
+
+- Documentation: add CHANGELOG entry for v3.3.4
+
+## [3.3.4] - 2026-06-23
+
+
+## [3.3.3] - 2026-06-23
+
+
+### Changed
+
+- Documentation: add CHANGELOG entry for v3.3.3
+- Documentation: add TASK-10 backlog task file
+
+### Fixed
+
+- handle null directory in mcp-e2e-simple.sh when no sessions found
+- sync plugin-src marketplace.json version to 3.3.2 (pre-existing mismatch)
+
+### Other
+
+- merge: Unify version source-of-truth: release.sh delegates to bump-plugin-version.sh, install-user reads version from plugin.json at runtime (TASK-10)
+
+## [3.3.3] - 2026-06-23
+
+
+### Fixed
+
+- handle null directory in mcp-e2e-simple.sh when no sessions found
+- sync plugin-src marketplace.json version to 3.3.2 (pre-existing mismatch)
+
+### Other
+
+- merge: Unify version source-of-truth: release.sh delegates to bump-plugin-version.sh, install-user reads version from plugin.json at runtime (TASK-10)
+
+## [3.3.2] - 2026-06-23
+
+
+### Changed
+
+- Maintenance: remove project-local basic-daemon scripts (now bundled in BAIME plugin)
+- Maintenance: remove leaked agent summary, add .agent-summary-* to gitignore
+
+### Other
+
+- merge: Fix install-user marketplace.json source path (TASK-9)
+
+## [3.3.1] - 2026-06-23
+
+
+## [3.3.0] - 2026-06-23
+
+
+### Added
+
+- TASK-7 consolidate 10 query_* tools into 3 semantic tools
+
+### Fixed
+
+- remove orphaned handleQuerySummaries after TASK-7 tool consolidation
+- update codex E2E tests to use consolidated query_* tool names (TASK-7)
+
+### Other
+
+- merge: consolidate query_* MCP tools 10→3 (TASK-7)
+- merge: register prompt-library skills in plugin.json (TASK-8)
+
+## [3.2.0] - 2026-06-23
+
+
+### Changed
+
+- Maintenance: prepare v3.2.0 release — plugin bump, backlog setup, loop-backlog daemon
+
+### Fixed
+
+- remove unused functions and dead imports from locator/args.go
+- query_edit_sequences returns immediately with empty result when no session files (TASK-4)
+- auto-resolve relative paths and populate CoAccessedDoc.DocRole for non-queried docs
+
+### Other
+
+- merge: Fix query_edit_sequences hang when no session files found (TASK-4)
+- merge: Fix query_edit_sequences: auto-resolve relative paths and populate CoAccessedDoc.DocRole (TASK-2)
+- merge: Documentation Session Signals: File Type Classification and Co-Access Pairs (TASK-1)
+
 ## [3.1.5] - 2026-06-20
 
 

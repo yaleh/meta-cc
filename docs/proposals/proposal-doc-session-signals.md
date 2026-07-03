@@ -1,6 +1,6 @@
 # Documentation Session Signals: File Type Classification and Co-Access Pairs
 
-> Status: Draft (rev 1)
+> Status: Implemented (fileType/docRole on EditEvent, CoAccessedDocs/DocVoid/SpecPrecisionGap on FileEditSequence, globalDocStats backfill — all in internal/analyzer/edit_sequences.go; verified 2026-06-23)
 > Scope: Extend `query_edit_sequences` to classify files by type (source/doc/config),
 >        compute per-file doc role (spec/output/mixed), surface session co-access pairs,
 >        and emit `doc_void` / `specPrecisionGap` boolean flags — all mechanically, no LLM

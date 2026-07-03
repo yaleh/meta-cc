@@ -3,7 +3,7 @@
 **Created**: 2026-03-12
 **Proposal**: [proposal-arch-cleanup-phases-81-86.md](../proposals/proposal-arch-cleanup-phases-81-86.md)
 **Preceding plan**: [78-80-query-architecture-cleanup.md](78-80-query-architecture-cleanup.md)
-**Status**: Pending
+**Status**: Partially Completed (Phase 81 ✅ ParseTimestamp exported; Phase 82 ✅ workflow.go 52 LOC; Phase 83 ✅ interfaces.go uses types.*; Phase 84 ✅ no injected func fields in pipeline; Phase 85 ❌ ExecuteSpecialTool still exists; Phase 86 ❌ parser.* in test files)
 
 ---
 

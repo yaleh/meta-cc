@@ -1,6 +1,6 @@
 # Plan 47–49: Query UX Improvements
 
-**Status**: Draft
+**Status**: Completed (since/until, group_by_session, stats_level all implemented in internal/mcp/; see audit 2026-06-23)
 **Date**: 2026-03-09
 **Proposal**: [docs/proposals/proposal-query-ux-improvements.md](../proposals/proposal-query-ux-improvements.md)
 

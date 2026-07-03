@@ -1,6 +1,6 @@
 # Plan 50–51: Query Noise Reduction and Stats Fix
 
-**Status**: Draft
+**Status**: Completed
 **Date**: 2026-03-09
 **Proposal**: [docs/proposals/proposal-query-noise-reduction.md](../proposals/proposal-query-noise-reduction.md)
 

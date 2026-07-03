@@ -1,6 +1,6 @@
 # Plan 71-75: Finish Splitting `cmd/mcp-server`
 
-**Status**: Draft  
+**Status**: Completed (internal/mcp/{executor,query,filters,observability,tools,response,...} all exist; cmd/mcp-server reduced to ~814 LOC wiring)
 **Proposal**: [docs/proposals/proposal-mcp-server-package-split.md](../proposals/proposal-mcp-server-package-split.md)
 
 ## Scope

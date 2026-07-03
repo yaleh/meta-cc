@@ -219,9 +219,9 @@ DIR_RESPONSE=$(get_json_response "$RAW_OUTPUT")
 if [ -z "$DIR_RESPONSE" ]; then
     echo -e "  ${YELLOW}⚠ WARNING${NC} - Could not get directory"
 else
-    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory // empty' 2>/dev/null || true)
     # Get first 5 files from directory with FULL PATHS
-    FILES=$(ls "$DIRECTORY" 2>/dev/null | head -5 | sed "s|^|$DIRECTORY/|" | jq -R . | jq -s .)
+    FILES=$([ -n "$DIRECTORY" ] && ls "$DIRECTORY" 2>/dev/null | head -5 | sed "s|^|$DIRECTORY/|" | jq -R . | jq -s . || echo "[]")
 
     if [ -z "$FILES" ] || [ "$FILES" = "[]" ]; then
         echo -e "  ${YELLOW}⚠ WARNING${NC} - No files found in directory"
@@ -255,9 +255,9 @@ DIR_RESPONSE=$(get_json_response "$RAW_OUTPUT")
 if [ -z "$DIR_RESPONSE" ]; then
     echo -e "  ${YELLOW}⚠ WARNING${NC} - Could not get directory"
 else
-    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory // empty' 2>/dev/null || true)
     # Get first 3 files from directory
-    FILES=$(ls "$DIRECTORY" 2>/dev/null | head -3 | jq -R . | jq -s .)
+    FILES=$([ -n "$DIRECTORY" ] && ls "$DIRECTORY" 2>/dev/null | head -3 | jq -R . | jq -s . || echo "[]")
 
     if [ -z "$FILES" ] || [ "$FILES" = "[]" ]; then
         echo -e "  ${YELLOW}⚠ WARNING${NC} - No files found in directory"
@@ -296,9 +296,9 @@ DIR_RESPONSE=$(get_json_response "$RAW_OUTPUT")
 if [ -z "$DIR_RESPONSE" ]; then
     echo -e "  ${YELLOW}⚠ WARNING${NC} - Could not get directory"
 else
-    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory // empty' 2>/dev/null || true)
     # Get first 5 files from directory
-    FILES=$(ls "$DIRECTORY" 2>/dev/null | head -5 | jq -R . | jq -s .)
+    FILES=$([ -n "$DIRECTORY" ] && ls "$DIRECTORY" 2>/dev/null | head -5 | jq -R . | jq -s . || echo "[]")
 
     if [ -z "$FILES" ] || [ "$FILES" = "[]" ]; then
         echo -e "  ${YELLOW}⚠ WARNING${NC} - No files found in directory"
@@ -331,9 +331,9 @@ DIR_RESPONSE=$(get_json_response "$RAW_OUTPUT")
 if [ -z "$DIR_RESPONSE" ]; then
     echo -e "  ${YELLOW}⚠ WARNING${NC} - Could not get directory"
 else
-    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory // empty' 2>/dev/null || true)
     # Get first 5 files from directory
-    FILES=$(ls "$DIRECTORY" 2>/dev/null | head -5 | jq -R . | jq -s .)
+    FILES=$([ -n "$DIRECTORY" ] && ls "$DIRECTORY" 2>/dev/null | head -5 | jq -R . | jq -s . || echo "[]")
 
     if [ -z "$FILES" ] || [ "$FILES" = "[]" ]; then
         echo -e "  ${YELLOW}⚠ WARNING${NC} - No files found in directory"
@@ -366,9 +366,9 @@ DIR_RESPONSE=$(get_json_response "$RAW_OUTPUT")
 if [ -z "$DIR_RESPONSE" ]; then
     echo -e "  ${YELLOW}⚠ WARNING${NC} - Could not get directory"
 else
-    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory')
+    DIRECTORY=$(echo "$DIR_RESPONSE" | jq -r '.result.content[0].text | fromjson | .directory // empty' 2>/dev/null || true)
     # Get first 10 files from directory
-    FILES=$(ls "$DIRECTORY" 2>/dev/null | head -10 | jq -R . | jq -s .)
+    FILES=$([ -n "$DIRECTORY" ] && ls "$DIRECTORY" 2>/dev/null | head -10 | jq -R . | jq -s . || echo "[]")
 
     if [ -z "$FILES" ] || [ "$FILES" = "[]" ]; then
         echo -e "  ${YELLOW}⚠ WARNING${NC} - No files found in directory"

@@ -162,14 +162,15 @@ func TestConvenienceTool_HandlesSliceReturnType(t *testing.T) {
 	// Execute: Call convenience tool (which calls executeQuery internally)
 	executor := &ToolExecutor{}
 	args := map[string]interface{}{
+		"role":    "user",
 		"pattern": "test",
 	}
 
 	// Use session scope since we've set up CLAUDE_SESSION_DIR
-	result, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "session", args)
+	result, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "session", args)
 
 	// Assert: Should successfully return results
-	require.NoError(t, err, "handleQueryUserMessages should not return error")
+	require.NoError(t, err, "handleQuerySessionContent should not return error")
 
 	// Result should be serializable (either string or []interface{})
 	// For now, we expect it might still be string, but it should work
@@ -491,11 +492,12 @@ func TestHandleQueryUserMessagesSince(t *testing.T) {
 
 	sinceStr := time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339)
 	args := map[string]interface{}{
+		"role":        "user",
 		"since":       sinceStr,
 		"working_dir": projectDir,
 	}
 
-	result, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "project", args)
+	result, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "project", args)
 	require.NoError(t, err)
 	// only the entry 12h ago should match (the 2d and 3d old ones are filtered)
 	assert.Len(t, result.Entries, 1, "since=T-24h should return only the 12h-ago entry")
@@ -507,17 +509,19 @@ func TestHandleQueryUserMessagesBadSince(t *testing.T) {
 
 	// Date-only format (not RFC3339)
 	args := map[string]interface{}{
+		"role":  "user",
 		"since": "2026-03-07",
 	}
-	_, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "project", args)
+	_, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "project", args)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid since value")
 
 	// Totally invalid value
 	args2 := map[string]interface{}{
+		"role":  "user",
 		"since": "not-a-date",
 	}
-	_, err2 := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "project", args2)
+	_, err2 := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "project", args2)
 	require.Error(t, err2)
 	assert.Contains(t, err2.Error(), "invalid since value")
 }
@@ -665,21 +669,23 @@ func TestExcludeSystemMessages(t *testing.T) {
 
 	// Without exclusion: all 6 string-content user messages should be returned
 	args := map[string]interface{}{
+		"role":                    "user",
 		"pattern":                 ".",
 		"exclude_system_messages": false,
 		"working_dir":             projectDir,
 	}
-	result, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "project", args)
+	result, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "project", args)
 	require.NoError(t, err)
 	assert.Len(t, result.Entries, 6, "without exclusion, all 6 user messages should be returned")
 
 	// With exclusion: only 2 real user messages should be returned
 	args2 := map[string]interface{}{
+		"role":                    "user",
 		"pattern":                 ".",
 		"exclude_system_messages": true,
 		"working_dir":             projectDir,
 	}
-	result2, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "project", args2)
+	result2, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "project", args2)
 	require.NoError(t, err)
 	assert.Len(t, result2.Entries, 2, "with exclusion, only 2 real user messages should be returned")
 }
@@ -801,11 +807,12 @@ func TestExcludeSystemMessages_NoErrorOnArrayType(t *testing.T) {
 
 	executor := NewToolExecutor()
 	args := map[string]interface{}{
+		"role":                    "user",
 		"content_type":            "array",
 		"exclude_system_messages": true,
 		"working_dir":             projectDir,
 	}
-	result, err := executor.ToolExecutor.ExecuteToolQuery("query_user_messages", "project", args)
+	result, err := executor.ToolExecutor.ExecuteToolQuery("query_session_content", "project", args)
 	require.NoError(t, err)
 	assert.Len(t, result.Entries, 2, "array-type content should not be filtered by exclude_system_messages")
 }

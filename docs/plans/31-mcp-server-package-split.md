@@ -1,5 +1,9 @@
 # Plan 31: Split cmd/mcp-server God Package
 
+> **Status: Superseded** — This plan's goals were achieved via Plans 71–75 (Phases 71–75, 2026-03-12).
+> Package names differ from what was originally proposed (e.g., `internal/mcp/observability` instead of `internal/observability`),
+> but the structural split is complete. See [plans/71-75-mcp-server-final-split.md](71-75-mcp-server-final-split.md).
+
 ## Overview
 
 Refactor `cmd/mcp-server` from a 43-file, ~15,500-line god package into six focused `internal/` packages. Each package owns a single concern and is independently testable.

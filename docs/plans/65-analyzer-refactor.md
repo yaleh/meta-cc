@@ -1,6 +1,6 @@
 # Plan 65: Analyzer Clarity and Dead-Code Removal
 
-**Status**: Draft
+**Status**: Completed (internal/pipeline deleted; see audit 2026-06-23)
 **Proposal**: [docs/proposals/proposal-analyzer-refactor.md](../proposals/proposal-analyzer-refactor.md)
 
 ---

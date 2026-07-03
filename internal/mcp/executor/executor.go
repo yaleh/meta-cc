@@ -44,7 +44,7 @@ func NewToolPipelineConfig(toolName string, args map[string]interface{}) pipelin
 		StatsLevel:          GetStringParam(args, "stats_level", "turn"),
 		ContextTurns:        GetIntParam(args, "context_turns", 0),
 		UseTimestampStats:   pipelinepkg.TimestampStatsTools[toolName],
-		ApplyMessageFilters: toolName == "query_user_messages",
+		ApplyMessageFilters: toolName == "query_session_content",
 	}
 }
 

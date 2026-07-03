@@ -363,6 +363,130 @@ func TestReadJSONLFile_LargeImageLine_ReturnsData(t *testing.T) {
 	}
 }
 
+func TestIsAllNullOrEmpty_AllNull(t *testing.T) {
+	input := []interface{}{map[string]interface{}{"a": nil, "b": nil}}
+	if !isAllNullOrEmpty(input) {
+		t.Error("expected true for all-null map")
+	}
+}
+
+func TestIsAllNullOrEmpty_AllEmpty(t *testing.T) {
+	input := []interface{}{map[string]interface{}{"a": "", "b": ""}}
+	if !isAllNullOrEmpty(input) {
+		t.Error("expected true for all-empty-string map")
+	}
+}
+
+func TestIsAllNullOrEmpty_Mixed(t *testing.T) {
+	input := []interface{}{map[string]interface{}{"a": nil, "b": "hello"}}
+	if isAllNullOrEmpty(input) {
+		t.Error("expected false for map with one non-empty value")
+	}
+}
+
+func TestIsAllNullOrEmpty_Scalar(t *testing.T) {
+	input := []interface{}{"hello"}
+	if isAllNullOrEmpty(input) {
+		t.Error("expected false for scalar value")
+	}
+}
+
+func TestIsAllNullOrEmpty_EmptySlice(t *testing.T) {
+	input := []interface{}{}
+	if isAllNullOrEmpty(input) {
+		t.Error("expected false for empty slice")
+	}
+}
+
+func TestExecuteStage2Query_TransformAllNull_Warning(t *testing.T) {
+	tempDir := t.TempDir()
+	testFile := filepath.Join(tempDir, "test_warn.jsonl")
+	if err := os.WriteFile(testFile, []byte(testUser1+"\n"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	query := &Stage2Query{
+		Files:     []string{testFile},
+		Filter:    `select(.type == "user")`,
+		Transform: ".nonexistent",
+	}
+
+	result, err := ExecuteStage2Query(query)
+	if err != nil {
+		t.Fatalf("ExecuteStage2Query failed: %v", err)
+	}
+
+	if len(result.Warnings) == 0 {
+		t.Error("expected non-empty Warnings when transform produces all-null results")
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if len(w) > 0 && contains(w, "inspect_session_files") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected warning to mention inspect_session_files, got: %v", result.Warnings)
+	}
+}
+
+func TestExecuteStage2Query_TransformValidField_NoWarning(t *testing.T) {
+	tempDir := t.TempDir()
+	testFile := filepath.Join(tempDir, "test_nowarn.jsonl")
+	if err := os.WriteFile(testFile, []byte(testUser1+"\n"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	query := &Stage2Query{
+		Files:     []string{testFile},
+		Filter:    `select(.type == "user")`,
+		Transform: "{type: .type}",
+	}
+
+	result, err := ExecuteStage2Query(query)
+	if err != nil {
+		t.Fatalf("ExecuteStage2Query failed: %v", err)
+	}
+
+	if len(result.Warnings) != 0 {
+		t.Errorf("expected empty Warnings for valid transform, got: %v", result.Warnings)
+	}
+}
+
+func TestExecuteStage2Query_NoTransform_NoWarning(t *testing.T) {
+	tempDir := t.TempDir()
+	testFile := filepath.Join(tempDir, "test_notransform.jsonl")
+	if err := os.WriteFile(testFile, []byte(testUser1+"\n"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	query := &Stage2Query{
+		Files:  []string{testFile},
+		Filter: `select(.type == "user")`,
+	}
+
+	result, err := ExecuteStage2Query(query)
+	if err != nil {
+		t.Fatalf("ExecuteStage2Query failed: %v", err)
+	}
+
+	if len(result.Warnings) != 0 {
+		t.Errorf("expected empty Warnings with no transform, got: %v", result.Warnings)
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		func() bool {
+			for i := 0; i <= len(s)-len(substr); i++ {
+				if s[i:i+len(substr)] == substr {
+					return true
+				}
+			}
+			return false
+		}())
+}
+
 func BenchmarkExecuteStage2Query_3MB(b *testing.B) {
 	tempDir := b.TempDir()
 	testFile := filepath.Join(tempDir, "large.jsonl")

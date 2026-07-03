@@ -1,6 +1,6 @@
 project_name: "meta-cc"
-default_status: "To Do"
-statuses: ["To Do", "In Progress", "Done"]
+default_status: "Basic: Proposal"
+statuses: ["Epic: Proposal", "Epic: Plan", "Epic: Backlog", "Epic: Ready", "Epic: Decomposing", "Epic: Awaiting Children", "Epic: Evaluating", "Epic: Done", "Epic: Needs Human", "Basic: Proposal", "Basic: Plan", "Basic: Backlog", "Basic: Ready", "Basic: In Progress", "Basic: Done", "Basic: Needs Human"]
 labels: []
 date_format: yyyy-mm-dd
 max_column_width: 20

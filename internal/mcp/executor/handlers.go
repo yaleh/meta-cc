@@ -11,38 +11,9 @@ import (
 // Each tool is registered via init() so executor.go needs no switch statement.
 // Exported Handle* methods are kept for backward compatibility with cmd/mcp-server.
 
-func init() {
-	registerQueryHandler("query_user_messages", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryUserMessages(e, scope, args)
-	})
-	registerQueryHandler("query_tools", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryTools(e, scope, args)
-	})
-	registerQueryHandler("query_tool_errors", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryToolErrors(e, scope, args)
-	})
-	registerQueryHandler("query_token_usage", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryTokenUsage(e, scope, args)
-	})
-	registerQueryHandler("query_conversation_flow", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryConversationFlow(e, scope, args)
-	})
-	registerQueryHandler("query_system_errors", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQuerySystemErrors(e, scope, args)
-	})
-	registerQueryHandler("query_file_snapshots", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryFileSnapshots(e, scope, args)
-	})
-	registerQueryHandler("query_timestamps", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryTimestamps(e, scope, args)
-	})
-	registerQueryHandler("query_summaries", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQuerySummaries(e, scope, args)
-	})
-	registerQueryHandler("query_tool_blocks", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-		return handleQueryToolBlocks(e, scope, args)
-	})
-}
+// Old tool registrations removed in Phase D.
+// The private handler functions (handleQueryUserMessages, handleQueryTools, etc.)
+// are kept because consolidated_handlers.go delegates to them.
 
 // ─── Private implementations ──────────────────────────────────────────────────
 
@@ -184,34 +155,6 @@ func handleQueryTimestamps(e *ToolExecutor, scope string, args map[string]interf
 	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, tr)
 }
 
-func handleQuerySummaries(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
-	keyword := GetStringParam(args, "keyword", "")
-	limit := GetIntParam(args, "limit", 0)
-	workingDir := GetStringParam(args, "working_dir", "")
-
-	jqFilter := `select(.type == "summary")`
-
-	if keyword != "" {
-		escapedKeyword := EscapeJQ(keyword)
-		jqFilter = fmt.Sprintf(`%s | select(.summary | test("%s"; "i"))`, jqFilter, escapedKeyword)
-	}
-
-	result, err := e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir)
-	if err != nil {
-		return mcquery.QueryResult{}, err
-	}
-	if len(result.Entries) == 0 {
-		result.Entries = []interface{}{map[string]interface{}{
-			"count":  0,
-			"reason": "no_summaries_generated",
-			"hint":   `No summary records found. Summaries are a separate artifact type from raw messages. Use query_user_messages for message statistics, or get_timeline(scope="session") for current session events.`,
-		}}
-		result.BypassStats = true
-	}
-	return result, nil
-}
-
 func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := GetStringParam(args, "provider", "claude")
 	blockType := GetStringParam(args, "block_type", "tool_use")
@@ -224,9 +167,9 @@ func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interf
 
 	var jqFilter string
 	if blockType == "tool_use" {
-		jqFilter = `select(.type == "assistant") | .message.content[] | select(.type == "tool_use")`
+		jqFilter = `select(.type == "assistant") | . as $rec | .message.content[] | select(.type == "tool_use") | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
 	} else {
-		jqFilter = `select(.type == "user" and (.message.content | type == "array")) | .message.content[] | select(.type == "tool_result")`
+		jqFilter = `select(.type == "user" and (.message.content | type == "array")) | . as $rec | .message.content[] | select(.type == "tool_result") | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
 	}
 
 	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir)

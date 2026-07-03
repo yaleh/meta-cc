@@ -1,6 +1,6 @@
 # Proposal: JSONL Streaming Reader with Early Image Filtering
 
-**Status**: Draft (架构师审查版)
+**Status**: Implemented (2026-06-23, see internal/parser/streaming_reader.go — bufio.Reader.ReadBytes with early image truncation)
 **Date**: 2026-03-12
 **Scope**: I/O layer — parser and all query executor paths
 
