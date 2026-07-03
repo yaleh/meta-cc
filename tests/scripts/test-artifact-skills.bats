@@ -261,6 +261,8 @@ teardown() {
 
     printf '#!/bin/sh\nexit 0\n' > "$PKG_DIR/bin/meta-cc-mcp"
     chmod +x "$PKG_DIR/bin/meta-cc-mcp"
+    printf '#!/bin/sh\nexit 0\n' > "$PKG_DIR/bin/skill-insights"
+    chmod +x "$PKG_DIR/bin/skill-insights"
     cp plugin-src/commands/*.md "$PKG_DIR/commands/"
     cp -R plugin-src/skills/* "$PKG_DIR/skills/"
     cp lib/meta-utils.sh "$PKG_DIR/lib/"
@@ -277,6 +279,7 @@ teardown() {
     run bash -c "cd '$PKG_DIR' && env INSTALL_DIR='$INSTALL_DIR' CLAUDE_DIR='$CLAUDE_DIR' CODEX_HOME='$CODEX_HOME' ./install.sh"
     [ "$status" -eq 0 ]
     [ -f "$INSTALL_DIR/meta-cc-mcp" ]
+    [ -f "$INSTALL_DIR/skill-insights" ]
     [ -f "$CLAUDE_DIR/commands/prompt-find.md" ]
     [ -f "$CLAUDE_DIR/mcp.json" ]
     [ -f "$CODEX_HOME/skills/prompt-find/SKILL.md" ]

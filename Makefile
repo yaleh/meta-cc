@@ -14,6 +14,7 @@ GOMOD := $(GOCMD) mod
 BUILD_DIR := build
 DIST_DIR := dist
 MCP_BINARY_NAME := meta-cc-mcp
+SKILL_INSIGHTS_BINARY_NAME := skill-insights
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
 # Default target when running 'make' without arguments
@@ -114,7 +115,12 @@ check-mod-tidy:
 test-bats:
 	@echo "=== Bats Pipeline Tests ==="
 	@echo ""
-	@if ! command -v bats >/dev/null 2>&1; then \
+	@if command -v bats >/dev/null 2>&1; then \
+		echo "Running Bats tests..."; \
+		bats tests/scripts/*.bats; \
+		echo ""; \
+		echo "✅ Bats tests passed"; \
+	else \
 		echo "⚠️  WARNING: bats not installed"; \
 		echo ""; \
 		echo "Install with:"; \
@@ -124,10 +130,6 @@ test-bats:
 		echo "Skipping Bats tests..."; \
 		exit 0; \
 	fi
-	@echo "Running Bats tests..."
-	@bats tests/scripts/*.bats
-	@echo ""
-	@echo "✅ Bats tests passed"
 
 check-release-ready:
 	@echo "=== Release Readiness Check ==="
@@ -279,15 +281,18 @@ ci: push
 	@echo "⚠️  DEPRECATED: Use 'make push' instead"
 
 build:
-	@echo "Building $(MCP_BINARY_NAME) $(VERSION)..."
+	@echo "Building $(MCP_BINARY_NAME) and $(SKILL_INSIGHTS_BINARY_NAME) $(VERSION)..."
 	@mkdir -p bin
 	$(GOBUILD) -o bin/$(MCP_BINARY_NAME) ./cmd/mcp-server
+	$(GOBUILD) -o bin/$(SKILL_INSIGHTS_BINARY_NAME) ./cmd/skill-insights
 
 stage: build
-	@echo "Staging binary to plugin-src/bin/..."
+	@echo "Staging binaries to plugin-src/bin/..."
 	@mkdir -p plugin-src/bin
 	@cp bin/$(MCP_BINARY_NAME) plugin-src/bin/$(MCP_BINARY_NAME)
+	@cp bin/$(SKILL_INSIGHTS_BINARY_NAME) plugin-src/bin/$(SKILL_INSIGHTS_BINARY_NAME)
 	@echo "✓ Staged plugin-src/bin/$(MCP_BINARY_NAME)"
+	@echo "✓ Staged plugin-src/bin/$(SKILL_INSIGHTS_BINARY_NAME)"
 
 install-local: stage
 	@echo "Installing plugin at local scope (this project only)..."
@@ -459,26 +464,32 @@ clean:
 	@echo "Cleaning..."
 	$(GOCLEAN)
 	rm -f bin/$(MCP_BINARY_NAME)
+	rm -f bin/$(SKILL_INSIGHTS_BINARY_NAME)
 	rm -f $(MCP_BINARY_NAME)
+	rm -f $(SKILL_INSIGHTS_BINARY_NAME)
 	rm -rf $(BUILD_DIR)
 	rm -rf $(DIST_DIR)
 	rm -f coverage.out coverage.html
 
 install:
-	@echo "Installing MCP server..."
+	@echo "Installing MCP server and skill insights CLI..."
 	$(GOCMD) install $(LDFLAGS) ./cmd/mcp-server
+	$(GOCMD) install ./cmd/skill-insights
 
 cross-compile:
-	@echo "Building MCP server for multiple platforms..."
+	@echo "Building MCP server and skill insights CLI for multiple platforms..."
 	@mkdir -p $(BUILD_DIR)
 	@for platform in $(PLATFORMS); do \
 		GOOS=$${platform%/*} GOARCH=$${platform#*/} \
 		$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(MCP_BINARY_NAME)-$${platform%/*}-$${platform#*/} ./cmd/mcp-server; \
+		GOOS=$${platform%/*} GOARCH=$${platform#*/} \
+		$(GOBUILD) -o $(BUILD_DIR)/$(SKILL_INSIGHTS_BINARY_NAME)-$${platform%/*}-$${platform#*/} ./cmd/skill-insights; \
 		if [ "$${platform%/*}" = "windows" ]; then \
 			mv $(BUILD_DIR)/$(MCP_BINARY_NAME)-$${platform%/*}-$${platform#*/} $(BUILD_DIR)/$(MCP_BINARY_NAME)-$${platform%/*}-$${platform#*/}.exe; \
+			mv $(BUILD_DIR)/$(SKILL_INSIGHTS_BINARY_NAME)-$${platform%/*}-$${platform#*/} $(BUILD_DIR)/$(SKILL_INSIGHTS_BINARY_NAME)-$${platform%/*}-$${platform#*/}.exe; \
 		fi; \
 	done
-	@echo "Cross-compilation complete. MCP server binaries in $(BUILD_DIR)/"
+	@echo "Cross-compilation complete. Binaries in $(BUILD_DIR)/"
 
 sync-plugin-files:
 	@echo "Preparing plugin files for release packaging..."
@@ -503,19 +514,32 @@ bundle-release: sync-plugin-files
 	@for platform in $(PLATFORMS); do \
 		PLATFORM_NAME=$${platform%/*}-$${platform#*/}; \
 		BUNDLE_DIR=$(BUILD_DIR)/bundles/meta-cc-$(VERSION)-$$PLATFORM_NAME; \
-		mkdir -p $$BUNDLE_DIR/bin $$BUNDLE_DIR/commands $$BUNDLE_DIR/.claude-plugin $$BUNDLE_DIR/lib; \
+		mkdir -p $$BUNDLE_DIR/bin $$BUNDLE_DIR/commands $$BUNDLE_DIR/.claude-plugin $$BUNDLE_DIR/.codex-plugin $$BUNDLE_DIR/skills $$BUNDLE_DIR/lib; \
 		if [ "$${platform%/*}" = "windows" ]; then \
-			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME.exe $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
+			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME.exe $$BUNDLE_DIR/bin/$(MCP_BINARY_NAME).exe || exit 1; \
+			cp $(BUILD_DIR)/$(SKILL_INSIGHTS_BINARY_NAME)-$$PLATFORM_NAME.exe $$BUNDLE_DIR/bin/$(SKILL_INSIGHTS_BINARY_NAME).exe || exit 1; \
 		else \
-			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
+			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/$(MCP_BINARY_NAME) || exit 1; \
+			cp $(BUILD_DIR)/$(SKILL_INSIGHTS_BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/$(SKILL_INSIGHTS_BINARY_NAME) || exit 1; \
 		fi; \
 		cp -r $(DIST_DIR)/commands/* $$BUNDLE_DIR/commands/; \
+		cp -r plugin-src/skills/* $$BUNDLE_DIR/skills/; \
 		cp -r lib/* $$BUNDLE_DIR/lib/; \
 		cp -r .claude-plugin/* $$BUNDLE_DIR/.claude-plugin/; \
 		cp plugin-src/.claude-plugin/plugin.json $$BUNDLE_DIR/.claude-plugin/ 2>/dev/null || true; \
+		cp plugin-src/.codex-plugin/plugin.json $$BUNDLE_DIR/.codex-plugin/ 2>/dev/null || true; \
 		cp plugin-src/.mcp.json $$BUNDLE_DIR/ 2>/dev/null || true; \
+		cp plugin-src/.codex-mcp.json $$BUNDLE_DIR/ 2>/dev/null || true; \
 		jq '.commands |= map(gsub("\\./commands/"; "./commands/"))' $$BUNDLE_DIR/.claude-plugin/plugin.json > $$BUNDLE_DIR/.claude-plugin/plugin.json.tmp && mv $$BUNDLE_DIR/.claude-plugin/plugin.json.tmp $$BUNDLE_DIR/.claude-plugin/plugin.json 2>/dev/null || true; \
+		jq '.skills = "./skills/" | .mcpServers = "./.codex-mcp.json"' $$BUNDLE_DIR/.codex-plugin/plugin.json > $$BUNDLE_DIR/.codex-plugin/plugin.json.tmp && mv $$BUNDLE_DIR/.codex-plugin/plugin.json.tmp $$BUNDLE_DIR/.codex-plugin/plugin.json 2>/dev/null || true; \
 		jq '.plugins[0].commands |= map(gsub("\\./plugin-src/commands/"; "./commands/"))' $$BUNDLE_DIR/.claude-plugin/marketplace.json > $$BUNDLE_DIR/.claude-plugin/marketplace.json.tmp && mv $$BUNDLE_DIR/.claude-plugin/marketplace.json.tmp $$BUNDLE_DIR/.claude-plugin/marketplace.json 2>/dev/null || true; \
+		if [ "$${platform%/*}" = "windows" ]; then \
+			test -f $$BUNDLE_DIR/bin/$(MCP_BINARY_NAME).exe || exit 1; \
+			test -f $$BUNDLE_DIR/bin/$(SKILL_INSIGHTS_BINARY_NAME).exe || exit 1; \
+		else \
+			test -f $$BUNDLE_DIR/bin/$(MCP_BINARY_NAME) || exit 1; \
+			test -f $$BUNDLE_DIR/bin/$(SKILL_INSIGHTS_BINARY_NAME) || exit 1; \
+		fi; \
 		cp scripts/install/install.sh $$BUNDLE_DIR/; \
 		cp scripts/install/uninstall.sh $$BUNDLE_DIR/ 2>/dev/null || true; \
 		cp README.md $$BUNDLE_DIR/; \
@@ -546,7 +570,7 @@ lint: fmt vet lint-errors lint-error-handling lint-markdown check-no-scanner
 		golangci-lint run ./...; \
 	else \
 		echo "golangci-lint not found. Install with:"; \
-		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8"; \
+		echo "  go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2"; \
 		echo "Skipping lint checks..."; \
 	fi
 
@@ -621,7 +645,7 @@ lint-fix:
 		golangci-lint run --fix ./...; \
 	else \
 		echo "golangci-lint not found. Install with:"; \
-		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8"; \
+		echo "  go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2"; \
 		exit 1; \
 	fi
 
@@ -644,8 +668,8 @@ help:
 	@echo "  make push                    - Tier 3: Full validation before push (all checks, <120s)"
 	@echo ""
 	@echo "Individual Tasks:"
-	@echo "  make build                   - Build meta-cc-mcp MCP server"
-	@echo "  make stage                   - Build + copy binary to plugin-src/bin/ for local install"
+	@echo "  make build                   - Build meta-cc-mcp MCP server and skill-insights CLI"
+	@echo "  make stage                   - Build + copy binaries to plugin-src/bin/ for local install"
 	@echo "  make test                    - Run tests (short mode, skips slow E2E tests)"
 	@echo "  make test-all                - Run all tests (including slow E2E tests ~30s)"
 	@echo "  make test-e2e-codex          - Run Codex install/session E2E tests"
@@ -685,7 +709,7 @@ help:
 	@echo "  make uninstall-legacy        - Remove old-style legacy artifacts (mcp.json, ~/.local/bin, ~/.claude/commands)"
 	@echo ""
 	@echo "Build & Package:"
-	@echo "  make cross-compile           - Build MCP server for all platforms"
+	@echo "  make cross-compile           - Build MCP server and skill-insights CLI for all platforms"
 	@echo "  make sync-plugin-files       - Prepare plugin files in $(DIST_DIR)/ for packaging"
 	@echo "  make bundle-release          - Create release bundles (auto-syncs first, requires VERSION=vX.Y.Z)"
 	@echo ""

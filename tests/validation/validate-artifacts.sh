@@ -72,8 +72,8 @@ else
     echo "  Syncing plugin files..."
     bash scripts/sync-plugin-files.sh >/dev/null 2>&1
 
-    # Build native MCP binary only (current platform)
-    echo "  Building MCP binary (native platform)..."
+    # Build native binaries only (current platform)
+    echo "  Building binaries (native platform)..."
     OS=$(uname -s | tr '[:upper:]' '[:lower:]')
     ARCH=$(uname -m)
     [ "$ARCH" = "x86_64" ] && ARCH="amd64"
@@ -86,6 +86,11 @@ else
         ./cmd/mcp-server
     chmod +x "$BUILD_DIR/mcp/meta-cc-mcp-${TEST_VERSION}-${NATIVE_PLATFORM}"
     echo "    Built: meta-cc-mcp-${TEST_VERSION}-${NATIVE_PLATFORM}"
+    go build \
+        -o "$BUILD_DIR/mcp/skill-insights-${TEST_VERSION}-${NATIVE_PLATFORM}" \
+        ./cmd/skill-insights
+    chmod +x "$BUILD_DIR/mcp/skill-insights-${TEST_VERSION}-${NATIVE_PLATFORM}"
+    echo "    Built: skill-insights-${TEST_VERSION}-${NATIVE_PLATFORM}"
 
     # Build skills package
     echo "  Building skills package..."
@@ -98,17 +103,24 @@ else
     # Build combined plugin package (reuse native binary)
     echo "  Building combined plugin package..."
     PKG_DIR="$BUILD_DIR/packages/meta-cc-plugin-${NATIVE_PLATFORM}"
-    mkdir -p "$PKG_DIR/bin" "$PKG_DIR/.claude-plugin" "$PKG_DIR/commands" "$PKG_DIR/lib"
+    mkdir -p "$PKG_DIR/bin" "$PKG_DIR/.claude-plugin" "$PKG_DIR/.codex-plugin" "$PKG_DIR/commands" "$PKG_DIR/skills" "$PKG_DIR/lib"
 
     cp "$BUILD_DIR/mcp/meta-cc-mcp-${TEST_VERSION}-${NATIVE_PLATFORM}" "$PKG_DIR/bin/meta-cc-mcp"
+    cp "$BUILD_DIR/mcp/skill-insights-${TEST_VERSION}-${NATIVE_PLATFORM}" "$PKG_DIR/bin/skill-insights"
     cp -r .claude-plugin/* "$PKG_DIR/.claude-plugin/"
     cp -r dist/commands/* "$PKG_DIR/commands/"
+    cp -r plugin-src/skills/* "$PKG_DIR/skills/"
     cp -r lib/* "$PKG_DIR/lib/"
     cp plugin-src/.claude-plugin/plugin.json "$PKG_DIR/.claude-plugin/"
+    cp plugin-src/.codex-plugin/plugin.json "$PKG_DIR/.codex-plugin/"
     cp plugin-src/.mcp.json "$PKG_DIR/"
+    cp plugin-src/.codex-mcp.json "$PKG_DIR/"
     jq '.commands |= map(gsub("\\./plugin-src/commands/"; "./commands/"))' \
         "$PKG_DIR/.claude-plugin/plugin.json" > "$PKG_DIR/.claude-plugin/plugin.json.tmp"
     mv "$PKG_DIR/.claude-plugin/plugin.json.tmp" "$PKG_DIR/.claude-plugin/plugin.json"
+    jq '.skills = "./skills/" | .mcpServers = "./.codex-mcp.json"' \
+        "$PKG_DIR/.codex-plugin/plugin.json" > "$PKG_DIR/.codex-plugin/plugin.json.tmp"
+    mv "$PKG_DIR/.codex-plugin/plugin.json.tmp" "$PKG_DIR/.codex-plugin/plugin.json"
     jq '.plugins[0].source = "." | .plugins[0].commands |= map(gsub("\\./plugin-src/commands/"; "./commands/"))' \
         "$PKG_DIR/.claude-plugin/marketplace.json" > "$PKG_DIR/.claude-plugin/marketplace.json.tmp"
     mv "$PKG_DIR/.claude-plugin/marketplace.json.tmp" "$PKG_DIR/.claude-plugin/marketplace.json"
@@ -156,9 +168,10 @@ else
     PKG_EXTRACT="$WORK_DIR/meta-cc-skills-${TEST_VERSION}"
 
     CLAUDE_DIR="$SKILLS_INSTALL/dot-claude"
-    mkdir -p "$CLAUDE_DIR"
+    CODEX_HOME="$SKILLS_INSTALL/dot-codex"
+    mkdir -p "$CLAUDE_DIR" "$CODEX_HOME"
 
-    if env CLAUDE_DIR="$CLAUDE_DIR" bash "$PKG_EXTRACT/install-skills.sh" >/dev/null 2>&1; then
+    if env CLAUDE_DIR="$CLAUDE_DIR" CODEX_HOME="$CODEX_HOME" bash "$PKG_EXTRACT/install-skills.sh" >/dev/null 2>&1; then
         pass "skills install: runs without error"
     else
         fail "skills install: runs without error"
@@ -176,6 +189,12 @@ else
         pass "skills install: meta-utils.sh installed"
     else
         fail "skills install: meta-utils.sh installed"
+    fi
+
+    if [ -f "$CODEX_HOME/skills/meta-cc-insights/SKILL.md" ]; then
+        pass "skills install: Codex meta-cc-insights skill installed"
+    else
+        fail "skills install: Codex meta-cc-insights skill installed"
     fi
 
     # Verify no binary in skills package
@@ -296,12 +315,20 @@ else
     fi
 
     [ -f "$COMBINED_BIN/meta-cc-mcp" ] \
-        && pass "combined install: binary installed" \
-        || fail "combined install: binary installed"
+        && pass "combined install: MCP binary installed" \
+        || fail "combined install: MCP binary installed"
 
     [ -x "$COMBINED_BIN/meta-cc-mcp" ] \
-        && pass "combined install: binary executable" \
-        || fail "combined install: binary executable"
+        && pass "combined install: MCP binary executable" \
+        || fail "combined install: MCP binary executable"
+
+    [ -f "$COMBINED_BIN/skill-insights" ] \
+        && pass "combined install: skill-insights binary installed" \
+        || fail "combined install: skill-insights binary installed"
+
+    [ -x "$COMBINED_BIN/skill-insights" ] \
+        && pass "combined install: skill-insights binary executable" \
+        || fail "combined install: skill-insights binary executable"
 
     for cmd in prompt-find prompt-list prompt-show; do
         if [ -f "$FAKE_HOME/.claude/commands/${cmd}.md" ]; then

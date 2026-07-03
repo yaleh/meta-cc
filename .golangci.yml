@@ -57,34 +57,35 @@ linters:
     govet:
       disable:
         - fieldalignment  # Struct optimization not critical for correctness
+  exclusions:
+    rules:
+    # Disable err check for test files - tests often use _ for brevity
+      - path: _test\.go
+        linters:
+          - errcheck
+    # Disable shadow checks for test files - common pattern in table tests
+      - path: _test\.go
+        linters:
+          - govet
+        text: "shadow:"
+    # Disable fieldalignment for test structs
+      - path: _test\.go
+        linters:
+          - govet
+        text: "fieldalignment:"
+    # Disable goconst for test files - hardcoded strings are common
+      - path: _test\.go
+        linters:
+          - goconst
+    # Disable staticcheck quickfix suggestions (QF codes)
+      - linters:
+          - staticcheck
+        text: "QF"
+    # Disable staticcheck style suggestions (ST codes)
+      - linters:
+          - staticcheck
+        text: "ST1005"
 
 issues:
-  exclude-rules:
-    # Disable err check for test files - tests often use _ for brevity
-    - path: _test\.go
-      linters:
-        - errcheck
-    # Disable shadow checks for test files - common pattern in table tests
-    - path: _test\.go
-      linters:
-        - govet
-      text: "shadow:"
-    # Disable fieldalignment for test structs
-    - path: _test\.go
-      linters:
-        - govet
-      text: "fieldalignment:"
-    # Disable goconst for test files - hardcoded strings are common
-    - path: _test\.go
-      linters:
-        - goconst
-    # Disable staticcheck quickfix suggestions (QF codes)
-    - linters:
-        - staticcheck
-      text: "QF"
-    # Disable staticcheck style suggestions (ST codes)
-    - linters:
-        - staticcheck
-      text: "ST1005"
   max-same-issues: 0
   max-issues-per-linter: 0

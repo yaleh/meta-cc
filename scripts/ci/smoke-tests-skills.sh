@@ -100,7 +100,7 @@ done
 
 echo ""
 echo "=== Test 3: Codex Skill Files ==="
-for skill in prompt-find prompt-list prompt-show; do
+for skill in prompt-find prompt-list prompt-show meta-cc-insights; do
     if [ -f "$PKG_DIR/skills/${skill}/SKILL.md" ]; then
         test_result "skills/${skill}/SKILL.md exists" "pass"
     else
@@ -126,6 +126,7 @@ echo ""
 echo "=== Test 6: Installation ==="
 INSTALL_TEST_DIR="$(mktemp -d)"
 CODEX_TEST_DIR="$(mktemp -d)"
+CLAUDE_SKILL_TEST_DIR="$INSTALL_TEST_DIR/skills"
 trap "rm -rf $TEMP_DIR $INSTALL_TEST_DIR $CODEX_TEST_DIR" EXIT
 
 if env CLAUDE_DIR="$INSTALL_TEST_DIR" CODEX_HOME="$CODEX_TEST_DIR" bash "$PKG_DIR/install-skills.sh" >/dev/null 2>&1; then
@@ -151,6 +152,19 @@ for skill in prompt-find prompt-list prompt-show; do
         test_result "Installed: Codex skills/${skill}/SKILL.md" "pass"
     else
         test_result "Installed: Codex skills/${skill}/SKILL.md" "fail"
+    fi
+done
+
+for skill in meta-cc-insights; do
+    if [ -f "$CODEX_TEST_DIR/skills/${skill}/SKILL.md" ]; then
+        test_result "Installed: Codex skills/${skill}/SKILL.md" "pass"
+    else
+        test_result "Installed: Codex skills/${skill}/SKILL.md" "fail"
+    fi
+    if [ -f "$CLAUDE_SKILL_TEST_DIR/${skill}/SKILL.md" ]; then
+        test_result "Installed: Claude skills/${skill}/SKILL.md" "pass"
+    else
+        test_result "Installed: Claude skills/${skill}/SKILL.md" "fail"
     fi
 done
 

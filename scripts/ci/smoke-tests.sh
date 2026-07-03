@@ -257,6 +257,7 @@ done
 # Note: bin/meta-cc is optional (removed in Phase 26 - MCP-only architecture)
 REQUIRED_FILES=(
     "bin/meta-cc-mcp"
+    "bin/skill-insights"
     ".claude-plugin/marketplace.json"
     ".claude-plugin/plugin.json"
     ".codex-plugin/plugin.json"
@@ -278,6 +279,7 @@ OPTIONAL_FILES=(
 if [ "$PLATFORM" = "windows-amd64" ]; then
     REQUIRED_FILES=(
         "bin/meta-cc-mcp.exe"
+        "bin/skill-insights.exe"
         ".claude-plugin/marketplace.json"
         ".claude-plugin/plugin.json"
         ".codex-plugin/plugin.json"

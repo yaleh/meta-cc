@@ -57,7 +57,8 @@ if [ "$VERIFY_MODE" = true ]; then
         "plugin-src/.codex-mcp.json" \
         "plugin-src/skills/prompt-find/SKILL.md" \
         "plugin-src/skills/prompt-list/SKILL.md" \
-        "plugin-src/skills/prompt-show/SKILL.md"; do
+        "plugin-src/skills/prompt-show/SKILL.md" \
+        "plugin-src/skills/meta-cc-insights/SKILL.md"; do
         if [ ! -f "$PROJECT_ROOT/$path" ]; then
             echo "❌ ERROR: Codex plugin file missing: $path"
             exit 1

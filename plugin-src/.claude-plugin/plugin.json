@@ -31,6 +31,7 @@
     "./commands/prompt-show.md"
   ],
   "skills": [
+    "./skills/meta-cc-insights",
     "./skills/prompt-find",
     "./skills/prompt-list",
     "./skills/prompt-show"
