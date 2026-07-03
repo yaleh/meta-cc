@@ -10,10 +10,10 @@ permissions:
 
 jobs:
   # ================================================================
-  # Job 1: Build MCP server binaries (5 platforms, parallel)
+  # Job 1: Build platform binaries (5 platforms, parallel)
   # ================================================================
-  build-mcp:
-    name: Build MCP Server Binaries
+  build-binaries:
+    name: Build Platform Binaries
     runs-on: ubuntu-latest
 
     steps:
@@ -31,29 +31,35 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Build MCP server binaries (5 platforms)
+      - name: Build platform binaries (5 platforms)
         run: |
-          mkdir -p build/mcp
+          mkdir -p build/binaries
 
           VERSION=${{ steps.version.outputs.VERSION }}
           COMMIT=$(git rev-parse --short HEAD)
           BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
           LDFLAGS="-X github.com/yaleh/meta-cc/cmd.Version=${VERSION} -X github.com/yaleh/meta-cc/cmd.Commit=${COMMIT} -X github.com/yaleh/meta-cc/cmd.BuildTime=${BUILD_TIME}"
 
-          GOOS=linux   GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/mcp/meta-cc-mcp-${VERSION}-linux-amd64   ./cmd/mcp-server
-          GOOS=linux   GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o build/mcp/meta-cc-mcp-${VERSION}-linux-arm64   ./cmd/mcp-server
-          GOOS=darwin  GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/mcp/meta-cc-mcp-${VERSION}-darwin-amd64  ./cmd/mcp-server
-          GOOS=darwin  GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o build/mcp/meta-cc-mcp-${VERSION}-darwin-arm64  ./cmd/mcp-server
-          GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/mcp/meta-cc-mcp-${VERSION}-windows-amd64.exe ./cmd/mcp-server
+          GOOS=linux   GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/binaries/meta-cc-mcp-${VERSION}-linux-amd64   ./cmd/mcp-server
+          GOOS=linux   GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o build/binaries/meta-cc-mcp-${VERSION}-linux-arm64   ./cmd/mcp-server
+          GOOS=darwin  GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/binaries/meta-cc-mcp-${VERSION}-darwin-amd64  ./cmd/mcp-server
+          GOOS=darwin  GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o build/binaries/meta-cc-mcp-${VERSION}-darwin-arm64  ./cmd/mcp-server
+          GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o build/binaries/meta-cc-mcp-${VERSION}-windows-amd64.exe ./cmd/mcp-server
+
+          GOOS=linux   GOARCH=amd64 go build -o build/binaries/skill-insights-${VERSION}-linux-amd64   ./cmd/skill-insights
+          GOOS=linux   GOARCH=arm64 go build -o build/binaries/skill-insights-${VERSION}-linux-arm64   ./cmd/skill-insights
+          GOOS=darwin  GOARCH=amd64 go build -o build/binaries/skill-insights-${VERSION}-darwin-amd64  ./cmd/skill-insights
+          GOOS=darwin  GOARCH=arm64 go build -o build/binaries/skill-insights-${VERSION}-darwin-arm64  ./cmd/skill-insights
+          GOOS=windows GOARCH=amd64 go build -o build/binaries/skill-insights-${VERSION}-windows-amd64.exe ./cmd/skill-insights
 
           echo "Built binaries:"
-          ls -lh build/mcp/
+          ls -lh build/binaries/
 
-      - name: Upload MCP binaries
+      - name: Upload platform binaries
         uses: actions/upload-artifact@v4
         with:
-          name: mcp-binaries
-          path: build/mcp/
+          name: platform-binaries
+          path: build/binaries/
           retention-days: 1
 
   # ================================================================
@@ -102,12 +108,12 @@ jobs:
 
   # ================================================================
   # Job 3: Bundle combined packages + GitHub Release
-  # (depends on both build-mcp and build-skills)
+  # (depends on both build-binaries and build-skills)
   # ================================================================
   release:
     name: Bundle and Release
     runs-on: ubuntu-latest
-    needs: [build-mcp, build-skills]
+    needs: [build-binaries, build-skills]
 
     steps:
       - name: Checkout code
@@ -126,11 +132,11 @@ jobs:
       - name: Sync plugin files
         run: bash scripts/sync-plugin-files.sh
 
-      - name: Download MCP binaries
+      - name: Download platform binaries
         uses: actions/download-artifact@v4
         with:
-          name: mcp-binaries
-          path: build/mcp/
+          name: platform-binaries
+          path: build/binaries/
 
       - name: Download skills package
         uses: actions/download-artifact@v4
@@ -147,13 +153,17 @@ jobs:
             PKG_DIR=build/packages/meta-cc-plugin-${platform}
             mkdir -p $PKG_DIR/bin $PKG_DIR/.claude-plugin $PKG_DIR/.codex-plugin $PKG_DIR/commands $PKG_DIR/skills $PKG_DIR/lib
 
-            # Copy MCP server binary
+            # Copy platform binaries
             if [[ $platform == windows-* ]]; then
-              chmod +x build/mcp/meta-cc-mcp-${VERSION}-${platform}.exe 2>/dev/null || true
-              cp build/mcp/meta-cc-mcp-${VERSION}-${platform}.exe $PKG_DIR/bin/meta-cc-mcp.exe
+              chmod +x build/binaries/meta-cc-mcp-${VERSION}-${platform}.exe 2>/dev/null || true
+              chmod +x build/binaries/skill-insights-${VERSION}-${platform}.exe 2>/dev/null || true
+              cp build/binaries/meta-cc-mcp-${VERSION}-${platform}.exe $PKG_DIR/bin/meta-cc-mcp.exe
+              cp build/binaries/skill-insights-${VERSION}-${platform}.exe $PKG_DIR/bin/skill-insights.exe
             else
-              chmod +x build/mcp/meta-cc-mcp-${VERSION}-${platform}
-              cp build/mcp/meta-cc-mcp-${VERSION}-${platform} $PKG_DIR/bin/meta-cc-mcp
+              chmod +x build/binaries/meta-cc-mcp-${VERSION}-${platform}
+              chmod +x build/binaries/skill-insights-${VERSION}-${platform}
+              cp build/binaries/meta-cc-mcp-${VERSION}-${platform} $PKG_DIR/bin/meta-cc-mcp
+              cp build/binaries/skill-insights-${VERSION}-${platform} $PKG_DIR/bin/skill-insights
             fi
 
             # Copy Claude Code plugin structure
@@ -205,14 +215,19 @@ jobs:
           # Skills-only package (already built in build-skills job)
           cp build/skills/meta-cc-skills-${VERSION}.tar.gz build/packages/
 
-          # Bare MCP binaries (non-Windows, plain files for PATH install)
+          # Bare binaries (non-Windows, plain files for PATH install)
           for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do
-            chmod +x build/mcp/meta-cc-mcp-${VERSION}-${platform}
-            cp build/mcp/meta-cc-mcp-${VERSION}-${platform} \
+            chmod +x build/binaries/meta-cc-mcp-${VERSION}-${platform}
+            chmod +x build/binaries/skill-insights-${VERSION}-${platform}
+            cp build/binaries/meta-cc-mcp-${VERSION}-${platform} \
                build/packages/meta-cc-mcp-${VERSION}-${platform}
+            cp build/binaries/skill-insights-${VERSION}-${platform} \
+               build/packages/skill-insights-${VERSION}-${platform}
           done
-          cp build/mcp/meta-cc-mcp-${VERSION}-windows-amd64.exe \
+          cp build/binaries/meta-cc-mcp-${VERSION}-windows-amd64.exe \
              build/packages/meta-cc-mcp-${VERSION}-windows-amd64.exe
+          cp build/binaries/skill-insights-${VERSION}-windows-amd64.exe \
+             build/packages/skill-insights-${VERSION}-windows-amd64.exe
 
       - name: Run smoke tests for combined packages
         run: |
@@ -236,6 +251,11 @@ jobs:
                 tar -tzf "$PACKAGE" | grep -q ".codex-plugin/plugin.json"
                 tar -tzf "$PACKAGE" | grep -q ".codex-mcp.json"
                 tar -tzf "$PACKAGE" | grep -q "skills/prompt-find/SKILL.md"
+                if [ "$PLATFORM" = "windows-amd64" ]; then
+                  tar -tzf "$PACKAGE" | grep -q "bin/skill-insights.exe"
+                else
+                  tar -tzf "$PACKAGE" | grep -q "bin/skill-insights"
+                fi
                 echo "✓ Package structure verified"
               else
                 echo "❌ ERROR: Package missing: $PACKAGE"
@@ -253,23 +273,27 @@ jobs:
           echo ""
 
           # Bare binaries (existence check only - non-native platforms can't execute)
-          echo "--- Bare MCP binaries ---"
+          echo "--- Bare binaries ---"
           for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do
-            BIN=build/packages/meta-cc-mcp-${VERSION}-${platform}
-            if [ -f "$BIN" ] && [ -x "$BIN" ]; then
-              echo "✓ $BIN (executable)"
+            for name in meta-cc-mcp skill-insights; do
+              BIN=build/packages/${name}-${VERSION}-${platform}
+              if [ -f "$BIN" ] && [ -x "$BIN" ]; then
+                echo "✓ $BIN (executable)"
+              else
+                echo "❌ ERROR: $BIN missing or not executable"
+                exit 1
+              fi
+            done
+          done
+          for name in meta-cc-mcp skill-insights; do
+            BIN_WIN=build/packages/${name}-${VERSION}-windows-amd64.exe
+            if [ -f "$BIN_WIN" ]; then
+              echo "✓ $BIN_WIN"
             else
-              echo "❌ ERROR: $BIN missing or not executable"
+              echo "❌ ERROR: $BIN_WIN missing"
               exit 1
             fi
           done
-          BIN_WIN=build/packages/meta-cc-mcp-${VERSION}-windows-amd64.exe
-          if [ -f "$BIN_WIN" ]; then
-            echo "✓ $BIN_WIN"
-          else
-            echo "❌ ERROR: $BIN_WIN missing"
-            exit 1
-          fi
           echo ""
 
           echo "✓ All smoke tests passed"
@@ -289,7 +313,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd build/packages
-          sha256sum *.tar.gz *.exe $(ls meta-cc-mcp-*-linux-* meta-cc-mcp-*-darwin-* 2>/dev/null) > checksums.txt 2>/dev/null || sha256sum *.tar.gz > checksums.txt
+          sha256sum *.tar.gz *.exe $(ls meta-cc-mcp-*-linux-* meta-cc-mcp-*-darwin-* skill-insights-*-linux-* skill-insights-*-darwin-* 2>/dev/null) > checksums.txt 2>/dev/null || sha256sum *.tar.gz > checksums.txt
           cat checksums.txt
 
       - name: Create version-agnostic convenience copies
@@ -308,8 +332,10 @@ jobs:
           # Bare binaries
           for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do
             cp meta-cc-mcp-${VERSION}-${platform} meta-cc-mcp-${platform}
+            cp skill-insights-${VERSION}-${platform} skill-insights-${platform}
           done
           cp meta-cc-mcp-${VERSION}-windows-amd64.exe meta-cc-mcp-windows-amd64.exe
+          cp skill-insights-${VERSION}-windows-amd64.exe skill-insights-windows-amd64.exe
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -322,7 +348,7 @@ jobs:
           body: |
             ## Installation
 
-            ### Full Install (MCP server + slash commands)
+            ### Full Install (MCP server + skill-insights + slash commands)
 
             Download the appropriate package for your platform:
 
@@ -347,6 +373,10 @@ jobs:
             chmod +x meta-cc-mcp-${{ steps.version.outputs.VERSION }}-linux-amd64
             ./scripts/install/install-mcp.sh meta-cc-mcp-${{ steps.version.outputs.VERSION }}-linux-amd64
             ```
+
+            ### skill-insights CLI Only
+
+            Download `skill-insights-${{ steps.version.outputs.VERSION }}-<platform>` and put it on your PATH.
 
             ### Platforms
             - `linux-amd64`: Linux x86_64
@@ -374,12 +404,13 @@ jobs:
           echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "| Artifact | Type | Count |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| \`meta-cc-plugin-{platform}.tar.gz\` | Combined (MCP + skills) | 5 |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`meta-cc-plugin-{platform}.tar.gz\` | Combined (MCP + skill-insights + skills) | 5 |" >> $GITHUB_STEP_SUMMARY
           echo "| \`meta-cc-skills-${VERSION}.tar.gz\` | Skills only (cross-platform) | 1 |" >> $GITHUB_STEP_SUMMARY
           echo "| \`meta-cc-mcp-{version}-{platform}\` | Bare MCP binary | 5 |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`skill-insights-{version}-{platform}\` | Bare skill-insights CLI | 5 |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Quality Gates" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ MCP binaries built (5 platforms)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Platform binaries built (5 platforms)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Skills package smoke tests" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Combined package smoke tests" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Checksums generated (SHA256)" >> $GITHUB_STEP_SUMMARY

@@ -59,20 +59,25 @@ install_binaries() {
         BINARY_EXT=""
     fi
 
-    # Check if binary exists in bin/ directory
+    # Check if binaries exist in bin/ directory
     if [ ! -f "bin/meta-cc-mcp${BINARY_EXT}" ]; then
         error_exit "meta-cc-mcp binary not found in bin/"
     fi
+    if [ ! -f "bin/skill-insights${BINARY_EXT}" ]; then
+        error_exit "skill-insights binary not found in bin/"
+    fi
 
-    # Copy binary
+    # Copy binaries
     cp "bin/meta-cc-mcp${BINARY_EXT}" "$INSTALL_DIR/" || error_exit "Failed to copy meta-cc-mcp binary"
+    cp "bin/skill-insights${BINARY_EXT}" "$INSTALL_DIR/" || error_exit "Failed to copy skill-insights binary"
 
     # Set executable permissions (not needed on Windows)
     if [ "$PLATFORM" != "windows" ]; then
         chmod +x "$INSTALL_DIR/meta-cc-mcp"
+        chmod +x "$INSTALL_DIR/skill-insights"
     fi
 
-    info "Binary installed to $INSTALL_DIR"
+    info "Binaries installed to $INSTALL_DIR"
 }
 
 # Install Claude plugin manifest to data directory
@@ -203,16 +208,22 @@ verify_installation() {
     if [ ! -f "$INSTALL_DIR/meta-cc-mcp" ]; then
         error_exit "meta-cc-mcp binary not found at $INSTALL_DIR/meta-cc-mcp"
     fi
+    if [ ! -f "$INSTALL_DIR/skill-insights" ]; then
+        error_exit "skill-insights binary not found at $INSTALL_DIR/skill-insights"
+    fi
 
     # Check binary is executable
     if [ ! -x "$INSTALL_DIR/meta-cc-mcp" ]; then
         error_exit "meta-cc-mcp binary is not executable"
     fi
+    if [ ! -x "$INSTALL_DIR/skill-insights" ]; then
+        error_exit "skill-insights binary is not executable"
+    fi
 
     # Skip version test (binary doesn't support --version yet)
     # This prevents installation from hanging on systems where --version is tested
     # TODO: Re-enable when --version flag is added to meta-cc-mcp
-    info "Binary installed successfully"
+    info "Binaries installed successfully"
 }
 
 # Main installation flow

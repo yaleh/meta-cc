@@ -34,9 +34,16 @@ echo ""
 # Remove binaries
 if [ -f "$INSTALL_DIR/meta-cc-mcp" ]; then
     rm -f "$INSTALL_DIR/meta-cc-mcp" 2>/dev/null || true
-    info "Binary removed from $INSTALL_DIR"
+    info "MCP binary removed from $INSTALL_DIR"
 else
-    warn "No binary found in $INSTALL_DIR"
+    warn "No MCP binary found in $INSTALL_DIR"
+fi
+
+if [ -f "$INSTALL_DIR/skill-insights" ]; then
+    rm -f "$INSTALL_DIR/skill-insights" 2>/dev/null || true
+    info "skill-insights binary removed from $INSTALL_DIR"
+else
+    warn "No skill-insights binary found in $INSTALL_DIR"
 fi
 
 # Remove legacy CLI binary if present (optional - for backwards compatibility)
