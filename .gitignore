@@ -60,15 +60,19 @@ coverage_parser.out
 /.archguard/
 CHANGELOG.md.bak
 
-# loop-backlog runtime files
-backlog/.basic-daemon.pid
-backlog/.basic-daemon.log
-backlog/.loop-stop
-backlog/.caps/
-backlog/.agent-done-*
+# epicd / loop-backlog runtime coordination artifacts
+.epicd/.basic-daemon.pid
+.epicd/.basic-daemon.log
+.epicd/.loop-stop
+.epicd/.caps/
+.epicd/.locks/
+.epicd/.agent-done-*
 .agent-summary-*
-backlog/.loop-lock
-backlog/.loop-checkpoint
-backlog/.active-agents
-backlog/.merge-lock
-backlog/.monitor-task-id
+.epicd/.loop-lock
+.epicd/.loop-checkpoint
+.epicd/.active-agents
+.epicd/.merge-lock
+.epicd/.merge-lock-sentinel
+.epicd/.monitor-task-id
+.epicd/.last-review-commit
+.epicd/tasks/.scanner-ready.lock

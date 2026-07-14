@@ -4,12 +4,25 @@ title: OCA Codify：tool_stats 驱动高频 jq 模式提炼为 MCP 工具
 status: 'Basic: Backlog'
 assignee: []
 created_date: '2026-06-24 12:13'
-updated_date: '2026-06-24 12:14'
+updated_date: '2026-07-14 06:46'
 labels:
   - 'kind:basic'
 dependencies: []
 ordinal: 9000
 ---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+OCA Codify 原则：当一个 jq 模式在会话中出现 ≥5 次时，表明存在 MDL（最小描述长度）压缩机会，应将其固化为 MCP 工具参数，而非让用户反复手写 raw jq。
+
+本任务执行 OCA 的 Observe → Design → Codify 三步闭环：
+1. **Observe**：用 tool_stats 分析 execute_stage2_query 的历史调用，提取 Top-5 高频 filter/transform 模式，写入 docs/tasks/oca-codify-patterns-report.md。
+2. **Design**：根据观测报告，选择最高频模式，设计其接口（新参数或新工具），以 ADR-007 记录决策。
+3. **Codify**：TDD 实现该接口（≤200 行代码），更新 CLAUDE.md 决策树，使用户知道何时用新接口替代 execute_stage2_query。
+
+范围约束：单次 Codify 仅固化 1 个模式（≤1 个新工具或 ≤2 个新参数）；若历史数据不足 5 次，记录为 insufficient data 并提名最优候选。
+<!-- SECTION:DESCRIPTION:END -->
 
 ## Implementation Plan
 
@@ -79,3 +92,11 @@ cap:propose=approved
 - [ ] #2 find /home/yale/work/meta-cc/docs/architecture/adr -name '*codify*' | grep -q .
 - [ ] #3 make -C /home/yale/work/meta-cc commit
 <!-- DOD:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 docs/tasks/oca-codify-patterns-report.md 存在且包含 execute_stage2_query 统计与 top-5 模式列表；verify: test -f /home/yale/work/meta-cc/docs/tasks/oca-codify-patterns-report.md && grep -q 'execute_stage2_query' /home/yale/work/meta-cc/docs/tasks/oca-codify-patterns-report.md && grep -qiE 'top.?5|top 5' /home/yale/work/meta-cc/docs/tasks/oca-codify-patterns-report.md
+- [ ] #2 ADR-007 存在且包含 Decision 章节；verify: find /home/yale/work/meta-cc/docs/architecture/adr -name '*codify*' | grep -q . && grep -q 'Decision' $(find /home/yale/work/meta-cc/docs/architecture/adr -name '*codify*' | head -1)
+- [ ] #3 make commit 通过（新接口测试覆盖 + 全量测试绿）；verify: make -C /home/yale/work/meta-cc commit
+- [ ] #4 CLAUDE.md 决策树已更新，引用新参数/工具；verify: grep -q 'execute_stage2_query' /home/yale/work/meta-cc/CLAUDE.md
+<!-- AC:END -->

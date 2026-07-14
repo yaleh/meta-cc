@@ -4,12 +4,25 @@ title: 'Phase 86: Migrate parser.SessionEntry/ToolCall to types.* in test files'
 status: 'Basic: Backlog'
 assignee: []
 created_date: '2026-06-23 06:24'
-updated_date: '2026-06-23 06:24'
+updated_date: '2026-07-14 06:45'
 labels:
   - 'kind:basic'
 dependencies: []
 ordinal: 3000
 ---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+在 Phase 56-57 中，SessionEntry 和 ToolCall 的规范类型定义已从 internal/parser 迁移至 internal/types，但测试文件仍通过 parser 包别名引用这些类型（parser.SessionEntry / parser.ToolCall）。
+
+本任务对全部 36 个 *_test.go 文件执行机械替换：
+- 将 parser.SessionEntry → types.SessionEntry
+- 将 parser.ToolCall → types.ToolCall
+- 调整 import 块：添加 internal/types，在 parser 包仅用于类型名的文件中移除 internal/parser 导入
+
+不涉及生产代码；internal/parser 中的类型别名保留，供尚未迁移的调用方使用。
+<!-- SECTION:DESCRIPTION:END -->
 
 ## Implementation Plan
 
@@ -150,3 +163,10 @@ No new test code needs to be written; the migration is purely mechanical.
 - [ ] #1 `go test ./...` passes with zero new failures
 - [ ] #2 `! grep -r 'parser\.SessionEntry\|parser\.ToolCall' internal/ --include='*_test.go'` returns empty (no residual references in test files)
 <!-- DOD:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 go test ./... exits 0，无新增失败；verify: go test ./...
+- [ ] #2 测试文件中零残留 parser.SessionEntry / parser.ToolCall 引用；verify: ! grep -r "parser\.SessionEntry\|parser\.ToolCall" internal/ --include="*_test.go"
+- [ ] #3 仅 *_test.go 文件被修改，无生产代码（非 _test.go 的 .go 文件）改动；verify: git diff --name-only | grep -v '_test\.go' | grep '\.go$' 返回空
+<!-- AC:END -->
