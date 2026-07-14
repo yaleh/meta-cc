@@ -3,11 +3,11 @@ package analyzer
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestAnalyzeErrors_GroupsByTool(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "1", ToolName: "Bash", Status: "error", Error: "exit 1"},
 		{UUID: "2", ToolName: "Bash", Status: "error", Error: "exit 2"},
 		{UUID: "3", ToolName: "Bash", Status: "error", Error: "exit 3"},
@@ -15,7 +15,7 @@ func TestAnalyzeErrors_GroupsByTool(t *testing.T) {
 		{UUID: "5", ToolName: "Read", Status: "error", Error: "permission denied"},
 	}
 
-	result, err := AnalyzeErrors([]parser.SessionEntry{}, toolCalls, 10)
+	result, err := AnalyzeErrors([]types.SessionEntry{}, toolCalls, 10)
 	if err != nil {
 		t.Fatalf("AnalyzeErrors returned error: %v", err)
 	}
@@ -43,12 +43,12 @@ func TestAnalyzeErrors_GroupsByTool(t *testing.T) {
 
 func TestAnalyzeErrors_GroupsByErrorType(t *testing.T) {
 	sharedErr := "connection refused"
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "1", ToolName: "Bash", Status: "error", Error: sharedErr},
 		{UUID: "2", ToolName: "Read", Status: "error", Error: sharedErr},
 	}
 
-	result, err := AnalyzeErrors([]parser.SessionEntry{}, toolCalls, 10)
+	result, err := AnalyzeErrors([]types.SessionEntry{}, toolCalls, 10)
 	if err != nil {
 		t.Fatalf("AnalyzeErrors returned error: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestAnalyzeErrors_GroupsByErrorType(t *testing.T) {
 }
 
 func TestAnalyzeErrors_SurfacesExamples(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "1", ToolName: "Bash", Status: "error", Error: "same error"},
 		{UUID: "2", ToolName: "Bash", Status: "error", Error: "same error"},
 		{UUID: "3", ToolName: "Bash", Status: "error", Error: "same error"},
@@ -69,7 +69,7 @@ func TestAnalyzeErrors_SurfacesExamples(t *testing.T) {
 		{UUID: "5", ToolName: "Bash", Status: "error", Error: "same error"},
 	}
 
-	result, err := AnalyzeErrors([]parser.SessionEntry{}, toolCalls, 3)
+	result, err := AnalyzeErrors([]types.SessionEntry{}, toolCalls, 3)
 	if err != nil {
 		t.Fatalf("AnalyzeErrors returned error: %v", err)
 	}
@@ -87,11 +87,11 @@ func TestAnalyzeErrors_SurfacesExamples(t *testing.T) {
 }
 
 func TestAnalyzeErrors_TimeRange(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeEntry("uuid-1", "2025-10-02T10:00:00.000Z"),
 		makeEntry("uuid-2", "2025-10-02T10:30:00.000Z"),
 	}
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "1", ToolName: "Bash", Status: "error", Error: "fail", Timestamp: "2025-10-02T10:00:00.000Z"},
 	}
 
@@ -112,7 +112,7 @@ func TestAnalyzeErrors_TimeRange(t *testing.T) {
 }
 
 func TestAnalyzeErrors_DataSource(t *testing.T) {
-	result, err := AnalyzeErrors([]parser.SessionEntry{}, []parser.ToolCall{}, 0)
+	result, err := AnalyzeErrors([]types.SessionEntry{}, []types.ToolCall{}, 0)
 	if err != nil {
 		t.Fatalf("AnalyzeErrors returned error: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestAnalyzeErrors_DataSource(t *testing.T) {
 }
 
 func TestAnalyzeErrors_EmptySession(t *testing.T) {
-	result, err := AnalyzeErrors([]parser.SessionEntry{}, []parser.ToolCall{}, 10)
+	result, err := AnalyzeErrors([]types.SessionEntry{}, []types.ToolCall{}, 10)
 	if err != nil {
 		t.Fatalf("AnalyzeErrors returned error for empty input: %v", err)
 	}

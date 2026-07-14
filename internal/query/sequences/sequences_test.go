@@ -11,12 +11,12 @@ import (
 )
 
 // createSequenceEntries creates test session entries with tool calls
-func createSequenceEntries(startTime time.Time, toolNames []string) []parser.SessionEntry {
-	var entries []parser.SessionEntry
+func createSequenceEntries(startTime time.Time, toolNames []string) []types.SessionEntry {
+	var entries []types.SessionEntry
 	turnNum := 0
 
 	for i, toolName := range toolNames {
-		toolUseEntry := parser.SessionEntry{
+		toolUseEntry := types.SessionEntry{
 			UUID:      createUUID(turnNum),
 			Type:      "assistant",
 			Timestamp: startTime.Add(time.Duration(i*2) * time.Minute).Format(time.RFC3339Nano),
@@ -36,7 +36,7 @@ func createSequenceEntries(startTime time.Time, toolNames []string) []parser.Ses
 		}
 		entries = append(entries, toolUseEntry)
 
-		toolResultEntry := parser.SessionEntry{
+		toolResultEntry := types.SessionEntry{
 			UUID:      createUUID(turnNum + 1),
 			Type:      "user",
 			Timestamp: startTime.Add(time.Duration(i*2+1) * time.Minute).Format(time.RFC3339Nano),

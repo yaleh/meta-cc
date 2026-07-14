@@ -15,7 +15,7 @@ import (
 
 	"github.com/yaleh/meta-cc/internal/analysis"
 	"github.com/yaleh/meta-cc/internal/analyzer"
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 var _ analysis.AnalysisService = (*analysis.Service)(nil)
@@ -29,7 +29,7 @@ type stubErrorAnalyzer struct {
 	err    error
 }
 
-func (s *stubErrorAnalyzer) AnalyzeErrors(_ []parser.SessionEntry, _ []parser.ToolCall, _ int) (*analyzer.ErrorAnalysisResult, error) {
+func (s *stubErrorAnalyzer) AnalyzeErrors(_ []types.SessionEntry, _ []types.ToolCall, _ int) (*analyzer.ErrorAnalysisResult, error) {
 	return s.result, s.err
 }
 
@@ -38,7 +38,7 @@ type stubBugAnalyzer struct {
 	err    error
 }
 
-func (s *stubBugAnalyzer) AnalyzeBugs(_ []parser.SessionEntry, _ []parser.ToolCall, _ int) (*analyzer.BugAnalysisResult, error) {
+func (s *stubBugAnalyzer) AnalyzeBugs(_ []types.SessionEntry, _ []types.ToolCall, _ int) (*analyzer.BugAnalysisResult, error) {
 	return s.result, s.err
 }
 
@@ -47,7 +47,7 @@ type stubQualityScanner struct {
 	err    error
 }
 
-func (s *stubQualityScanner) QualityScan(_ []parser.SessionEntry, _ []parser.ToolCall) (*analyzer.QualityScanResult, error) {
+func (s *stubQualityScanner) QualityScan(_ []types.SessionEntry, _ []types.ToolCall) (*analyzer.QualityScanResult, error) {
 	return s.result, s.err
 }
 
@@ -56,7 +56,7 @@ type stubWorkPatternsAnalyzer struct {
 	err    error
 }
 
-func (s *stubWorkPatternsAnalyzer) GetWorkPatterns(_ []parser.SessionEntry, _ []parser.ToolCall) (*analyzer.WorkPatternsResult, error) {
+func (s *stubWorkPatternsAnalyzer) GetWorkPatterns(_ []types.SessionEntry, _ []types.ToolCall) (*analyzer.WorkPatternsResult, error) {
 	return s.result, s.err
 }
 
@@ -65,7 +65,7 @@ type stubTimelineAnalyzer struct {
 	err    error
 }
 
-func (s *stubTimelineAnalyzer) GetTimeline(_ []parser.SessionEntry, _ int) (*analyzer.TimelineResult, error) {
+func (s *stubTimelineAnalyzer) GetTimeline(_ []types.SessionEntry, _ int) (*analyzer.TimelineResult, error) {
 	return s.result, s.err
 }
 
@@ -74,7 +74,7 @@ type stubTechDebtAnalyzer struct {
 	err    error
 }
 
-func (s *stubTechDebtAnalyzer) GetTechDebt(_ []parser.SessionEntry, _ []parser.ToolCall) (*analyzer.TechDebtResult, error) {
+func (s *stubTechDebtAnalyzer) GetTechDebt(_ []types.SessionEntry, _ []types.ToolCall) (*analyzer.TechDebtResult, error) {
 	return s.result, s.err
 }
 

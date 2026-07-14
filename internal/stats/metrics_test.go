@@ -3,11 +3,11 @@ package stats
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestCalculateMetric_Count(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Bash"},
 		{UUID: "2", ToolName: "Read"},
 		{UUID: "3", ToolName: "Edit"},
@@ -24,7 +24,7 @@ func TestCalculateMetric_Count(t *testing.T) {
 }
 
 func TestCalculateMetric_ErrorRate(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", Status: "success"},
 		{UUID: "2", Status: "error"},
 		{UUID: "3", Status: "success"},
@@ -42,7 +42,7 @@ func TestCalculateMetric_ErrorRate(t *testing.T) {
 }
 
 func TestCalculateMetric_ErrorRateAllSuccess(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", Status: "success"},
 		{UUID: "2", Status: "success"},
 	}
@@ -58,7 +58,7 @@ func TestCalculateMetric_ErrorRateAllSuccess(t *testing.T) {
 }
 
 func TestCalculateMetric_ErrorRateAllErrors(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", Status: "error"},
 		{UUID: "2", Status: "error"},
 	}
@@ -74,7 +74,7 @@ func TestCalculateMetric_ErrorRateAllErrors(t *testing.T) {
 }
 
 func TestCalculateMetric_InvalidMetric(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Bash"},
 	}
 
@@ -85,7 +85,7 @@ func TestCalculateMetric_InvalidMetric(t *testing.T) {
 }
 
 func TestCalculateMetric_EmptyTools(t *testing.T) {
-	result, err := calculateMetric([]parser.ToolCall{}, "count")
+	result, err := calculateMetric([]types.ToolCall{}, "count")
 	if err != nil {
 		t.Fatalf("calculateMetric failed: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestCalculateMetric_EmptyTools(t *testing.T) {
 }
 
 func TestGetFieldValue_Tool(t *testing.T) {
-	tool := parser.ToolCall{ToolName: "Bash", Status: "success"}
+	tool := types.ToolCall{ToolName: "Bash", Status: "success"}
 
 	value := getFieldValue(tool, "tool")
 	if value != "Bash" {
@@ -105,7 +105,7 @@ func TestGetFieldValue_Tool(t *testing.T) {
 }
 
 func TestGetFieldValue_Status(t *testing.T) {
-	tool := parser.ToolCall{ToolName: "Bash", Status: "error"}
+	tool := types.ToolCall{ToolName: "Bash", Status: "error"}
 
 	value := getFieldValue(tool, "status")
 	if value != "error" {
@@ -114,7 +114,7 @@ func TestGetFieldValue_Status(t *testing.T) {
 }
 
 func TestGetFieldValue_UUID(t *testing.T) {
-	tool := parser.ToolCall{UUID: "abc-123", ToolName: "Read"}
+	tool := types.ToolCall{UUID: "abc-123", ToolName: "Read"}
 
 	value := getFieldValue(tool, "uuid")
 	if value != "abc-123" {
@@ -123,7 +123,7 @@ func TestGetFieldValue_UUID(t *testing.T) {
 }
 
 func TestGetFieldValue_UnknownField(t *testing.T) {
-	tool := parser.ToolCall{ToolName: "Bash"}
+	tool := types.ToolCall{ToolName: "Bash"}
 
 	value := getFieldValue(tool, "unknown")
 	if value != "" {

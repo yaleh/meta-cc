@@ -11,7 +11,7 @@ import (
 func TestBuildFileAccessQuery(t *testing.T) {
 	now := time.Now()
 
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{
 			UUID:      "uuid-1",
 			Type:      "assistant",
@@ -170,12 +170,12 @@ func TestBuildFileAccessQuery(t *testing.T) {
 func TestExtractFileFromToolCall(t *testing.T) {
 	tests := []struct {
 		name     string
-		toolCall parser.ToolCall
+		toolCall types.ToolCall
 		want     string
 	}{
 		{
 			name: "file_path parameter",
-			toolCall: parser.ToolCall{
+			toolCall: types.ToolCall{
 				Input: map[string]interface{}{
 					"file_path": "/path/to/file.js",
 				},
@@ -184,7 +184,7 @@ func TestExtractFileFromToolCall(t *testing.T) {
 		},
 		{
 			name: "notebook_path parameter",
-			toolCall: parser.ToolCall{
+			toolCall: types.ToolCall{
 				Input: map[string]interface{}{
 					"notebook_path": "/path/to/notebook.ipynb",
 				},
@@ -193,7 +193,7 @@ func TestExtractFileFromToolCall(t *testing.T) {
 		},
 		{
 			name: "no file parameter",
-			toolCall: parser.ToolCall{
+			toolCall: types.ToolCall{
 				Input: map[string]interface{}{
 					"command": "ls",
 				},
@@ -202,7 +202,7 @@ func TestExtractFileFromToolCall(t *testing.T) {
 		},
 		{
 			name: "empty file_path",
-			toolCall: parser.ToolCall{
+			toolCall: types.ToolCall{
 				Input: map[string]interface{}{
 					"file_path": "",
 				},

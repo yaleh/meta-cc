@@ -3,15 +3,15 @@ package analyzer
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
-func makeToolCallWithOutput(toolName, filePath, output, status string) parser.ToolCall {
+func makeToolCallWithOutput(toolName, filePath, output, status string) types.ToolCall {
 	input := map[string]interface{}{}
 	if filePath != "" {
 		input["file_path"] = filePath
 	}
-	return parser.ToolCall{
+	return types.ToolCall{
 		UUID:      "test-uuid",
 		ToolName:  toolName,
 		Input:     input,
@@ -22,7 +22,7 @@ func makeToolCallWithOutput(toolName, filePath, output, status string) parser.To
 }
 
 func TestGetTechDebt_DetectsMarkers(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		makeToolCallWithOutput("Read", "main.go", "func foo() {\n// TODO: fix this\n}", "success"),
 	}
 	result, err := GetTechDebt(nil, toolCalls)
@@ -53,7 +53,7 @@ func TestGetTechDebt_DetectsMarkers(t *testing.T) {
 }
 
 func TestGetTechDebt_CountsPerFile(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		makeToolCallWithOutput("Read", "a.go", "// TODO: first\n// TODO: second\n", "success"),
 		makeToolCallWithOutput("Edit", "b.go", "// TODO: only one\n", "success"),
 	}
@@ -73,7 +73,7 @@ func TestGetTechDebt_CountsPerFile(t *testing.T) {
 }
 
 func TestGetTechDebt_DetectsOpenIssues(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		makeToolCallWithOutput("Bash", "", "error: build failed", "error"),
 		makeToolCallWithOutput("Read", "", "more errors", "error"),
 		makeToolCallWithOutput("Edit", "x.go", "stuff", "error"),

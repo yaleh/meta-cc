@@ -5,15 +5,15 @@ import (
 	"math"
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 // generateTestToolCalls creates test ToolCall data
-func generateTestToolCalls(count int) []parser.ToolCall {
-	calls := make([]parser.ToolCall, count)
+func generateTestToolCalls(count int) []types.ToolCall {
+	calls := make([]types.ToolCall, count)
 
 	for i := 0; i < count; i++ {
-		calls[i] = parser.ToolCall{
+		calls[i] = types.ToolCall{
 			UUID:     "uuid-" + string(rune('A'+(i%26))),
 			ToolName: "TestTool",
 			Status:   "success",
@@ -129,7 +129,7 @@ func TestEstimateStatsSize(t *testing.T) {
 }
 
 func TestEstimateSizeEmptyData(t *testing.T) {
-	tools := []parser.ToolCall{}
+	tools := []types.ToolCall{}
 
 	estimate, err := EstimateToolCallsSize(tools, "json")
 	if err != nil {

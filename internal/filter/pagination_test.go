@@ -3,15 +3,15 @@ package filter
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 // generateTestToolCalls creates test ToolCall data
-func generateTestToolCalls(count int) []parser.ToolCall {
-	calls := make([]parser.ToolCall, count)
+func generateTestToolCalls(count int) []types.ToolCall {
+	calls := make([]types.ToolCall, count)
 
 	for i := 0; i < count; i++ {
-		calls[i] = parser.ToolCall{
+		calls[i] = types.ToolCall{
 			UUID:     string(rune('A' + (i % 26))),
 			ToolName: "TestTool",
 			Status:   "success",
@@ -158,7 +158,7 @@ func TestCalculateMetadata(t *testing.T) {
 
 func TestPaginationEdgeCases(t *testing.T) {
 	t.Run("empty slice", func(t *testing.T) {
-		tools := []parser.ToolCall{}
+		tools := []types.ToolCall{}
 		config := PaginationConfig{Limit: 10, Offset: 0}
 		result := ApplyPagination(tools, config)
 

@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestBuildSuccessfulPrompts(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{Type: "user", UUID: "1", Message: &parser.Message{Role: "user", Content: []parser.ContentBlock{{Type: "text", Text: "Please fix bug"}}}},
 		{Type: "assistant", UUID: "2", Message: &parser.Message{Role: "assistant", Content: []parser.ContentBlock{{Type: "tool_use", ToolUse: &parser.ToolUse{Name: "Bash", Input: map[string]interface{}{"command": "ls"}}}}}},
 		{Type: "user", UUID: "3", Message: &parser.Message{Role: "user", Content: []parser.ContentBlock{{Type: "tool_result", ToolResult: &parser.ToolResult{ToolUseID: "tool-1", Content: "output"}}}}},

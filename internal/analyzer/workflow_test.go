@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 // TestDetectToolSequences tests tool sequence detection
@@ -13,14 +14,14 @@ func TestDetectToolSequences(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		entries        []parser.SessionEntry
+		entries        []types.SessionEntry
 		minLength      int
 		minOccurrences int
 		expectedCount  int // Number of distinct patterns expected
 	}{
 		{
 			name: "detect repeated Read-Edit-Bash sequence",
-			entries: []parser.SessionEntry{
+			entries: []types.SessionEntry{
 				makeToolUseEntry("1", "Read", now.Add(0*time.Second)),
 				makeToolUseEntry("2", "Edit", now.Add(1*time.Second)),
 				makeToolUseEntry("3", "Bash", now.Add(2*time.Second)),
@@ -37,7 +38,7 @@ func TestDetectToolSequences(t *testing.T) {
 		},
 		{
 			name: "no sequences when below threshold",
-			entries: []parser.SessionEntry{
+			entries: []types.SessionEntry{
 				makeToolUseEntry("1", "Read", now.Add(0*time.Second)),
 				makeToolUseEntry("2", "Edit", now.Add(1*time.Second)),
 				makeToolUseEntry("3", "Read", now.Add(2*time.Second)),
@@ -49,7 +50,7 @@ func TestDetectToolSequences(t *testing.T) {
 		},
 		{
 			name: "multiple overlapping sequences",
-			entries: []parser.SessionEntry{
+			entries: []types.SessionEntry{
 				makeToolUseEntry("1", "Read", now.Add(0*time.Second)),
 				makeToolUseEntry("2", "Grep", now.Add(1*time.Second)),
 				makeToolUseEntry("3", "Read", now.Add(2*time.Second)),
@@ -91,13 +92,13 @@ func TestDetectFileChurn(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		entries       []parser.SessionEntry
+		entries       []types.SessionEntry
 		threshold     int
 		expectedFiles int
 	}{
 		{
 			name: "detect high churn file",
-			entries: []parser.SessionEntry{
+			entries: []types.SessionEntry{
 				makeFileAccessEntry("1", "Read", "test.js", now.Add(0*time.Second)),
 				makeFileAccessEntry("2", "Edit", "test.js", now.Add(1*time.Second)),
 				makeFileAccessEntry("3", "Read", "test.js", now.Add(2*time.Second)),
@@ -111,7 +112,7 @@ func TestDetectFileChurn(t *testing.T) {
 		},
 		{
 			name: "no files above threshold",
-			entries: []parser.SessionEntry{
+			entries: []types.SessionEntry{
 				makeFileAccessEntry("1", "Read", "test.js", now.Add(0*time.Second)),
 				makeFileAccessEntry("2", "Edit", "test.js", now.Add(1*time.Second)),
 				makeFileAccessEntry("3", "Read", "other.js", now.Add(2*time.Second)),
@@ -121,7 +122,7 @@ func TestDetectFileChurn(t *testing.T) {
 		},
 		{
 			name: "multiple high churn files",
-			entries: []parser.SessionEntry{
+			entries: []types.SessionEntry{
 				makeFileAccessEntry("1", "Read", "a.js", now.Add(0*time.Second)),
 				makeFileAccessEntry("2", "Edit", "a.js", now.Add(1*time.Second)),
 				makeFileAccessEntry("3", "Read", "a.js", now.Add(2*time.Second)),
@@ -163,13 +164,13 @@ func TestDetectIdlePeriods(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		entries         []parser.SessionEntry
+		entries         []types.SessionEntry
 		thresholdMin    int
 		expectedPeriods int
 	}{
 		{
 			name: "detect single idle period",
-			entries: []parser.SessionEntry{
+			entries: []types.SessionEntry{
 				makeToolUseEntry("1", "Bash", now.Add(0*time.Second)),
 				makeToolUseEntry("2", "Read", now.Add(10*time.Minute)), // 10 minute gap
 			},
@@ -178,7 +179,7 @@ func TestDetectIdlePeriods(t *testing.T) {
 		},
 		{
 			name: "no idle periods when below threshold",
-			entries: []parser.SessionEntry{
+			entries: []types.SessionEntry{
 				makeToolUseEntry("1", "Bash", now.Add(0*time.Second)),
 				makeToolUseEntry("2", "Read", now.Add(2*time.Minute)), // 2 minute gap
 			},
@@ -187,7 +188,7 @@ func TestDetectIdlePeriods(t *testing.T) {
 		},
 		{
 			name: "multiple idle periods",
-			entries: []parser.SessionEntry{
+			entries: []types.SessionEntry{
 				makeToolUseEntry("1", "Bash", now.Add(0*time.Second)),
 				makeToolUseEntry("2", "Read", now.Add(10*time.Minute)), // Gap 1: 10min
 				makeToolUseEntry("3", "Edit", now.Add(12*time.Minute)), // Gap: 2min (below threshold)
@@ -218,8 +219,8 @@ func TestDetectIdlePeriods(t *testing.T) {
 
 // Helper functions to create test data
 
-func makeToolUseEntry(uuid, toolName string, ts time.Time) parser.SessionEntry {
-	return parser.SessionEntry{
+func makeToolUseEntry(uuid, toolName string, ts time.Time) types.SessionEntry {
+	return types.SessionEntry{
 		Type:      "assistant",
 		UUID:      uuid,
 		Timestamp: ts.Format(time.RFC3339),
@@ -239,8 +240,8 @@ func makeToolUseEntry(uuid, toolName string, ts time.Time) parser.SessionEntry {
 	}
 }
 
-func makeFileAccessEntry(uuid, toolName, filePath string, ts time.Time) parser.SessionEntry {
-	return parser.SessionEntry{
+func makeFileAccessEntry(uuid, toolName, filePath string, ts time.Time) types.SessionEntry {
+	return types.SessionEntry{
 		Type:      "assistant",
 		UUID:      uuid,
 		Timestamp: ts.Format(time.RFC3339),

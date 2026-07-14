@@ -3,11 +3,11 @@ package stats
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestAggregate_GroupByTool(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Bash", Status: "success"},
 		{UUID: "2", ToolName: "Read", Status: "success"},
 		{UUID: "3", ToolName: "Bash", Status: "error"},
@@ -45,7 +45,7 @@ func TestAggregate_GroupByTool(t *testing.T) {
 }
 
 func TestAggregate_GroupByStatus(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Bash", Status: "success"},
 		{UUID: "2", ToolName: "Read", Status: "success"},
 		{UUID: "3", ToolName: "Bash", Status: "error"},
@@ -72,7 +72,7 @@ func TestAggregate_GroupByStatus(t *testing.T) {
 }
 
 func TestAggregate_MultipleMetrics(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Bash", Status: "success"},
 		{UUID: "2", ToolName: "Bash", Status: "error"},
 		{UUID: "3", ToolName: "Bash", Status: "success"},
@@ -108,7 +108,7 @@ func TestAggregate_EmptyInput(t *testing.T) {
 		Metrics: []string{"count"},
 	}
 
-	results, err := Aggregate([]parser.ToolCall{}, config)
+	results, err := Aggregate([]types.ToolCall{}, config)
 	if err != nil {
 		t.Fatalf("Aggregate failed: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestAggregate_EmptyInput(t *testing.T) {
 }
 
 func TestAggregate_InvalidGroupBy(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Bash", Status: "success"},
 	}
 
@@ -135,7 +135,7 @@ func TestAggregate_InvalidGroupBy(t *testing.T) {
 }
 
 func TestAggregate_InvalidMetric(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Bash", Status: "success"},
 	}
 

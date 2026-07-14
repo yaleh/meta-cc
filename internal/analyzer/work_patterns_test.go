@@ -3,11 +3,11 @@ package analyzer
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestGetWorkPatterns_ToolFrequency(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{ToolName: "Bash"},
 		{ToolName: "Read"},
 		{ToolName: "Bash"},
@@ -15,7 +15,7 @@ func TestGetWorkPatterns_ToolFrequency(t *testing.T) {
 		{ToolName: "Read"},
 	}
 
-	result, err := GetWorkPatterns([]parser.SessionEntry{}, toolCalls)
+	result, err := GetWorkPatterns([]types.SessionEntry{}, toolCalls)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestGetWorkPatterns_ToolFrequency(t *testing.T) {
 }
 
 func TestGetWorkPatterns_HourlyActivity(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{Timestamp: "2025-10-02T10:00:00Z"},
 		{Timestamp: "2025-10-02T10:15:00Z"},
 		{Timestamp: "2025-10-02T10:30:00Z"},
@@ -42,7 +42,7 @@ func TestGetWorkPatterns_HourlyActivity(t *testing.T) {
 		{Timestamp: "2025-10-02T14:45:00Z"},
 	}
 
-	result, err := GetWorkPatterns(entries, []parser.ToolCall{})
+	result, err := GetWorkPatterns(entries, []types.ToolCall{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -62,14 +62,14 @@ func TestGetWorkPatterns_HourlyActivity(t *testing.T) {
 
 func TestGetWorkPatterns_ContextSwitches(t *testing.T) {
 	// Alternating between two files within 5 minutes
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{ToolName: "Read", Input: map[string]interface{}{"file_path": "file_a.go"}, Timestamp: "2025-10-02T10:00:00Z"},
 		{ToolName: "Read", Input: map[string]interface{}{"file_path": "file_b.go"}, Timestamp: "2025-10-02T10:01:00Z"},
 		{ToolName: "Read", Input: map[string]interface{}{"file_path": "file_a.go"}, Timestamp: "2025-10-02T10:02:00Z"},
 		{ToolName: "Read", Input: map[string]interface{}{"file_path": "file_b.go"}, Timestamp: "2025-10-02T10:03:00Z"},
 	}
 
-	result, err := GetWorkPatterns([]parser.SessionEntry{}, toolCalls)
+	result, err := GetWorkPatterns([]types.SessionEntry{}, toolCalls)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestGetWorkPatterns_ContextSwitches(t *testing.T) {
 }
 
 func TestGetWorkPatterns_DataSource(t *testing.T) {
-	result, err := GetWorkPatterns([]parser.SessionEntry{}, []parser.ToolCall{})
+	result, err := GetWorkPatterns([]types.SessionEntry{}, []types.ToolCall{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestGetWorkPatterns_DataSource(t *testing.T) {
 }
 
 func TestGetWorkPatterns_EmptySession(t *testing.T) {
-	result, err := GetWorkPatterns([]parser.SessionEntry{}, []parser.ToolCall{})
+	result, err := GetWorkPatterns([]types.SessionEntry{}, []types.ToolCall{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

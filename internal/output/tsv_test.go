@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestFormatTSV(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{
 			UUID:     "uuid-1",
 			ToolName: "Read",
@@ -61,7 +61,7 @@ func TestFormatTSV(t *testing.T) {
 }
 
 func TestFormatTSVEmpty(t *testing.T) {
-	tools := []parser.ToolCall{}
+	tools := []types.ToolCall{}
 	tsv, err := FormatTSV(tools)
 	if err != nil {
 		t.Fatalf("FormatTSV failed: %v", err)
@@ -73,7 +73,7 @@ func TestFormatTSVEmpty(t *testing.T) {
 }
 
 func TestFormatTSVEscaping(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{
 			UUID:     "uuid-1",
 			ToolName: "Bash",
@@ -116,9 +116,9 @@ func TestFormatTSVEscaping(t *testing.T) {
 
 func TestTSVSizeReduction(t *testing.T) {
 	// Generate 100 tool calls
-	tools := make([]parser.ToolCall, 100)
+	tools := make([]types.ToolCall, 100)
 	for i := 0; i < 100; i++ {
-		tools[i] = parser.ToolCall{
+		tools[i] = types.ToolCall{
 			UUID:     "uuid-" + string(rune('a'+i%26)),
 			ToolName: "Read",
 			Input:    map[string]interface{}{"file": "/path/to/file"},
@@ -335,7 +335,7 @@ func TestFormatGenericTSV_TimeSeriesPoint(t *testing.T) {
 
 // TestFormatGenericTSV_EmptySlice tests empty slice handling
 func TestFormatGenericTSV_EmptySlice(t *testing.T) {
-	var tools []parser.ToolCall
+	var tools []types.ToolCall
 
 	tsv, err := FormatGenericTSV(tools)
 	if err != nil {
@@ -364,7 +364,7 @@ func TestFormatGenericTSV_UnsupportedType(t *testing.T) {
 // TestFormatGenericTSV_NestedStructHandling tests complex nested fields
 func TestFormatGenericTSV_NestedStructHandling(t *testing.T) {
 	// ToolCall has nested Input/Output fields - should be JSON-serialized
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{
 			UUID:     "uuid-1",
 			ToolName: "Read",

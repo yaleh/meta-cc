@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestGenerateSummary(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Read", Status: "success", Error: ""},
 		{UUID: "2", ToolName: "Read", Status: "success", Error: ""},
 		{UUID: "3", ToolName: "Bash", Status: "success", Error: ""},
@@ -46,7 +46,7 @@ func TestGenerateSummary(t *testing.T) {
 }
 
 func TestGenerateSummaryEmpty(t *testing.T) {
-	tools := []parser.ToolCall{}
+	tools := []types.ToolCall{}
 	summary := GenerateSummary(tools)
 
 	if !strings.Contains(summary, "Total Tools: 0") {
@@ -55,7 +55,7 @@ func TestGenerateSummaryEmpty(t *testing.T) {
 }
 
 func TestFormatSummaryFirst(t *testing.T) {
-	tools := make([]parser.ToolCall, 100)
+	tools := make([]types.ToolCall, 100)
 	for i := 0; i < 100; i++ {
 		status := "success"
 		errMsg := ""
@@ -63,7 +63,7 @@ func TestFormatSummaryFirst(t *testing.T) {
 			status = "error"
 			errMsg = "test error"
 		}
-		tools[i] = parser.ToolCall{
+		tools[i] = types.ToolCall{
 			UUID:     "uuid-" + string(rune('0'+i%10)),
 			ToolName: "Read",
 			Status:   status,
@@ -99,7 +99,7 @@ func TestFormatSummaryFirst(t *testing.T) {
 }
 
 func TestFormatSummaryFirstJSON(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Read", Status: "success", Error: ""},
 		{UUID: "2", ToolName: "Bash", Status: "success", Error: ""},
 		{UUID: "3", ToolName: "Edit", Status: "error", Error: "error"},
@@ -127,7 +127,7 @@ func TestFormatSummaryFirstJSON(t *testing.T) {
 }
 
 func TestFormatSummaryFirstAllRecords(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Read", Status: "success", Error: ""},
 		{UUID: "2", ToolName: "Bash", Status: "success", Error: ""},
 	}
@@ -146,7 +146,7 @@ func TestFormatSummaryFirstAllRecords(t *testing.T) {
 }
 
 func TestFormatSummaryFirstTSV(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Read", Status: "success", Error: ""},
 		{UUID: "2", ToolName: "Bash", Status: "success", Error: ""},
 	}
@@ -163,7 +163,7 @@ func TestFormatSummaryFirstTSV(t *testing.T) {
 }
 
 func TestFormatSummaryFirstInvalidFormat(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "1", ToolName: "Read", Status: "success", Error: ""},
 	}
 

@@ -5,10 +5,11 @@ import (
 
 	"github.com/yaleh/meta-cc/internal/parser"
 	"github.com/yaleh/meta-cc/internal/query/assistant"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestBuildAssistantMessagesPattern(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{Type: "assistant", UUID: "1", Timestamp: "2025-10-02T10:00:00Z", Message: &parser.Message{Role: "assistant", Content: []parser.ContentBlock{{Type: "text", Text: "Completed task"}}}},
 	}
 
@@ -38,7 +39,7 @@ func TestBuildAssistantMessagesPattern(t *testing.T) {
 }
 
 func TestBuildAssistantMessages_InvalidPattern(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{Type: "assistant", UUID: "1", Timestamp: "2025-10-02T10:00:00Z", Message: &parser.Message{Role: "assistant", Content: []parser.ContentBlock{{Type: "text", Text: "Hello"}}}},
 	}
 
@@ -57,7 +58,7 @@ func TestBuildAssistantMessages_InvalidPattern(t *testing.T) {
 }
 
 func TestBuildConversationTurns(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{
 			Type: "user", UUID: "u1", Timestamp: "2025-10-02T10:00:00Z",
 			Message: &parser.Message{Role: "user", Content: []parser.ContentBlock{{Type: "text", Text: "Hello"}}},
@@ -84,7 +85,7 @@ func TestBuildConversationTurns(t *testing.T) {
 }
 
 func TestBuildConversationTurns_InvalidPattern(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{
 			Type: "user", UUID: "u1", Timestamp: "2025-10-02T10:00:00Z",
 			Message: &parser.Message{Role: "user", Content: []parser.ContentBlock{{Type: "text", Text: "Hello"}}},

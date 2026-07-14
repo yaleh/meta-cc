@@ -3,18 +3,18 @@ package stats
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestAnalyzeFileStats(t *testing.T) {
 	tests := []struct {
 		name      string
-		toolCalls []parser.ToolCall
+		toolCalls []types.ToolCall
 		wantFiles int
 	}{
 		{
 			name: "basic file operations",
-			toolCalls: []parser.ToolCall{
+			toolCalls: []types.ToolCall{
 				{ToolName: "Read", Input: map[string]interface{}{"file_path": "main.go"}, Status: "success"},
 				{ToolName: "Edit", Input: map[string]interface{}{"file_path": "main.go"}, Status: "success"},
 				{ToolName: "Edit", Input: map[string]interface{}{"file_path": "main.go"}, Status: "error"},
@@ -24,14 +24,14 @@ func TestAnalyzeFileStats(t *testing.T) {
 		},
 		{
 			name: "no file operations",
-			toolCalls: []parser.ToolCall{
+			toolCalls: []types.ToolCall{
 				{ToolName: "Bash", Input: map[string]interface{}{"command": "ls"}, Status: "success"},
 			},
 			wantFiles: 0,
 		},
 		{
 			name:      "empty tool calls",
-			toolCalls: []parser.ToolCall{},
+			toolCalls: []types.ToolCall{},
 			wantFiles: 0,
 		},
 	}
@@ -47,7 +47,7 @@ func TestAnalyzeFileStats(t *testing.T) {
 }
 
 func TestFileStats_Counts(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{ToolName: "Read", Input: map[string]interface{}{"file_path": "main.go"}, Status: "success"},
 		{ToolName: "Read", Input: map[string]interface{}{"file_path": "main.go"}, Status: "success"},
 		{ToolName: "Edit", Input: map[string]interface{}{"file_path": "main.go"}, Status: "success"},
@@ -94,7 +94,7 @@ func TestFileStats_Counts(t *testing.T) {
 }
 
 func TestFileStats_MultipleFiles(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{ToolName: "Edit", Input: map[string]interface{}{"file_path": "a.go"}, Status: "success"},
 		{ToolName: "Edit", Input: map[string]interface{}{"file_path": "a.go"}, Status: "success"},
 		{ToolName: "Edit", Input: map[string]interface{}{"file_path": "a.go"}, Status: "success"},
@@ -151,7 +151,7 @@ func TestFileStats_SortBy(t *testing.T) {
 }
 
 func TestFileStats_PathVariants(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		// Test "file_path" field
 		{ToolName: "Read", Input: map[string]interface{}{"file_path": "a.go"}, Status: "success"},
 		// Test "path" field (alternate)

@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestAnalyzeTimeSeries_ToolCallsMetric(t *testing.T) {
 	// Test data: 4 tool calls across 3 hours
 	baseTime := time.Date(2025, 10, 3, 10, 0, 0, 0, time.UTC)
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{ToolName: "Bash", Status: "success", Timestamp: baseTime.Format(time.RFC3339)},
 		{ToolName: "Read", Status: "success", Timestamp: baseTime.Add(30 * time.Minute).Format(time.RFC3339)},
 		{ToolName: "Edit", Status: "error", Timestamp: baseTime.Add(90 * time.Minute).Format(time.RFC3339)},
@@ -50,7 +50,7 @@ func TestAnalyzeTimeSeries_ToolCallsMetric(t *testing.T) {
 
 func TestAnalyzeTimeSeries_ErrorRateMetric(t *testing.T) {
 	baseTime := time.Date(2025, 10, 3, 8, 0, 0, 0, time.UTC)
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{Status: "success", Timestamp: baseTime.Format(time.RFC3339)},
 		{Status: "success", Timestamp: baseTime.Add(10 * time.Minute).Format(time.RFC3339)},
 		{Status: "error", Timestamp: baseTime.Add(20 * time.Minute).Format(time.RFC3339)},
@@ -81,7 +81,7 @@ func TestAnalyzeTimeSeries_ErrorRateMetric(t *testing.T) {
 
 func TestAnalyzeTimeSeries_DayInterval(t *testing.T) {
 	baseTime := time.Date(2025, 10, 1, 10, 0, 0, 0, time.UTC)
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{ToolName: "Bash", Timestamp: baseTime.Format(time.RFC3339)},
 		{ToolName: "Read", Timestamp: baseTime.Add(6 * time.Hour).Format(time.RFC3339)},
 		{ToolName: "Edit", Timestamp: baseTime.Add(25 * time.Hour).Format(time.RFC3339)},
@@ -117,7 +117,7 @@ func TestAnalyzeTimeSeries_DayInterval(t *testing.T) {
 func TestAnalyzeTimeSeries_WeekInterval(t *testing.T) {
 	// Start on Monday (2025-09-29 is a Monday)
 	baseTime := time.Date(2025, 9, 29, 10, 0, 0, 0, time.UTC)
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{ToolName: "Bash", Timestamp: baseTime.Format(time.RFC3339)},                         // Monday
 		{ToolName: "Read", Timestamp: baseTime.Add(3 * 24 * time.Hour).Format(time.RFC3339)}, // Thursday
 		{ToolName: "Edit", Timestamp: baseTime.Add(8 * 24 * time.Hour).Format(time.RFC3339)}, // Next Tuesday
@@ -155,7 +155,7 @@ func TestAnalyzeTimeSeries_EmptyInput(t *testing.T) {
 		Interval: "hour",
 	}
 
-	points, err := AnalyzeTimeSeries([]parser.ToolCall{}, config)
+	points, err := AnalyzeTimeSeries([]types.ToolCall{}, config)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestAnalyzeTimeSeries_EmptyInput(t *testing.T) {
 
 func TestAnalyzeTimeSeries_SingleDataPoint(t *testing.T) {
 	baseTime := time.Date(2025, 10, 3, 15, 30, 0, 0, time.UTC)
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{ToolName: "Bash", Status: "success", Timestamp: baseTime.Format(time.RFC3339)},
 	}
 
@@ -192,7 +192,7 @@ func TestAnalyzeTimeSeries_SingleDataPoint(t *testing.T) {
 }
 
 func TestAnalyzeTimeSeries_InvalidTimestamp(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{ToolName: "Bash", Timestamp: "invalid-timestamp"},
 	}
 

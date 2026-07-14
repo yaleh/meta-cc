@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestParseFilter_SingleCondition(t *testing.T) {
@@ -49,7 +49,7 @@ func TestParseFilter_InvalidFormat(t *testing.T) {
 }
 
 func TestApplyFilter_ToolCalls_StatusError(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{
 			UUID:     "uuid-1",
 			ToolName: "Grep",
@@ -71,9 +71,9 @@ func TestApplyFilter_ToolCalls_StatusError(t *testing.T) {
 
 	filter, _ := ParseFilter("status=error")
 	result := ApplyFilter(toolCalls, filter)
-	filtered, ok := result.([]parser.ToolCall)
+	filtered, ok := result.([]types.ToolCall)
 	if !ok {
-		t.Fatalf("Expected []parser.ToolCall, got %T", result)
+		t.Fatalf("Expected []types.ToolCall, got %T", result)
 	}
 
 	if len(filtered) != 2 {
@@ -89,7 +89,7 @@ func TestApplyFilter_ToolCalls_StatusError(t *testing.T) {
 }
 
 func TestApplyFilter_ToolCalls_ToolName(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Grep"},
 		{UUID: "uuid-2", ToolName: "Read"},
 		{UUID: "uuid-3", ToolName: "Grep"},
@@ -97,9 +97,9 @@ func TestApplyFilter_ToolCalls_ToolName(t *testing.T) {
 
 	filter, _ := ParseFilter("tool=Grep")
 	result := ApplyFilter(toolCalls, filter)
-	filtered, ok := result.([]parser.ToolCall)
+	filtered, ok := result.([]types.ToolCall)
 	if !ok {
-		t.Fatalf("Expected []parser.ToolCall, got %T", result)
+		t.Fatalf("Expected []types.ToolCall, got %T", result)
 	}
 
 	if len(filtered) != 2 {
@@ -114,7 +114,7 @@ func TestApplyFilter_ToolCalls_ToolName(t *testing.T) {
 }
 
 func TestApplyFilter_SessionEntries_Type(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{Type: "user", UUID: "uuid-1"},
 		{Type: "assistant", UUID: "uuid-2"},
 		{Type: "user", UUID: "uuid-3"},
@@ -122,9 +122,9 @@ func TestApplyFilter_SessionEntries_Type(t *testing.T) {
 
 	filter, _ := ParseFilter("type=user")
 	result := ApplyFilter(entries, filter)
-	filtered, ok := result.([]parser.SessionEntry)
+	filtered, ok := result.([]types.SessionEntry)
 	if !ok {
-		t.Fatalf("Expected []parser.SessionEntry, got %T", result)
+		t.Fatalf("Expected []types.SessionEntry, got %T", result)
 	}
 
 	if len(filtered) != 2 {
@@ -139,7 +139,7 @@ func TestApplyFilter_SessionEntries_Type(t *testing.T) {
 }
 
 func TestApplyFilter_EmptyFilter(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Grep"},
 		{UUID: "uuid-2", ToolName: "Read"},
 	}
@@ -147,9 +147,9 @@ func TestApplyFilter_EmptyFilter(t *testing.T) {
 	// Empty filter should return all data
 	filter := &Filter{}
 	result := ApplyFilter(toolCalls, filter)
-	filtered, ok := result.([]parser.ToolCall)
+	filtered, ok := result.([]types.ToolCall)
 	if !ok {
-		t.Fatalf("Expected []parser.ToolCall, got %T", result)
+		t.Fatalf("Expected []types.ToolCall, got %T", result)
 	}
 
 	if len(filtered) != len(toolCalls) {
@@ -158,15 +158,15 @@ func TestApplyFilter_EmptyFilter(t *testing.T) {
 }
 
 func TestApplyFilter_NoMatches(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Grep", Status: "success"},
 	}
 
 	filter, _ := ParseFilter("status=error")
 	result := ApplyFilter(toolCalls, filter)
-	filtered, ok := result.([]parser.ToolCall)
+	filtered, ok := result.([]types.ToolCall)
 	if !ok {
-		t.Fatalf("Expected []parser.ToolCall, got %T", result)
+		t.Fatalf("Expected []types.ToolCall, got %T", result)
 	}
 
 	if len(filtered) != 0 {
@@ -233,7 +233,7 @@ func TestValidateFilterField_InvalidFields(t *testing.T) {
 }
 
 func TestApplyWhere_ValidFilter(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Grep", Status: "success"},
 		{UUID: "uuid-2", ToolName: "Read", Status: "error"},
 	}
@@ -243,9 +243,9 @@ func TestApplyWhere_ValidFilter(t *testing.T) {
 		t.Fatalf("ApplyWhere failed: %v", err)
 	}
 
-	filtered, ok := result.([]parser.ToolCall)
+	filtered, ok := result.([]types.ToolCall)
 	if !ok {
-		t.Fatalf("Expected []parser.ToolCall, got %T", result)
+		t.Fatalf("Expected []types.ToolCall, got %T", result)
 	}
 
 	if len(filtered) != 1 {
@@ -258,7 +258,7 @@ func TestApplyWhere_ValidFilter(t *testing.T) {
 }
 
 func TestApplyWhere_InvalidField(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Grep", Status: "success"},
 	}
 
@@ -274,7 +274,7 @@ func TestApplyWhere_InvalidField(t *testing.T) {
 }
 
 func TestApplyWhere_MultipleConditions(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Bash", Status: "success"},
 		{UUID: "uuid-2", ToolName: "Bash", Status: "error"},
 		{UUID: "uuid-3", ToolName: "Read", Status: "error"},
@@ -285,9 +285,9 @@ func TestApplyWhere_MultipleConditions(t *testing.T) {
 		t.Fatalf("ApplyWhere failed: %v", err)
 	}
 
-	filtered, ok := result.([]parser.ToolCall)
+	filtered, ok := result.([]types.ToolCall)
 	if !ok {
-		t.Fatalf("Expected []parser.ToolCall, got %T", result)
+		t.Fatalf("Expected []types.ToolCall, got %T", result)
 	}
 
 	if len(filtered) != 1 {

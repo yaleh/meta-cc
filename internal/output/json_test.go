@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestFormatErrorJSON(t *testing.T) {
@@ -38,7 +38,7 @@ func TestFormatErrorJSON(t *testing.T) {
 }
 
 func TestFormatJSONL_ToolCalls(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{
 			UUID:     "uuid-1",
 			ToolName: "Bash",
@@ -65,7 +65,7 @@ func TestFormatJSONL_ToolCalls(t *testing.T) {
 	}
 
 	// Verify first line
-	var first parser.ToolCall
+	var first types.ToolCall
 	if err := json.Unmarshal([]byte(lines[0]), &first); err != nil {
 		t.Fatalf("line 1 is not valid JSON: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestFormatJSONL_ToolCalls(t *testing.T) {
 	}
 
 	// Verify second line
-	var second parser.ToolCall
+	var second types.ToolCall
 	if err := json.Unmarshal([]byte(lines[1]), &second); err != nil {
 		t.Fatalf("line 2 is not valid JSON: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestFormatJSONL_ToolCalls(t *testing.T) {
 }
 
 func TestFormatJSONL_EmptyArray(t *testing.T) {
-	tools := []parser.ToolCall{}
+	tools := []types.ToolCall{}
 
 	output, err := FormatJSONL(tools)
 	if err != nil {
@@ -138,7 +138,7 @@ func TestFormatJSONL_Struct(t *testing.T) {
 }
 
 func TestFormatJSONL_CompactOutput(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Bash", Status: "success"},
 	}
 

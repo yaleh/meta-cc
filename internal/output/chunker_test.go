@@ -7,18 +7,18 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 // generateToolCalls generates N mock ToolCall records for testing
-func generateToolCalls(count int) []parser.ToolCall {
-	tools := make([]parser.ToolCall, count)
+func generateToolCalls(count int) []types.ToolCall {
+	tools := make([]types.ToolCall, count)
 
 	toolNames := []string{"Bash", "Read", "Edit", "Write", "Grep", "Glob"}
 	statuses := []string{"success", "success", "success", "error"} // 75% success, 25% error
 
 	for i := 0; i < count; i++ {
-		tools[i] = parser.ToolCall{
+		tools[i] = types.ToolCall{
 			UUID:     fmt.Sprintf("uuid-%04d", i),
 			ToolName: toolNames[i%len(toolNames)],
 			Status:   statuses[i%len(statuses)],
@@ -103,7 +103,7 @@ func TestWriteChunk(t *testing.T) {
 		t.Fatalf("failed to read output file: %v", err)
 	}
 
-	var parsedTools []parser.ToolCall
+	var parsedTools []types.ToolCall
 	if err := json.Unmarshal(data, &parsedTools); err != nil {
 		t.Errorf("output is not valid JSON: %v", err)
 	}
@@ -219,7 +219,7 @@ func TestChunkToolCallsIntegration(t *testing.T) {
 			continue
 		}
 
-		var chunkTools []parser.ToolCall
+		var chunkTools []types.ToolCall
 		if err := json.Unmarshal(data, &chunkTools); err != nil {
 			t.Errorf("chunk %d: invalid JSON: %v", i, err)
 		}

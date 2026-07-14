@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestParseDuration(t *testing.T) {
@@ -67,7 +67,7 @@ func TestParseDuration(t *testing.T) {
 
 func TestTimeFilter_Apply(t *testing.T) {
 	now := time.Now()
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{
 			UUID:      "uuid1",
 			Timestamp: now.Add(-10 * time.Minute).Format(time.RFC3339Nano),
@@ -152,9 +152,9 @@ func TestTimeFilter_Apply(t *testing.T) {
 }
 
 func TestTimeFilter_LastNTurns(t *testing.T) {
-	entries := make([]parser.SessionEntry, 10)
+	entries := make([]types.SessionEntry, 10)
 	for i := 0; i < 10; i++ {
-		entries[i] = parser.SessionEntry{
+		entries[i] = types.SessionEntry{
 			UUID:      fmt.Sprintf("uuid-%d", i),
 			Timestamp: time.Now().Add(time.Duration(i) * time.Minute).Format(time.RFC3339Nano),
 		}

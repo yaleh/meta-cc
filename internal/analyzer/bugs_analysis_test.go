@@ -3,16 +3,16 @@ package analyzer
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestAnalyzeBugs_FixPair(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Bash", Status: "error", Error: "command not found"},
 		{UUID: "uuid-2", ToolName: "Bash", Status: "success"},
 	}
 
-	result, err := AnalyzeBugs([]parser.SessionEntry{}, toolCalls, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, toolCalls, 0)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -26,7 +26,7 @@ func TestAnalyzeBugs_FixPair(t *testing.T) {
 
 func TestAnalyzeBugs_Recurrence(t *testing.T) {
 	// Same tool+error appearing 3 times, each followed by a success
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Bash", Status: "error", Error: "permission denied"},
 		{UUID: "uuid-2", ToolName: "Bash", Status: "success"},
 		{UUID: "uuid-3", ToolName: "Bash", Status: "error", Error: "permission denied"},
@@ -35,7 +35,7 @@ func TestAnalyzeBugs_Recurrence(t *testing.T) {
 		{UUID: "uuid-6", ToolName: "Bash", Status: "success"},
 	}
 
-	result, err := AnalyzeBugs([]parser.SessionEntry{}, toolCalls, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, toolCalls, 0)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -52,7 +52,7 @@ func TestAnalyzeBugs_Recurrence(t *testing.T) {
 
 func TestAnalyzeBugs_SortedByRecurrence(t *testing.T) {
 	// Create patterns: one error with 1 occurrence, one with 3, one with 2
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		// error-A appears once
 		{UUID: "uuid-1", ToolName: "Bash", Status: "error", Error: "error alpha unique"},
 		{UUID: "uuid-2", ToolName: "Bash", Status: "success"},
@@ -70,7 +70,7 @@ func TestAnalyzeBugs_SortedByRecurrence(t *testing.T) {
 		{UUID: "uuid-12", ToolName: "Grep", Status: "success"},
 	}
 
-	result, err := AnalyzeBugs([]parser.SessionEntry{}, toolCalls, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, toolCalls, 0)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -90,7 +90,7 @@ func TestAnalyzeBugs_SortedByRecurrence(t *testing.T) {
 }
 
 func TestAnalyzeBugs_EmptySession(t *testing.T) {
-	result, err := AnalyzeBugs([]parser.SessionEntry{}, []parser.ToolCall{}, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, []types.ToolCall{}, 0)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -103,7 +103,7 @@ func TestAnalyzeBugs_EmptySession(t *testing.T) {
 }
 
 func TestAnalyzeBugs_DataSource(t *testing.T) {
-	result, err := AnalyzeBugs([]parser.SessionEntry{}, []parser.ToolCall{}, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, []types.ToolCall{}, 0)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}

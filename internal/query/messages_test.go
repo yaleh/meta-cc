@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
-func makeTextEntry(uuid, role, text, timestamp string) parser.SessionEntry {
-	return parser.SessionEntry{
+func makeTextEntry(uuid, role, text, timestamp string) types.SessionEntry {
+	return types.SessionEntry{
 		Type:      role,
 		UUID:      uuid,
 		Timestamp: timestamp,
@@ -19,7 +20,7 @@ func makeTextEntry(uuid, role, text, timestamp string) parser.SessionEntry {
 }
 
 func TestRunUserMessagesQuery_PatternAndContext(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeTextEntry("uuid-1", "user", "Fix bug in parser", "2025-10-02T10:00:00.000Z"),
 		makeTextEntry("uuid-2", "assistant", "Sure", "2025-10-02T10:00:10.000Z"),
 		makeTextEntry("uuid-3", "user", "Add new feature", "2025-10-02T10:01:00.000Z"),
@@ -59,7 +60,7 @@ func TestRunUserMessagesQuery_PatternAndContext(t *testing.T) {
 }
 
 func TestRunUserMessagesQuery_LimitOffset(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeTextEntry("uuid-1", "user", "Message 1", "2025-10-02T10:00:00.000Z"),
 		makeTextEntry("uuid-2", "user", "Message 2", "2025-10-02T10:01:00.000Z"),
 		makeTextEntry("uuid-3", "user", "Message 3", "2025-10-02T10:02:00.000Z"),

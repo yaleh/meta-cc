@@ -2,9 +2,10 @@
 id: TASK-5
 title: 'Phase 86: Migrate parser.SessionEntry/ToolCall to types.* in test files'
 status: 'Basic: Backlog'
-assignee: []
+assignee:
+  - '@worker'
 created_date: '2026-06-23 06:24'
-updated_date: '2026-07-14 06:45'
+updated_date: '2026-07-14 07:15'
 labels:
   - 'kind:basic'
 dependencies: []
@@ -23,6 +24,19 @@ ordinal: 3000
 
 不涉及生产代码；internal/parser 中的类型别名保留，供尚未迁移的调用方使用。
 <!-- SECTION:DESCRIPTION:END -->
+
+## Definition of Done
+<!-- DOD:BEGIN -->
+- [ ] #1 `go test ./...` passes with zero new failures
+- [ ] #2 `! grep -r 'parser\.SessionEntry\|parser\.ToolCall' internal/ --include='*_test.go'` returns empty (no residual references in test files)
+<!-- DOD:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [x] #1 go test ./... exits 0，无新增失败；verify: go test ./...
+- [x] #2 测试文件中零残留 parser.SessionEntry / parser.ToolCall 引用；verify: ! grep -r "parser\.SessionEntry\|parser\.ToolCall" internal/ --include="*_test.go"
+- [x] #3 仅 *_test.go 文件被修改，无生产代码（非 _test.go 的 .go 文件）改动；verify: git diff --name-only | grep -v '_test\.go' | grep '\.go$' 返回空
+<!-- AC:END -->
 
 ## Implementation Plan
 
@@ -158,15 +172,14 @@ No new test code needs to be written; the migration is purely mechanical.
 - [ ] `! grep -r "parser\.SessionEntry\|parser\.ToolCall" internal/ --include="*_test.go"` returns empty (no residual references)
 <!-- SECTION:PLAN:END -->
 
-## Definition of Done
-<!-- DOD:BEGIN -->
-- [ ] #1 `go test ./...` passes with zero new failures
-- [ ] #2 `! grep -r 'parser\.SessionEntry\|parser\.ToolCall' internal/ --include='*_test.go'` returns empty (no residual references in test files)
-<!-- DOD:END -->
+## Implementation Notes
 
-## Acceptance Criteria
-<!-- AC:BEGIN -->
-- [ ] #1 go test ./... exits 0，无新增失败；verify: go test ./...
-- [ ] #2 测试文件中零残留 parser.SessionEntry / parser.ToolCall 引用；verify: ! grep -r "parser\.SessionEntry\|parser\.ToolCall" internal/ --include="*_test.go"
-- [ ] #3 仅 *_test.go 文件被修改，无生产代码（非 _test.go 的 .go 文件）改动；verify: git diff --name-only | grep -v '_test\.go' | grep '\.go$' 返回空
-<!-- AC:END -->
+<!-- SECTION:NOTES:BEGIN -->
+Mechanical migration complete. Used sed to replace all parser.SessionEntry→types.SessionEntry and parser.ToolCall→types.ToolCall across 36 _test.go files, then ran goimports to fix imports automatically. All tests pass, zero residual references, no production files modified.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Migrated parser.SessionEntry→types.SessionEntry and parser.ToolCall→types.ToolCall across all 36 _test.go files using sed + goimports. All tests pass (go test ./... 100% green), zero residual references confirmed, no production files modified.
+<!-- SECTION:FINAL_SUMMARY:END -->

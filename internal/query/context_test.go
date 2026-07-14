@@ -7,13 +7,14 @@ import (
 	"github.com/yaleh/meta-cc/internal/analyzer"
 	"github.com/yaleh/meta-cc/internal/parser"
 	"github.com/yaleh/meta-cc/internal/query/turnindex"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestBuildContextQuery(t *testing.T) {
 	now := time.Now()
 
 	// Create test entries with an error
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{
 			UUID:      "uuid-1",
 			Type:      "user",
@@ -168,7 +169,7 @@ func TestBuildContextQuery(t *testing.T) {
 }
 
 func TestBuildTurnIndex(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{UUID: "uuid-1", Type: "user", Message: &parser.Message{Role: "user"}},
 		{UUID: "uuid-2", Type: "assistant", Message: &parser.Message{Role: "assistant"}},
 		{UUID: "uuid-3", Type: "file-history-snapshot"}, // Not a message

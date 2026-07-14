@@ -6,10 +6,11 @@ import (
 
 	"github.com/yaleh/meta-cc/internal/parser"
 	"github.com/yaleh/meta-cc/internal/query/turnindex"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestBuildTurnIndex(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{UUID: "uuid-1", Type: "user", Message: &parser.Message{Role: "user"}},
 		{UUID: "uuid-2", Type: "assistant", Message: &parser.Message{Role: "assistant"}},
 		{UUID: "uuid-3", Type: "file-history-snapshot"}, // Not a message
@@ -53,7 +54,7 @@ func TestGetToolCallTimestamp(t *testing.T) {
 	now := time.Date(2025, 10, 2, 10, 0, 0, 0, time.UTC)
 	ts := now.Format(time.RFC3339Nano)
 
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{UUID: "uuid-1", Type: "user", Timestamp: ts},
 		{UUID: "uuid-2", Type: "assistant", Timestamp: ""},
 	}

@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 // TestProjectToolCalls_BasicProjection tests basic field projection
 func TestProjectToolCalls_BasicProjection(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{
 			UUID:     "uuid-1",
 			ToolName: "Bash",
@@ -71,7 +71,7 @@ func TestProjectToolCalls_BasicProjection(t *testing.T) {
 
 // TestProjectToolCalls_WithErrorFields tests conditional error field inclusion
 func TestProjectToolCalls_WithErrorFields(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{
 			UUID:     "uuid-1",
 			ToolName: "Bash",
@@ -126,7 +126,7 @@ func TestProjectToolCalls_WithErrorFields(t *testing.T) {
 
 // TestProjectToolCalls_NoProjection tests that no projection returns full objects
 func TestProjectToolCalls_NoProjection(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{
 			UUID:     "uuid-1",
 			ToolName: "Bash",
@@ -155,9 +155,9 @@ func TestProjectToolCalls_NoProjection(t *testing.T) {
 // TestProjectionSizeReduction tests that projection reduces output size by ≥70%
 func TestProjectionSizeReduction(t *testing.T) {
 	// Generate 100 ToolCalls with realistic data
-	tools := make([]parser.ToolCall, 100)
+	tools := make([]types.ToolCall, 100)
 	for i := 0; i < 100; i++ {
-		tools[i] = parser.ToolCall{
+		tools[i] = types.ToolCall{
 			UUID:     "00000000-0000-0000-0000-000000000000",
 			ToolName: "Bash",
 			Input: map[string]interface{}{
@@ -284,7 +284,7 @@ func trimSpace(s string) string {
 
 // TestProjectToolCalls_InvalidFields tests handling of non-existent fields
 func TestProjectToolCalls_InvalidFields(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{
 			UUID:     "uuid-1",
 			ToolName: "Bash",

@@ -3,12 +3,12 @@ package analyzer
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestCalculateStats_BasicCounts(t *testing.T) {
 	// 准备测试数据
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{
 			Type:      "user",
 			UUID:      "uuid-1",
@@ -26,7 +26,7 @@ func TestCalculateStats_BasicCounts(t *testing.T) {
 		},
 	}
 
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-t1", ToolName: "Grep", Status: "success"},
 		{UUID: "uuid-t2", ToolName: "Read", Status: "success"},
 		{UUID: "uuid-t3", ToolName: "Grep", Status: "error", Error: "pattern error"},
@@ -57,7 +57,7 @@ func TestCalculateStats_BasicCounts(t *testing.T) {
 }
 
 func TestCalculateStats_Duration(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{
 			Type:      "user",
 			UUID:      "uuid-1",
@@ -70,7 +70,7 @@ func TestCalculateStats_Duration(t *testing.T) {
 		},
 	}
 
-	stats := CalculateStats(entries, []parser.ToolCall{})
+	stats := CalculateStats(entries, []types.ToolCall{})
 
 	// 会话时长应为 5 分 30 秒 = 330 秒
 	expectedDuration := int64(330)
@@ -80,7 +80,7 @@ func TestCalculateStats_Duration(t *testing.T) {
 }
 
 func TestCalculateStats_ToolFrequency(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Grep"},
 		{UUID: "uuid-2", ToolName: "Read"},
 		{UUID: "uuid-3", ToolName: "Grep"},
@@ -88,7 +88,7 @@ func TestCalculateStats_ToolFrequency(t *testing.T) {
 		{UUID: "uuid-5", ToolName: "Bash"},
 	}
 
-	stats := CalculateStats([]parser.SessionEntry{}, toolCalls)
+	stats := CalculateStats([]types.SessionEntry{}, toolCalls)
 
 	// 验证工具频率统计
 	if stats.ToolFrequency["Grep"] != 3 {
@@ -105,14 +105,14 @@ func TestCalculateStats_ToolFrequency(t *testing.T) {
 }
 
 func TestCalculateStats_ErrorRate(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Grep", Status: "success"},
 		{UUID: "uuid-2", ToolName: "Read", Status: "error", Error: "file not found"},
 		{UUID: "uuid-3", ToolName: "Bash", Status: "error", Error: "command failed"},
 		{UUID: "uuid-4", ToolName: "Grep", Status: "success"},
 	}
 
-	stats := CalculateStats([]parser.SessionEntry{}, toolCalls)
+	stats := CalculateStats([]types.SessionEntry{}, toolCalls)
 
 	// 错误率应为 2/4 = 50%
 	expectedErrorRate := 50.0
@@ -122,7 +122,7 @@ func TestCalculateStats_ErrorRate(t *testing.T) {
 }
 
 func TestCalculateStats_EmptyData(t *testing.T) {
-	stats := CalculateStats([]parser.SessionEntry{}, []parser.ToolCall{})
+	stats := CalculateStats([]types.SessionEntry{}, []types.ToolCall{})
 
 	if stats.TurnCount != 0 {
 		t.Errorf("Expected TurnCount 0 for empty data, got %d", stats.TurnCount)
@@ -138,7 +138,7 @@ func TestCalculateStats_EmptyData(t *testing.T) {
 }
 
 func TestCalculateStats_SingleEntry(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{
 			Type:      "user",
 			UUID:      "uuid-1",
@@ -146,7 +146,7 @@ func TestCalculateStats_SingleEntry(t *testing.T) {
 		},
 	}
 
-	stats := CalculateStats(entries, []parser.ToolCall{})
+	stats := CalculateStats(entries, []types.ToolCall{})
 
 	// 单个条目，时长应为 0
 	if stats.DurationSeconds != 0 {
@@ -155,7 +155,7 @@ func TestCalculateStats_SingleEntry(t *testing.T) {
 }
 
 func TestCalculateStats_TopTools(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Grep"},
 		{UUID: "uuid-2", ToolName: "Read"},
 		{UUID: "uuid-3", ToolName: "Grep"},
@@ -164,7 +164,7 @@ func TestCalculateStats_TopTools(t *testing.T) {
 		{UUID: "uuid-6", ToolName: "Write"},
 	}
 
-	stats := CalculateStats([]parser.SessionEntry{}, toolCalls)
+	stats := CalculateStats([]types.SessionEntry{}, toolCalls)
 
 	// 验证 TopTools（前 3 名）
 	if len(stats.TopTools) < 3 {

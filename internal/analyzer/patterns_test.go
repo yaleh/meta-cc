@@ -3,16 +3,16 @@ package analyzer
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestDetectErrorPatterns_NoErrors(t *testing.T) {
 	// 无错误的会话应返回空模式列表
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{UUID: "uuid-1", Timestamp: "2025-10-02T10:00:00.000Z"},
 		{UUID: "uuid-2", Timestamp: "2025-10-02T10:01:00.000Z"},
 	}
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Grep", Status: "success"},
 		{UUID: "uuid-2", ToolName: "Read", Status: "success"},
 	}
@@ -26,10 +26,10 @@ func TestDetectErrorPatterns_NoErrors(t *testing.T) {
 
 func TestDetectErrorPatterns_SingleError(t *testing.T) {
 	// 单个错误（出现 1 次）不应形成模式
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{UUID: "uuid-1", Timestamp: "2025-10-02T10:00:00.000Z"},
 	}
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Bash", Status: "error", Error: "command not found"},
 	}
 
@@ -42,14 +42,14 @@ func TestDetectErrorPatterns_SingleError(t *testing.T) {
 
 func TestDetectErrorPatterns_RepeatedError(t *testing.T) {
 	// 重复 3 次的错误应形成模式
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{UUID: "uuid-1", Timestamp: "2025-10-02T10:00:00.000Z"},
 		{UUID: "uuid-2", Timestamp: "2025-10-02T10:01:00.000Z"},
 		{UUID: "uuid-3", Timestamp: "2025-10-02T10:02:00.000Z"},
 		{UUID: "uuid-4", Timestamp: "2025-10-02T10:03:00.000Z"},
 		{UUID: "uuid-5", Timestamp: "2025-10-02T10:05:00.000Z"},
 	}
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Bash", Status: "error", Error: "command not found: xyz"},
 		{UUID: "uuid-2", ToolName: "Grep", Status: "success"},
 		{UUID: "uuid-3", ToolName: "Bash", Status: "error", Error: "command not found: xyz"},
@@ -92,7 +92,7 @@ func TestDetectErrorPatterns_RepeatedError(t *testing.T) {
 
 func TestDetectErrorPatterns_MultiplePatterns(t *testing.T) {
 	// 测试多个不同的错误模式
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{UUID: "uuid-1", Timestamp: "2025-10-02T10:00:00.000Z"},
 		{UUID: "uuid-2", Timestamp: "2025-10-02T10:01:00.000Z"},
 		{UUID: "uuid-3", Timestamp: "2025-10-02T10:02:00.000Z"},
@@ -102,7 +102,7 @@ func TestDetectErrorPatterns_MultiplePatterns(t *testing.T) {
 		{UUID: "uuid-7", Timestamp: "2025-10-02T10:06:00.000Z"},
 		{UUID: "uuid-8", Timestamp: "2025-10-02T10:07:00.000Z"},
 	}
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		// Pattern 1: Bash command not found (3 次)
 		{UUID: "uuid-1", ToolName: "Bash", Status: "error", Error: "command not found: xyz"},
 		{UUID: "uuid-2", ToolName: "Bash", Status: "error", Error: "command not found: xyz"},
@@ -132,12 +132,12 @@ func TestDetectErrorPatterns_MultiplePatterns(t *testing.T) {
 
 func TestDetectErrorPatterns_TimeSpanCalculation(t *testing.T) {
 	// 测试时间跨度计算
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{UUID: "uuid-1", Timestamp: "2025-10-02T10:00:00.000Z"},
 		{UUID: "uuid-2", Timestamp: "2025-10-02T10:05:30.000Z"},
 		{UUID: "uuid-3", Timestamp: "2025-10-02T10:08:00.000Z"},
 	}
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Bash", Status: "error", Error: "error"},
 		{UUID: "uuid-2", ToolName: "Bash", Status: "error", Error: "error"},
 		{UUID: "uuid-3", ToolName: "Bash", Status: "error", Error: "error"},
@@ -158,14 +158,14 @@ func TestDetectErrorPatterns_TimeSpanCalculation(t *testing.T) {
 
 func TestDetectErrorPatterns_TurnIndices(t *testing.T) {
 	// 测试 Turn 索引计算
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{UUID: "uuid-1", Timestamp: "2025-10-02T10:00:00.000Z"},
 		{UUID: "uuid-2", Timestamp: "2025-10-02T10:01:00.000Z"},
 		{UUID: "uuid-3", Timestamp: "2025-10-02T10:02:00.000Z"},
 		{UUID: "uuid-4", Timestamp: "2025-10-02T10:03:00.000Z"},
 		{UUID: "uuid-5", Timestamp: "2025-10-02T10:04:00.000Z"},
 	}
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Bash", Status: "error", Error: "error"},
 		{UUID: "uuid-3", ToolName: "Bash", Status: "error", Error: "error"},
 		{UUID: "uuid-5", ToolName: "Bash", Status: "error", Error: "error"},
@@ -192,14 +192,14 @@ func TestDetectErrorPatterns_TurnIndices(t *testing.T) {
 
 func TestDetectErrorPatterns_ExampleOutput(t *testing.T) {
 	// 演示完整的错误模式检测
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{UUID: "uuid-1", Timestamp: "2025-10-02T10:00:00.000Z"},
 		{UUID: "uuid-2", Timestamp: "2025-10-02T10:02:30.000Z"},
 		{UUID: "uuid-3", Timestamp: "2025-10-02T10:05:00.000Z"},
 		{UUID: "uuid-4", Timestamp: "2025-10-02T10:07:00.000Z"},
 		{UUID: "uuid-5", Timestamp: "2025-10-02T10:10:00.000Z"},
 	}
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{UUID: "uuid-1", ToolName: "Bash", Status: "error", Error: "command not found: make"},
 		{UUID: "uuid-2", ToolName: "Bash", Status: "error", Error: "command not found: make"},
 		{UUID: "uuid-3", ToolName: "Read", Status: "error", Error: "file not found: /tmp/config.yml"},

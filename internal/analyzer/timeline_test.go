@@ -6,11 +6,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
-func makeEntryTyped(uuid, timestamp, entryType string) parser.SessionEntry {
-	return parser.SessionEntry{
+func makeEntryTyped(uuid, timestamp, entryType string) types.SessionEntry {
+	return types.SessionEntry{
 		Type:      entryType,
 		UUID:      uuid,
 		Timestamp: timestamp,
@@ -18,7 +18,7 @@ func makeEntryTyped(uuid, timestamp, entryType string) parser.SessionEntry {
 }
 
 func TestGetTimeline_SortedByTimestamp(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeEntryTyped("c", "2025-10-02T10:00:02.000Z", "assistant"),
 		makeEntryTyped("a", "2025-10-02T10:00:00.000Z", "user"),
 		makeEntryTyped("b", "2025-10-02T10:00:01.000Z", "assistant"),
@@ -36,7 +36,7 @@ func TestGetTimeline_SortedByTimestamp(t *testing.T) {
 }
 
 func TestGetTimeline_MergesConsecutiveSameType(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeEntryTyped("u1", "2025-10-02T10:00:00.000Z", "user"),
 		makeEntryTyped("u2", "2025-10-02T10:00:01.000Z", "user"),
 		makeEntryTyped("u3", "2025-10-02T10:00:02.000Z", "user"),
@@ -52,7 +52,7 @@ func TestGetTimeline_MergesConsecutiveSameType(t *testing.T) {
 }
 
 func TestGetTimeline_EventFields(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeEntryTyped("u1", "2025-10-02T10:00:00.000Z", "user"),
 		makeEntryTyped("a1", "2025-10-02T10:00:01.000Z", "assistant"),
 	}
@@ -71,7 +71,7 @@ func TestGetTimeline_EventFields(t *testing.T) {
 }
 
 func TestGetTimeline_LimitParameter(t *testing.T) {
-	var entries []parser.SessionEntry
+	var entries []types.SessionEntry
 	for i := 0; i < 10; i++ {
 		ts := "2025-10-02T10:00:00.000Z"
 		entries = append(entries, makeEntryTyped("u", ts, "user"))
@@ -86,7 +86,7 @@ func TestGetTimeline_LimitParameter(t *testing.T) {
 }
 
 func TestGetTimeline_EmptySession(t *testing.T) {
-	result, err := GetTimeline([]parser.SessionEntry{}, 0)
+	result, err := GetTimeline([]types.SessionEntry{}, 0)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -96,7 +96,7 @@ func TestGetTimeline_EmptySession(t *testing.T) {
 
 func TestGetTimeline_TruncationFields(t *testing.T) {
 	// Create alternating user/assistant entries — they can't merge, so each becomes its own event.
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeEntryTyped("u1", "2025-10-02T10:00:00.000Z", "user"),
 		makeEntryTyped("a1", "2025-10-02T10:00:01.000Z", "assistant"),
 		makeEntryTyped("u2", "2025-10-02T10:00:02.000Z", "user"),
@@ -114,7 +114,7 @@ func TestGetTimeline_TruncationFields(t *testing.T) {
 }
 
 func TestGetTimeline_NoTruncationWhenUnderLimit(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeEntryTyped("u1", "2025-10-02T10:00:00.000Z", "user"),
 		makeEntryTyped("a1", "2025-10-02T10:00:01.000Z", "assistant"),
 	}
@@ -126,7 +126,7 @@ func TestGetTimeline_NoTruncationWhenUnderLimit(t *testing.T) {
 }
 
 func TestGetTimelineStats_Basic(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeEntryTyped("u1", "2025-10-02T10:00:00.000Z", "user"),
 		makeEntryTyped("a1", "2025-10-02T10:00:01.000Z", "assistant"),
 		makeEntryTyped("u2", "2025-10-02T10:00:02.000Z", "user"),
@@ -145,14 +145,14 @@ func TestGetTimelineStats_Basic(t *testing.T) {
 }
 
 func TestGetTimeline_DataSource(t *testing.T) {
-	result, err := GetTimeline([]parser.SessionEntry{}, 0)
+	result, err := GetTimeline([]types.SessionEntry{}, 0)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, DataSourceMeasured, result.DataSource, "TimelineResult.DataSource should be measured")
 }
 
 func TestGetTimelineStats_Empty(t *testing.T) {
-	stats := GetTimelineStats([]parser.SessionEntry{})
+	stats := GetTimelineStats([]types.SessionEntry{})
 	require.NotNil(t, stats)
 	assert.Equal(t, 0, stats.TotalEntries)
 	assert.NotNil(t, stats.EventTypeCounts)

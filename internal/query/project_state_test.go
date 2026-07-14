@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestBuildProjectState(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{Type: "file-history-snapshot", UUID: "snapshot"},
 		{Type: "assistant", UUID: "1", Timestamp: "2025-10-02T10:00:00Z", Message: &parser.Message{Role: "assistant", Content: []parser.ContentBlock{{Type: "tool_use", ToolUse: &parser.ToolUse{Name: "Read", Input: map[string]interface{}{"file_path": "/tmp/file.txt"}}}}}},
 		{Type: "assistant", UUID: "3", Message: &parser.Message{Role: "assistant", Content: []parser.ContentBlock{{Type: "text", Text: "Completed task"}}}},

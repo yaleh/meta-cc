@@ -6,14 +6,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
-// makeToolCallsSlice builds a []parser.ToolCall with the given statuses and tool names.
-func makeToolCallsSlice(specs []struct{ tool, status, errMsg string }) []parser.ToolCall {
-	calls := make([]parser.ToolCall, len(specs))
+// makeToolCallsSlice builds a []types.ToolCall with the given statuses and tool names.
+func makeToolCallsSlice(specs []struct{ tool, status, errMsg string }) []types.ToolCall {
+	calls := make([]types.ToolCall, len(specs))
 	for i, s := range specs {
-		calls[i] = parser.ToolCall{
+		calls[i] = types.ToolCall{
 			UUID:      "uuid-" + s.tool,
 			ToolName:  s.tool,
 			Status:    s.status,
@@ -154,7 +154,7 @@ func TestQualityScan_CompletionRate(t *testing.T) {
 }
 
 func TestQualityScan_DataSource(t *testing.T) {
-	result, err := QualityScan(nil, []parser.ToolCall{})
+	result, err := QualityScan(nil, []types.ToolCall{})
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, DataSourceMeasured, result.DataSource, "QualityScanResult.DataSource should be measured")

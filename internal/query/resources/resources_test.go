@@ -9,18 +9,18 @@ import (
 )
 
 type mockLoader struct {
-	entries   []parser.SessionEntry
-	toolCalls []parser.ToolCall
+	entries   []types.SessionEntry
+	toolCalls []types.ToolCall
 	turnIndex map[string]int
 }
 
-func (m *mockLoader) Entries() []parser.SessionEntry      { return m.entries }
-func (m *mockLoader) ExtractToolCalls() []parser.ToolCall { return m.toolCalls }
-func (m *mockLoader) BuildTurnIndex() map[string]int      { return m.turnIndex }
+func (m *mockLoader) Entries() []types.SessionEntry      { return m.entries }
+func (m *mockLoader) ExtractToolCalls() []types.ToolCall { return m.toolCalls }
+func (m *mockLoader) BuildTurnIndex() map[string]int     { return m.turnIndex }
 
 func TestRunToolsQuery_InResourcesPackage(t *testing.T) {
 	loader := &mockLoader{
-		toolCalls: []parser.ToolCall{
+		toolCalls: []types.ToolCall{
 			{ToolName: "Bash", Status: "success", Timestamp: "2025-10-02T10:00:00.000Z"},
 			{ToolName: "Read", Status: "error", Error: "file not found", Timestamp: "2025-10-02T10:01:00.000Z"},
 		},
@@ -36,7 +36,7 @@ func TestRunToolsQuery_InResourcesPackage(t *testing.T) {
 
 func TestRunToolsQuery_FilterByStatus(t *testing.T) {
 	loader := &mockLoader{
-		toolCalls: []parser.ToolCall{
+		toolCalls: []types.ToolCall{
 			{ToolName: "Bash", Status: "success", Timestamp: "2025-10-02T10:00:00.000Z"},
 			{ToolName: "Read", Status: "error", Error: "file not found", Timestamp: "2025-10-02T10:01:00.000Z"},
 		},
@@ -55,7 +55,7 @@ func TestRunToolsQuery_FilterByStatus(t *testing.T) {
 
 func TestRunToolsQuery_WhereLike(t *testing.T) {
 	loader := &mockLoader{
-		toolCalls: []parser.ToolCall{
+		toolCalls: []types.ToolCall{
 			{ToolName: "meta-cc-run", UUID: "tool-1", Timestamp: "2025-10-02T10:00:00.000Z"},
 			{ToolName: "Bash", UUID: "tool-2", Timestamp: "2025-10-02T10:01:00.000Z"},
 		},
@@ -72,8 +72,8 @@ func TestRunToolsQuery_WhereLike(t *testing.T) {
 	}
 }
 
-func makeTextEntry(uuid, role, text, timestamp string) parser.SessionEntry {
-	return parser.SessionEntry{
+func makeTextEntry(uuid, role, text, timestamp string) types.SessionEntry {
+	return types.SessionEntry{
 		Type:      role,
 		UUID:      uuid,
 		Timestamp: timestamp,
@@ -85,7 +85,7 @@ func makeTextEntry(uuid, role, text, timestamp string) parser.SessionEntry {
 }
 
 func TestRunUserMessagesQuery_InResourcesPackage(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeTextEntry("uuid-1", "user", "Fix the bug", "2025-10-02T10:00:00.000Z"),
 		makeTextEntry("uuid-2", "assistant", "Sure, I will fix it", "2025-10-02T10:01:00.000Z"),
 	}
@@ -110,7 +110,7 @@ func TestRunUserMessagesQuery_InResourcesPackage(t *testing.T) {
 }
 
 func TestRunUserMessagesQuery_PatternFilter(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeTextEntry("uuid-1", "user", "Fix the bug", "2025-10-02T10:00:00.000Z"),
 		makeTextEntry("uuid-2", "user", "Add new feature", "2025-10-02T10:01:00.000Z"),
 	}
@@ -132,7 +132,7 @@ func TestRunUserMessagesQuery_PatternFilter(t *testing.T) {
 }
 
 func TestRunUserMessagesQuery_Context(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		makeTextEntry("uuid-1", "user", "Fix bug in parser", "2025-10-02T10:00:00.000Z"),
 		makeTextEntry("uuid-2", "assistant", "Sure", "2025-10-02T10:00:10.000Z"),
 		makeTextEntry("uuid-3", "user", "Add new feature", "2025-10-02T10:01:00.000Z"),

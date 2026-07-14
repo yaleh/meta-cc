@@ -3,21 +3,21 @@ package query
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 // mockSessionLoader is a test double implementing SessionLoader.
 type mockSessionLoader struct {
-	entries   []parser.SessionEntry
-	toolCalls []parser.ToolCall
+	entries   []types.SessionEntry
+	toolCalls []types.ToolCall
 	turnIndex map[string]int
 }
 
-func (m *mockSessionLoader) Entries() []parser.SessionEntry {
+func (m *mockSessionLoader) Entries() []types.SessionEntry {
 	return m.entries
 }
 
-func (m *mockSessionLoader) ExtractToolCalls() []parser.ToolCall {
+func (m *mockSessionLoader) ExtractToolCalls() []types.ToolCall {
 	return m.toolCalls
 }
 
@@ -27,7 +27,7 @@ func (m *mockSessionLoader) BuildTurnIndex() map[string]int {
 
 func TestRunToolsQuery_FiltersAndPagination(t *testing.T) {
 	loader := &mockSessionLoader{
-		toolCalls: []parser.ToolCall{
+		toolCalls: []types.ToolCall{
 			{ToolName: "Grep", UUID: "tool-1", Timestamp: "2025-10-02T10:00:00.000Z"},
 			{ToolName: "Read", UUID: "tool-2", Timestamp: "2025-10-02T10:02:00.000Z", Status: "error", Error: "file not found"},
 		},
@@ -54,7 +54,7 @@ func TestRunToolsQuery_FiltersAndPagination(t *testing.T) {
 
 func TestRunToolsQuery_FilterByToolName(t *testing.T) {
 	loader := &mockSessionLoader{
-		toolCalls: []parser.ToolCall{
+		toolCalls: []types.ToolCall{
 			{ToolName: "Bash", UUID: "tool-1", Timestamp: "2025-10-02T10:00:00.000Z"},
 			{ToolName: "Read", UUID: "tool-2", Timestamp: "2025-10-02T10:01:00.000Z"},
 		},
@@ -80,7 +80,7 @@ func TestRunToolsQuery_FilterByToolName(t *testing.T) {
 
 func TestRunToolsQuery_WhereLike(t *testing.T) {
 	loader := &mockSessionLoader{
-		toolCalls: []parser.ToolCall{
+		toolCalls: []types.ToolCall{
 			{ToolName: "meta-cc-run", UUID: "tool-1", Timestamp: "2025-10-02T10:00:00.000Z"},
 		},
 	}

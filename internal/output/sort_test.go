@@ -4,12 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 // Helper function to create test ToolCall with specific timestamp
-func createToolCall(uuid string, timestamp time.Time, toolName string) parser.ToolCall {
-	return parser.ToolCall{
+func createToolCall(uuid string, timestamp time.Time, toolName string) types.ToolCall {
+	return types.ToolCall{
 		UUID:      uuid,
 		Timestamp: timestamp.Format(time.RFC3339Nano),
 		ToolName:  toolName,
@@ -20,7 +20,7 @@ func createToolCall(uuid string, timestamp time.Time, toolName string) parser.To
 // TestSortByTimestamp_BasicOrdering tests basic timestamp sorting
 func TestSortByTimestamp_BasicOrdering(t *testing.T) {
 	now := time.Now()
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		createToolCall("c", now.Add(2*time.Hour), "Edit"),
 		createToolCall("a", now, "Bash"),
 		createToolCall("b", now.Add(1*time.Hour), "Read"),
@@ -43,7 +43,7 @@ func TestSortByTimestamp_BasicOrdering(t *testing.T) {
 // TestSortByTimestamp_Idempotency tests that sorting twice produces same result
 func TestSortByTimestamp_Idempotency(t *testing.T) {
 	now := time.Now()
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		createToolCall("d", now.Add(3*time.Hour), "Write"),
 		createToolCall("a", now, "Bash"),
 		createToolCall("c", now.Add(2*time.Hour), "Edit"),
@@ -79,7 +79,7 @@ func TestSortByTimestamp_Stability(t *testing.T) {
 	sameTime := now.Format(time.RFC3339Nano)
 
 	// Three tools with same timestamp but different UUIDs
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		{UUID: "third", Timestamp: sameTime, ToolName: "Bash"},
 		{UUID: "first", Timestamp: sameTime, ToolName: "Read"},
 		{UUID: "second", Timestamp: sameTime, ToolName: "Edit"},
@@ -97,7 +97,7 @@ func TestSortByTimestamp_Stability(t *testing.T) {
 
 // TestSortByTimestamp_EmptySlice tests handling of empty slice
 func TestSortByTimestamp_EmptySlice(t *testing.T) {
-	tools := []parser.ToolCall{}
+	tools := []types.ToolCall{}
 
 	// Should not panic
 	SortByTimestamp(tools)
@@ -109,7 +109,7 @@ func TestSortByTimestamp_EmptySlice(t *testing.T) {
 
 // TestSortByTimestamp_SingleElement tests handling of single element
 func TestSortByTimestamp_SingleElement(t *testing.T) {
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		createToolCall("only", time.Now(), "Bash"),
 	}
 
@@ -123,7 +123,7 @@ func TestSortByTimestamp_SingleElement(t *testing.T) {
 // TestSortByUUID_BasicOrdering tests basic UUID sorting
 func TestSortByUUID_BasicOrdering(t *testing.T) {
 	now := time.Now()
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		createToolCall("charlie", now, "Edit"),
 		createToolCall("alice", now, "Bash"),
 		createToolCall("bob", now, "Read"),
@@ -146,7 +146,7 @@ func TestSortByUUID_BasicOrdering(t *testing.T) {
 // TestSortByUUID_Idempotency tests UUID sorting idempotency
 func TestSortByUUID_Idempotency(t *testing.T) {
 	now := time.Now()
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		createToolCall("zulu", now, "Write"),
 		createToolCall("alpha", now, "Bash"),
 		createToolCall("bravo", now, "Read"),
@@ -171,7 +171,7 @@ func TestSortByUUID_Idempotency(t *testing.T) {
 // TestDefaultSort_UsesTimestamp tests that DefaultSort uses timestamp
 func TestDefaultSort_UsesTimestamp(t *testing.T) {
 	now := time.Now()
-	tools := []parser.ToolCall{
+	tools := []types.ToolCall{
 		createToolCall("c", now.Add(2*time.Hour), "Edit"),
 		createToolCall("a", now, "Bash"),
 		createToolCall("b", now.Add(1*time.Hour), "Read"),
@@ -189,7 +189,7 @@ func TestDefaultSort_UsesTimestamp(t *testing.T) {
 // TestSortByTimestamp_LargeDataset tests performance with larger dataset
 func TestSortByTimestamp_LargeDataset(t *testing.T) {
 	const size = 1000
-	tools := make([]parser.ToolCall, size)
+	tools := make([]types.ToolCall, size)
 
 	baseTime := time.Now()
 	// Create tools in reverse chronological order
@@ -217,8 +217,8 @@ func TestSortByTimestamp_Determinism(t *testing.T) {
 	now := time.Now()
 
 	// Create two identical slices
-	createSlice := func() []parser.ToolCall {
-		return []parser.ToolCall{
+	createSlice := func() []types.ToolCall {
+		return []types.ToolCall{
 			createToolCall("e", now.Add(4*time.Hour), "Write"),
 			createToolCall("c", now.Add(2*time.Hour), "Edit"),
 			createToolCall("a", now, "Bash"),
@@ -267,7 +267,7 @@ func BenchmarkSortByTimestamp_10000(b *testing.B) {
 
 func benchmarkSortByTimestamp(b *testing.B, size int) {
 	baseTime := time.Now()
-	tools := make([]parser.ToolCall, size)
+	tools := make([]types.ToolCall, size)
 
 	// Create tools in random order
 	for i := 0; i < size; i++ {
@@ -281,7 +281,7 @@ func benchmarkSortByTimestamp(b *testing.B, size int) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Create a copy to sort (to avoid sorting already-sorted data)
-		testTools := make([]parser.ToolCall, len(tools))
+		testTools := make([]types.ToolCall, len(tools))
 		copy(testTools, tools)
 		SortByTimestamp(testTools)
 	}

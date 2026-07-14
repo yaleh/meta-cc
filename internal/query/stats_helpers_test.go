@@ -3,15 +3,15 @@ package query
 import (
 	"testing"
 
-	"github.com/yaleh/meta-cc/internal/parser"
+	"github.com/yaleh/meta-cc/internal/types"
 )
 
 func TestBuildSessionStats(t *testing.T) {
-	entries := []parser.SessionEntry{
+	entries := []types.SessionEntry{
 		{Type: "user", Timestamp: "2025-10-02T10:00:00Z"},
 		{Type: "assistant", Timestamp: "2025-10-02T10:01:00Z"},
 	}
-	toolCalls := []parser.ToolCall{{ToolName: "Bash"}}
+	toolCalls := []types.ToolCall{{ToolName: "Bash"}}
 
 	stats := BuildSessionStats(entries, toolCalls)
 	if stats.TurnCount != 2 {
@@ -23,7 +23,7 @@ func TestBuildSessionStats(t *testing.T) {
 }
 
 func TestAnalyzeTimeSeries(t *testing.T) {
-	toolCalls := []parser.ToolCall{
+	toolCalls := []types.ToolCall{
 		{ToolName: "Bash", Status: "success", Timestamp: "2025-10-02T10:00:00Z"},
 		{ToolName: "Edit", Status: "error", Timestamp: "2025-10-02T10:05:00Z"},
 	}
