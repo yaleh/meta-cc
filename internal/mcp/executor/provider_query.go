@@ -16,13 +16,13 @@ import (
 	providerrecords "github.com/yaleh/meta-cc/internal/provider/records"
 )
 
-func (e *ToolExecutor) ExecuteQueryForProvider(providerName, scope, jqFilter string, limit int, workingDir string) (mcquery.QueryResult, error) {
-	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, mcquery.ParsedTimeRange{})
+func (e *ToolExecutor) ExecuteQueryForProvider(providerName, scope, jqFilter string, limit int, workingDir string, includeSubagents ...bool) (mcquery.QueryResult, error) {
+	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, mcquery.ParsedTimeRange{}, includeSubagents...)
 }
 
-func (e *ToolExecutor) ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter string, limit int, workingDir string, tr mcquery.ParsedTimeRange) (mcquery.QueryResult, error) {
+func (e *ToolExecutor) ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter string, limit int, workingDir string, tr mcquery.ParsedTimeRange, includeSubagents ...bool) (mcquery.QueryResult, error) {
 	if providerName == "" || providerName == "claude" {
-		return e.ExecuteQueryWithTimeRange(scope, jqFilter, limit, workingDir, tr)
+		return e.ExecuteQueryWithTimeRange(scope, jqFilter, limit, workingDir, tr, includeSubagents...)
 	}
 
 	projectPath := workingDir

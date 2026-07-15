@@ -301,6 +301,146 @@ func TestGetSessionDirectory_JSON(t *testing.T) {
 	assert.Equal(t, float64(1), decoded["file_count"]) // JSON unmarshals numbers as float64
 }
 
+// TestHandleGetSessionDirectory_SubagentFileCount tests that the response includes
+// a subagent_file_count field.
+func TestHandleGetSessionDirectory_SubagentFileCount(t *testing.T) {
+	// Save original working directory
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Chdir(originalWd))
+	}()
+
+	// Create temp directory as mock Claude projects root
+	projectsRoot := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
+
+	// Create temp directory as project path
+	projectPath := t.TempDir()
+	require.NoError(t, os.Chdir(projectPath))
+
+	resolvedPath, err2 := filepath.EvalSymlinks(projectPath)
+	if err2 != nil {
+		resolvedPath = projectPath
+	}
+	projectHash := pathToHash(resolvedPath)
+
+	sessionDir := filepath.Join(projectsRoot, projectHash)
+	require.NoError(t, os.MkdirAll(sessionDir, 0755))
+
+	// Create a top-level session file (UUID = "session1")
+	sessionUUID := "session1"
+	sessionFile := filepath.Join(sessionDir, sessionUUID+".jsonl")
+	require.NoError(t, os.WriteFile(sessionFile, []byte(`{"type":"user"}`+"\n"), 0644))
+
+	// Create subagent files under <uuid>/subagents/
+	subDir := filepath.Join(sessionDir, sessionUUID, "subagents")
+	require.NoError(t, os.MkdirAll(subDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub1.jsonl"), []byte(`{"type":"user"}`+"\n"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub2.jsonl"), []byte(`{"type":"user"}`+"\n"), 0644))
+
+	args := map[string]interface{}{
+		"scope": "project",
+	}
+
+	result, err := handleGetSessionDirectory(context.Background(), args)
+	require.NoError(t, err)
+
+	resultMap, ok := result.(map[string]interface{})
+	require.True(t, ok, "result should be a map")
+
+	// Verify subagent_file_count is present and correct
+	subCount, ok := resultMap["subagent_file_count"]
+	require.True(t, ok, "result should contain subagent_file_count field")
+	assert.Equal(t, 2, subCount, "expected 2 subagent files")
+
+	// file_count should only count top-level files
+	assert.Equal(t, 1, resultMap["file_count"], "file_count should be 1 (top-level only)")
+}
+
+// TestHandleGetSessionDirectory_SubagentFileCount_WithSubagents creates dirs with
+// subagents and confirms subagent_file_count > 0.
+func TestHandleGetSessionDirectory_SubagentFileCount_WithSubagents(t *testing.T) {
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Chdir(originalWd))
+	}()
+
+	projectsRoot := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
+
+	projectPath := t.TempDir()
+	require.NoError(t, os.Chdir(projectPath))
+
+	resolvedPath, err2 := filepath.EvalSymlinks(projectPath)
+	if err2 != nil {
+		resolvedPath = projectPath
+	}
+	projectHash := pathToHash(resolvedPath)
+
+	sessionDir := filepath.Join(projectsRoot, projectHash)
+	require.NoError(t, os.MkdirAll(sessionDir, 0755))
+
+	// Top-level session
+	require.NoError(t, os.WriteFile(filepath.Join(sessionDir, "main.jsonl"),
+		[]byte(`{"type":"user"}`+"\n"), 0644))
+
+	// Subagent files
+	subDir := filepath.Join(sessionDir, "main", "subagents")
+	require.NoError(t, os.MkdirAll(subDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "agent.jsonl"),
+		[]byte(`{"type":"user"}`+"\n"), 0644))
+
+	result, err := handleGetSessionDirectory(context.Background(), map[string]interface{}{"scope": "project"})
+	require.NoError(t, err)
+
+	resultMap := result.(map[string]interface{})
+	subCount, ok := resultMap["subagent_file_count"]
+	require.True(t, ok, "subagent_file_count field must be present")
+
+	subCountInt, ok := subCount.(int)
+	require.True(t, ok, "subagent_file_count must be an int")
+	assert.Greater(t, subCountInt, 0, "expected subagent_file_count > 0")
+}
+
+// TestHandleGetSessionDirectory_SubagentFileCount_NoSubagents confirms subagent_file_count==0
+// when no subagent directories exist.
+func TestHandleGetSessionDirectory_SubagentFileCount_NoSubagents(t *testing.T) {
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Chdir(originalWd))
+	}()
+
+	projectsRoot := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
+
+	projectPath := t.TempDir()
+	require.NoError(t, os.Chdir(projectPath))
+
+	resolvedPath, err2 := filepath.EvalSymlinks(projectPath)
+	if err2 != nil {
+		resolvedPath = projectPath
+	}
+	projectHash := pathToHash(resolvedPath)
+
+	sessionDir := filepath.Join(projectsRoot, projectHash)
+	require.NoError(t, os.MkdirAll(sessionDir, 0755))
+
+	// Only top-level session files, no subagent subdirs
+	require.NoError(t, os.WriteFile(filepath.Join(sessionDir, "session.jsonl"),
+		[]byte(`{"type":"user"}`+"\n"), 0644))
+
+	result, err := handleGetSessionDirectory(context.Background(), map[string]interface{}{"scope": "project"})
+	require.NoError(t, err)
+
+	resultMap := result.(map[string]interface{})
+	subCount, ok := resultMap["subagent_file_count"]
+	require.True(t, ok, "subagent_file_count field must be present")
+	assert.Equal(t, 0, subCount, "expected subagent_file_count == 0 when no subagent dirs exist")
+}
+
 // TestCountLines_LargeImageLine_NoError verifies that countLines handles lines
 // larger than 10MB (e.g. base64 image data) without error and returns correct count.
 func TestCountLines_LargeImageLine_NoError(t *testing.T) {

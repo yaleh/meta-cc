@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -96,5 +97,75 @@ func TestHandleExecuteStage2Query_TransformValidField_EmptyWarnings(t *testing.T
 
 	if len(warnings) != 0 {
 		t.Errorf("expected empty warnings for valid transform, got: %v", warnings)
+	}
+}
+
+// TestHandleGetSessionMetadata_SessionScope_SingleFile verifies that HandleGetSessionMetadata
+// with scope=session returns metadata for exactly the single current session file.
+func TestHandleGetSessionMetadata_SessionScope_SingleFile(t *testing.T) {
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalWd); err != nil {
+			t.Errorf("failed to restore cwd: %v", err)
+		}
+	}()
+
+	// Set up a fake project session directory
+	projectsRoot := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
+
+	projectPath := t.TempDir()
+	if err := os.Chdir(projectPath); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	resolvedPath, err := filepath.EvalSymlinks(projectPath)
+	if err != nil {
+		resolvedPath = projectPath
+	}
+	// Compute project hash
+	h := strings.ReplaceAll(resolvedPath, "\\", "-")
+	h = strings.ReplaceAll(h, "/", "-")
+	h = strings.ReplaceAll(h, ":", "-")
+
+	sessionDir := filepath.Join(projectsRoot, h)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
+
+	// Create two session files so project scope would return 2
+	f1 := filepath.Join(sessionDir, "sess1.jsonl")
+	f2 := filepath.Join(sessionDir, "sess2.jsonl")
+	if err := os.WriteFile(f1, []byte(`{"type":"user"}`+"\n"), 0644); err != nil {
+		t.Fatalf("failed to write sess1: %v", err)
+	}
+	if err := os.WriteFile(f2, []byte(`{"type":"user"}`+"\n"), 0644); err != nil {
+		t.Fatalf("failed to write sess2: %v", err)
+	}
+
+	args := map[string]interface{}{
+		"scope": "session",
+	}
+
+	result, err := HandleGetSessionMetadata(context.Background(), args)
+	if err != nil {
+		t.Fatalf("HandleGetSessionMetadata failed: %v", err)
+	}
+
+	resultMap, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected map result, got %T", result)
+	}
+
+	fileCount, ok := resultMap["file_count"].(int)
+	if !ok {
+		t.Fatalf("expected file_count to be int, got %T: %v", resultMap["file_count"], resultMap["file_count"])
+	}
+
+	if fileCount != 1 {
+		t.Errorf("expected session scope to return file_count=1, got %d", fileCount)
 	}
 }

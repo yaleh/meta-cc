@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -440,6 +441,109 @@ func (e *QueryExecutor) RunQueryWithTimeRange(ctx context.Context, files []strin
 		result.Warnings = append(result.Warnings, transformAllNullWarning)
 	}
 	return result, nil
+}
+
+// GetQueryFiles returns the resolved list of JSONL file paths for the given scope
+// and includeSubagents flag.
+//
+//   - scope=session, includeSubagents=false → [<current_session>.jsonl]
+//   - scope=session, includeSubagents=true  → [<current_session>.jsonl] + <uuid>/subagents/*.jsonl
+//   - scope=project, includeSubagents=false → all top-level *.jsonl (existing GetJSONLFiles behaviour)
+//   - scope=project, includeSubagents=true  → top-level + all */subagents/*.jsonl
+//
+// Subagent scanning is fixed at two levels deep (<projectDir>/<uuid>/subagents/) to avoid
+// picking up tool-results/ or other subdirectories.
+func GetQueryFiles(scope, workingDir string, includeSubagents bool) ([]string, error) {
+	projectPath := workingDir
+	if projectPath == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			cwd = "."
+		}
+		projectPath = cwd
+	}
+
+	loc := locator.NewSessionLocator()
+
+	if scope == "session" {
+		sessionFile, err := loc.FromProjectPath(projectPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to locate current session: %w", err)
+		}
+		files := []string{sessionFile}
+		if includeSubagents {
+			// Derive the subagents directory: <projectDir>/<uuid>/subagents/
+			// sessionFile is <projectDir>/<uuid>.jsonl
+			sessionDir := filepath.Dir(sessionFile)
+			uuid := strings.TrimSuffix(filepath.Base(sessionFile), ".jsonl")
+			subagentDir := filepath.Join(sessionDir, uuid, "subagents")
+			subFiles, err := getSubagentJSONLFiles(subagentDir)
+			if err == nil {
+				files = append(files, subFiles...)
+			}
+		}
+		return files, nil
+	}
+
+	// project scope
+	baseDir, err := GetQueryBaseDir(scope, projectPath)
+	if err != nil {
+		return nil, err
+	}
+
+	topLevel, err := GetJSONLFiles(baseDir)
+	if err != nil {
+		return nil, err
+	}
+
+	if !includeSubagents {
+		return topLevel, nil
+	}
+
+	// Scan <baseDir>/<entry>/subagents/*.jsonl for each directory entry
+	all := make([]string, len(topLevel))
+	copy(all, topLevel)
+
+	entries, err := os.ReadDir(baseDir)
+	if err != nil {
+		return all, nil
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		subagentDir := filepath.Join(baseDir, entry.Name(), "subagents")
+		subFiles, err := getSubagentJSONLFiles(subagentDir)
+		if err != nil {
+			continue
+		}
+		all = append(all, subFiles...)
+	}
+
+	return all, nil
+}
+
+// getSubagentJSONLFiles returns all .jsonl files in the given subagents directory.
+// Returns nil without error if the directory does not exist.
+func getSubagentJSONLFiles(subagentDir string) ([]string, error) {
+	if _, err := os.Stat(subagentDir); os.IsNotExist(err) {
+		return nil, nil
+	}
+	entries, err := os.ReadDir(subagentDir)
+	if err != nil {
+		return nil, err
+	}
+	var files []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if filepath.Ext(entry.Name()) == ".jsonl" {
+			files = append(files, filepath.Join(subagentDir, entry.Name()))
+		}
+	}
+	return files, nil
 }
 
 // GetQueryBaseDir returns the base directory for the given scope.

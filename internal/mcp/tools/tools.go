@@ -44,6 +44,10 @@ func StandardToolParameters() map[string]Property {
 			Type:        "string",
 			Description: "Output format: jsonl or tsv (default: jsonl)",
 		},
+		"include_subagents": {
+			Type:        "boolean",
+			Description: "Include subagent session files (default: true). Pass false to query only top-level sessions.",
+		},
 	}
 }
 

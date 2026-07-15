@@ -437,3 +437,31 @@ func TestHandleQueryConversationFlow_ExcludeCompactSummaries(t *testing.T) {
 		t.Fatal("expected non-zero results (user and assistant records should be present)")
 	}
 }
+
+// --- include_subagents parameter tests ---
+
+// TestHandleQueryUserMessages_IncludeSubagents_Default verifies that include_subagents
+// defaults to true when not specified (via GetBoolParam default).
+func TestHandleQueryUserMessages_IncludeSubagents_Default(t *testing.T) {
+	// Verify GetBoolParam returns true when include_subagents is absent (default=true)
+	args := map[string]interface{}{
+		"pattern": "test",
+	}
+	got := GetBoolParam(args, "include_subagents", true)
+	if !got {
+		t.Errorf("expected include_subagents default to be true, got false")
+	}
+}
+
+// TestHandleQueryToolBlocks_IncludeSubagents_False verifies that include_subagents=false
+// is correctly extracted and would suppress subagent files.
+func TestHandleQueryToolBlocks_IncludeSubagents_False(t *testing.T) {
+	// Verify GetBoolParam returns false when include_subagents=false is explicitly set
+	args := map[string]interface{}{
+		"include_subagents": false,
+	}
+	got := GetBoolParam(args, "include_subagents", true)
+	if got {
+		t.Errorf("expected include_subagents=false to be extracted as false, got true")
+	}
+}

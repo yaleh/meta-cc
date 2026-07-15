@@ -46,6 +46,7 @@ func NewToolPipelineConfig(toolName string, args map[string]interface{}) pipelin
 		UseTimestampStats:       pipelinepkg.TimestampStatsTools[toolName],
 		ApplyMessageFilters:     toolName == "query_session_content",
 		ExcludeCompactSummaries: GetBoolParam(args, "exclude_compact_summaries", true),
+		IncludeSubagents:        GetBoolParam(args, "include_subagents", true),
 	}
 }
 
@@ -155,31 +156,37 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 }
 
 // ExecuteQuery is an internal helper for convenience tools.
-func (e *ToolExecutor) ExecuteQuery(scope string, jqFilter string, limit int, workingDir string) (mcquery.QueryResult, error) {
-	return e.ExecuteQueryWithTimeRange(scope, jqFilter, limit, workingDir, mcquery.ParsedTimeRange{})
+// includeSubagents controls whether subagent JSONL files are included (default: true).
+func (e *ToolExecutor) ExecuteQuery(scope string, jqFilter string, limit int, workingDir string, includeSubagents ...bool) (mcquery.QueryResult, error) {
+	incSub := true
+	if len(includeSubagents) > 0 {
+		incSub = includeSubagents[0]
+	}
+	return e.ExecuteQueryWithTimeRange(scope, jqFilter, limit, workingDir, mcquery.ParsedTimeRange{}, incSub)
 }
 
 // ExecuteQueryWithTimeRange is like ExecuteQuery but applies time-range filtering.
-func (e *ToolExecutor) ExecuteQueryWithTimeRange(scope string, jqFilter string, limit int, workingDir string, tr mcquery.ParsedTimeRange) (mcquery.QueryResult, error) {
-	baseDir, err := mcquery.GetQueryBaseDir(scope, workingDir)
-	if err != nil {
-		return mcquery.QueryResult{}, fmt.Errorf("failed to get base directory: %w", err)
+// includeSubagents controls whether subagent JSONL files are included (default: true).
+func (e *ToolExecutor) ExecuteQueryWithTimeRange(scope string, jqFilter string, limit int, workingDir string, tr mcquery.ParsedTimeRange, includeSubagents ...bool) (mcquery.QueryResult, error) {
+	incSub := true
+	if len(includeSubagents) > 0 {
+		incSub = includeSubagents[0]
 	}
 
-	executor := mcquery.NewQueryExecutor(baseDir)
+	files, err := mcquery.GetQueryFiles(scope, workingDir, incSub)
+	if err != nil {
+		return mcquery.QueryResult{}, fmt.Errorf("failed to get query files: %w", err)
+	}
+
+	if len(files) == 0 {
+		return mcquery.QueryResult{}, fmt.Errorf("no JSONL files found for scope %s", scope)
+	}
+
+	executor := mcquery.NewQueryExecutor("")
 
 	code, err := executor.CompileExpression(jqFilter)
 	if err != nil {
 		return mcquery.QueryResult{}, fmt.Errorf("invalid jq expression: %w", err)
-	}
-
-	files, err := mcquery.GetJSONLFiles(baseDir)
-	if err != nil {
-		return mcquery.QueryResult{}, fmt.Errorf("failed to list JSONL files: %w", err)
-	}
-
-	if len(files) == 0 {
-		return mcquery.QueryResult{}, fmt.Errorf("no JSONL files found in %s", baseDir)
 	}
 
 	ctx := context.Background()
