@@ -306,6 +306,104 @@ func writeJSONLFile(t *testing.T, dir string, name string, objects []map[string]
 	return path
 }
 
+// --- ApplyContentSummary tool_use tests ---
+
+func TestApplyContentSummary_ToolUse_NonEmpty(t *testing.T) {
+	messages := []interface{}{
+		map[string]interface{}{
+			"type":      "tool_use",
+			"name":      "mcp__manda__Dispatch",
+			"input":     map[string]interface{}{"id": "p-1", "action": "run"},
+			"sessionId": "s1",
+			"uuid":      "u1",
+			"timestamp": "2026-07-15T00:00:00Z",
+		},
+	}
+	result := ApplyContentSummary(messages, 100)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	m := result[0].(map[string]interface{})
+	preview, _ := m["content_preview"].(string)
+	if preview == "" {
+		t.Error("expected non-empty content_preview for tool_use block, got empty string")
+	}
+}
+
+func TestApplyContentSummary_ToolUse_Format(t *testing.T) {
+	messages := []interface{}{
+		map[string]interface{}{
+			"type":      "tool_use",
+			"name":      "mcp__manda__Dispatch",
+			"input":     map[string]interface{}{"id": "p-1"},
+			"sessionId": "s1",
+			"uuid":      "u1",
+			"timestamp": "2026-07-15T00:00:00Z",
+		},
+	}
+	result := ApplyContentSummary(messages, 200)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	m := result[0].(map[string]interface{})
+	preview, _ := m["content_preview"].(string)
+	// Must match: name followed by space and JSON object opening brace
+	// e.g. "mcp__manda__Dispatch {"
+	if !strings.HasPrefix(preview, "mcp__manda__Dispatch {") {
+		t.Errorf("content_preview format incorrect, got %q, want prefix %q", preview, "mcp__manda__Dispatch {")
+	}
+}
+
+func TestApplyContentSummary_ToolUse_PreviewLength(t *testing.T) {
+	messages := []interface{}{
+		map[string]interface{}{
+			"type":      "tool_use",
+			"name":      "very_long_tool_name",
+			"input":     map[string]interface{}{"key": strings.Repeat("v", 200)},
+			"sessionId": "s1",
+			"uuid":      "u1",
+			"timestamp": "2026-07-15T00:00:00Z",
+		},
+	}
+	previewLength := 20
+	result := ApplyContentSummary(messages, previewLength)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	m := result[0].(map[string]interface{})
+	preview, _ := m["content_preview"].(string)
+	runeLen := len([]rune(preview))
+	// max is previewLength runes + "..." = 23 runes
+	if runeLen > previewLength+3 {
+		t.Errorf("content_preview rune length %d exceeds max %d", runeLen, previewLength+3)
+	}
+}
+
+func TestApplyContentSummary_ToolResult_Unchanged(t *testing.T) {
+	// tool_result records have a flat "content" string field
+	messages := []interface{}{
+		map[string]interface{}{
+			"type":      "tool_result",
+			"content":   "some result text",
+			"sessionId": "s1",
+			"uuid":      "u2",
+			"timestamp": "2026-07-15T00:00:00Z",
+		},
+	}
+	result := ApplyContentSummary(messages, 100)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	m := result[0].(map[string]interface{})
+	preview, _ := m["content_preview"].(string)
+	if preview == "" {
+		t.Error("expected non-empty content_preview for tool_result with content field")
+	}
+	if preview != "some result text" {
+		t.Errorf("tool_result preview changed, got %q, want %q", preview, "some result text")
+	}
+}
+
 func TestExpandContextTurns_EmptyInput(t *testing.T) {
 	result, err := ExpandContextTurns([]interface{}{}, 2, "/tmp")
 	if err != nil {

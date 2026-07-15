@@ -117,13 +117,17 @@ func ApplyContentSummary(messages []interface{}, previewLength int) []interface{
 
 		// Extract preview from nested or flat content using rune-safe truncation
 		preview := ""
-		content := extractContentString(msgMap)
-		if content != "" {
-			runes := []rune(content)
-			if len(runes) > previewLength {
-				preview = string(runes[:previewLength]) + "..."
-			} else {
-				preview = content
+		if msgType, _ := msgMap["type"].(string); msgType == "tool_use" {
+			preview = buildToolUsePreview(msgMap, previewLength)
+		} else {
+			content := extractContentString(msgMap)
+			if content != "" {
+				runes := []rune(content)
+				if len(runes) > previewLength {
+					preview = string(runes[:previewLength]) + "..."
+				} else {
+					preview = content
+				}
 			}
 		}
 
@@ -154,6 +158,26 @@ func extractContentString(msgMap map[string]interface{}) string {
 		return content
 	}
 	return ""
+}
+
+// buildToolUsePreview constructs a content preview for tool_use records.
+// Format: "<name> <input_json_truncated>", truncated to previewLength runes with "..." appended if truncated.
+// Returns empty string if name is missing or json.Marshal fails.
+func buildToolUsePreview(msgMap map[string]interface{}, previewLength int) string {
+	name, _ := msgMap["name"].(string)
+	if name == "" {
+		return ""
+	}
+	inputJSON, err := json.Marshal(msgMap["input"])
+	if err != nil {
+		return ""
+	}
+	full := name + " " + string(inputJSON)
+	runes := []rune(full)
+	if len(runes) > previewLength {
+		return string(runes[:previewLength]) + "..."
+	}
+	return full
 }
 
 // ApplyMessageFiltersToData applies content truncation or summary mode to user messages (data array)
