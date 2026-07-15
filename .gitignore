@@ -76,3 +76,4 @@ CHANGELOG.md.bak
 .epicd/.monitor-task-id
 .epicd/.last-review-commit
 .epicd/tasks/.scanner-ready.lock
+.manda/hub.addr

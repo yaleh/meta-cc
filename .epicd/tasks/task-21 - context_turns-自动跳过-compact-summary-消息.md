@@ -1,15 +1,17 @@
 ---
 id: TASK-21
 title: context_turns 自动跳过 compact summary 消息
-status: 'Basic: Proposal'
 assignee: []
 created_date: '2026-07-14 03:52'
+updated_date: '2026-07-15 01:57'
 labels:
   - 'area:mcp'
   - 'area:query'
 dependencies: []
 priority: medium
 ordinal: 12000
+pipeline_id: authoring
+phase: drafting
 ---
 
 ## Description

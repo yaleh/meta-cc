@@ -1,14 +1,15 @@
 ---
 id: TASK-17
 title: OCA Codify：tool_stats 驱动高频 jq 模式提炼为 MCP 工具
-status: 'Basic: Backlog'
 assignee: []
 created_date: '2026-06-24 12:13'
-updated_date: '2026-07-14 06:46'
+updated_date: '2026-07-15 01:57'
 labels:
   - 'kind:basic'
 dependencies: []
 ordinal: 9000
+pipeline_id: authoring
+phase: backlog
 ---
 
 ## Description

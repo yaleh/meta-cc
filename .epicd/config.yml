@@ -13,3 +13,12 @@ bypass_git_hooks: false
 check_active_branches: true
 active_branch_days: 30
 task_prefix: "task"
+task_actions:
+  - id: "dispatch-to-worker"
+    label: "Dispatch to Worker"
+    command: 'manda-dispatch submit -id="$TASK_ID" -to=worker -async -args="$(jq -nc --arg id "$TASK_ID" ''{task: ("/epicd:fixpoint-convergence " + $id)}'')"'
+    whenPhase: ["backlog", "implementing", "needs-human"]
+  - id: "dispatch-to-author"
+    label: "Dispatch to Author"
+    command: 'manda-dispatch submit -id="$TASK_ID" -to=worker -async -args="$(jq -nc --arg id "$TASK_ID" ''{task: ("/epicd:authoring-convergence " + $id)}'')"'
+    whenPhase: ["drafting", "refining", "needs-human"]

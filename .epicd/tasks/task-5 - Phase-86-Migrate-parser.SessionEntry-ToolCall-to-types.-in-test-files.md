@@ -1,7 +1,7 @@
 ---
 id: TASK-5
 title: 'Phase 86: Migrate parser.SessionEntry/ToolCall to types.* in test files'
-status: 'Basic: Backlog'
+status: 'Basic: Done'
 assignee:
   - '@worker'
 created_date: '2026-06-23 06:24'
