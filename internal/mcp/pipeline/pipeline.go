@@ -34,6 +34,7 @@ type PipelineConfig struct {
 	UseTimestampStats       bool // use time-bucketed stats instead of key-count stats
 	ApplyMessageFilters     bool // apply message length / content-summary filters
 	ExcludeCompactSummaries bool // exclude isCompactSummary=true entries from context_turns
+	IncludeSubagents        bool // include subagent JSONL files (default: true)
 }
 
 func (c PipelineConfig) requiresMessageFilters() bool {

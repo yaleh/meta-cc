@@ -44,13 +44,23 @@ func HandleGetSessionDirectory(ctx context.Context, args map[string]interface{})
 		return nil, err
 	}
 
+	// Count subagent files (always, regardless of include_subagents — so callers know what they're opting out of)
+	cwd, _ := os.Getwd()
+	mainFiles, _ := GetQueryFiles(scope, cwd, false)
+	allFiles, _ := GetQueryFiles(scope, cwd, true)
+	subagentFileCount := len(allFiles) - len(mainFiles)
+	if subagentFileCount < 0 {
+		subagentFileCount = 0
+	}
+
 	return map[string]interface{}{
-		"directory":        directory,
-		"scope":            scope,
-		"file_count":       metadata.FileCount,
-		"total_size_bytes": metadata.TotalSize,
-		"oldest_file":      metadata.OldestFile,
-		"newest_file":      metadata.NewestFile,
+		"directory":           directory,
+		"scope":               scope,
+		"file_count":          metadata.FileCount,
+		"total_size_bytes":    metadata.TotalSize,
+		"oldest_file":         metadata.OldestFile,
+		"newest_file":         metadata.NewestFile,
+		"subagent_file_count": subagentFileCount,
 	}, nil
 }
 
@@ -258,16 +268,15 @@ func HandleGetSessionMetadata(ctx context.Context, args map[string]interface{}) 
 		return nil, fmt.Errorf("invalid scope: %s (must be 'session' or 'project')", scope)
 	}
 
-	// Get base directory for the scope
-	baseDir, err := GetQueryBaseDir(scope, "")
+	// Get JSONL files for the scope (include subagents by default)
+	files, err := GetQueryFiles(scope, "", true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get base directory for scope %s: %w", scope, err)
+		return nil, fmt.Errorf("failed to get JSONL files for scope %s: %w", scope, err)
 	}
-
-	// Get JSONL files in directory
-	files, err := GetJSONLFiles(baseDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list JSONL files: %w", err)
+	// Derive base directory from first file for schema documentation
+	baseDir := ""
+	if len(files) > 0 {
+		baseDir = filepath.Dir(files[0])
 	}
 
 	// Collect file metadata

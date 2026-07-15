@@ -29,6 +29,7 @@ func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]inte
 	untilStr := GetStringParam(args, "until", "")
 	excludeSystem := GetBoolParam(args, "exclude_system_messages", false)
 	excludeCompact := GetBoolParam(args, "exclude_compact_summaries", true)
+	includeSubagents := GetBoolParam(args, "include_subagents", true)
 
 	tr, err := mcquery.ParseTimeRange(sinceStr, untilStr)
 	if err != nil {
@@ -66,7 +67,7 @@ func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]inte
 		jqFilter += ` | select(.isCompactSummary != true)`
 	}
 
-	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, tr)
+	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, tr, includeSubagents)
 }
 
 func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
@@ -74,6 +75,7 @@ func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}
 	toolName := GetStringParam(args, "tool", "")
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
+	includeSubagents := GetBoolParam(args, "include_subagents", true)
 
 	jqFilter := `select(.type == "assistant") | select(.message.content[] | .type == "tool_use")`
 
@@ -82,28 +84,30 @@ func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}
 		jqFilter = fmt.Sprintf(`%s | select(.message.content[] | select(.type == "tool_use" and .name == "%s"))`, jqFilter, escapedTool)
 	}
 
-	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir)
+	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir, includeSubagents)
 }
 
 func handleQueryToolErrors(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := GetStringParam(args, "provider", "claude")
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
+	includeSubagents := GetBoolParam(args, "include_subagents", true)
 
 	jqFilter := `select(.type == "user" and (.message.content | type == "array")) | ` +
 		`select(.message.content[] | select(.type == "tool_result" and .is_error == true))`
 
-	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir)
+	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir, includeSubagents)
 }
 
 func handleQueryTokenUsage(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := GetStringParam(args, "provider", "claude")
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
+	includeSubagents := GetBoolParam(args, "include_subagents", true)
 
 	jqFilter := `select(.type == "assistant" and has("message")) | select(.message | has("usage"))`
 
-	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir)
+	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir, includeSubagents)
 }
 
 func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
@@ -113,6 +117,7 @@ func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]
 	sinceStr := GetStringParam(args, "since", "")
 	untilStr := GetStringParam(args, "until", "")
 	excludeCompact := GetBoolParam(args, "exclude_compact_summaries", true)
+	includeSubagents := GetBoolParam(args, "include_subagents", true)
 
 	tr, err := mcquery.ParseTimeRange(sinceStr, untilStr)
 	if err != nil {
@@ -125,27 +130,29 @@ func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]
 		jqFilter += ` | select(.isCompactSummary != true)`
 	}
 
-	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, tr)
+	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, tr, includeSubagents)
 }
 
 func handleQuerySystemErrors(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := GetStringParam(args, "provider", "claude")
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
+	includeSubagents := GetBoolParam(args, "include_subagents", true)
 
 	jqFilter := `select(.type == "system" and .subtype == "api_error")`
 
-	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir)
+	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir, includeSubagents)
 }
 
 func handleQueryFileSnapshots(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := GetStringParam(args, "provider", "claude")
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
+	includeSubagents := GetBoolParam(args, "include_subagents", true)
 
 	jqFilter := `select(.type == "file-history-snapshot" and has("messageId"))`
 
-	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir)
+	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir, includeSubagents)
 }
 
 func handleQueryTimestamps(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
@@ -154,6 +161,7 @@ func handleQueryTimestamps(e *ToolExecutor, scope string, args map[string]interf
 	workingDir := GetStringParam(args, "working_dir", "")
 	sinceStr := GetStringParam(args, "since", "")
 	untilStr := GetStringParam(args, "until", "")
+	includeSubagents := GetBoolParam(args, "include_subagents", true)
 
 	tr, err := mcquery.ParseTimeRange(sinceStr, untilStr)
 	if err != nil {
@@ -162,7 +170,7 @@ func handleQueryTimestamps(e *ToolExecutor, scope string, args map[string]interf
 
 	jqFilter := `select(.timestamp != null)`
 
-	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, tr)
+	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, tr, includeSubagents)
 }
 
 func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
@@ -171,6 +179,7 @@ func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interf
 	toolName := GetStringParam(args, "tool_name", "")
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
+	includeSubagents := GetBoolParam(args, "include_subagents", true)
 
 	if blockType != "tool_use" && blockType != "tool_result" {
 		return mcquery.QueryResult{}, fmt.Errorf("invalid block_type: %s (must be 'tool_use' or 'tool_result')", blockType)
@@ -187,7 +196,7 @@ func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interf
 		jqFilter = `select(.type == "user" and (.message.content | type == "array")) | . as $rec | .message.content[] | select(.type == "tool_result") | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
 	}
 
-	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir)
+	return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir, includeSubagents)
 }
 
 // EscapeJQ escapes special characters in strings for jq expressions.

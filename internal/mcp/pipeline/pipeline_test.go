@@ -402,3 +402,19 @@ func TestBuildResponse_WithWarnings(t *testing.T) {
 		t.Errorf("expected non-empty warnings in output, got: %v", parsed["warnings"])
 	}
 }
+
+// TestPipelineConfig_IncludeSubagents verifies that PipelineConfig.IncludeSubagents
+// is a real field and defaults correctly via Go zero value (false) vs explicit true.
+func TestPipelineConfig_IncludeSubagents(t *testing.T) {
+	// Zero value: IncludeSubagents defaults to false in struct literal
+	pc := pipeline.PipelineConfig{}
+	if pc.IncludeSubagents {
+		t.Error("expected PipelineConfig zero value to have IncludeSubagents=false")
+	}
+
+	// Explicit true
+	pcTrue := pipeline.PipelineConfig{IncludeSubagents: true}
+	if !pcTrue.IncludeSubagents {
+		t.Error("expected PipelineConfig{IncludeSubagents: true} to have IncludeSubagents=true")
+	}
+}
