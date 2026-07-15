@@ -56,7 +56,7 @@ func HandleGetSessionDirectory(ctx context.Context, args map[string]interface{})
 	return map[string]interface{}{
 		"directory":           directory,
 		"scope":               scope,
-		"file_count":          metadata.FileCount,
+		"file_count":          len(mainFiles),
 		"total_size_bytes":    metadata.TotalSize,
 		"oldest_file":         metadata.OldestFile,
 		"newest_file":         metadata.NewestFile,
