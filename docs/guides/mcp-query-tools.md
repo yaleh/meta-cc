@@ -78,6 +78,7 @@ Additional parameters when `role=assistant`:
 
 Additional parameters when `role=tool`:
 - `block_type` — `tool_use` (default) or `tool_result`
+- `tool_name` — substring or regex filter on the tool's `name` field (only applies to `block_type=tool_use`); e.g. `"Dispatch"` or `"Read|Write"`
 
 Examples:
 

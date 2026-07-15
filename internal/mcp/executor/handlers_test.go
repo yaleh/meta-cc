@@ -150,6 +150,86 @@ func TestHandleQueryToolBlocks_ToolResult_IncludesTimestamp(t *testing.T) {
 	}
 }
 
+// toolUseWithNameJQFilter returns the jq filter for tool_use blocks with a tool_name filter.
+// This mirrors the filter constructed in handleQueryToolBlocks when tool_name is set.
+func toolUseWithNameJQFilter(toolName string) string {
+	escaped := EscapeJQ(toolName)
+	return `select(.type == "assistant") | . as $rec | .message.content[] | select(.type == "tool_use") | select(.name | test("` + escaped + `")) | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
+}
+
+// TestHandleQueryToolBlocks_ToolName_FiltersExactMatch verifies that tool_name filters
+// tool_use blocks by exact name match (substring/regex via jq test()).
+func TestHandleQueryToolBlocks_ToolName_FiltersExactMatch(t *testing.T) {
+	records := []map[string]interface{}{
+		buildToolUseRecord("sess-1", 1, "Read"),
+		buildToolUseRecord("sess-1", 2, "Write"),
+		buildToolUseRecord("sess-1", 3, "Bash"),
+	}
+	results, err := runProviderJQ(records, toolUseWithNameJQFilter("Write"), 0, mcquery.ParsedTimeRange{})
+	if err != nil {
+		t.Fatalf("runProviderJQ error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	m := results[0].(map[string]interface{})
+	if m["name"] != "Write" {
+		t.Errorf("expected name=Write, got %v", m["name"])
+	}
+}
+
+// TestHandleQueryToolBlocks_ToolName_FiltersSubstring verifies that tool_name does
+// substring matching (e.g. "Dis" matches "Dispatch").
+func TestHandleQueryToolBlocks_ToolName_FiltersSubstring(t *testing.T) {
+	records := []map[string]interface{}{
+		buildToolUseRecord("sess-1", 1, "Dispatch"),
+		buildToolUseRecord("sess-1", 2, "DispatchCancel"),
+		buildToolUseRecord("sess-1", 3, "Read"),
+	}
+	results, err := runProviderJQ(records, toolUseWithNameJQFilter("Dispatch"), 0, mcquery.ParsedTimeRange{})
+	if err != nil {
+		t.Fatalf("runProviderJQ error: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results for substring 'Dispatch', got %d", len(results))
+	}
+}
+
+// TestHandleQueryToolBlocks_ToolName_FiltersRegex verifies that tool_name supports
+// regex patterns (consistent with pattern parameter behavior).
+func TestHandleQueryToolBlocks_ToolName_FiltersRegex(t *testing.T) {
+	records := []map[string]interface{}{
+		buildToolUseRecord("sess-1", 1, "Read"),
+		buildToolUseRecord("sess-1", 2, "Write"),
+		buildToolUseRecord("sess-1", 3, "Bash"),
+	}
+	// Regex: match Read or Write
+	results, err := runProviderJQ(records, toolUseWithNameJQFilter("Read|Write"), 0, mcquery.ParsedTimeRange{})
+	if err != nil {
+		t.Fatalf("runProviderJQ error: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results for regex 'Read|Write', got %d", len(results))
+	}
+}
+
+// TestHandleQueryToolBlocks_ToolName_EmptyReturnsAll verifies that omitting tool_name
+// returns all tool_use blocks (no filtering applied).
+func TestHandleQueryToolBlocks_ToolName_EmptyReturnsAll(t *testing.T) {
+	records := []map[string]interface{}{
+		buildToolUseRecord("sess-1", 1, "Read"),
+		buildToolUseRecord("sess-1", 2, "Write"),
+		buildToolUseRecord("sess-1", 3, "Bash"),
+	}
+	results, err := runProviderJQ(records, toolUseJQFilter(), 0, mcquery.ParsedTimeRange{})
+	if err != nil {
+		t.Fatalf("runProviderJQ error: %v", err)
+	}
+	if len(results) != 3 {
+		t.Fatalf("expected 3 results when no tool_name filter, got %d", len(results))
+	}
+}
+
 // TestHandleQueryToolBlocks_ToolUse_PreservesToolFields verifies that the original
 // tool block fields (type, id, name, input) are still present in results and not overwritten.
 func TestHandleQueryToolBlocks_ToolUse_PreservesToolFields(t *testing.T) {

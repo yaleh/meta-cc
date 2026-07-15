@@ -158,6 +158,7 @@ func handleQueryTimestamps(e *ToolExecutor, scope string, args map[string]interf
 func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := GetStringParam(args, "provider", "claude")
 	blockType := GetStringParam(args, "block_type", "tool_use")
+	toolName := GetStringParam(args, "tool_name", "")
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
 
@@ -167,7 +168,11 @@ func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interf
 
 	var jqFilter string
 	if blockType == "tool_use" {
-		jqFilter = `select(.type == "assistant") | . as $rec | .message.content[] | select(.type == "tool_use") | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
+		jqFilter = `select(.type == "assistant") | . as $rec | .message.content[] | select(.type == "tool_use")`
+		if toolName != "" {
+			jqFilter = fmt.Sprintf(`%s | select(.name | test("%s"))`, jqFilter, EscapeJQ(toolName))
+		}
+		jqFilter += ` | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
 	} else {
 		jqFilter = `select(.type == "user" and (.message.content | type == "array")) | . as $rec | .message.content[] | select(.type == "tool_result") | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
 	}

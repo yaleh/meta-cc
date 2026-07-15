@@ -264,6 +264,10 @@ func GetToolDefinitions() []Tool {
 					Type:        "string",
 					Description: "When role=tool: 'tool_use' or 'tool_result' (default: 'tool_use'). Each result includes outer context fields: timestamp, sessionId, turn.",
 				},
+				"tool_name": {
+					Type:        "string",
+					Description: "When role=tool and block_type=tool_use: filter by tool name substring or regex (e.g. 'Dispatch' or 'Read|Write'). Omit to return all.",
+				},
 				"content_type": {
 					Type:        "string",
 					Description: "When role=user: 'string' (default) or 'array' (tool results)",

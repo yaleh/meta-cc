@@ -1,7 +1,7 @@
 ---
 id: TASK-19
 title: query_session_content(role=tool) 增加 tool_name 过滤参数
-status: 'Basic: Proposal'
+status: 'Basic: Done'
 assignee: []
 created_date: '2026-07-14 03:52'
 labels:
@@ -30,8 +30,8 @@ query_session_content({
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 tool_name 参数对 role=tool, block_type=tool_use 生效，按 name 字段子串过滤
-- [ ] #2 tool_name 支持 regex 模式（与现有 pattern 参数行为一致）
-- [ ] #3 tool_name 不填时行为与当前一致（不过滤）
-- [ ] #4 文档更新反映新参数
+- [x] #1 tool_name 参数对 role=tool, block_type=tool_use 生效，按 name 字段子串过滤
+- [x] #2 tool_name 支持 regex 模式（与现有 pattern 参数行为一致）
+- [x] #3 tool_name 不填时行为与当前一致（不过滤）
+- [x] #4 文档更新反映新参数
 <!-- AC:END -->
