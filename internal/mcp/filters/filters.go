@@ -227,6 +227,10 @@ func ExpandContextTurns(rawData []interface{}, N int, baseDir string) ([]interfa
 			if !ok {
 				continue
 			}
+			isCompact, _ := obj["isCompactSummary"].(bool)
+			if isCompact {
+				continue
+			}
 			uuid, _ := obj["uuid"].(string)
 			if uuid != "" {
 				uuidToIndex[uuid] = i
@@ -273,6 +277,10 @@ func ExpandContextTurns(rawData []interface{}, N int, baseDir string) ([]interfa
 			}
 			turnObj, ok := turns[i].(map[string]interface{})
 			if !ok {
+				continue
+			}
+			isCompact, _ := turnObj["isCompactSummary"].(bool)
+			if isCompact {
 				continue
 			}
 			uuid, _ := turnObj["uuid"].(string)

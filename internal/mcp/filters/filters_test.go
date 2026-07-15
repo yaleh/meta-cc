@@ -610,3 +610,132 @@ func TestExpandContextTurns_ContextFieldAdded(t *testing.T) {
 		}
 	}
 }
+
+// TestExpandContextTurns_SkipsCompactSummary verifies that compact summary entries
+// are excluded from results even when they fall within the context window.
+func TestExpandContextTurns_SkipsCompactSummary(t *testing.T) {
+	dir := t.TempDir()
+
+	sessionID := "session-compact-skip"
+	turns := []map[string]interface{}{
+		{"uuid": "u0", "sessionId": sessionID},
+		{"uuid": "u1", "sessionId": sessionID, "isCompactSummary": true},
+		{"uuid": "u2", "sessionId": sessionID},
+		{"uuid": "u3", "sessionId": sessionID},
+		{"uuid": "u4", "sessionId": sessionID},
+	}
+	writeJSONLFile(t, dir, "session.jsonl", turns)
+
+	// Match u2, N=2 -> window covers u0..u4, but u1 is compact and must be excluded
+	rawData := []interface{}{
+		map[string]interface{}{"uuid": "u2", "sessionId": sessionID},
+	}
+
+	result, err := ExpandContextTurns(rawData, 2, dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, entry := range result {
+		obj := entry.(map[string]interface{})
+		isCompact, _ := obj["isCompactSummary"].(bool)
+		if isCompact {
+			t.Errorf("result must not contain any isCompactSummary=true entry, but found uuid=%v", obj["uuid"])
+		}
+	}
+}
+
+// TestExpandContextTurns_CompactSummaryNotCountedAsTurn verifies that compact summary
+// entries are not counted as turns in the window calculation. Session [u0, u1(compact),
+// u2, u3, u4], match u2, N=1: u1 is not in uuidToIndex so u2's physical index is 2,
+// window covers turns[1..3]. Emit skips compact turns[1] (u1), so result is [u2, u3] (len=2).
+func TestExpandContextTurns_CompactSummaryNotCountedAsTurn(t *testing.T) {
+	dir := t.TempDir()
+
+	sessionID := "session-compact-count"
+	turns := []map[string]interface{}{
+		{"uuid": "u0", "sessionId": sessionID},
+		{"uuid": "u1", "sessionId": sessionID, "isCompactSummary": true},
+		{"uuid": "u2", "sessionId": sessionID},
+		{"uuid": "u3", "sessionId": sessionID},
+		{"uuid": "u4", "sessionId": sessionID},
+	}
+	writeJSONLFile(t, dir, "session.jsonl", turns)
+
+	// Match u2, N=1: u1 is compact so not in uuidToIndex. u2 is at idx=2 in turns slice.
+	// Window: lo=max(0,2-1)=1, hi=min(4,2+1)=3 -> turns[1,2,3] = [u1,u2,u3].
+	// Emit skips u1 (compact), so result = [u2, u3].
+	rawData := []interface{}{
+		map[string]interface{}{"uuid": "u2", "sessionId": sessionID},
+	}
+
+	result, err := ExpandContextTurns(rawData, 1, dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result) != 2 {
+		t.Fatalf("expected 2 results (u2, u3), got %d", len(result))
+	}
+
+	for _, entry := range result {
+		obj := entry.(map[string]interface{})
+		if obj["uuid"] == "u1" {
+			t.Errorf("compact summary u1 must not appear in result")
+		}
+	}
+}
+
+// TestExpandContextTurns_MatchedCompactSummarySkipped verifies that when the matched
+// entry itself is a compact summary it is also excluded from results.
+func TestExpandContextTurns_MatchedCompactSummarySkipped(t *testing.T) {
+	dir := t.TempDir()
+
+	sessionID := "session-compact-matched"
+	turns := []map[string]interface{}{
+		{"uuid": "u0", "sessionId": sessionID, "isCompactSummary": true},
+	}
+	writeJSONLFile(t, dir, "session.jsonl", turns)
+
+	// rawData contains only the compact summary entry itself
+	rawData := []interface{}{
+		map[string]interface{}{"uuid": "u0", "sessionId": sessionID, "isCompactSummary": true},
+	}
+
+	result, err := ExpandContextTurns(rawData, 1, dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result) != 0 {
+		t.Fatalf("expected empty result when matched entry is compact summary, got %d", len(result))
+	}
+}
+
+// TestExpandContextTurns_AllCompactSummarySession verifies that when an entire session
+// consists of compact summary entries, the result is empty.
+func TestExpandContextTurns_AllCompactSummarySession(t *testing.T) {
+	dir := t.TempDir()
+
+	sessionID := "session-all-compact"
+	turns := []map[string]interface{}{
+		{"uuid": "u0", "sessionId": sessionID, "isCompactSummary": true},
+		{"uuid": "u1", "sessionId": sessionID, "isCompactSummary": true},
+		{"uuid": "u2", "sessionId": sessionID, "isCompactSummary": true},
+	}
+	writeJSONLFile(t, dir, "session.jsonl", turns)
+
+	// Match u1 (which is compact)
+	rawData := []interface{}{
+		map[string]interface{}{"uuid": "u1", "sessionId": sessionID, "isCompactSummary": true},
+	}
+
+	result, err := ExpandContextTurns(rawData, 1, dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result) != 0 {
+		t.Fatalf("expected empty result for all-compact session, got %d", len(result))
+	}
+}
