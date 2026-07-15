@@ -33,18 +33,19 @@ func NewToolExecutor() *ToolExecutor {
 // NewToolPipelineConfig creates a PipelineConfig from args map.
 func NewToolPipelineConfig(toolName string, args map[string]interface{}) pipelinepkg.PipelineConfig {
 	return pipelinepkg.PipelineConfig{
-		JQFilter:            GetStringParam(args, "jq_filter", ".[]"),
-		StatsOnly:           GetBoolParam(args, "stats_only", false),
-		StatsFirst:          GetBoolParam(args, "stats_first", false),
-		OutputFormat:        GetStringParam(args, "output_format", "jsonl"),
-		MaxMessageLength:    GetIntParam(args, "max_message_length", 0),
-		ContentSummary:      GetBoolParam(args, "content_summary", false),
-		PreviewLength:       GetIntParam(args, "preview_length", pipelinepkg.DefaultPreviewLength),
-		GroupBySession:      GetBoolParam(args, "group_by_session", false),
-		StatsLevel:          GetStringParam(args, "stats_level", "turn"),
-		ContextTurns:        GetIntParam(args, "context_turns", 0),
-		UseTimestampStats:   pipelinepkg.TimestampStatsTools[toolName],
-		ApplyMessageFilters: toolName == "query_session_content",
+		JQFilter:                GetStringParam(args, "jq_filter", ".[]"),
+		StatsOnly:               GetBoolParam(args, "stats_only", false),
+		StatsFirst:              GetBoolParam(args, "stats_first", false),
+		OutputFormat:            GetStringParam(args, "output_format", "jsonl"),
+		MaxMessageLength:        GetIntParam(args, "max_message_length", 0),
+		ContentSummary:          GetBoolParam(args, "content_summary", false),
+		PreviewLength:           GetIntParam(args, "preview_length", pipelinepkg.DefaultPreviewLength),
+		GroupBySession:          GetBoolParam(args, "group_by_session", false),
+		StatsLevel:              GetStringParam(args, "stats_level", "turn"),
+		ContextTurns:            GetIntParam(args, "context_turns", 0),
+		UseTimestampStats:       pipelinepkg.TimestampStatsTools[toolName],
+		ApplyMessageFilters:     toolName == "query_session_content",
+		ExcludeCompactSummaries: GetBoolParam(args, "exclude_compact_summaries", true),
 	}
 }
 

@@ -307,7 +307,7 @@ func writeJSONLFile(t *testing.T, dir string, name string, objects []map[string]
 }
 
 func TestExpandContextTurns_EmptyInput(t *testing.T) {
-	result, err := ExpandContextTurns([]interface{}{}, 2, "/tmp")
+	result, err := ExpandContextTurns([]interface{}{}, 2, "/tmp", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -320,7 +320,7 @@ func TestExpandContextTurns_ZeroN(t *testing.T) {
 	rawData := []interface{}{
 		map[string]interface{}{"uuid": "u1", "sessionId": "s1"},
 	}
-	result, err := ExpandContextTurns(rawData, 0, "/tmp")
+	result, err := ExpandContextTurns(rawData, 0, "/tmp", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -348,7 +348,7 @@ func TestExpandContextTurns_Basic(t *testing.T) {
 		map[string]interface{}{"uuid": "u2", "sessionId": sessionID, "turn": float64(2)},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -388,7 +388,7 @@ func TestExpandContextTurns_WindowClampAtStart(t *testing.T) {
 		map[string]interface{}{"uuid": "u0", "sessionId": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 2, dir)
+	result, err := ExpandContextTurns(rawData, 2, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -414,7 +414,7 @@ func TestExpandContextTurns_WindowClampAtEnd(t *testing.T) {
 		map[string]interface{}{"uuid": "u2", "sessionId": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 2, dir)
+	result, err := ExpandContextTurns(rawData, 2, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -443,7 +443,7 @@ func TestExpandContextTurns_OverlappingWindows(t *testing.T) {
 		map[string]interface{}{"uuid": "u3", "sessionId": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -490,7 +490,7 @@ func TestExpandContextTurns_MultipleSessionOrder(t *testing.T) {
 		map[string]interface{}{"uuid": "b0", "sessionId": sessB},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -518,7 +518,7 @@ func TestExpandContextTurns_SnakeCaseSessionID(t *testing.T) {
 		map[string]interface{}{"uuid": "u1", "session_id": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -578,7 +578,7 @@ func TestExpandContextTurns_InvalidBaseDir(t *testing.T) {
 		map[string]interface{}{"uuid": "u1", "sessionId": "s1"},
 	}
 
-	_, err := ExpandContextTurns(rawData, 1, "/nonexistent/path/that/does/not/exist")
+	_, err := ExpandContextTurns(rawData, 1, "/nonexistent/path/that/does/not/exist", false)
 	if err == nil {
 		t.Error("expected error for invalid base dir")
 	}
@@ -598,7 +598,7 @@ func TestExpandContextTurns_ContextFieldAdded(t *testing.T) {
 		map[string]interface{}{"uuid": "u0", "sessionId": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -607,6 +607,57 @@ func TestExpandContextTurns_ContextFieldAdded(t *testing.T) {
 		obj := entry.(map[string]interface{})
 		if _, exists := obj["context"]; !exists {
 			t.Errorf("turn %s missing 'context' field", obj["uuid"])
+		}
+	}
+}
+
+// TestExpandContextTurns_ExcludeCompactSummaries verifies that when excludeCompactSummaries=true,
+// entries with isCompactSummary=true are excluded from context_turns results.
+// Session: [u0, u1(isCompactSummary=true), u2, u3, u4]; match u2, N=2 -> window u0..u4.
+// With excludeCompactSummaries=true, u1 must not appear in results.
+func TestExpandContextTurns_ExcludeCompactSummaries(t *testing.T) {
+	dir := t.TempDir()
+
+	sessionID := "session-compact-excl"
+	turns := []map[string]interface{}{
+		{"uuid": "u0", "sessionId": sessionID},
+		{"uuid": "u1", "sessionId": sessionID, "isCompactSummary": true},
+		{"uuid": "u2", "sessionId": sessionID},
+		{"uuid": "u3", "sessionId": sessionID},
+		{"uuid": "u4", "sessionId": sessionID},
+	}
+	writeJSONLFile(t, dir, "session.jsonl", turns)
+
+	// Match u2 with N=2 -> window covers u0..u4; excludeCompactSummaries=true
+	rawData := []interface{}{
+		map[string]interface{}{"uuid": "u2", "sessionId": sessionID},
+	}
+
+	result, err := ExpandContextTurns(rawData, 2, dir, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// No isCompactSummary=true entry must appear
+	for _, entry := range result {
+		obj, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		isCompact, _ := obj["isCompactSummary"].(bool)
+		if isCompact {
+			t.Errorf("result must not contain any isCompactSummary=true entry, but found uuid=%v", obj["uuid"])
+		}
+	}
+
+	// u1 must not appear
+	for _, entry := range result {
+		obj, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if obj["uuid"] == "u1" {
+			t.Error("compact summary u1 must not appear in context results")
 		}
 	}
 }

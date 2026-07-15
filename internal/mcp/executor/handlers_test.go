@@ -190,3 +190,170 @@ func TestHandleQueryToolBlocks_ToolUse_PreservesToolFields(t *testing.T) {
 		t.Error("expected sessionId field to be present alongside tool fields")
 	}
 }
+
+// --- exclude_compact_summaries tests ---
+
+// minLen returns min(a, b).
+func minLen(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// buildStringUserRecord constructs a minimal user JSONL record with string content
+// and optional extra top-level fields.
+func buildStringUserRecord(sessionID, content string, extra map[string]interface{}) map[string]interface{} {
+	r := map[string]interface{}{
+		"type":      "user",
+		"timestamp": "2024-01-01T00:00:00Z",
+		"sessionId": sessionID,
+		"uuid":      "uuid-" + content[:minLen(len(content), 8)],
+		"message": map[string]interface{}{
+			"content": content,
+		},
+	}
+	for k, v := range extra {
+		r[k] = v
+	}
+	return r
+}
+
+// TestHandleQueryUserMessages_ExcludeCompactSummaries verifies that the jqFilter
+// produced by handleQueryUserMessages with exclude_compact_summaries=true (default)
+// excludes records where isCompactSummary=true, while keeping plain user records.
+func TestHandleQueryUserMessages_ExcludeCompactSummaries(t *testing.T) {
+	plainRecord := buildStringUserRecord("sess-1", "hello world", nil)
+	compactRecord := buildStringUserRecord("sess-1", "compact content", map[string]interface{}{
+		"isCompactSummary": true,
+	})
+
+	// This mirrors what handleQueryUserMessages builds when exclude_compact_summaries=true
+	jqFilter := `select(.type == "user" and (.message.content | type == "string")) | select(.isCompactSummary != true)`
+
+	results, err := runProviderJQ(
+		[]map[string]interface{}{plainRecord, compactRecord},
+		jqFilter, 0, mcquery.ParsedTimeRange{},
+	)
+	if err != nil {
+		t.Fatalf("runProviderJQ error: %v", err)
+	}
+
+	// Assert no result has isCompactSummary=true
+	for _, entry := range results {
+		obj, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if isCompact, _ := obj["isCompactSummary"].(bool); isCompact {
+			t.Errorf("result must not contain isCompactSummary=true entry, found uuid=%v", obj["uuid"])
+		}
+	}
+
+	// Assert the plain record is present
+	found := false
+	for _, entry := range results {
+		obj, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if msg, ok := obj["message"].(map[string]interface{}); ok {
+			if msg["content"] == "hello world" {
+				found = true
+				break
+			}
+		}
+	}
+	if !found {
+		t.Error("plain user record must appear in results but was absent")
+	}
+}
+
+// TestHandleQueryUserMessages_ExcludeCompactSummaries_FalseRestores verifies that
+// with exclude_compact_summaries=false, isCompactSummary=true records ARE returned.
+func TestHandleQueryUserMessages_ExcludeCompactSummaries_FalseRestores(t *testing.T) {
+	compactRecord := buildStringUserRecord("sess-2", "compact content", map[string]interface{}{
+		"isCompactSummary": true,
+	})
+
+	// When exclude_compact_summaries=false, the select(.isCompactSummary != true) clause is NOT appended
+	jqFilter := `select(.type == "user" and (.message.content | type == "string"))`
+
+	results, err := runProviderJQ(
+		[]map[string]interface{}{compactRecord},
+		jqFilter, 0, mcquery.ParsedTimeRange{},
+	)
+	if err != nil {
+		t.Fatalf("runProviderJQ error: %v", err)
+	}
+
+	// Assert the compact record IS present
+	found := false
+	for _, entry := range results {
+		obj, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if isCompact, _ := obj["isCompactSummary"].(bool); isCompact {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("compact summary record must appear when exclude_compact_summaries=false, but was absent")
+	}
+}
+
+// TestHandleQueryConversationFlow_ExcludeCompactSummaries verifies that the jqFilter
+// produced by handleQueryConversationFlow with exclude_compact_summaries=true (default)
+// excludes isCompactSummary=true records from conversation flow (role=all).
+func TestHandleQueryConversationFlow_ExcludeCompactSummaries(t *testing.T) {
+	userRecord := map[string]interface{}{
+		"type":      "user",
+		"timestamp": "2024-01-01T00:00:00Z",
+		"sessionId": "sess-flow",
+		"uuid":      "u1",
+		"message":   map[string]interface{}{"content": "user turn"},
+	}
+	assistantRecord := map[string]interface{}{
+		"type":      "assistant",
+		"timestamp": "2024-01-01T00:01:00Z",
+		"sessionId": "sess-flow",
+		"uuid":      "u2",
+		"message":   map[string]interface{}{"content": []interface{}{"response"}},
+	}
+	compactRecord := map[string]interface{}{
+		"type":             "user",
+		"timestamp":        "2024-01-01T00:02:00Z",
+		"sessionId":        "sess-flow",
+		"uuid":             "u3",
+		"isCompactSummary": true,
+		"message":          map[string]interface{}{"content": "huge compact summary"},
+	}
+
+	// This mirrors what handleQueryConversationFlow builds when exclude_compact_summaries=true
+	jqFilter := `select(.type == "user" or .type == "assistant") | select(.isCompactSummary != true)`
+
+	results, err := runProviderJQ(
+		[]map[string]interface{}{userRecord, assistantRecord, compactRecord},
+		jqFilter, 0, mcquery.ParsedTimeRange{},
+	)
+	if err != nil {
+		t.Fatalf("runProviderJQ error: %v", err)
+	}
+
+	// Assert no compact summary in results
+	for _, entry := range results {
+		obj, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if isCompact, _ := obj["isCompactSummary"].(bool); isCompact {
+			t.Errorf("result must not contain isCompactSummary=true entry, found uuid=%v", obj["uuid"])
+		}
+	}
+
+	if len(results) == 0 {
+		t.Fatal("expected non-zero results (user and assistant records should be present)")
+	}
+}

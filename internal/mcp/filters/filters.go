@@ -168,7 +168,9 @@ func ApplyMessageFiltersToData(messages []interface{}, maxMessageLength int, con
 // by including up to N turns before and after it (within the same session).
 // Matched turns are marked with "context":false; surrounding context turns with "context":true.
 // Overlapping windows are merged (no duplicates). Order is chronological within each session.
-func ExpandContextTurns(rawData []interface{}, N int, baseDir string) ([]interface{}, error) {
+// When excludeCompactSummaries is true, entries with isCompactSummary=true are filtered out
+// from both the loaded session turns and the final results.
+func ExpandContextTurns(rawData []interface{}, N int, baseDir string, excludeCompactSummaries bool) ([]interface{}, error) {
 	if N <= 0 || len(rawData) == 0 {
 		return rawData, nil
 	}
@@ -205,6 +207,22 @@ func ExpandContextTurns(rawData []interface{}, N int, baseDir string) ([]interfa
 		turns, err := loadTurnsForSession(baseDir, sessionID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load turns for session %s: %w", sessionID, err)
+		}
+		// Filter out compact summaries before building the index
+		if excludeCompactSummaries {
+			filtered := turns[:0:0]
+			for _, turn := range turns {
+				obj, ok := turn.(map[string]interface{})
+				if !ok {
+					filtered = append(filtered, turn)
+					continue
+				}
+				isCompact, _ := obj["isCompactSummary"].(bool)
+				if !isCompact {
+					filtered = append(filtered, turn)
+				}
+			}
+			turns = filtered
 		}
 		sessionTurns[sessionID] = turns
 	}
