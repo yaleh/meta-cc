@@ -3,15 +3,15 @@ id: TASK-20
 title: content_summary 模式对 tool_use block 展示 name 和 input 预览
 assignee: []
 created_date: '2026-07-14 03:52'
-updated_date: '2026-07-15 02:16'
+updated_date: '2026-07-15 02:19'
 labels:
   - 'area:mcp'
   - 'area:query'
 dependencies: []
 priority: high
 ordinal: 11000
-pipeline_id: authoring
-phase: backlog
+pipeline_id: execution
+phase: done
 ---
 
 ## Description
@@ -45,14 +45,22 @@ phase: backlog
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 preview 格式为 '<name> <input_json_truncated>'
-- [ ] #2 preview 长度受 preview_length 参数控制
-- [ ] #3 tool_result block 的 preview 行为不受影响
-- [ ] #4 go test ./internal/mcp/filters/... -run TestApplyContentSummary_ToolUse_NonEmpty 通过；返回记录的 content_preview 字段非空字符串
-- [ ] #5 content_preview 匹配 Go regexp ^[A-Za-z_][\w:]* \{；即 name（字母数字下划线冒号）后跟空格和 JSON 对象开头；验证：TestApplyContentSummary_ToolUse_Format
-- [ ] #6 preview_length=20 时 content_preview 的 rune 长度 ≤ 23（20 字符 + "..."）；验证：TestApplyContentSummary_ToolUse_PreviewLength
-- [ ] #7 go test ./internal/mcp/filters/... -run TestApplyContentSummary_ToolResult 通过；tool_result 记录的 content_preview 与改动前行为一致（有 content 时非空，无 content 时为空）
+- [ ] #1 preview 长度受 preview_length 参数控制
+- [ ] #2 tool_result block 的 preview 行为不受影响
+- [ ] #3 go test ./internal/mcp/filters/... -run TestApplyContentSummary_ToolUse_NonEmpty 通过；返回记录的 content_preview 字段非空字符串
+- [ ] #4 content_preview 匹配 Go regexp ^[A-Za-z_][\w:]* \{；即 name（字母数字下划线冒号）后跟空格和 JSON 对象开头；验证：TestApplyContentSummary_ToolUse_Format
+- [ ] #5 preview_length=20 时 content_preview 的 rune 长度 ≤ 23（20 字符 + "..."）；验证：TestApplyContentSummary_ToolUse_PreviewLength
+- [ ] #6 go test ./internal/mcp/filters/... -run TestApplyContentSummary_ToolResult 通过；tool_result 记录的 content_preview 与改动前行为一致（有 content 时非空，无 content 时为空）
+- [ ] #7 ✅ preview 格式为 '<name> <input_json_truncated>'；验证：TestApplyContentSummary_ToolUse_Format PASS
+- [ ] #8 ✅ preview 长度受 preview_length 参数控制；验证：TestApplyContentSummary_ToolUse_PreviewLength PASS
+- [ ] #9 ✅ tool_result block 的 preview 行为不受影响；验证：TestApplyContentSummary_ToolResult_Unchanged PASS
+- [ ] #10 ✅ go test ./internal/mcp/filters/... -run TestApplyContentSummary_ToolUse_NonEmpty PASS
+- [ ] #11 ✅ content_preview 匹配 ^[A-Za-z_][\w:]* \{；验证：TestApplyContentSummary_ToolUse_Format PASS
+- [ ] #12 ✅ preview_length=20 时 rune 长度 ≤ 23；验证：TestApplyContentSummary_ToolUse_PreviewLength PASS
+- [ ] #13 ✅ go test ./internal/mcp/filters/... -run TestApplyContentSummary_ToolResult PASS
 <!-- AC:END -->
+
+
 
 ## Implementation Plan
 
