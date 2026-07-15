@@ -5,6 +5,32 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-07-15
+
+
+### Added
+
+- add exclude_compact_summaries parameter to query_session_content (TASK-22)
+- skip isCompactSummary entries in ExpandContextTurns (TASK-21)
+- add exclude_compact_summaries parameter to filter out compact summary messages by default
+- add task actions for dispatching to worker and author in config.yml feat: update task-17 status and add pipeline_id and phase feat: update task-20 status, add pipeline_id, phase, and enhance description feat: update task-21 status and add pipeline_id and phase feat: update task-22 status and add pipeline_id and phase fix: change task-5 status to 'Done' chore: add .manda/hub.addr to .gitignore feat: create initial .manda/config.yml with profiles and adapters
+- add tool_use preview support to content_summary mode (TASK-20)
+- add tool_name filter to query_session_content for tool_use blocks (TASK-19)
+- Consolidate MCP query tools and update skills packaging
+- add tool_name filter to query_session_content for tool_use blocks
+
+### Changed
+
+- Maintenance: mark TASK-21 and TASK-22 as done in epicd
+- Refactoring: migrate parser.SessionEntry/ToolCall to types.* in all test files (Phase 86)
+
+### Other
+
+- merge: add exclude_compact_summaries parameter (TASK-22)
+- merge: skip isCompactSummary entries in ExpandContextTurns (TASK-21)
+- merge: add tool_use preview support to content_summary mode (TASK-20)
+- merge: 修复 query_summaries null 及 get_timeline 截断 (TASK-18)
+
 ## [3.3.14] - 2026-06-25
 
 
