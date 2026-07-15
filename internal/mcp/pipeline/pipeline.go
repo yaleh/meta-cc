@@ -21,18 +21,19 @@ const DefaultPreviewLength = 100
 
 // PipelineConfig holds configuration for a tool execution pipeline.
 type PipelineConfig struct {
-	JQFilter            string
-	StatsOnly           bool
-	StatsFirst          bool
-	OutputFormat        string
-	MaxMessageLength    int
-	ContentSummary      bool
-	PreviewLength       int
-	GroupBySession      bool
-	StatsLevel          string // "turn" (default) or "session"
-	ContextTurns        int
-	UseTimestampStats   bool // use time-bucketed stats instead of key-count stats
-	ApplyMessageFilters bool // apply message length / content-summary filters
+	JQFilter                string
+	StatsOnly               bool
+	StatsFirst              bool
+	OutputFormat            string
+	MaxMessageLength        int
+	ContentSummary          bool
+	PreviewLength           int
+	GroupBySession          bool
+	StatsLevel              string // "turn" (default) or "session"
+	ContextTurns            int
+	UseTimestampStats       bool // use time-bucketed stats instead of key-count stats
+	ApplyMessageFilters     bool // apply message length / content-summary filters
+	ExcludeCompactSummaries bool // exclude isCompactSummary=true entries from context_turns
 }
 
 func (c PipelineConfig) requiresMessageFilters() bool {
@@ -74,7 +75,7 @@ func BuildResponse(cfg *config.Config, result mcquerypkg.QueryResult, args map[s
 		if err != nil {
 			return "", err
 		}
-		parsedData, err = filterspkg.ExpandContextTurns(parsedData, pc.ContextTurns, baseDir)
+		parsedData, err = filterspkg.ExpandContextTurns(parsedData, pc.ContextTurns, baseDir, pc.ExcludeCompactSummaries)
 		if err != nil {
 			return "", err
 		}

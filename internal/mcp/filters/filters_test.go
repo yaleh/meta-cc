@@ -405,7 +405,7 @@ func TestApplyContentSummary_ToolResult_Unchanged(t *testing.T) {
 }
 
 func TestExpandContextTurns_EmptyInput(t *testing.T) {
-	result, err := ExpandContextTurns([]interface{}{}, 2, "/tmp")
+	result, err := ExpandContextTurns([]interface{}{}, 2, "/tmp", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -418,7 +418,7 @@ func TestExpandContextTurns_ZeroN(t *testing.T) {
 	rawData := []interface{}{
 		map[string]interface{}{"uuid": "u1", "sessionId": "s1"},
 	}
-	result, err := ExpandContextTurns(rawData, 0, "/tmp")
+	result, err := ExpandContextTurns(rawData, 0, "/tmp", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -446,7 +446,7 @@ func TestExpandContextTurns_Basic(t *testing.T) {
 		map[string]interface{}{"uuid": "u2", "sessionId": sessionID, "turn": float64(2)},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -486,7 +486,7 @@ func TestExpandContextTurns_WindowClampAtStart(t *testing.T) {
 		map[string]interface{}{"uuid": "u0", "sessionId": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 2, dir)
+	result, err := ExpandContextTurns(rawData, 2, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -512,7 +512,7 @@ func TestExpandContextTurns_WindowClampAtEnd(t *testing.T) {
 		map[string]interface{}{"uuid": "u2", "sessionId": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 2, dir)
+	result, err := ExpandContextTurns(rawData, 2, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -541,7 +541,7 @@ func TestExpandContextTurns_OverlappingWindows(t *testing.T) {
 		map[string]interface{}{"uuid": "u3", "sessionId": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -588,7 +588,7 @@ func TestExpandContextTurns_MultipleSessionOrder(t *testing.T) {
 		map[string]interface{}{"uuid": "b0", "sessionId": sessB},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -616,7 +616,7 @@ func TestExpandContextTurns_SnakeCaseSessionID(t *testing.T) {
 		map[string]interface{}{"uuid": "u1", "session_id": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -676,7 +676,7 @@ func TestExpandContextTurns_InvalidBaseDir(t *testing.T) {
 		map[string]interface{}{"uuid": "u1", "sessionId": "s1"},
 	}
 
-	_, err := ExpandContextTurns(rawData, 1, "/nonexistent/path/that/does/not/exist")
+	_, err := ExpandContextTurns(rawData, 1, "/nonexistent/path/that/does/not/exist", false)
 	if err == nil {
 		t.Error("expected error for invalid base dir")
 	}
@@ -696,7 +696,7 @@ func TestExpandContextTurns_ContextFieldAdded(t *testing.T) {
 		map[string]interface{}{"uuid": "u0", "sessionId": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -729,16 +729,68 @@ func TestExpandContextTurns_SkipsCompactSummary(t *testing.T) {
 		map[string]interface{}{"uuid": "u2", "sessionId": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 2, dir)
+	result, err := ExpandContextTurns(rawData, 2, dir, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	for _, entry := range result {
-		obj := entry.(map[string]interface{})
+		obj, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
 		isCompact, _ := obj["isCompactSummary"].(bool)
 		if isCompact {
 			t.Errorf("result must not contain any isCompactSummary=true entry, but found uuid=%v", obj["uuid"])
+		}
+	}
+}
+
+// TestExpandContextTurns_ExcludeCompactSummaries verifies that when excludeCompactSummaries=true,
+// entries with isCompactSummary=true are excluded from context_turns results.
+func TestExpandContextTurns_ExcludeCompactSummaries(t *testing.T) {
+	dir := t.TempDir()
+
+	sessionID := "session-compact-excl"
+	turns := []map[string]interface{}{
+		{"uuid": "u0", "sessionId": sessionID},
+		{"uuid": "u1", "sessionId": sessionID, "isCompactSummary": true},
+		{"uuid": "u2", "sessionId": sessionID},
+		{"uuid": "u3", "sessionId": sessionID},
+		{"uuid": "u4", "sessionId": sessionID},
+	}
+	writeJSONLFile(t, dir, "session.jsonl", turns)
+
+	// Match u2 with N=2 -> window covers u0..u4; excludeCompactSummaries=true
+	rawData := []interface{}{
+		map[string]interface{}{"uuid": "u2", "sessionId": sessionID},
+	}
+
+	result, err := ExpandContextTurns(rawData, 2, dir, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// No isCompactSummary=true entry must appear
+	for _, entry := range result {
+		obj, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		isCompact, _ := obj["isCompactSummary"].(bool)
+		if isCompact {
+			t.Errorf("result must not contain any isCompactSummary=true entry, but found uuid=%v", obj["uuid"])
+		}
+	}
+
+	// u1 must not appear
+	for _, entry := range result {
+		obj, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if obj["uuid"] == "u1" {
+			t.Error("compact summary u1 must not appear in context results")
 		}
 	}
 }
@@ -760,20 +812,21 @@ func TestExpandContextTurns_CompactSummaryNotCountedAsTurn(t *testing.T) {
 	}
 	writeJSONLFile(t, dir, "session.jsonl", turns)
 
-	// Match u2, N=1: u1 is compact so not in uuidToIndex. u2 is at idx=2 in turns slice.
-	// Window: lo=max(0,2-1)=1, hi=min(4,2+1)=3 -> turns[1,2,3] = [u1,u2,u3].
-	// Emit skips u1 (compact), so result = [u2, u3].
+	// Match u2, N=1: compact u1 is removed before index build.
+	// Filtered sequence: [u0, u2, u3, u4]; u2 is at index 1.
+	// Window: lo=max(0,1-1)=0, hi=min(3,1+1)=2 -> [u0, u2, u3].
+	// Result: 3 entries (u0, u2, u3).
 	rawData := []interface{}{
 		map[string]interface{}{"uuid": "u2", "sessionId": sessionID},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(result) != 2 {
-		t.Fatalf("expected 2 results (u2, u3), got %d", len(result))
+	if len(result) != 3 {
+		t.Fatalf("expected 3 results (u0, u2, u3), got %d", len(result))
 	}
 
 	for _, entry := range result {
@@ -800,7 +853,7 @@ func TestExpandContextTurns_MatchedCompactSummarySkipped(t *testing.T) {
 		map[string]interface{}{"uuid": "u0", "sessionId": sessionID, "isCompactSummary": true},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -828,7 +881,7 @@ func TestExpandContextTurns_AllCompactSummarySession(t *testing.T) {
 		map[string]interface{}{"uuid": "u1", "sessionId": sessionID, "isCompactSummary": true},
 	}
 
-	result, err := ExpandContextTurns(rawData, 1, dir)
+	result, err := ExpandContextTurns(rawData, 1, dir, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

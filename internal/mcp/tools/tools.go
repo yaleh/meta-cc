@@ -308,6 +308,10 @@ func GetToolDefinitions() []Tool {
 					Type:        "integer",
 					Description: "When role=user: number of turns to include before/after each matched turn. Default: 0.",
 				},
+				"exclude_compact_summaries": {
+					Type:        "boolean",
+					Description: "Exclude compact summary messages (isCompactSummary=true) from results and context_turns. Default: true. Pass false to include them (e.g. to search the summaries themselves).",
+				},
 				"since": {
 					Type:        "string",
 					Description: `Include only records with timestamp >= this value (RFC3339, e.g. "2026-03-07T00:00:00Z")`,

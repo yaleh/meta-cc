@@ -28,6 +28,7 @@ func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]inte
 	sinceStr := GetStringParam(args, "since", "")
 	untilStr := GetStringParam(args, "until", "")
 	excludeSystem := GetBoolParam(args, "exclude_system_messages", false)
+	excludeCompact := GetBoolParam(args, "exclude_compact_summaries", true)
 
 	tr, err := mcquery.ParseTimeRange(sinceStr, untilStr)
 	if err != nil {
@@ -59,6 +60,10 @@ func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]inte
 
 	if excludeSystem && (contentType == "string" || contentType == "") {
 		jqFilter += ` | select(.message.content | (startswith("<local-command-caveat>") or startswith("<command-name>") or startswith("<local-command-stdout>") or startswith("<task-notification>")) | not)`
+	}
+
+	if excludeCompact {
+		jqFilter += ` | select(.isCompactSummary != true)`
 	}
 
 	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, tr)
@@ -107,6 +112,7 @@ func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]
 	workingDir := GetStringParam(args, "working_dir", "")
 	sinceStr := GetStringParam(args, "since", "")
 	untilStr := GetStringParam(args, "until", "")
+	excludeCompact := GetBoolParam(args, "exclude_compact_summaries", true)
 
 	tr, err := mcquery.ParseTimeRange(sinceStr, untilStr)
 	if err != nil {
@@ -114,6 +120,10 @@ func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]
 	}
 
 	jqFilter := `select(.type == "user" or .type == "assistant")`
+
+	if excludeCompact {
+		jqFilter += ` | select(.isCompactSummary != true)`
+	}
 
 	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, tr)
 }
