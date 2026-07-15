@@ -3,15 +3,15 @@ id: TASK-22
 title: 新增 exclude_compact_summaries 参数，默认排除 compact summary 消息
 assignee: []
 created_date: '2026-07-14 03:53'
-updated_date: '2026-07-15 02:34'
+updated_date: '2026-07-15 03:09'
 labels:
   - 'area:mcp'
   - 'area:query'
 dependencies: []
 priority: medium
 ordinal: 13000
-pipeline_id: authoring
-phase: backlog
+pipeline_id: execution
+phase: done
 ---
 
 ## Description
@@ -30,12 +30,14 @@ compact summary 消息（`isCompactSummary: true`）是 Claude Code 自动注入
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 role=user default excludes compact summaries: go test ./internal/mcp/executor/ -run TestHandleQueryUserMessages_ExcludeCompactSummaries passes and asserts zero entries with isCompactSummary=true in result
-- [ ] #2 role=all default excludes compact summaries: go test ./internal/mcp/executor/ -run TestHandleQueryConversationFlow_ExcludeCompactSummaries passes and asserts zero entries with isCompactSummary=true in result
-- [ ] #3 exclude_compact_summaries=false restores compact summaries: go test ./internal/mcp/executor/ -run TestHandleQueryUserMessages_ExcludeCompactSummaries_FalseRestores passes and asserts isCompactSummary=true entries appear in result
-- [ ] #4 context_turns excludes compact summaries when flag=true: go test ./internal/mcp/filters/ -run TestExpandContextTurns_ExcludeCompactSummaries passes and asserts no isCompactSummary=true entry appears in expanded context output
-- [ ] #5 parameter is in MCP schema: grep 'exclude_compact_summaries' internal/mcp/tools/tools.go exits 0
+- [x] #1 role=user default excludes compact summaries: TestHandleQueryUserMessages_ExcludeCompactSummaries PASSED
+- [x] #2 role=all default excludes compact summaries: TestHandleQueryConversationFlow_ExcludeCompactSummaries PASSED
+- [x] #3 exclude_compact_summaries=false restores compact summaries: TestHandleQueryUserMessages_ExcludeCompactSummaries_FalseRestores PASSED
+- [x] #4 context_turns excludes compact summaries when flag=true: TestExpandContextTurns_ExcludeCompactSummaries PASSED
+- [x] #5 parameter is in MCP schema: grep confirmed exclude_compact_summaries in tools.go
 <!-- AC:END -->
+
+
 
 ## Implementation Plan
 
