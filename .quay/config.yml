@@ -1,0 +1,14 @@
+providers:
+  native:
+    path: /home/yale/work/meta-cc/tasks
+gates:
+  vitest:
+    command: npx vitest run
+    cwd: /home/yale/work/meta-cc
+loop:
+  board: native
+  stop: until(.halt)
+  policy: ready-first
+  execution: dispatched
+  audit: adversarial
+  concurrency: 1

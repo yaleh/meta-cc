@@ -1,0 +1,1 @@
+{"id": "17e17293-8b94-469f-84f9-de8eaee5b3cd", "item_id": "MCTEST", "pipeline_id": "MCTEST", "gate": "acceptance", "actor": "quay-cli", "verdict": "pass", "timestamp": "2026-07-24T05:57:06.000Z", "payload": {"reason": "DELIVERY-D Provider-ABI proof: task-status transition ready\u2192done in meta-cc workspace"}}
