@@ -81,6 +81,17 @@ func ExtractToolCalls(entries []SessionEntry) []ToolCall {
 			tc.Output = result.Content
 			tc.Status = result.Status
 			tc.Error = result.Error
+
+			// Normalize Status from IsError when the JSONL omits a "status" field.
+			// Real Claude Code tool_result blocks only carry "is_error":true/false,
+			// so result.Status is "" for every successful call.
+			if tc.Status == "" {
+				if result.IsError {
+					tc.Status = "error"
+				} else {
+					tc.Status = "success"
+				}
+			}
 		}
 		toolCalls = append(toolCalls, tc)
 	}

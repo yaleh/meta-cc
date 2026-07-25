@@ -77,7 +77,7 @@ func QualityScan(entries []types.SessionEntry, toolCalls []types.ToolCall) (*Qua
 	// --- completion_rate ---
 	successes := 0
 	for _, tc := range toolCalls {
-		if tc.Status == "success" {
+		if tc.Status == "success" || (tc.Status == "" && tc.Error == "") {
 			successes++
 		}
 	}
