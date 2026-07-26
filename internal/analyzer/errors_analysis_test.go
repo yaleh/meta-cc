@@ -53,10 +53,48 @@ func TestAnalyzeErrors_GroupsByErrorType(t *testing.T) {
 		t.Fatalf("AnalyzeErrors returned error: %v", err)
 	}
 
-	// Different tools with same error text produce different signatures (tool name is part of signature)
-	// So we expect 2 error type groups
+	// Same error label ("connection_error") across different tools merges into 1 group
+	if len(result.ByType) != 1 {
+		t.Errorf("Expected 1 error type group (same label), got %d", len(result.ByType))
+	}
+	if result.ByType[0].Count != 2 {
+		t.Errorf("Expected count 2 for merged group, got %d", result.ByType[0].Count)
+	}
+	if result.ByType[0].Label != "connection_error" {
+		t.Errorf("Expected label 'connection_error', got %q", result.ByType[0].Label)
+	}
+	if result.ByType[0].Signature == "" {
+		t.Error("Expected Signature field to be populated for backward compatibility")
+	}
+}
+
+func TestAnalyzeErrors_DifferentLabelsStaySeparate(t *testing.T) {
+	toolCalls := []types.ToolCall{
+		{UUID: "1", ToolName: "Bash", Status: "error", Error: "command not found: foo"},
+		{UUID: "2", ToolName: "Bash", Status: "error", Error: "permission denied"},
+	}
+
+	result, err := AnalyzeErrors([]types.SessionEntry{}, toolCalls, 10)
+	if err != nil {
+		t.Fatalf("AnalyzeErrors returned error: %v", err)
+	}
+
 	if len(result.ByType) != 2 {
-		t.Errorf("Expected 2 error type groups, got %d", len(result.ByType))
+		t.Errorf("Expected 2 error type groups for different labels, got %d", len(result.ByType))
+	}
+
+	labels := make(map[string]int)
+	for _, g := range result.ByType {
+		if g.Label == "" {
+			t.Error("Expected Label field to be populated in every group")
+		}
+		labels[g.Label] = g.Count
+	}
+	if labels["command_not_found"] != 1 {
+		t.Errorf("Expected count 1 for command_not_found, got %d", labels["command_not_found"])
+	}
+	if labels["permission_denied"] != 1 {
+		t.Errorf("Expected count 1 for permission_denied, got %d", labels["permission_denied"])
 	}
 }
 

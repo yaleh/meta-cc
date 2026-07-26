@@ -98,3 +98,172 @@ func TestCalculateErrorSignature_SignatureFormat(t *testing.T) {
 		}
 	}
 }
+
+func TestClassifyErrorType_EmptyError(t *testing.T) {
+	result := ClassifyErrorType("Bash", "")
+	if result != "tool_error_no_message" {
+		t.Errorf("Expected 'tool_error_no_message' for empty error, got %q", result)
+	}
+}
+
+func TestClassifyErrorType_BashExitCode(t *testing.T) {
+	cases := []string{
+		"exit status 1",
+		"exit status 127",
+		"exit status 0",
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType("Bash", tc)
+		if result != "bash_exit_code" {
+			t.Errorf("Expected 'bash_exit_code' for %q, got %q", tc, result)
+		}
+	}
+}
+
+func TestClassifyErrorType_CommandNotFound(t *testing.T) {
+	cases := []string{
+		"command not found: xyz",
+		"bash: npm: command not found",
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType("Bash", tc)
+		if result != "command_not_found" {
+			t.Errorf("Expected 'command_not_found' for %q, got %q", tc, result)
+		}
+	}
+}
+
+func TestClassifyErrorType_PermissionDenied(t *testing.T) {
+	cases := []string{
+		"permission denied",
+		"Permission denied: /etc/shadow",
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType("Bash", tc)
+		if result != "permission_denied" {
+			t.Errorf("Expected 'permission_denied' for %q, got %q", tc, result)
+		}
+	}
+}
+
+func TestClassifyErrorType_FileNotFound(t *testing.T) {
+	cases := []string{
+		"no such file or directory",
+		"file not found",
+		"ENOENT: no such file or directory",
+		"cannot find the file",
+		"cannot read the file",
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType("Read", tc)
+		if result != "file_not_found" {
+			t.Errorf("Expected 'file_not_found' for %q, got %q", tc, result)
+		}
+	}
+}
+
+func TestClassifyErrorType_ConnectionError(t *testing.T) {
+	cases := []string{
+		"connection refused",
+		"connection reset by peer",
+		"connection timeout",
+		"network is unreachable",
+		"ECONNREFUSED",
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType("Read", tc)
+		if result != "connection_error" {
+			t.Errorf("Expected 'connection_error' for %q, got %q", tc, result)
+		}
+	}
+}
+
+func TestClassifyErrorType_ParseError(t *testing.T) {
+	cases := []string{
+		"not a valid input",
+		"parse error: unexpected EOF",
+		"syntax error near line 5",
+		"invalid json: unexpected end",
+		"unmarshal error: invalid character",
+		"unexpected token at position 42",
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType("Bash", tc)
+		if result != "parse_error" {
+			t.Errorf("Expected 'parse_error' for %q, got %q", tc, result)
+		}
+	}
+}
+
+func TestClassifyErrorType_ContentTooLarge(t *testing.T) {
+	cases := []string{
+		"file too large: exceeds maximum size",
+		"content too long for processing",
+		"file too big to read",
+		"exceeds limit of 100MB",
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType("Read", tc)
+		if result != "content_too_large" {
+			t.Errorf("Expected 'content_too_large' for %q, got %q", tc, result)
+		}
+	}
+}
+
+func TestClassifyErrorType_AuthError(t *testing.T) {
+	cases := []string{
+		"unauthorized access",
+		"authentication failed",
+		"not authenticated",
+		"HTTP 403 Forbidden",
+		"401 Unauthorized",
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType("Read", tc)
+		if result != "auth_error" {
+			t.Errorf("Expected 'auth_error' for %q, got %q", tc, result)
+		}
+	}
+}
+
+func TestClassifyErrorType_ResourceNotFound(t *testing.T) {
+	cases := []string{
+		"not found",
+		"404 page not found",
+		"no such resource",
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType("Read", tc)
+		if result != "resource_not_found" {
+			t.Errorf("Expected 'resource_not_found' for %q, got %q", tc, result)
+		}
+	}
+}
+
+func TestClassifyErrorType_Uncategorized(t *testing.T) {
+	cases := []string{
+		"some random error message",
+		"signal: killed",
+		"out of memory",
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType("Bash", tc)
+		if result != "uncategorized" {
+			t.Errorf("Expected 'uncategorized' for %q, got %q", tc, result)
+		}
+	}
+}
+
+func TestClassifyErrorType_FirstMatchWins(t *testing.T) {
+	// "no such file" should match file_not_found (rule 5), not resource_not_found (rule 10)
+	result := ClassifyErrorType("Bash", "no such file or directory")
+	if result != "file_not_found" {
+		t.Errorf("Expected 'file_not_found' due to first-match ordering, got %q", result)
+	}
+
+	// "file not found" should match file_not_found (rule 5), not resource_not_found (rule 10)
+	result = ClassifyErrorType("Bash", "file not found: /tmp/missing")
+	if result != "file_not_found" {
+		t.Errorf("Expected 'file_not_found' due to first-match ordering, got %q", result)
+	}
+}

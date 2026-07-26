@@ -14,9 +14,11 @@ type ToolErrorGroup struct {
 	Examples []string `json:"examples"`
 }
 
-// ErrorTypeGroup groups errors by signature (tool+error hash)
+// ErrorTypeGroup groups errors by human-readable label.
+// Signature is retained as a secondary key for backward compatibility.
 type ErrorTypeGroup struct {
 	Signature string   `json:"signature"`
+	Label     string   `json:"label"`
 	Count     int      `json:"count"`
 	Examples  []string `json:"examples"`
 }
@@ -82,12 +84,13 @@ func AnalyzeErrors(entries []types.SessionEntry, toolCalls []types.ToolCall, lim
 			tg.Examples = append(tg.Examples, tc.Error)
 		}
 
-		// Group by error signature
+		// Group by error label (human-readable classification)
+		label := ClassifyErrorType(tc.ToolName, tc.Error)
 		sig := CalculateErrorSignature(tc.ToolName, tc.Error)
-		eg, ok := typeGroupMap[sig]
+		eg, ok := typeGroupMap[label]
 		if !ok {
-			eg = &ErrorTypeGroup{Signature: sig}
-			typeGroupMap[sig] = eg
+			eg = &ErrorTypeGroup{Label: label, Signature: sig}
+			typeGroupMap[label] = eg
 		}
 		eg.Count++
 		if limit <= 0 || len(eg.Examples) < limit {
@@ -111,7 +114,7 @@ func AnalyzeErrors(entries []types.SessionEntry, toolCalls []types.ToolCall, lim
 	}
 	sort.Slice(result.ByType, func(i, j int) bool {
 		if result.ByType[i].Count == result.ByType[j].Count {
-			return result.ByType[i].Signature < result.ByType[j].Signature
+			return result.ByType[i].Label < result.ByType[j].Label
 		}
 		return result.ByType[i].Count > result.ByType[j].Count
 	})
