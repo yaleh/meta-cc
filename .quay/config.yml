@@ -1,14 +1,160 @@
+# .quay/config.yml — unified per-workspace config (DIR-050).
+# Travels with the project; single source of truth for provider, gate, and loop config.
+#
+# Sections:
+#   providers: — which Provider is enabled, its path, env, and creation defaults
+#   gates:     — workspace-owned gates (it0, adr, fixed, testPass, coverageFloor, redGreen)
+#   loop:      — autonomous loop driver params (board, stop, policy, execution, audit, routines)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROVIDERS
+# ═══════════════════════════════════════════════════════════════════════════════
+# Each provider has:
+#   enabled:              true|false — the FIRST enabled provider is the default
+#   path:                 path to the Provider's code root (resolved relative to workspaceRoot)
+#   tasks_dir:            where task files are stored (resolved relative to workspaceRoot)
+#   mcp_entry:            [cmd, ...args] — MCP server launch command (resolved relative to provider.path)
+#   default_task_status:  (optional) creation default for new tasks; "todo" if absent
+#   env:                  environment variables passed to the provider process:
+#     QUAY_NATIVE_TASKS_DIR — task store path (required for native provider)
+#     QUAY_NATIVE_ADR_DIR   — ADR directory (default: <parent-of-tasksDir>/adr)
+#     QUAY_NATIVE_DOCS_DIR  — docs-managed directory (default: <repo-root>/docs-managed)
+#
+# github provider env:
+#     QUAY_GITHUB_REPO     — owner/repo (required for github provider)
+
 providers:
   native:
-    path: /home/yale/work/meta-cc/tasks
+    enabled: true
+    path: "."
+    mcp_entry: ["quay-native", "mcp"]
+    default_task_status: ready     # uncomment to override; valid values: todo, ready, done, needs-human
+    env:
+      QUAY_NATIVE_TASKS_DIR: "./tasks"
+      # QUAY_NATIVE_ADR_DIR: "./adr"        # default: auto-resolved from tasksDir parent
+      # QUAY_NATIVE_DOCS_DIR: "./docs-managed"  # default: <repo-root>/docs-managed
+
+  # github:                              # example multi-provider setup (disabled)
+  #   enabled: false
+  #   path: "./packages/quay-github"
+  #   mcp_entry: ["node", "./bin/quay-github.ts", "mcp"]
+  #   env:
+  #     QUAY_GITHUB_REPO: "yaleh/meta-cc"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GATES (DIR-050: unified; previously .quay/gates.yml)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Six gate types. Every entry may carry optional per-gate cwd / timeoutMs overrides.
+#
+#   it0:           [{name, script, argsKey, cwd?, timeoutMs?}]
+#                  — wraps a fixed script, driven by task.extra[argsKey] positional args
+#   adr:           ["ADR-001", ...]
+#                  — auto-wires ADRs with enforcement: fields as adr-<id> gates
+#   fixed:         [{name, script, cwd?, timeoutMs?}]
+#                  — wraps a fixed script (no per-task args)
+#   testPass:      [{name, command, cwd?, timeoutMs?}]
+#                  — runs a command; PASS if exit 0
+#   coverageFloor: [{name, command, floor, pattern?, cwd?, timeoutMs?}]
+#                  — runs a command, extracts coverage %, fails if below floor
+#   redGreen:      [{name, red, green, cwd?, timeoutMs?}]
+#                  — runs red command (must fail), then green (must pass)
+
 gates:
-  vitest:
-    command: npx vitest run
-    cwd: /home/yale/work/meta-cc
+  # ── it0 gates (per-task args from task.extra) ──────────────────────────────
+  it0:
+    - name: impl-row
+      script: "./scripts/gates/it0-impl-row-check.sh"
+      argsKey: implRowArgs
+    - name: ceiling-line-budget
+      script: "./scripts/gates/it0-ceiling-line-budget-check.sh"
+      argsKey: lineBudgetArgs
+    - name: vmeta-lag
+      script: "./scripts/gates/vmeta-lag-check.sh"
+      argsKey: vmetaLagArgs
+    - name: audit-independence
+      script: "./scripts/gates/audit-independence-check.sh"
+      argsKey: auditIndependenceArgs
+    - name: dogfood-evidence
+      script: "./scripts/gates/it0-dogfood-evidence-gate.sh"
+      argsKey: dogfoodEvidenceArgs
+    - name: backlog-projection
+      script: "./scripts/gates/it0-backlog-projection-check.sh"
+      argsKey: backlogProjectionArgs
+    - name: gate-hash
+      script: "./scripts/gates/it0-gate-hash-check.sh"
+      argsKey: gateHashArgs
+    - name: dod
+      script: "./scripts/gates/it0-dod-check.sh"
+      argsKey: dodArgs
+    - name: ceiling
+      script: "./scripts/gates/it0-ceiling-check.sh"
+      argsKey: ceilingArgs
+
+  # ── fixed gates (no per-task args) ────────────────────────────────────────
+  fixed:
+    - name: tree-hygiene
+      script: "./scripts/gates/tree-hygiene-check.sh"
+    - name: worktree-branch-hygiene
+      script: "./scripts/gates/worktree-branch-hygiene-check.sh"
+
+  # ── ADR gates (auto-wired from ADR enforcement: fields) ───────────────────
+  # adr:
+  #   - "ADR-001"
+
+  # ── testPass gates (command exit 0 = PASS) ─────────────────────────────────
+  # testPass:
+  #   - name: go-test
+  #     command: "go test ./..."
+  #     timeoutMs: 120000
+
+  # ── coverageFloor gates (command output parsed for coverage %) ─────────────
+  # coverageFloor:
+  #   - name: go-coverage
+  #     command: "go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%'"
+  #     floor: 80
+  #     pattern: '\d+\.?\d*'
+
+  # ── redGreen gates (red must fail, green must pass) ────────────────────────
+  # redGreen:
+  #   - name: tdd-cycle
+  #     red: "go test -run TestNewFeature ./..."
+  #     green: "go test ./..."
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LOOP (DIR-050: unified; previously .quay/loop.yml)
+# ═══════════════════════════════════════════════════════════════════════════════
+#   board:       string            REQUIRED — provider name (e.g. "native")
+#   gates:       string|string[]   REQUIRED — gate name(s) or set labels
+#   stop:        string            default "once" — "once" | "until(.halt)" | "until(empty)" | "until(<condition>)"
+#   policy:      string            default "ready-first" — workspace-defined select-ranking label
+#   execution:   string            default "dispatched" — "dispatched" | "inline"
+#   audit:       string            default "adversarial" — "adversarial" | "none"
+#   concurrency: integer >=1       default 1 — max concurrent touches-disjoint builds
+#   routines:    array             default [] — standing routine track
+#     - name:      string   non-empty routine name
+#       trigger:   string   "every(N)" (N>=1) or "on(<event>)"
+#       probe:     string   probe spec name (DIR-056); at least one of probe or dispatch required
+#       dispatch:  string   (legacy) dispatch target name
+
 loop:
   board: native
-  stop: until(.halt)
-  policy: ready-first
-  execution: dispatched
-  audit: adversarial
-  concurrency: 1
+
+  # Gate set for the autonomous loop — single gate "acceptance" (runs task.extra.acceptance shell
+  # command, fail-closed if unset). For a richer gate pipeline, use a gate list or a named set
+  # from the gates section (e.g. ["dod", "impl-row", "tree-hygiene"]).
+  gates: [acceptance]
+
+  stop: until(.halt)          # run until .halt sentinel exists at workspace root
+  policy: ready-first         # SELECT: highest-priority ready task first
+  execution: dispatched       # build in fresh background subagent (FAIL-CLOSED if no Agent tool)
+  audit: adversarial          # fresh-context subagent audits diff before land
+  concurrency: 1              # serial — one dispatched build per cycle
+
+  routines:
+    - name: history-mining
+      trigger: every(3)       # fire every 3 loop cycles
+      probe: history-mining
+
+    - name: self-validation
+      trigger: every(5)       # fire every 5 loop cycles
+      probe: self-validation
