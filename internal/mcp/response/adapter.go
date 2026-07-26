@@ -6,17 +6,19 @@ import (
 
 	"github.com/yaleh/meta-cc/internal/config"
 	mcerrors "github.com/yaleh/meta-cc/internal/errors"
+	filterpkg "github.com/yaleh/meta-cc/internal/filter"
 )
 
 // AdaptResponse adapts data to hybrid mode format (inline or file_ref).
-func AdaptResponse(cfg *config.Config, data []interface{}, params map[string]interface{}, toolName string) (interface{}, error) {
+// paginationMeta carries pagination metadata for the response envelope (may be nil for backward compatibility).
+func AdaptResponse(cfg *config.Config, data []interface{}, params map[string]interface{}, toolName string, pagination *filterpkg.PaginationMetadata) (interface{}, error) {
 	size := CalculateOutputSize(data)
 	modeCfg := GetOutputModeConfig(cfg, params)
 	mode := SelectOutputModeWithConfig(size, getStringParam(params, "output_mode", ""), modeCfg)
 
 	switch mode {
 	case OutputModeInline:
-		return BuildInlineResponse(data), nil
+		return BuildInlineResponse(data, pagination), nil
 
 	case OutputModeFileRef:
 		sessionHash := GetSessionHash(cfg)
@@ -26,7 +28,7 @@ func AdaptResponse(cfg *config.Config, data []interface{}, params map[string]int
 			return nil, fmt.Errorf("failed to write temp file %s: %w", filePath, mcerrors.ErrFileIO)
 		}
 
-		return BuildFileRefResponse(filePath, data)
+		return BuildFileRefResponse(filePath, data, pagination)
 
 	default:
 		return nil, fmt.Errorf("unknown output mode '%s' in AdaptResponse: %w", mode, mcerrors.ErrInvalidInput)
@@ -36,18 +38,24 @@ func AdaptResponse(cfg *config.Config, data []interface{}, params map[string]int
 // BuildInlineResponse constructs inline mode response.
 // A nil data slice is normalized to an empty slice so JSON serialization
 // produces "data":[] instead of "data":null (fixes query_summaries null return).
-func BuildInlineResponse(data []interface{}) map[string]interface{} {
+// pagination may be nil for backward compatibility with callers that don't use pagination.
+func BuildInlineResponse(data []interface{}, pagination *filterpkg.PaginationMetadata) map[string]interface{} {
 	if data == nil {
 		data = []interface{}{}
 	}
-	return map[string]interface{}{
+	resp := map[string]interface{}{
 		"mode": OutputModeInline,
 		"data": data,
 	}
+	if pagination != nil {
+		resp["pagination"] = pagination
+	}
+	return resp
 }
 
-// BuildFileRefResponse constructs file reference mode response
-func BuildFileRefResponse(filePath string, data []interface{}) (map[string]interface{}, error) {
+// BuildFileRefResponse constructs file reference mode response.
+// pagination may be nil for backward compatibility with callers that don't use pagination.
+func BuildFileRefResponse(filePath string, data []interface{}, pagination *filterpkg.PaginationMetadata) (map[string]interface{}, error) {
 	fileRef, err := GenerateFileReference(filePath, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate file reference for %s: %w", filePath, mcerrors.ErrFileIO)
@@ -61,10 +69,14 @@ func BuildFileRefResponse(filePath string, data []interface{}) (map[string]inter
 		"summary":    fileRef.Summary,
 	}
 
-	return map[string]interface{}{
+	resp := map[string]interface{}{
 		"mode":     OutputModeFileRef,
 		"file_ref": fileRefMap,
-	}, nil
+	}
+	if pagination != nil {
+		resp["pagination"] = pagination
+	}
+	return resp, nil
 }
 
 // SerializeResponse converts response to JSON string

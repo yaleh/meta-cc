@@ -43,6 +43,35 @@ func ApplyPagination(tools []types.ToolCall, config PaginationConfig) []types.To
 	return tools[start:end]
 }
 
+// ApplyPaginationToInterfaces applies pagination to an interface slice and returns
+// the sliced data along with pagination metadata.
+func ApplyPaginationToInterfaces(data []interface{}, offset, pageSize int) ([]interface{}, PaginationMetadata) {
+	totalRecords := len(data)
+
+	if offset < 0 {
+		offset = 0
+	}
+
+	config := PaginationConfig{Offset: offset, Limit: pageSize}
+	meta := CalculateMetadata(totalRecords, config)
+
+	if offset >= totalRecords {
+		return []interface{}{}, meta
+	}
+
+	start := offset
+	end := totalRecords
+
+	if pageSize > 0 {
+		end = start + pageSize
+		if end > totalRecords {
+			end = totalRecords
+		}
+	}
+
+	return data[start:end], meta
+}
+
 // CalculateMetadata calculates pagination metadata
 func CalculateMetadata(totalRecords int, config PaginationConfig) PaginationMetadata {
 	// Handle negative offset

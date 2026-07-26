@@ -48,6 +48,14 @@ func StandardToolParameters() map[string]Property {
 			Type:        "boolean",
 			Description: "Include subagent session files (default: true). Pass false to query only top-level sessions.",
 		},
+		"offset": {
+			Type:        "number",
+			Description: "Number of records to skip before returning results (for pagination). Default: 0",
+		},
+		"page_size": {
+			Type:        "number",
+			Description: "Maximum number of records to return per page (for pagination). Default: 0 = no limit, return all results",
+		},
 	}
 }
 

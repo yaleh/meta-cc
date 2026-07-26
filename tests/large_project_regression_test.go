@@ -92,7 +92,7 @@ func TestLargeProject_QuerySummaries(t *testing.T) {
 	require.GreaterOrEqual(t, len(entries), 100, "expected at least 100 session files")
 
 	// Test BuildInlineResponse with nil data — must not produce "data":null
-	nilResult := response.BuildInlineResponse(nil)
+	nilResult := response.BuildInlineResponse(nil, nil)
 	jsonBytes, err := json.Marshal(nilResult)
 	require.NoError(t, err)
 
@@ -130,7 +130,7 @@ func TestLargeProject_QuerySummaries_NonNullWithData(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Output.InlineThreshold = response.DefaultInlineThresholdBytes
 
-	result := response.BuildInlineResponse(summaryData)
+	result := response.BuildInlineResponse(summaryData, nil)
 	jsonBytes, err := json.Marshal(result)
 	require.NoError(t, err)
 
@@ -213,7 +213,7 @@ func TestLargeProject_query_summaries_FixedJQFilter(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := response.BuildInlineResponse(tc.data)
+			result := response.BuildInlineResponse(tc.data, nil)
 			jsonBytes, err := json.Marshal(result)
 			require.NoError(t, err)
 

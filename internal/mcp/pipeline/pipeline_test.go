@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/yaleh/meta-cc/internal/config"
+	"github.com/yaleh/meta-cc/internal/filter"
 	"github.com/yaleh/meta-cc/internal/mcp/pipeline"
 	mcquery "github.com/yaleh/meta-cc/internal/mcp/query"
 )
@@ -201,7 +202,7 @@ func TestBuildStatsFirstResponse_Basic(t *testing.T) {
 		testConfig(),
 		rawData, parsedData,
 		map[string]interface{}{},
-		"query_session_signals", false, "turn",
+		"query_session_signals", false, "turn", nil,
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -219,7 +220,7 @@ func TestBuildStatsFirstResponse_TimestampTool(t *testing.T) {
 		testConfig(),
 		rawData, rawData,
 		map[string]interface{}{},
-		"query_session_content", true, "turn",
+		"query_session_content", true, "turn", nil,
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -235,7 +236,7 @@ func TestBuildStatsFirstResponse_SessionLevel(t *testing.T) {
 		testConfig(),
 		rawData, rawData,
 		map[string]interface{}{},
-		"query_session_content", true, "session",
+		"query_session_content", true, "session", nil,
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -253,7 +254,7 @@ func TestBuildStandardResponse_Basic(t *testing.T) {
 		testConfig(),
 		data,
 		map[string]interface{}{},
-		"query_session_signals",
+		"query_session_signals", nil,
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -416,5 +417,122 @@ func TestPipelineConfig_IncludeSubagents(t *testing.T) {
 	pcTrue := pipeline.PipelineConfig{IncludeSubagents: true}
 	if !pcTrue.IncludeSubagents {
 		t.Error("expected PipelineConfig{IncludeSubagents: true} to have IncludeSubagents=true")
+	}
+}
+
+// ─── Pagination ─────────────────────────────────────────────────────────────────
+
+func TestBuildStandardResponse_WithPagination(t *testing.T) {
+	data := make([]interface{}, 100)
+	for i := 0; i < 100; i++ {
+		data[i] = map[string]interface{}{"idx": i}
+	}
+
+	// page 1: offset=0, pageSize=25
+	meta := &filter.PaginationMetadata{
+		TotalRecords:    100,
+		ReturnedRecords: 25,
+		Offset:          0,
+		Limit:           25,
+		HasMore:         true,
+	}
+	out, err := pipeline.BuildStandardResponse(
+		testConfig(),
+		data[:25],
+		map[string]interface{}{},
+		"query_session_signals", meta,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, `"pagination"`) {
+		t.Errorf("expected 'pagination' key in output, got: %s", out)
+	}
+	if !strings.Contains(out, `"has_more":true`) {
+		t.Errorf("expected has_more=true in output, got: %s", out)
+	}
+
+	// last page: offset=75, pageSize=25, no more
+	meta2 := &filter.PaginationMetadata{
+		TotalRecords:    100,
+		ReturnedRecords: 25,
+		Offset:          75,
+		Limit:           25,
+		HasMore:         false,
+	}
+	out2, err := pipeline.BuildStandardResponse(
+		testConfig(),
+		data[75:],
+		map[string]interface{}{},
+		"query_session_signals", meta2,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out2, `"has_more":false`) {
+		t.Errorf("expected has_more=false in output, got: %s", out2)
+	}
+}
+
+func TestBuildResponse_WithPagination(t *testing.T) {
+	data := make([]interface{}, 100)
+	for i := 0; i < 100; i++ {
+		data[i] = map[string]interface{}{"idx": i}
+	}
+
+	pc := pipeline.PipelineConfig{
+		Offset:   10,
+		PageSize: 20,
+	}
+	result := makeQueryResult(data...)
+	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, `"pagination"`) {
+		t.Errorf("expected 'pagination' key in output, got: %s", out)
+	}
+	if !strings.Contains(out, `"total_records":100`) {
+		t.Errorf("expected total_records=100, got: %s", out)
+	}
+	if !strings.Contains(out, `"returned_records":20`) {
+		t.Errorf("expected returned_records=20, got: %s", out)
+	}
+	if !strings.Contains(out, `"has_more":true`) {
+		t.Errorf("expected has_more=true, got: %s", out)
+	}
+}
+
+func TestBuildResponse_DefaultNoPagination(t *testing.T) {
+	// Verify default behavior (no page_size) is unchanged
+	data := []interface{}{
+		map[string]interface{}{"tool_name": "Bash", "status": "success"},
+	}
+	pc := pipeline.PipelineConfig{} // Offset=0, PageSize=0
+	result := makeQueryResult(data...)
+	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should still include pagination metadata but with full dataset info
+	if !strings.Contains(out, `"pagination"`) {
+		t.Errorf("expected 'pagination' key in output, got: %s", out)
+	}
+	if !strings.Contains(out, `"has_more":false`) {
+		t.Errorf("expected has_more=false for unpaginated, got: %s", out)
+	}
+	// Data should still be inline for small result
+	if !strings.Contains(out, "inline") {
+		t.Errorf("expected 'inline' mode, got: %s", out)
+	}
+}
+
+func TestPipelineConfig_PaginationDefaults(t *testing.T) {
+	pc := pipeline.PipelineConfig{}
+	if pc.Offset != 0 {
+		t.Error("expected Offset=0 by default")
+	}
+	if pc.PageSize != 0 {
+		t.Error("expected PageSize=0 by default")
 	}
 }
