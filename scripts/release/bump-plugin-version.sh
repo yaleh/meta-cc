@@ -119,6 +119,7 @@ if [ -z "$NON_INTERACTIVE" ]; then
     echo "  - plugin-src/.claude-plugin/plugin.json: $CURRENT → $NEW_VERSION"
     echo "  - .claude-plugin/marketplace.json: $CURRENT → $NEW_VERSION"
     echo "  - plugin-src/.claude-plugin/marketplace.json: $CURRENT → $NEW_VERSION"
+    echo "  - plugin-src/.codex-plugin/plugin.json: $CURRENT → $NEW_VERSION"
     echo ""
     echo "Press Enter to continue, or Ctrl+C to abort..."
     read
@@ -141,13 +142,21 @@ echo "Updating plugin-src/.claude-plugin/marketplace.json..."
 jq --arg ver "$NEW_VERSION" '.plugins[0].version = $ver' plugin-src/.claude-plugin/marketplace.json > plugin-src/.claude-plugin/marketplace.json.tmp
 mv plugin-src/.claude-plugin/marketplace.json.tmp plugin-src/.claude-plugin/marketplace.json
 echo "✓ plugin-src/.claude-plugin/marketplace.json updated to $NEW_VERSION"
+
+# Update plugin-src/.codex-plugin/plugin.json version
+# (the Codex plugin manager reads its version from THIS file, not from
+# .claude-plugin/plugin.json or marketplace.json — keep them in lockstep)
+echo "Updating plugin-src/.codex-plugin/plugin.json..."
+jq --arg ver "$NEW_VERSION" '.version = $ver' plugin-src/.codex-plugin/plugin.json > plugin-src/.codex-plugin/plugin.json.tmp
+mv plugin-src/.codex-plugin/plugin.json.tmp plugin-src/.codex-plugin/plugin.json
+echo "✓ plugin-src/.codex-plugin/plugin.json updated to $NEW_VERSION"
 echo ""
 
 # Commit changes
 # Skipped in --non-interactive mode: release.sh owns the release commit
 if [ -z "$NON_INTERACTIVE" ]; then
     echo "Committing version bump..."
-    git add plugin-src/.claude-plugin/plugin.json .claude-plugin/marketplace.json plugin-src/.claude-plugin/marketplace.json
+    git add plugin-src/.claude-plugin/plugin.json .claude-plugin/marketplace.json plugin-src/.claude-plugin/marketplace.json plugin-src/.codex-plugin/plugin.json
     git commit -m "chore: bump plugin version to $NEW_VERSION
 
 Updated plugin.json and marketplace.json version.

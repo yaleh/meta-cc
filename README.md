@@ -62,6 +62,20 @@ cd meta-cc-skills-*/
 
 Use `INSTALL_CLAUDE=0` or `INSTALL_CODEX=0` to install one host only.
 
+### Method 3: Codex Plugin Marketplace (Recommended for Codex CLI 0.145+)
+
+```bash
+codex plugin marketplace add .   # from an extracted release archive, or a git checkout of this repo
+codex plugin add meta-cc@meta-cc-marketplace
+```
+
+Verify with `codex plugin list --json` and `codex mcp list` (expect exactly
+one `meta-cc` entry), then **start a new Codex session** — a running
+session cannot hot-load a plugin installed after it started. For the
+minimal MCP-only fallback (`codex mcp add`), upgrade/uninstall flows, and
+troubleshooting duplicate registrations, see
+[Installation Guide: Method 1b](docs/tutorials/installation.md#method-1b-codex-plugin-marketplace-preferred-for-codex-cli-0145).
+
 **MCP server binary only** (for CI/Docker/PATH installs):
 
 ```bash

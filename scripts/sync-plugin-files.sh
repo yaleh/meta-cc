@@ -82,6 +82,22 @@ if [ "$VERIFY_MODE" = true ]; then
     echo "✓ Version consistent: $PLUGIN_VERSION"
     echo ""
 
+    echo "[5b/6] Verifying plugin-src/.codex-plugin/plugin.json version..."
+    CODEX_PLUGIN_VERSION=$(jq -r '.version' "$PROJECT_ROOT/plugin-src/.codex-plugin/plugin.json")
+    if [ "$CODEX_PLUGIN_VERSION" != "$PLUGIN_VERSION" ]; then
+        echo "❌ ERROR: Version mismatch in plugin-src/.codex-plugin/plugin.json:"
+        echo "  plugin-src/.claude-plugin/plugin.json: $PLUGIN_VERSION"
+        echo "  plugin-src/.codex-plugin/plugin.json:  $CODEX_PLUGIN_VERSION"
+        echo ""
+        echo "The Codex plugin manager (codex plugin add/list) reads its version"
+        echo "from THIS file, so a stale version here is reported to Codex users"
+        echo "even though the Claude-side manifests are correct."
+        echo "Run 'scripts/release/bump-plugin-version.sh' to sync all files."
+        exit 1
+    fi
+    echo "✓ Codex plugin version consistent: $CODEX_PLUGIN_VERSION"
+    echo ""
+
     echo "[6/6] Verifying plugin-src/.claude-plugin/marketplace.json..."
     PLUGIN_SRC_MARKETPLACE="$PROJECT_ROOT/plugin-src/.claude-plugin/marketplace.json"
     if [ ! -f "$PLUGIN_SRC_MARKETPLACE" ]; then

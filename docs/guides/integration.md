@@ -35,9 +35,24 @@ Use this when you only need Claude Code integration:
 
 Restart Claude Code. The plugin provides the MCP server configuration and prompt-library slash commands.
 
-### Archive Install
+### Codex Plugin Marketplace (preferred for Codex CLI 0.145+)
 
-Use this for Claude Code and Codex together:
+```bash
+codex plugin marketplace add .   # from an extracted release archive, or a git checkout
+codex plugin add meta-cc@meta-cc-marketplace
+```
+
+Verify with `codex plugin list --json` (installed+enabled) and `codex mcp list`
+(exactly one `meta-cc` entry), then start a **new** Codex session — a
+running session cannot hot-load a plugin installed after it started. See
+[Installation Guide: Method 1b](../tutorials/installation.md#method-1b-codex-plugin-marketplace-preferred-for-codex-cli-0145) for
+upgrade/uninstall/troubleshooting details, and the minimal
+`codex mcp add meta-cc -- <path>` fallback for an MCP-only install.
+
+### Archive Install (manual copy, Claude Code, or Codex < 0.145)
+
+Use this for Claude Code, or for Codex when the plugin manager above isn't
+available:
 
 ```bash
 ./install.sh
@@ -63,6 +78,11 @@ Install prompt-library commands and skills without the MCP binary:
 ```bash
 ./install-skills.sh
 ```
+
+Do not run both the Codex plugin-manager install and this manual Codex
+install (or the minimal `codex mcp add` fallback) in the same `CODEX_HOME` —
+each registers its own MCP server under the name `meta-cc`, and Codex will
+show duplicate active registrations rather than merging them.
 
 ## MCP Usage
 
@@ -175,7 +195,10 @@ The commands and skills parse the same Markdown files and frontmatter fields: `i
 make test-e2e-codex
 ```
 
-This creates an isolated Codex home, installs the Codex files, creates SQLite and rollout fixtures, and calls the MCP server over JSON-RPC with `provider: "codex"`.
+This runs two isolated-`CODEX_HOME` test passes:
+
+1. `tests/e2e/codex-e2e.sh` — installs the Codex files (skills/plugin manifest/archive layout) and calls the MCP server over JSON-RPC with `provider: "codex"`.
+2. `tests/e2e/codex-plugin-manager-e2e.sh` — builds a local release bundle and drives the real `codex` CLI's `plugin marketplace add` / `plugin add` (preferred path) and `mcp add` (minimal fallback), asserting plugin enablement, skill discovery, single-registration MCP resolution, and a live query against the installed artifact. Requires Codex CLI 0.145+ on `PATH`; it SKIPs with an explicit reason (not a silent pass) if the installed CLI lacks the needed subcommands.
 
 ## Troubleshooting
 

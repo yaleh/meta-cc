@@ -433,6 +433,15 @@ test-e2e-mcp: build
 test-e2e-codex: build
 	@echo "Running Codex E2E tests..."
 	@bash tests/e2e/codex-e2e.sh ./bin/$(MCP_BINARY_NAME)
+	@echo ""
+	@echo "Running Codex plugin-manager E2E test..."
+	@GOOS=$$($(GOCMD) env GOOS); GOARCH=$$($(GOCMD) env GOARCH); \
+	mkdir -p $(BUILD_DIR); \
+	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$GOOS-$$GOARCH ./cmd/mcp-server; \
+	$(MAKE) bundle-release VERSION=v0.0.0-codex-e2e PLATFORMS="$$GOOS/$$GOARCH"; \
+	bash tests/e2e/codex-plugin-manager-e2e.sh \
+		"$(BUILD_DIR)/bundles/meta-cc-v0.0.0-codex-e2e-$$GOOS-$$GOARCH" \
+		"./bin/$(MCP_BINARY_NAME)"
 
 test-all: test test-e2e-mcp test-e2e-codex
 	@echo "Running all tests (including slow E2E tests ~30s)..."
@@ -503,21 +512,26 @@ bundle-release: sync-plugin-files
 	@for platform in $(PLATFORMS); do \
 		PLATFORM_NAME=$${platform%/*}-$${platform#*/}; \
 		BUNDLE_DIR=$(BUILD_DIR)/bundles/meta-cc-$(VERSION)-$$PLATFORM_NAME; \
-		mkdir -p $$BUNDLE_DIR/bin $$BUNDLE_DIR/commands $$BUNDLE_DIR/.claude-plugin $$BUNDLE_DIR/lib; \
+		mkdir -p $$BUNDLE_DIR/bin $$BUNDLE_DIR/commands $$BUNDLE_DIR/skills $$BUNDLE_DIR/.claude-plugin $$BUNDLE_DIR/.codex-plugin $$BUNDLE_DIR/lib; \
 		if [ "$${platform%/*}" = "windows" ]; then \
-			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME.exe $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
+			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME.exe $$BUNDLE_DIR/bin/$(MCP_BINARY_NAME).exe 2>/dev/null || true; \
 		else \
-			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/ 2>/dev/null || true; \
+			cp $(BUILD_DIR)/$(MCP_BINARY_NAME)-$$PLATFORM_NAME $$BUNDLE_DIR/bin/$(MCP_BINARY_NAME) 2>/dev/null || true; \
 		fi; \
 		cp -r $(DIST_DIR)/commands/* $$BUNDLE_DIR/commands/; \
+		cp -r plugin-src/skills/* $$BUNDLE_DIR/skills/; \
 		cp -r lib/* $$BUNDLE_DIR/lib/; \
 		cp -r .claude-plugin/* $$BUNDLE_DIR/.claude-plugin/; \
 		cp plugin-src/.claude-plugin/plugin.json $$BUNDLE_DIR/.claude-plugin/ 2>/dev/null || true; \
 		cp plugin-src/.mcp.json $$BUNDLE_DIR/ 2>/dev/null || true; \
+		cp -r plugin-src/.codex-plugin/* $$BUNDLE_DIR/.codex-plugin/; \
+		cp plugin-src/.codex-mcp.json $$BUNDLE_DIR/ 2>/dev/null || true; \
 		jq '.commands |= map(gsub("\\./commands/"; "./commands/"))' $$BUNDLE_DIR/.claude-plugin/plugin.json > $$BUNDLE_DIR/.claude-plugin/plugin.json.tmp && mv $$BUNDLE_DIR/.claude-plugin/plugin.json.tmp $$BUNDLE_DIR/.claude-plugin/plugin.json 2>/dev/null || true; \
-		jq '.plugins[0].commands |= map(gsub("\\./plugin-src/commands/"; "./commands/"))' $$BUNDLE_DIR/.claude-plugin/marketplace.json > $$BUNDLE_DIR/.claude-plugin/marketplace.json.tmp && mv $$BUNDLE_DIR/.claude-plugin/marketplace.json.tmp $$BUNDLE_DIR/.claude-plugin/marketplace.json 2>/dev/null || true; \
+		jq '.plugins[0].commands |= map(gsub("\\./plugin-src/commands/"; "./commands/")) | .plugins[0].source = "."' $$BUNDLE_DIR/.claude-plugin/marketplace.json > $$BUNDLE_DIR/.claude-plugin/marketplace.json.tmp && mv $$BUNDLE_DIR/.claude-plugin/marketplace.json.tmp $$BUNDLE_DIR/.claude-plugin/marketplace.json 2>/dev/null || true; \
 		cp scripts/install/install.sh $$BUNDLE_DIR/; \
 		cp scripts/install/uninstall.sh $$BUNDLE_DIR/ 2>/dev/null || true; \
+		cp scripts/install/install-mcp.sh $$BUNDLE_DIR/ 2>/dev/null || true; \
+		cp scripts/install/install-skills.sh $$BUNDLE_DIR/ 2>/dev/null || true; \
 		cp README.md $$BUNDLE_DIR/; \
 		cp LICENSE $$BUNDLE_DIR/; \
 		tar -czf $(BUILD_DIR)/meta-cc-bundle-$$PLATFORM_NAME.tar.gz -C $(BUILD_DIR)/bundles meta-cc-$(VERSION)-$$PLATFORM_NAME; \

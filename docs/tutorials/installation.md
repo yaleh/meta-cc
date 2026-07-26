@@ -13,9 +13,93 @@ Then restart Claude Code. The plugin system handles everything:
 - Installs slash commands (`/prompt-find`, `/prompt-list`, `/prompt-show`)
 - Configures the MCP server automatically via `.mcp.json` (no manual `claude mcp add` needed)
 
+## Method 1b: Codex Plugin Marketplace (preferred for Codex CLI 0.145+)
+
+Codex CLI 0.145 and later ships its own plugin manager (`codex plugin ...`),
+which reads the **same** marketplace/plugin manifest format meta-cc already
+publishes for Claude Code. This is the preferred way to install meta-cc into
+Codex — it installs the MCP server, skills, and version metadata together
+and keeps them in one place, instead of hand-copying files.
+
+```bash
+# Download and extract a release bundle for your platform (see Method 2 below
+# for the platform-specific archive URLs), then, from the extracted directory:
+codex plugin marketplace add .
+codex plugin add meta-cc@meta-cc-marketplace
+```
+
+You can also point `codex plugin marketplace add` at a git checkout of this
+repository (`codex plugin marketplace add /path/to/meta-cc` or
+`codex plugin marketplace add yaleh/meta-cc`) — the marketplace manifest at
+the repository root resolves the plugin from `plugin-src/`.
+
+**A brand-new Codex session is required after installing or updating the
+plugin.** Codex resolves plugin-provided skills and MCP servers when a
+session starts; an already-running session cannot hot-load them.
+
+### Verifying the install
+
+```bash
+codex plugin list --json
+```
+
+Look for `"pluginId": "meta-cc@meta-cc-marketplace"` with `"installed": true`
+and `"enabled": true`. Then check the resolved MCP registration:
+
+```bash
+codex mcp list
+```
+
+This should show exactly **one** `meta-cc` entry. If you also manually ran
+`codex mcp add meta-cc -- ...` (see the minimal fallback below) in the same
+`CODEX_HOME`, remove it first with `codex mcp remove meta-cc` — running both
+the plugin and a separate global MCP registration at once creates two active
+`meta-cc` tool servers, which Codex will present as duplicates.
+
+### Upgrading
+
+Download the newer release archive over the same local path you originally
+pointed `codex plugin marketplace add` at (or `git pull` if you used a git
+checkout), then re-run:
+
+```bash
+codex plugin add meta-cc@meta-cc-marketplace
+```
+
+This re-resolves the plugin from the (now updated) local source and installs
+the new version into Codex's plugin cache — `codex plugin marketplace
+upgrade` is only needed for marketplaces added from a remote Git URL.
+**Start a new Codex session afterward** to pick up the updated skills/MCP
+server; a running session keeps using whatever was resolved at its start.
+
+### Uninstalling
+
+```bash
+codex plugin remove meta-cc@meta-cc-marketplace
+codex plugin marketplace remove meta-cc-marketplace   # optional: drop the marketplace source too
+```
+
+### Minimal fallback: MCP server only
+
+If you only want the MCP tools in Codex (no skills, no plugin manifest
+tracking), register the packaged binary directly as a global MCP server:
+
+```bash
+codex mcp add meta-cc -- /absolute/path/to/meta-cc-mcp
+```
+
+Verify with `codex mcp list` (again, exactly one `meta-cc` entry), and
+restart Codex. To remove it: `codex mcp remove meta-cc`. Do not combine this
+with the plugin-manager install above in the same `CODEX_HOME` — pick one,
+to avoid duplicate registrations.
+
 ## Method 2: Archive Install for Claude Code and Codex
 
-Download a platform-specific release archive and run the included installer.
+For Claude Code, or for a Codex CLI older than 0.145 (no `codex plugin`
+subcommand), download a platform-specific release archive and run the
+included installer. For Codex CLI 0.145+, prefer Method 1b above — it uses
+the same archive but drives it through Codex's own plugin manager instead of
+copying files by hand.
 
 ### Linux (x86_64)
 ```bash
@@ -148,12 +232,23 @@ If you already have other MCP servers configured, add the `"meta-cc"` entry to t
 
 ### 5. Configure MCP for Codex
 
-The archive includes `.codex-plugin/plugin.json` and `.codex-mcp.json`. If your Codex install does not load the plugin archive directly, copy those files into your Codex plugin location and use `.codex-mcp.json` as the MCP server template:
+Prefer Codex CLI's own plugin manager over manual copying (see Method 1b).
+If your Codex install genuinely lacks `codex plugin`/`codex mcp` (CLI older
+than 0.145), or the plugin manager path fails for some other reason, copy
+the files into your Codex plugin location by hand and use `.codex-mcp.json`
+as the MCP server template:
 
 ```bash
 mkdir -p ~/.codex/plugins/meta-cc
 cp -R .codex-plugin ~/.codex/plugins/meta-cc/
 cp .codex-mcp.json ~/.codex/plugins/meta-cc/
+```
+
+Or register just the MCP server, without any plugin manifest, using the
+minimal fallback from Method 1b:
+
+```bash
+codex mcp add meta-cc -- /absolute/path/to/meta-cc-mcp
 ```
 
 Codex session discovery reads JSONL transcripts from `$CODEX_HOME/sessions` when `CODEX_HOME` is set, otherwise from `~/.codex/sessions`. meta-cc normalizes Codex `response_item` and `event_msg` records into the same internal message/tool schema used for Claude Code, so the common MCP tools work across both hosts.
@@ -175,10 +270,13 @@ ls -l ~/.local/bin/meta-cc-mcp
 1. **Test MCP Tools**: In conversation, ask "What are my recent tool usage patterns?"
 2. **Test Slash Commands**: Type `/prompt-list` and press Enter
 
-**In Codex:**
+**In Codex (plugin-manager install):**
 
-1. **Test MCP Tools**: Ask "What are my recent tool usage patterns?"
-2. **Test Skills**: Ask Codex to use the `prompt-list` skill
+1. **Check plugin state**: `codex plugin list --json` — `meta-cc@meta-cc-marketplace` should show `"installed": true` and `"enabled": true`
+2. **Check the resolved MCP server**: `codex mcp list` — expect exactly one `meta-cc` entry
+3. **Start a new Codex session** (a running session will not see a newly installed plugin)
+4. **Test MCP Tools**: Ask "What are my recent tool usage patterns?"
+5. **Test Skills**: Ask Codex to use the `prompt-list` skill
 
 Useful smoke-test prompts for either host:
 
@@ -262,15 +360,43 @@ source ~/.bash_profile
 
 **Solutions**:
 
-1. **Restart Codex** after installation
-2. **Verify skill files exist**:
+1. **Start a brand-new Codex session** after installation or upgrade. An
+   already-running session resolved its plugins/skills at startup and will
+   not pick up a change made afterward.
+2. **Plugin-manager install**: confirm the plugin is actually enabled and
+   find where its skills were unpacked:
+   ```bash
+   codex plugin list --json | jq '.installed[] | select(.pluginId=="meta-cc@meta-cc-marketplace")'
+   ```
+   If `"enabled"` is `false`, re-run `codex plugin add meta-cc@meta-cc-marketplace`.
+3. **Manual/archive install**: verify skill files exist:
    ```bash
    ls ~/.codex/skills/prompt-*/SKILL.md
    ```
-3. **Use a custom Codex home during tests**:
+4. **Use a custom Codex home during tests**:
    ```bash
    CODEX_HOME=/tmp/codex ./install-skills.sh
    ```
+
+### Codex reports two `meta-cc` MCP servers
+
+**Issue**: `codex mcp list` shows more than one active entry named `meta-cc`.
+
+**Cause**: The plugin-manager install (Method 1b) and the minimal
+`codex mcp add meta-cc -- ...` fallback were both applied in the same
+`CODEX_HOME`. Each registers its own MCP server, and Codex does not merge
+them.
+
+**Solution**: Pick one path. To keep the plugin-manager install, remove the
+manual registration:
+```bash
+codex mcp remove meta-cc
+```
+To keep the minimal install instead, remove the plugin:
+```bash
+codex plugin remove meta-cc@meta-cc-marketplace
+```
+Then start a new Codex session.
 
 ### Codex sessions not found
 
@@ -347,7 +473,20 @@ cd meta-cc-plugin-<platform>
 ./uninstall.sh
 ```
 
-The uninstall script removes the binary, Claude Code slash commands, Codex skills/plugin files, and the `meta-cc` entry from `~/.claude/mcp.json`.
+The uninstall script removes the binary, Claude Code slash commands, Codex skills/plugin files (manual-install layout only), and the `meta-cc` entry from `~/.claude/mcp.json`.
+
+### Uninstalling a plugin-manager Codex install
+
+If you installed via Method 1b, use Codex's own commands instead of deleting files by hand:
+
+```bash
+codex plugin remove meta-cc@meta-cc-marketplace
+codex plugin marketplace remove meta-cc-marketplace   # optional
+# or, for the minimal codex mcp add fallback:
+codex mcp remove meta-cc
+```
+
+Start a new Codex session afterward to confirm the tools/skills are gone.
 
 ### Manual uninstallation
 
@@ -360,7 +499,7 @@ rm ~/.claude/commands/prompt-find.md
 rm ~/.claude/commands/prompt-list.md
 rm ~/.claude/commands/prompt-show.md
 
-# Remove Codex files
+# Remove Codex files (manual/archive install layout)
 rm -rf ~/.codex/skills/prompt-find ~/.codex/skills/prompt-list ~/.codex/skills/prompt-show
 rm -rf ~/.codex/plugins/meta-cc
 
@@ -370,13 +509,20 @@ jq 'del(.mcpServers["meta-cc"])' ~/.claude/mcp.json > /tmp/mcp.json && mv /tmp/m
 
 ## Upgrading
 
-To upgrade to a newer version:
+**Claude Code / manual archive install:**
 
 1. **Download new version** using the Quick Install commands above
 2. **Run install.sh** - it will overwrite existing binaries
 3. **Restart Claude Code** to load the new version
 
 The installer preserves your MCP configuration and existing settings.
+
+**Codex plugin-manager install (Method 1b):**
+
+1. Download the newer archive over the same local path (or `git pull` a git checkout)
+2. Re-run `codex plugin add meta-cc@meta-cc-marketplace` to resolve and install the updated version
+3. Confirm with `codex plugin list --json` that the version bumped
+4. **Start a new Codex session** — a running session keeps the version it started with
 
 ## Platform-Specific Notes
 

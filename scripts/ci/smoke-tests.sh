@@ -415,6 +415,21 @@ else
     test_result "Codex plugin manifest exists" "fail" ".codex-plugin/plugin.json not found"
 fi
 
+# Test 3.11d: .codex-plugin/plugin.json version matches the release tag
+#
+# The Codex plugin manager (`codex plugin add`/`codex plugin list`) reports
+# THIS file's version field to users -- not marketplace.json's or the
+# Claude-side plugin.json's version. A drift here is invisible to Claude
+# Code users but visibly wrong for Codex users (DIR-026).
+if [ -f ".codex-plugin/plugin.json" ]; then
+    CODEX_PLUGIN_VERSION=$(jq -r '.version' .codex-plugin/plugin.json 2>/dev/null || echo "UNKNOWN")
+    if [ "$CODEX_PLUGIN_VERSION" = "$VERSION_NUM" ]; then
+        test_result "Codex plugin manifest version matches tag ($VERSION_NUM)" "pass"
+    else
+        test_result "Codex plugin manifest version matches tag" "fail" ".codex-plugin/plugin.json has '$CODEX_PLUGIN_VERSION' but tag is '$VERSION_NUM' -- Codex users would see the wrong version from 'codex plugin list'"
+    fi
+fi
+
 # Test 3.12: archive marketplace.json source is "."
 if [ -f ".claude-plugin/marketplace.json" ]; then
     ARCHIVE_SOURCE=$(jq -r '.plugins[0].source' .claude-plugin/marketplace.json 2>/dev/null || echo "")
