@@ -30,6 +30,7 @@ type TimelineAnalyzer interface {
 // TechDebtAnalyzer analyzes technical debt in session entries.
 type TechDebtAnalyzer interface {
 	GetTechDebt(entries []types.SessionEntry, toolCalls []types.ToolCall) (*TechDebtResult, error)
+	ScanSourceDir(sourceDir string) (*TechDebtResult, error)
 }
 
 // DefaultAnalyzer implements all analyzer interfaces by delegating to package-level functions.
@@ -71,4 +72,9 @@ func (d *DefaultAnalyzer) GetTimeline(entries []types.SessionEntry, limit int) (
 // GetTechDebt delegates to the package-level GetTechDebt function.
 func (d *DefaultAnalyzer) GetTechDebt(entries []types.SessionEntry, toolCalls []types.ToolCall) (*TechDebtResult, error) {
 	return GetTechDebt(entries, toolCalls)
+}
+
+// ScanSourceDir delegates to the package-level ScanSourceDir function.
+func (d *DefaultAnalyzer) ScanSourceDir(sourceDir string) (*TechDebtResult, error) {
+	return ScanSourceDir(sourceDir)
 }

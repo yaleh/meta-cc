@@ -78,6 +78,10 @@ func (s *stubTechDebtAnalyzer) GetTechDebt(_ []types.SessionEntry, _ []types.Too
 	return s.result, s.err
 }
 
+func (s *stubTechDebtAnalyzer) ScanSourceDir(sourceDir string) (*analyzer.TechDebtResult, error) {
+	return s.result, s.err
+}
+
 // setupEmptyProjectDir creates a project directory with an empty session file so
 // loadData returns an empty slice without error (locator requires at least one file).
 func setupEmptyProjectDir(t *testing.T) string {
