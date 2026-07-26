@@ -153,6 +153,34 @@ func TestQualityScan_CompletionRate(t *testing.T) {
 	assert.LessOrEqual(t, dim.Score, 1.0)
 }
 
+func TestQualityScan_CompletionRate_BlankStatusCountedAsSuccess(t *testing.T) {
+	// Tool calls with Status="" and Error="" (mimicking ExtractToolCalls before normalization,
+	// or defensive handling) should be counted as successes.
+	specs := []struct{ tool, status, errMsg string }{
+		{"Bash", "", ""},
+		{"Bash", "", ""},
+		{"Bash", "", ""},
+		{"Bash", "error", "fail"},
+	}
+	toolCalls := makeToolCallsSlice(specs)
+
+	result, err := QualityScan(nil, toolCalls)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	var dim *QualityDimension
+	for i := range result.Dimensions {
+		if result.Dimensions[i].Name == "completion_rate" {
+			dim = &result.Dimensions[i]
+			break
+		}
+	}
+	require.NotNil(t, dim, "should have completion_rate dimension")
+	// 3 blank-status + 0-status-success, 1 error out of 4 → score = 3/4 = 0.75
+	assert.InDelta(t, 0.75, dim.Score, 0.001, "completion_rate should count blank status as success")
+	assert.Equal(t, "3/4", dim.RawValue)
+}
+
 func TestQualityScan_DataSource(t *testing.T) {
 	result, err := QualityScan(nil, []types.ToolCall{})
 	require.NoError(t, err)
