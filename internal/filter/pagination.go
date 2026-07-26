@@ -48,18 +48,20 @@ func ApplyPagination(tools []types.ToolCall, config PaginationConfig) []types.To
 func ApplyPaginationToInterfaces(data []interface{}, offset, pageSize int) ([]interface{}, PaginationMetadata) {
 	totalRecords := len(data)
 
-	if offset < 0 {
-		offset = 0
+	normalizedOffset := offset
+	if normalizedOffset < 0 {
+		normalizedOffset = 0
 	}
 
-	config := PaginationConfig{Offset: offset, Limit: pageSize}
+	config := PaginationConfig{Offset: normalizedOffset, Limit: pageSize}
 	meta := CalculateMetadata(totalRecords, config)
+	meta.Offset = offset
 
-	if offset >= totalRecords {
+	if normalizedOffset >= totalRecords {
 		return []interface{}{}, meta
 	}
 
-	start := offset
+	start := normalizedOffset
 	end := totalRecords
 
 	if pageSize > 0 {

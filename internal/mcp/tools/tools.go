@@ -249,7 +249,7 @@ func GetToolDefinitions() []Tool {
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 		}),
-		BuildTool("get_tech_debt", "Detect TODO/FIXME/HACK/XXX markers and unresolved errors as tech debt signals. Default scope: project.", map[string]Property{
+		BuildTool("get_tech_debt", "Detect TODO/FIXME/HACK/XXX markers and unresolved errors as tech debt. Default scope: project.", map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
