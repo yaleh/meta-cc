@@ -156,6 +156,99 @@ func TestCalculateMetadata(t *testing.T) {
 	}
 }
 
+func TestApplyPaginationToInterfaces(t *testing.T) {
+	data := func(n int) []interface{} {
+		s := make([]interface{}, n)
+		for i := 0; i < n; i++ {
+			s[i] = map[string]interface{}{"idx": i}
+		}
+		return s
+	}
+
+	tests := []struct {
+		name          string
+		data          []interface{}
+		offset        int
+		pageSize      int
+		wantLen       int
+		wantTotal     int
+		wantReturned  int
+		wantHasMore   bool
+	}{
+		{
+			name: "no pagination (pageSize=0)",
+			data: data(100), offset: 0, pageSize: 0,
+			wantLen: 100, wantTotal: 100, wantReturned: 100, wantHasMore: false,
+		},
+		{
+			name: "first page",
+			data: data(100), offset: 0, pageSize: 25,
+			wantLen: 25, wantTotal: 100, wantReturned: 25, wantHasMore: true,
+		},
+		{
+			name: "middle page",
+			data: data(100), offset: 50, pageSize: 25,
+			wantLen: 25, wantTotal: 100, wantReturned: 25, wantHasMore: true,
+		},
+		{
+			name: "last page (partial)",
+			data: data(100), offset: 90, pageSize: 25,
+			wantLen: 10, wantTotal: 100, wantReturned: 10, wantHasMore: false,
+		},
+		{
+			name: "exact last page",
+			data: data(100), offset: 75, pageSize: 25,
+			wantLen: 25, wantTotal: 100, wantReturned: 25, wantHasMore: false,
+		},
+		{
+			name: "offset beyond end",
+			data: data(100), offset: 150, pageSize: 25,
+			wantLen: 0, wantTotal: 100, wantReturned: 0, wantHasMore: false,
+		},
+		{
+			name: "negative offset (treated as 0)",
+			data: data(100), offset: -5, pageSize: 25,
+			wantLen: 25, wantTotal: 100, wantReturned: 25, wantHasMore: true,
+		},
+		{
+			name: "empty data",
+			data: data(0), offset: 0, pageSize: 25,
+			wantLen: 0, wantTotal: 0, wantReturned: 0, wantHasMore: false,
+		},
+		{
+			name: "offset only (no limit)",
+			data: data(100), offset: 30, pageSize: 0,
+			wantLen: 70, wantTotal: 100, wantReturned: 70, wantHasMore: false,
+		},
+		{
+			name: "smaller than page",
+			data: data(5), offset: 0, pageSize: 25,
+			wantLen: 5, wantTotal: 5, wantReturned: 5, wantHasMore: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, meta := ApplyPaginationToInterfaces(tt.data, tt.offset, tt.pageSize)
+			if len(result) != tt.wantLen {
+				t.Errorf("result length: expected %d, got %d", tt.wantLen, len(result))
+			}
+			if meta.TotalRecords != tt.wantTotal {
+				t.Errorf("TotalRecords: expected %d, got %d", tt.wantTotal, meta.TotalRecords)
+			}
+			if meta.ReturnedRecords != tt.wantReturned {
+				t.Errorf("ReturnedRecords: expected %d, got %d", tt.wantReturned, meta.ReturnedRecords)
+			}
+			if meta.Offset != tt.offset {
+				t.Errorf("Offset: expected %d, got %d", tt.offset, meta.Offset)
+			}
+			if meta.HasMore != tt.wantHasMore {
+				t.Errorf("HasMore: expected %v, got %v", tt.wantHasMore, meta.HasMore)
+			}
+		})
+	}
+}
+
 func TestPaginationEdgeCases(t *testing.T) {
 	t.Run("empty slice", func(t *testing.T) {
 		tools := []types.ToolCall{}

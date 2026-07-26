@@ -19,7 +19,7 @@ func TestAdaptInlineResponse(t *testing.T) {
 	params := map[string]interface{}{}
 
 	cfg, _ := config.Load()
-	response, err := adaptResponse(cfg, data, params, "query_session_signals")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals", nil)
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestAdaptFileRefResponse(t *testing.T) {
 	params := map[string]interface{}{}
 
 	cfg, _ := config.Load()
-	response, err := adaptResponse(cfg, data, params, "query_session_signals")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals", nil)
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestNoTruncationInlineMode(t *testing.T) {
 	params := map[string]interface{}{}
 
 	cfg, _ := config.Load()
-	response, err := adaptResponse(cfg, data, params, "query_session_signals")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals", nil)
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestNoTruncationFileRefMode(t *testing.T) {
 	params := map[string]interface{}{}
 
 	cfg, _ := config.Load()
-	response, err := adaptResponse(cfg, data, params, "query_session_signals")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals", nil)
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestAdaptOutputModeOverride(t *testing.T) {
 	}
 
 	cfg, _ := config.Load()
-	response, err := adaptResponse(cfg, data, params, "query_session_signals")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals", nil)
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -262,7 +262,7 @@ func TestBuildInlineResponse(t *testing.T) {
 		map[string]interface{}{"foo": "bar"},
 	}
 
-	response := buildInlineResponse(data)
+	response := buildInlineResponse(data, nil)
 
 	if response["mode"] != "inline" {
 		t.Errorf("expected mode=inline, got %v", response["mode"])
@@ -290,7 +290,7 @@ func TestBuildFileRefResponse(t *testing.T) {
 	}
 	defer os.Remove(filePath)
 
-	response, err := buildFileRefResponse(filePath, data)
+	response, err := buildFileRefResponse(filePath, data, nil)
 	if err != nil {
 		t.Fatalf("buildFileRefResponse failed: %v", err)
 	}
@@ -341,7 +341,7 @@ func TestEmptyDataHandling(t *testing.T) {
 	params := map[string]interface{}{}
 
 	cfg, _ := config.Load()
-	response, err := adaptResponse(cfg, data, params, "query_session_signals")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals", nil)
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -375,7 +375,7 @@ func TestStatsOnlyWithHybridMode(t *testing.T) {
 	// Note: stats_only is handled in executor.go before adaptResponse,
 	// so we just verify adaptResponse doesn't break with empty params
 	cfg, _ := config.Load()
-	response, err := adaptResponse(cfg, data, params, "query_session_signals")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals", nil)
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -397,7 +397,7 @@ func TestFileCleanupOnError(t *testing.T) {
 	}
 
 	cfg, _ := config.Load()
-	_, err := adaptResponse(cfg, data, params, "query_session_signals")
+	_, err := adaptResponse(cfg, data, params, "query_session_signals", nil)
 	if err == nil {
 		t.Errorf("expected error with invalid data")
 	}
@@ -424,7 +424,7 @@ func TestConfigurableThreshold(t *testing.T) {
 	}
 
 	cfg, _ := config.Load()
-	response, err := adaptResponse(cfg, data, params, "query_session_signals")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals", nil)
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -466,7 +466,7 @@ func TestEnvironmentThreshold(t *testing.T) {
 	params := map[string]interface{}{}
 
 	cfg, _ := config.Load()
-	response, err := adaptResponse(cfg, data, params, "query_session_signals")
+	response, err := adaptResponse(cfg, data, params, "query_session_signals", nil)
 	if err != nil {
 		t.Fatalf("adaptResponse failed: %v", err)
 	}
@@ -508,7 +508,7 @@ func BenchmarkAdaptResponseFileRef(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		cfg, _ := config.Load()
-		response, err := adaptResponse(cfg, data, params, "query_session_signals")
+		response, err := adaptResponse(cfg, data, params, "query_session_signals", nil)
 		if err != nil {
 			b.Fatalf("adaptResponse failed: %v", err)
 		}

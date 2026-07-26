@@ -47,6 +47,8 @@ func NewToolPipelineConfig(toolName string, args map[string]interface{}) pipelin
 		ApplyMessageFilters:     toolName == "query_session_content",
 		ExcludeCompactSummaries: GetBoolParam(args, "exclude_compact_summaries", true),
 		IncludeSubagents:        GetBoolParam(args, "include_subagents", true),
+		Offset:                  GetIntParam(args, "offset", 0),
+		PageSize:                GetIntParam(args, "page_size", 0),
 	}
 }
 

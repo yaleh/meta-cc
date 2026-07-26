@@ -204,7 +204,7 @@ func TestNoBackwardCompatibilityCode(t *testing.T) {
 		}
 
 		// adaptResponse should NOT recognize "legacy" mode
-		result, err := adaptResponse(cfg, data, params, "query")
+		result, err := adaptResponse(cfg, data, params, "query", nil)
 		require.NoError(t, err)
 
 		// Should return hybrid mode response, NOT raw array

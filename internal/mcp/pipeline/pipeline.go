@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/yaleh/meta-cc/internal/config"
+	filterpkg "github.com/yaleh/meta-cc/internal/filter"
 	filterspkg "github.com/yaleh/meta-cc/internal/mcp/filters"
 	mcquerypkg "github.com/yaleh/meta-cc/internal/mcp/query"
 	responsepkg "github.com/yaleh/meta-cc/internal/mcp/response"
@@ -35,6 +36,8 @@ type PipelineConfig struct {
 	ApplyMessageFilters     bool // apply message length / content-summary filters
 	ExcludeCompactSummaries bool // exclude isCompactSummary=true entries from context_turns
 	IncludeSubagents        bool // include subagent JSONL files (default: true)
+	Offset                  int  // number of records to skip (pagination offset, default: 0)
+	PageSize                int  // max records per page (pagination, default: 0 = no limit)
 }
 
 func (c PipelineConfig) requiresMessageFilters() bool {
@@ -86,12 +89,24 @@ func BuildResponse(cfg *config.Config, result mcquerypkg.QueryResult, args map[s
 		parsedData = querypkg.GroupBySession(parsedData)
 	}
 
+	// Apply pagination (only when PageSize > 0; otherwise pass all data through)
+	var paginationMeta *filterpkg.PaginationMetadata
+	if pc.PageSize > 0 || pc.Offset > 0 {
+		paginated, meta := filterpkg.ApplyPaginationToInterfaces(parsedData, pc.Offset, pc.PageSize)
+		parsedData = paginated
+		paginationMeta = &meta
+	} else {
+		// Always compute metadata for the full dataset so every response includes pagination info
+		meta := filterpkg.CalculateMetadata(len(parsedData), filterpkg.PaginationConfig{Offset: 0, Limit: 0})
+		paginationMeta = &meta
+	}
+
 	var output string
 	var err error
 	if pc.StatsFirst {
-		output, err = BuildStatsFirstResponse(cfg, rawData, parsedData, args, toolName, pc.UseTimestampStats, pc.StatsLevel)
+		output, err = BuildStatsFirstResponse(cfg, rawData, parsedData, args, toolName, pc.UseTimestampStats, pc.StatsLevel, paginationMeta)
 	} else {
-		output, err = BuildStandardResponse(cfg, parsedData, args, toolName)
+		output, err = BuildStandardResponse(cfg, parsedData, args, toolName, paginationMeta)
 	}
 
 	if err != nil {
@@ -208,6 +223,7 @@ func BuildStatsOnlyResponse(parsedData []interface{}, useTimestampStats bool, st
 // serialized detail data.
 // useTimestampStats selects time-bucketed stats; when false, key-count stats are used.
 // toolName is passed through to AdaptResponse for output formatting only.
+// paginationMeta carries pagination metadata for the response envelope.
 func BuildStatsFirstResponse(
 	cfg *config.Config,
 	rawData []interface{},
@@ -216,6 +232,7 @@ func BuildStatsFirstResponse(
 	toolName string,
 	useTimestampStats bool,
 	statsLevel string,
+	paginationMeta *filterpkg.PaginationMetadata,
 ) (string, error) {
 	// Use rawData for stats (sessionId field preserved, not renamed by content_summary)
 	jsonlData, err := DataToJSONL(rawData)
@@ -238,7 +255,7 @@ func BuildStatsFirstResponse(
 	}
 
 	// Use parsedData for detail rendering (may have content_summary applied)
-	response, err := responsepkg.AdaptResponse(cfg, parsedData, args, toolName)
+	response, err := responsepkg.AdaptResponse(cfg, parsedData, args, toolName, paginationMeta)
 	if err != nil {
 		slog.Error("response adaptation failed (stats_first)",
 			"tool_name", toolName,
@@ -262,13 +279,15 @@ func BuildStatsFirstResponse(
 }
 
 // BuildStandardResponse generates a standard (non-stats) response for the given data.
+// paginationMeta carries pagination metadata for the response envelope.
 func BuildStandardResponse(
 	cfg *config.Config,
 	parsedData []interface{},
 	args map[string]interface{},
 	toolName string,
+	paginationMeta *filterpkg.PaginationMetadata,
 ) (string, error) {
-	response, err := responsepkg.AdaptResponse(cfg, parsedData, args, toolName)
+	response, err := responsepkg.AdaptResponse(cfg, parsedData, args, toolName, paginationMeta)
 	if err != nil {
 		slog.Error("response adaptation failed",
 			"tool_name", toolName,
