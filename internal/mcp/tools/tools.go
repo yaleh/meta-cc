@@ -241,10 +241,14 @@ func GetToolDefinitions() []Tool {
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 		}),
-		BuildTool("get_tech_debt", "Detect TODO/FIXME/HACK markers and unresolved errors as tech debt signals. Default scope: project.", map[string]Property{
+		BuildTool("get_tech_debt", "Detect TODO/FIXME/HACK/XXX markers and unresolved errors as tech debt signals. Default scope: project.", map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
+			},
+			"source_dir": {
+				Type:        "string",
+				Description: "Optional path to source code directory to scan for TODO/FIXME/HACK/XXX markers on disk. Results merged with session-transcript markers.",
 			},
 		}),
 		// ─── New consolidated query tools (replacing the 10 legacy query_* tools) ───

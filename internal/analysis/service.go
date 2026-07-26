@@ -384,6 +384,17 @@ func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("get tech debt failed: %w", err)
 	}
+
+	sourceDir := stringArg(args, "source_dir")
+	if sourceDir != "" {
+		srcResult, err := s.analyzers.TechDebt.ScanSourceDir(sourceDir)
+		if err != nil {
+			// Degrade gracefully: log and return session-only result.
+			return marshalResult(result)
+		}
+		result = analyzer.MergeTechDebtResults(result, srcResult, analyzer.DataSourceMeasured)
+	}
+
 	return marshalResult(result)
 }
 
