@@ -1,0 +1,307 @@
+package appserver
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/yaleh/meta-cc/internal/conversation"
+)
+
+// MapThread converts an app-server Thread (as returned by thread/list or
+// thread/read) into the canonical conversation.Session, reusing the DIR-028
+// Thread->Turn->Item model directly rather than a parallel struct. Turns is
+// only populated when the caller requested includeTurns (thread/read); a
+// thread/list-sourced Thread maps to a Session with no Turns, matching the
+// files backend's ListSessions/GetSession vs LoadTurns split.
+func MapThread(t Thread) conversation.Session {
+	title := t.Preview
+	if t.Name != nil && *t.Name != "" {
+		title = *t.Name
+	}
+
+	turns := make([]conversation.Turn, 0, len(t.Turns))
+	for _, turn := range t.Turns {
+		turns = append(turns, mapTurn(turn))
+	}
+
+	ext, _ := json.Marshal(map[string]interface{}{
+		"backend":          "app_server",
+		"session_id":       t.SessionID,
+		"cli_version":      t.CLIVersion,
+		"source":           json.RawMessage(t.Source),
+		"parent_thread_id": t.ParentThreadID,
+	})
+
+	return conversation.Session{
+		ID:         t.ID,
+		Provider:   conversation.ProviderCodex,
+		Title:      title,
+		CWD:        t.CWD,
+		Model:      t.ModelProvider,
+		CreatedAt:  time.Unix(t.CreatedAt, 0).UTC(),
+		Turns:      turns,
+		Extensions: ext,
+	}
+}
+
+func mapTurn(t Turn) conversation.Turn {
+	out := conversation.Turn{
+		ID:        t.ID,
+		Status:    mapTurnStatus(t.Status),
+		Timestamp: unixPtrOrZero(t.StartedAt, t.CompletedAt),
+	}
+	for _, item := range t.Items {
+		out.Items = append(out.Items, mapItems(item, out.Timestamp)...)
+	}
+	projectLegacyFields(&out)
+	return out
+}
+
+func unixPtrOrZero(preferred, fallback *int64) time.Time {
+	if preferred != nil {
+		return time.Unix(*preferred, 0).UTC()
+	}
+	if fallback != nil {
+		return time.Unix(*fallback, 0).UTC()
+	}
+	return time.Time{}
+}
+
+func mapTurnStatus(status string) conversation.TurnStatus {
+	switch status {
+	case "completed":
+		return conversation.TurnStatusCompleted
+	case "inProgress":
+		return conversation.TurnStatusInProgress
+	case "failed", "interrupted":
+		return conversation.TurnStatusFailed
+	default:
+		return conversation.TurnStatusUnspecified
+	}
+}
+
+// mapItems decodes one app-server ThreadItem into zero or more canonical
+// Items. Most item types map 1:1; "commandExecution" and "mcpToolCall" map
+// to a call+result pair (matching the Codex rollout adapter's ToolCall/
+// ToolResult pairing convention) since the app-server reports them as a
+// single already-resolved snapshot rather than separate open/close events.
+//
+// Coverage is intentionally scoped to the item types most useful for query
+// (see docs/reference/codex-app-server.md): userMessage, agentMessage,
+// commandExecution, fileChange, mcpToolCall, webSearch, reasoning, plan,
+// and contextCompaction get dedicated mapping. Everything else (hookPrompt,
+// dynamicToolCall, collabAgentToolCall, subAgentActivity, imageView, sleep,
+// imageGeneration, enteredReviewMode, exitedReviewMode) is preserved
+// losslessly via conversation.NewRawItem rather than dropped.
+func mapItems(item ThreadItem, ts time.Time) []conversation.Item {
+	switch item.Type {
+	case "userMessage":
+		var payload struct {
+			ID      string `json:"id"`
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+		}
+		_ = json.Unmarshal(item.Raw, &payload)
+		return []conversation.Item{{
+			ID: payload.ID, Kind: conversation.ItemKindUserMessage, Role: "user",
+			Text: joinTextParts(payload.Content), Timestamp: ts, Source: "app_server",
+		}}
+	case "agentMessage":
+		var payload struct {
+			ID    string  `json:"id"`
+			Text  string  `json:"text"`
+			Phase *string `json:"phase"`
+		}
+		_ = json.Unmarshal(item.Raw, &payload)
+		return []conversation.Item{{
+			ID: payload.ID, Kind: conversation.ItemKindAgentMessage, Role: "assistant",
+			Text: payload.Text, Phase: mapPhase(payload.Phase), Timestamp: ts, Source: "app_server",
+		}}
+	case "commandExecution":
+		var payload struct {
+			ID               string `json:"id"`
+			Command          string `json:"command"`
+			Status           string `json:"status"`
+			ExitCode         *int   `json:"exitCode"`
+			AggregatedOutput string `json:"aggregatedOutput"`
+		}
+		_ = json.Unmarshal(item.Raw, &payload)
+		return []conversation.Item{{
+			ID: payload.ID, Kind: conversation.ItemKindCommandExecution,
+			Command: payload.Command, ExitCode: payload.ExitCode,
+			Status: mapItemStatus(payload.Status), Output: payload.AggregatedOutput,
+			IsError: payload.Status == "failed", Timestamp: ts, Source: "app_server",
+		}}
+	case "fileChange":
+		var payload struct {
+			ID      string `json:"id"`
+			Status  string `json:"status"`
+			Changes []struct {
+				Path string `json:"path"`
+			} `json:"changes"`
+		}
+		_ = json.Unmarshal(item.Raw, &payload)
+		paths := make([]string, 0, len(payload.Changes))
+		for _, c := range payload.Changes {
+			paths = append(paths, c.Path)
+		}
+		return []conversation.Item{{
+			ID: payload.ID, Kind: conversation.ItemKindFileChange, Paths: paths,
+			Status: mapItemStatus(payload.Status), Timestamp: ts, Source: "app_server",
+		}}
+	case "mcpToolCall":
+		var payload struct {
+			ID        string          `json:"id"`
+			Server    string          `json:"server"`
+			Tool      string          `json:"tool"`
+			Arguments json.RawMessage `json:"arguments"`
+			Status    string          `json:"status"`
+			Result    json.RawMessage `json:"result"`
+			Error     *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		_ = json.Unmarshal(item.Raw, &payload)
+		output := string(payload.Result)
+		isError := payload.Status == "failed" || payload.Error != nil
+		if payload.Error != nil {
+			output = payload.Error.Message
+		}
+		name := payload.Tool
+		if payload.Server != "" {
+			name = fmt.Sprintf("%s.%s", payload.Server, payload.Tool)
+		}
+		return []conversation.Item{
+			{
+				ID: payload.ID, Kind: conversation.ItemKindToolCall, ToolCallID: payload.ID,
+				ToolName: name, Input: payload.Arguments, Timestamp: ts, Source: "app_server",
+			},
+			{
+				Kind: conversation.ItemKindToolResult, ToolCallID: payload.ID,
+				Output: output, IsError: isError, Timestamp: ts, Source: "app_server",
+			},
+		}
+	case "webSearch":
+		var payload struct {
+			ID    string `json:"id"`
+			Query string `json:"query"`
+		}
+		_ = json.Unmarshal(item.Raw, &payload)
+		return []conversation.Item{{
+			ID: payload.ID, Kind: conversation.ItemKindWebSearch, Query: payload.Query,
+			Timestamp: ts, Source: "app_server",
+		}}
+	case "reasoning":
+		var payload struct {
+			ID      string   `json:"id"`
+			Content []string `json:"content"`
+			Summary []string `json:"summary"`
+		}
+		_ = json.Unmarshal(item.Raw, &payload)
+		text := strings.Join(append(append([]string{}, payload.Content...), payload.Summary...), "\n")
+		return []conversation.Item{{
+			ID: payload.ID, Kind: conversation.ItemKindReasoning, Text: text,
+			Timestamp: ts, Source: "app_server",
+		}}
+	case "plan":
+		var payload struct {
+			ID   string `json:"id"`
+			Text string `json:"text"`
+		}
+		_ = json.Unmarshal(item.Raw, &payload)
+		return []conversation.Item{{
+			ID: payload.ID, Kind: conversation.ItemKindPlanUpdate, PlanSteps: []string{payload.Text},
+			Timestamp: ts, Source: "app_server",
+		}}
+	case "contextCompaction":
+		var payload struct {
+			ID string `json:"id"`
+		}
+		_ = json.Unmarshal(item.Raw, &payload)
+		return []conversation.Item{{
+			ID: payload.ID, Kind: conversation.ItemKindCompaction, Timestamp: ts, Source: "app_server",
+		}}
+	default:
+		return []conversation.Item{conversation.NewRawItem(conversation.ItemKindUnknown, ts, item.Raw)}
+	}
+}
+
+func joinTextParts(content []struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}) string {
+	var parts []string
+	for _, c := range content {
+		if c.Text != "" {
+			parts = append(parts, c.Text)
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+func mapPhase(phase *string) conversation.AgentPhase {
+	if phase == nil {
+		return conversation.PhaseUnspecified
+	}
+	switch *phase {
+	case "commentary":
+		return conversation.PhaseCommentary
+	case "final_answer":
+		return conversation.PhaseFinal
+	default:
+		return conversation.PhaseUnspecified
+	}
+}
+
+func mapItemStatus(status string) conversation.ItemStatus {
+	switch status {
+	case "completed":
+		return conversation.StatusCompleted
+	case "failed", "declined":
+		return conversation.StatusFailed
+	case "inProgress":
+		return conversation.StatusInProgress
+	default:
+		return conversation.StatusUnspecified
+	}
+}
+
+// projectLegacyFields derives Turn.UserText/AssistantText/ToolCalls from
+// Items, mirroring internal/provider/codex/rollout.go's projection so both
+// Codex backends (files and app_server) populate the same compatibility
+// fields the same way. Duplicated rather than shared because appserver must
+// not import the codex package (codex imports appserver, not vice versa).
+func projectLegacyFields(t *conversation.Turn) {
+	var userParts, assistantParts []string
+	var calls []conversation.ToolCall
+	callIndex := make(map[string]int)
+	for _, item := range t.Items {
+		switch item.Kind {
+		case conversation.ItemKindUserMessage:
+			userParts = append(userParts, item.Text)
+		case conversation.ItemKindAgentMessage:
+			assistantParts = append(assistantParts, item.Text)
+		case conversation.ItemKindToolCall:
+			callIndex[item.ToolCallID] = len(calls)
+			calls = append(calls, conversation.ToolCall{
+				ID: item.ToolCallID, Name: item.ToolName, Input: item.Input, Timestamp: item.Timestamp,
+			})
+		case conversation.ItemKindToolResult:
+			if idx, ok := callIndex[item.ToolCallID]; ok {
+				calls[idx].Output = item.Output
+				calls[idx].IsError = item.IsError
+			}
+		}
+	}
+	if len(userParts) > 0 {
+		t.UserText = strings.Join(userParts, "\n")
+	}
+	if len(assistantParts) > 0 {
+		t.AssistantText = strings.Join(assistantParts, "\n")
+	}
+	t.ToolCalls = calls
+}

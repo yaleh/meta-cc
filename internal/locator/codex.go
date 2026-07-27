@@ -24,6 +24,15 @@ func NewCodexLocator() *CodexLocator {
 	return &CodexLocator{codexRoot: root}
 }
 
+// Root returns the resolved Codex home directory (META_CC_CODEX_ROOT
+// override, or ~/.codex by default). Callers that need to point an external
+// `codex` process at the same state meta-cc is configured to read (e.g. the
+// app-server backend) should set CODEX_HOME to this value rather than
+// re-deriving it, so the two agree even when META_CC_CODEX_ROOT is set.
+func (l *CodexLocator) Root() string {
+	return l.codexRoot
+}
+
 func (l *CodexLocator) SQLiteDB() string {
 	return filepath.Join(l.codexRoot, "state_5.sqlite")
 }
