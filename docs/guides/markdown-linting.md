@@ -77,7 +77,7 @@ Markdown linting has been added to the CI workflow in `.github/workflows/ci.yml`
         run: markdownlint --config .markdownlint.json **/*.md
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.2
 ```
