@@ -218,8 +218,8 @@ func TestExtractToolCalls_ExplicitStatusNotOverridden(t *testing.T) {
 					{
 						Type: "tool_use",
 						ToolUse: &types.ToolUse{
-							ID:   "tu-003",
-							Name: "Edit",
+							ID:    "tu-003",
+							Name:  "Edit",
 							Input: map[string]interface{}{},
 						},
 					},

@@ -166,14 +166,14 @@ func TestApplyPaginationToInterfaces(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
-		data          []interface{}
-		offset        int
-		pageSize      int
-		wantLen       int
-		wantTotal     int
-		wantReturned  int
-		wantHasMore   bool
+		name         string
+		data         []interface{}
+		offset       int
+		pageSize     int
+		wantLen      int
+		wantTotal    int
+		wantReturned int
+		wantHasMore  bool
 	}{
 		{
 			name: "no pagination (pageSize=0)",
