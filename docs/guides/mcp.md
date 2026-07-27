@@ -59,37 +59,47 @@ META_CC_CODEX_ROOT=/tmp/codex meta-cc-mcp
 
 ## Tool Catalog
 
-### Convenience Queries
+The MCP server currently registers **15 tools**, derived at test time from
+`internal/mcp/tools.GetToolDefinitions()` (see `internal/release` for the
+consistency check that keeps this document's tool-count claims from
+drifting from the live `tools/list` response).
+
+### Consolidated Query Tools
+
+These 4 tools replace the older set of individual `query_*` tools (see
+[MCP Query Tools Reference](mcp-query-tools.md) for full parameter docs):
 
 | Tool | Purpose | Claude Code | Codex |
 |------|---------|-------------|-------|
-| `query_user_messages` | Search user messages by regex | Yes | Yes |
-| `query_tools` | Query assistant tool calls | Yes | Yes |
-| `query_tool_errors` | Query failed tool results | Yes | Yes |
-| `query_token_usage` | Query assistant token usage | Yes | Yes |
-| `query_conversation_flow` | Query user/assistant flow | Yes | Yes |
-| `query_tool_blocks` | Query `tool_use` or `tool_result` blocks | Yes | Yes |
-| `query_timestamps` | Query timestamped records | Yes | Yes |
-| `query_system_errors` | Query Claude Code API system errors | Yes | Host-specific empty |
-| `query_file_snapshots` | Query Claude Code file snapshots | Yes | Host-specific empty |
-| `query_summaries` | Query Claude Code summaries | Yes | Host-specific empty |
+| `query_session_content` | Query messages by role: `user`, `assistant`, `tool`, or `all` | Yes | Yes |
+| `query_session_signals` | Query signals: `errors`, `tokens`, `system_errors`, `timestamps`, `tool_stats` | Yes | Yes (`system_errors` is Claude-specific) |
+| `query_file_activity` | Query file history (`type: "snapshots"`) | Yes | Host-specific empty |
+| `query_edit_sequences` | Analyze file edit/read patterns: docRole, co-accessed docs, DocVoid | Yes | Yes |
 
 Examples:
 
 ```javascript
-query_tools({
+query_session_signals({
+  type: "tool_stats",
   provider: "codex",
   tool: "exec_command",
   working_dir: "/path/to/project",
   limit: 50
 })
 
-query_token_usage({
+query_session_signals({
+  type: "tokens",
   provider: "codex",
   stats_first: true,
   limit: 20
 })
 ```
+
+### Utility Tools
+
+| Tool | Purpose |
+|------|---------|
+| `cleanup_temp_files` | Remove old temporary MCP output files (`file_ref` mode artifacts) |
 
 ### Analysis Tools
 

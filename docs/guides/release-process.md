@@ -33,6 +33,61 @@ This separation allows:
    choco install jq
    ```
 
+## Version and Tool-Count Source of Truth (DIR-025)
+
+meta-cc ships several version surfaces (Claude Code plugin manifest, Claude
+Code marketplace manifest, Codex plugin manifest, and the MCP server's own
+`initialize`/`serverInfo` response) and several tool-count claims (README,
+CLAUDE.md, marketplace descriptions, the MCP guide). Historically these
+drifted independently — see `tasks/DIR-025.md` for the finding. They are now
+kept in agreement as follows:
+
+- **`internal/version/release.json`** is the one hand-edited source of
+  truth for the current release version. It is embedded at compile time
+  into the MCP server binary via `internal/version` (`go:embed`), so the
+  server's `initialize` response and startup log always reflect this file —
+  there is no separate hardcoded server version to forget.
+- **The MCP tool count is never hand-maintained as an independent number.**
+  It is always read from `internal/mcp/tools.GetToolDefinitions()` (the same
+  function that answers the live `tools/list` request). Docs and manifests
+  still contain a literal number (JSON/Markdown can't run Go code), but that
+  number is checked against the real count by an automated test.
+- **`internal/release`** contains the offline consistency tests
+  (`go test ./internal/version/... ./internal/release/...`) that:
+  - assert `.claude-plugin/marketplace.json`, `plugin-src/.claude-plugin/marketplace.json`,
+    `plugin-src/.claude-plugin/plugin.json`, and `plugin-src/.codex-plugin/plugin.json`
+    all have `version == internal/version/release.json`'s version, and
+  - assert every tool-count claim in the *current* docs/manifests listed in
+    `currentToolCountDocs` (`internal/release/consistency_test.go`) equals
+    `len(tools.GetToolDefinitions())`.
+
+  These tests run automatically with `go test ./...` (and therefore
+  `make test`, `make commit`, and CI), and are also invoked explicitly by
+  `make check-release-ready`, `scripts/sync-plugin-files.sh --verify`, and
+  `scripts/release/pre-release-check.sh`. No network access is required.
+  Historical documents (`docs/proposals/`, `docs/plans/`, `docs/phases/`,
+  `docs/archive/`, `CHANGELOG.md`, `plans/`, `tasks/`) are intentionally
+  **not** checked — they describe past states, not current claims.
+
+**To bump the version**, run `./scripts/release/bump-plugin-version.sh
+[patch|minor|major]` (or `--version X.Y.Z`). It now updates all five
+surfaces in one step: `plugin-src/.claude-plugin/plugin.json`,
+`.claude-plugin/marketplace.json`, `plugin-src/.claude-plugin/marketplace.json`,
+`plugin-src/.codex-plugin/plugin.json`, and `internal/version/release.json`.
+`scripts/release/release.sh` calls it in `--non-interactive` mode as part of
+a full release.
+
+**To add or remove an MCP tool**, edit
+`internal/mcp/tools.GetToolDefinitions()`, then run
+`go test ./internal/release/...`: it will fail once per stale doc/manifest
+tool-count claim it finds, each with a "Fix:" message naming the exact file
+and the number to write. Update `README.md`, `CLAUDE.md`,
+`docs/DOCUMENTATION_MAP.md`, `docs/guides/integration.md`,
+`docs/guides/mcp.md`, and the marketplace/plugin manifest descriptions
+accordingly, and re-run the test until it passes. If a new *current-facing*
+doc gains a tool-count claim, add it to `currentToolCountDocs` in
+`internal/release/consistency_test.go` so future drift is caught there too.
+
 ## Release Workflows
 
 ### Workflow A: Plugin-Only Version Bump

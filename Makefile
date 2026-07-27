@@ -132,7 +132,7 @@ test-bats:
 check-release-ready:
 	@echo "=== Release Readiness Check ==="
 	@echo ""
-	@echo "[1/2] Checking git tag exists..."
+	@echo "[1/3] Checking git tag exists..."
 	@LATEST_TAG=$$(git describe --tags --abbrev=0 2>/dev/null || echo "none"); \
 	if [ "$$LATEST_TAG" = "none" ]; then \
 		echo "❌ ERROR: No git tags found"; \
@@ -141,7 +141,7 @@ check-release-ready:
 	fi; \
 	echo "✓ Latest tag: $$LATEST_TAG"
 	@echo ""
-	@echo "[2/2] Verifying marketplace.json version matches tag..."
+	@echo "[2/3] Verifying marketplace.json version matches tag..."
 	@LATEST_TAG=$$(git describe --tags --abbrev=0); \
 	VERSION_NUM=$${LATEST_TAG#v}; \
 	MARKETPLACE_VERSION=$$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json); \
@@ -154,6 +154,10 @@ check-release-ready:
 		exit 1; \
 	fi; \
 	echo "✓ marketplace.json version verified: $$MARKETPLACE_VERSION"
+	@echo ""
+	@echo "[3/3] Verifying release/tool-count consistency (internal/version, internal/release)..."
+	@$(GOTEST) ./internal/version/... ./internal/release/...
+	@echo "✓ Claude/Codex/server version and tool-count surfaces agree with internal/version/release.json"
 	@echo ""
 	@echo "✅ Release ready"
 

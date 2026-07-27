@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/yaleh/meta-cc/internal/mcp/metrics"
+	"github.com/yaleh/meta-cc/internal/version"
 )
 
 type JSONRPCRequest struct {
@@ -112,8 +113,8 @@ func handleInitialize(ctx context.Context, req JSONRPCRequest) {
 			"tools": map[string]bool{},
 		},
 		"serverInfo": map[string]string{
-			"name":    "meta-cc-mcp",
-			"version": "1.0.0",
+			"name":    version.ServerName,
+			"version": version.Version,
 		},
 	}
 	writeResponse(req.ID, result)

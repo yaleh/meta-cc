@@ -120,6 +120,7 @@ if [ -z "$NON_INTERACTIVE" ]; then
     echo "  - .claude-plugin/marketplace.json: $CURRENT → $NEW_VERSION"
     echo "  - plugin-src/.claude-plugin/marketplace.json: $CURRENT → $NEW_VERSION"
     echo "  - plugin-src/.codex-plugin/plugin.json: $CURRENT → $NEW_VERSION"
+    echo "  - internal/version/release.json: $CURRENT → $NEW_VERSION (embedded MCP server version)"
     echo ""
     echo "Press Enter to continue, or Ctrl+C to abort..."
     read
@@ -150,13 +151,21 @@ echo "Updating plugin-src/.codex-plugin/plugin.json..."
 jq --arg ver "$NEW_VERSION" '.version = $ver' plugin-src/.codex-plugin/plugin.json > plugin-src/.codex-plugin/plugin.json.tmp
 mv plugin-src/.codex-plugin/plugin.json.tmp plugin-src/.codex-plugin/plugin.json
 echo "✓ plugin-src/.codex-plugin/plugin.json updated to $NEW_VERSION"
+
+# Update internal/version/release.json — the embedded MCP server version
+# (see internal/version/version.go and internal/release for the offline
+# consistency checks that keep this in sync with every manifest above).
+echo "Updating internal/version/release.json..."
+jq --arg ver "$NEW_VERSION" '.version = $ver' internal/version/release.json > internal/version/release.json.tmp
+mv internal/version/release.json.tmp internal/version/release.json
+echo "✓ internal/version/release.json updated to $NEW_VERSION"
 echo ""
 
 # Commit changes
 # Skipped in --non-interactive mode: release.sh owns the release commit
 if [ -z "$NON_INTERACTIVE" ]; then
     echo "Committing version bump..."
-    git add plugin-src/.claude-plugin/plugin.json .claude-plugin/marketplace.json plugin-src/.claude-plugin/marketplace.json plugin-src/.codex-plugin/plugin.json
+    git add plugin-src/.claude-plugin/plugin.json .claude-plugin/marketplace.json plugin-src/.claude-plugin/marketplace.json plugin-src/.codex-plugin/plugin.json internal/version/release.json
     git commit -m "chore: bump plugin version to $NEW_VERSION
 
 Updated plugin.json and marketplace.json version.

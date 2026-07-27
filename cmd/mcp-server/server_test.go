@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+
+	"github.com/yaleh/meta-cc/internal/version"
 )
 
 func TestHandleInitialize(t *testing.T) {
@@ -48,6 +50,48 @@ func TestHandleInitialize(t *testing.T) {
 
 	if _, hasVersion := result["protocolVersion"]; !hasVersion {
 		t.Error("expected protocolVersion in result")
+	}
+}
+
+// TestHandleInitialize_ServerInfoMatchesCanonicalVersion locks the live
+// initialize response to internal/version.Version — the single source of
+// truth for the current release version (DIR-025). If this ever drifts
+// (e.g. someone reintroduces a hardcoded literal), this test fails.
+func TestHandleInitialize_ServerInfoMatchesCanonicalVersion(t *testing.T) {
+	req := JSONRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "initialize",
+		Params:  map[string]interface{}{},
+	}
+
+	var buf bytes.Buffer
+	origStdout := outputWriter
+	outputWriter = &buf
+	defer func() { outputWriter = origStdout }()
+
+	handleInitialize(context.Background(), req)
+
+	var resp JSONRPCResponse
+	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	result, ok := resp.Result.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected result to be a map")
+	}
+
+	serverInfo, ok := result["serverInfo"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected serverInfo in result")
+	}
+
+	if got := serverInfo["version"]; got != version.Version {
+		t.Errorf("serverInfo.version = %v, want %q (internal/version.Version)", got, version.Version)
+	}
+	if got := serverInfo["name"]; got != version.ServerName {
+		t.Errorf("serverInfo.name = %v, want %q (internal/version.ServerName)", got, version.ServerName)
 	}
 }
 

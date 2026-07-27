@@ -17,22 +17,16 @@ The `provider` parameter controls which history is queried:
 
 ## MCP Tools
 
-meta-cc exposes 21 MCP tools.
+meta-cc exposes 15 MCP tools.
 
-### Convenience Queries
+### Consolidated Query Tools
 
-- `query_user_messages`: search user messages by regex
-- `query_tools`: query assistant tool calls
-- `query_tool_errors`: query failed tool results
-- `query_token_usage`: query assistant token usage
-- `query_conversation_flow`: query user/assistant turns
-- `query_tool_blocks`: query `tool_use` or `tool_result` blocks
-- `query_timestamps`: query timestamped records
-- `query_system_errors`: query Claude Code API system errors
-- `query_file_snapshots`: query Claude Code file history snapshots
-- `query_summaries`: query Claude Code session summaries
+- `query_session_content`: query messages by role (`user`, `assistant`, `tool`, or `all`)
+- `query_session_signals`: query signals (`errors`, `tokens`, `system_errors`, `timestamps`, `tool_stats`)
+- `query_file_activity`: query Claude Code file history snapshots
+- `query_edit_sequences`: analyze file edit/read patterns (docRole, co-accessed docs, DocVoid)
 
-Claude-only record types return empty results for Codex when Codex has no equivalent local record.
+These 4 tools replace the older set of individually named `query_*` tools. Claude-only record types return empty results for Codex when Codex has no equivalent local record.
 
 ### Analysis Tools
 
@@ -53,8 +47,6 @@ Claude-only record types return empty results for Codex when Codex has no equiva
 ### Utilities
 
 - `cleanup_temp_files`: remove old temporary MCP output files
-- `list_capabilities`: list packaged prompt/command capabilities
-- `get_capability`: retrieve a capability by name/type
 
 ## Provider-Aware Normalization
 

@@ -31,6 +31,9 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+      - name: Verify release version and tool-count consistency
+        run: go test ./internal/version/... ./internal/release/...
+
       - name: Build MCP server binaries (5 platforms)
         run: |
           mkdir -p build/mcp

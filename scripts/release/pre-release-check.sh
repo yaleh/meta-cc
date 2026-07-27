@@ -118,6 +118,29 @@ else
     check_result "marketplace.json version matches" "fail" "marketplace.json has '$MARKETPLACE_VERSION' but target is '$VERSION_NUM'. Run: ./scripts/bump-version.sh $VERSION"
 fi
 
+# Check 2.3: internal/version/release.json (embedded MCP server version) matches target
+RELEASE_JSON_VERSION=$(jq -r '.version' internal/version/release.json 2>/dev/null || echo "UNKNOWN")
+if [ "$RELEASE_JSON_VERSION" = "$VERSION_NUM" ]; then
+    check_result "internal/version/release.json matches ($VERSION_NUM)" "pass"
+else
+    check_result "internal/version/release.json matches" "fail" "internal/version/release.json has '$RELEASE_JSON_VERSION' but target is '$VERSION_NUM'. Run: ./scripts/release/bump-plugin-version.sh --version $VERSION_NUM"
+fi
+
+# Check 2.4: plugin-src/.codex-plugin/plugin.json matches target
+CODEX_PLUGIN_VERSION=$(jq -r '.version' plugin-src/.codex-plugin/plugin.json 2>/dev/null || echo "UNKNOWN")
+if [ "$CODEX_PLUGIN_VERSION" = "$VERSION_NUM" ]; then
+    check_result "plugin-src/.codex-plugin/plugin.json matches ($VERSION_NUM)" "pass"
+else
+    check_result "plugin-src/.codex-plugin/plugin.json matches" "fail" "plugin-src/.codex-plugin/plugin.json has '$CODEX_PLUGIN_VERSION' but target is '$VERSION_NUM'. Run: ./scripts/release/bump-plugin-version.sh --version $VERSION_NUM"
+fi
+
+# Check 2.5: offline release/tool-count consistency tests (internal/version, internal/release)
+if go test ./internal/version/... ./internal/release/... >/dev/null 2>&1; then
+    check_result "Release version and tool-count consistency (go test ./internal/release/...)" "pass"
+else
+    check_result "Release version and tool-count consistency" "fail" "Run: go test ./internal/version/... ./internal/release/... -v for details"
+fi
+
 echo ""
 
 # ==================================================================

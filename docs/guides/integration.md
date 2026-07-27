@@ -10,7 +10,7 @@ This guide explains which meta-cc integration to use in Claude Code or Codex.
 | Prompt-library commands | `/prompt-find`, `/prompt-list`, `/prompt-show` | Native skills: `prompt-find`, `prompt-list`, `prompt-show` | Reusing saved prompts |
 | Plugin metadata | Claude Code marketplace/archive plugin | Codex plugin metadata under `~/.codex/plugins/meta-cc/` | Host-native packaging |
 
-The MCP server is the primary integration. It exposes 21 tools for querying and analyzing Claude Code and Codex session history through a provider-aware layer.
+The MCP server is the primary integration. It exposes 15 tools for querying and analyzing Claude Code and Codex session history through a provider-aware layer.
 
 ## Data Sources
 

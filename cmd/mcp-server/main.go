@@ -11,6 +11,7 @@ import (
 
 	"github.com/yaleh/meta-cc/internal/config"
 	"github.com/yaleh/meta-cc/internal/mcp/metrics"
+	"github.com/yaleh/meta-cc/internal/version"
 )
 
 // Global configuration (loaded at startup)
@@ -29,8 +30,8 @@ func main() {
 	InitLogger(cfg)
 
 	slog.Info("MCP server starting",
-		"server_name", "meta-cc-mcp",
-		"version", "1.0.0",
+		"server_name", version.ServerName,
+		"version", version.Version,
 	)
 
 	// Initialize distributed tracing

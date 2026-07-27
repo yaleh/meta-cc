@@ -82,20 +82,26 @@ if [ "$VERIFY_MODE" = true ]; then
     echo "✓ Version consistent: $PLUGIN_VERSION"
     echo ""
 
-    echo "[5b/6] Verifying plugin-src/.codex-plugin/plugin.json version..."
+    echo "[5b/6] Verifying Codex plugin and release.json versions agree..."
     CODEX_PLUGIN_VERSION=$(jq -r '.version' "$PROJECT_ROOT/plugin-src/.codex-plugin/plugin.json")
-    if [ "$CODEX_PLUGIN_VERSION" != "$PLUGIN_VERSION" ]; then
-        echo "❌ ERROR: Version mismatch in plugin-src/.codex-plugin/plugin.json:"
-        echo "  plugin-src/.claude-plugin/plugin.json: $PLUGIN_VERSION"
-        echo "  plugin-src/.codex-plugin/plugin.json:  $CODEX_PLUGIN_VERSION"
-        echo ""
-        echo "The Codex plugin manager (codex plugin add/list) reads its version"
-        echo "from THIS file, so a stale version here is reported to Codex users"
-        echo "even though the Claude-side manifests are correct."
-        echo "Run 'scripts/release/bump-plugin-version.sh' to sync all files."
-        exit 1
-    fi
-    echo "✓ Codex plugin version consistent: $CODEX_PLUGIN_VERSION"
+    RELEASE_JSON_VERSION=$(jq -r '.version' "$PROJECT_ROOT/internal/version/release.json")
+    for pair in \
+        "plugin-src/.codex-plugin/plugin.json:$CODEX_PLUGIN_VERSION" \
+        "internal/version/release.json:$RELEASE_JSON_VERSION"; do
+        FILE="${pair%%:*}"
+        VER="${pair##*:}"
+        if [ "$VER" != "$PLUGIN_VERSION" ]; then
+            echo "❌ ERROR: Version mismatch:"
+            echo "  plugin-src/.claude-plugin/plugin.json: $PLUGIN_VERSION"
+            echo "  $FILE: $VER"
+            echo ""
+            echo "Run 'scripts/release/bump-plugin-version.sh' to sync all version surfaces,"
+            echo "or see docs/guides/release-process.md for the full list of surfaces that"
+            echo "must agree with internal/version/release.json."
+            exit 1
+        fi
+    done
+    echo "✓ Codex plugin and internal/version/release.json versions consistent: $PLUGIN_VERSION"
     echo ""
 
     echo "[6/6] Verifying plugin-src/.claude-plugin/marketplace.json..."
