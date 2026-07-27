@@ -70,6 +70,55 @@ func joinToolCalls(pair turnPair) []conversation.ToolCall {
 	return calls
 }
 
+// itemsFromPair is the thin Claude-side adapter into the DIR-028 canonical
+// Item stream: rather than reworking the established
+// buildTurns/joinToolCalls parser pipeline, it maps the already-computed
+// flattened fields (userText, assistantText, calls) into ordered Items.
+// Claude's transcript format has no distinct commentary/final signal for
+// assistant text (unlike Codex's Harmony-style channel field), so Phase is
+// left unspecified rather than guessed — see conversation.AgentPhase.
+func itemsFromPair(turnID, userText, assistantText string, calls []conversation.ToolCall, ts time.Time) []conversation.Item {
+	var items []conversation.Item
+	if userText != "" {
+		items = append(items, conversation.Item{
+			ID:        turnID + "-user",
+			Kind:      conversation.ItemKindUserMessage,
+			Role:      "user",
+			Text:      userText,
+			Timestamp: ts,
+		})
+	}
+	if assistantText != "" {
+		items = append(items, conversation.Item{
+			ID:        turnID + "-assistant",
+			Kind:      conversation.ItemKindAgentMessage,
+			Role:      "assistant",
+			Text:      assistantText,
+			Timestamp: ts,
+		})
+	}
+	for _, call := range calls {
+		items = append(items, conversation.Item{
+			ID:         call.ID,
+			Kind:       conversation.ItemKindToolCall,
+			ToolCallID: call.ID,
+			ToolName:   call.Name,
+			Input:      call.Input,
+			Timestamp:  call.Timestamp,
+		})
+		if call.Output != "" || call.IsError {
+			items = append(items, conversation.Item{
+				Kind:       conversation.ItemKindToolResult,
+				ToolCallID: call.ID,
+				Output:     call.Output,
+				IsError:    call.IsError,
+				Timestamp:  call.Timestamp,
+			})
+		}
+	}
+	return items
+}
+
 func entryText(entry *types.SessionEntry) string {
 	if entry == nil || entry.Message == nil {
 		return ""

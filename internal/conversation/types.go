@@ -24,11 +24,19 @@ type Session struct {
 	Extensions json.RawMessage `json:"extensions,omitempty"`
 }
 
+// Turn is the canonical, loss-minimizing representation of one exchange
+// within a Thread (see DIR-028). UserText/AssistantText/ToolCalls remain
+// for backward compatibility: they are a flattened compatibility
+// projection that provider adapters derive from Items (not an independent
+// parse), preserving the existing MCP query contract while Items carries
+// the richer, order- and phase-preserving event stream.
 type Turn struct {
 	ID            string          `json:"id"`
+	Status        TurnStatus      `json:"status,omitempty"`
 	UserText      string          `json:"user_text,omitempty"`
 	AssistantText string          `json:"assistant_text,omitempty"`
 	ToolCalls     []ToolCall      `json:"tool_calls,omitempty"`
+	Items         []Item          `json:"items,omitempty"`
 	TokenUsage    TokenUsage      `json:"token_usage,omitempty"`
 	Timestamp     time.Time       `json:"timestamp"`
 	Extensions    json.RawMessage `json:"extensions,omitempty"`

@@ -101,93 +101,170 @@ func detectSchemaVersion(firstLine []byte) schemaVersion {
 	return schemaLegacy
 }
 
-// dedupSegments accumulates one role's text (user or assistant) as it is
-// reported through two independent Codex rollout channels for the same
-// turn: the legacy "event_msg" notification stream (e.g. agent_message /
-// user_message) and the "response_item" transcript stream (message records
-// with role user/assistant). Live Codex CLI 0.145 rollouts record the same
-// logical utterance through BOTH channels, so naively concatenating every
-// occurrence doubles every message.
+// Item-stream construction and the legacy-field compatibility projection.
+//
+// Codex rollouts report user/assistant text through two independent
+// channels for the same turn: the legacy "event_msg" notification stream
+// (e.g. agent_message / user_message) and the "response_item" transcript
+// stream (message records with role user/assistant). Live Codex CLI 0.145
+// rollouts record the same logical utterance through BOTH channels, so
+// naively appending every occurrence doubles every message.
 //
 // Precedence rule (see docs/reference/jsonl-schema.md "Duplicate
 // Assistant/User Text"): response_item is the richer, canonical
 // representation and wins whenever both channels report a segment at the
 // same position within the turn; event_msg is used only as a fallback for
 // positions response_item never reported (legacy/event-only sessions).
-// Matching is positional and scoped to (turn, role) — content is never
-// compared for equality — so two legitimately repeated messages (e.g. the
-// same text sent again in a later turn, or two distinct segments in the
-// same turn that happen to share text) are both preserved rather than
-// collapsed.
-type dedupSegments struct {
-	eventMsg     []string
-	responseItem []string
-}
-
-func (s *dedupSegments) addEventMsg(text string) {
-	s.eventMsg = append(s.eventMsg, text)
-}
-
-func (s *dedupSegments) addResponseItem(text string) {
-	s.responseItem = append(s.responseItem, text)
-}
-
-// merge reconciles the two channels position-by-position, preferring
-// response_item and falling back to event_msg. Returns "" when neither
-// channel reported anything for this role, so callers can distinguish "no
-// legacy-schema segments recorded" from "segments recorded via the newer
-// (dot-schema) path", which sets the turn's text directly and never
-// populates dedupSegments.
-func (s *dedupSegments) merge() string {
-	n := len(s.eventMsg)
-	if len(s.responseItem) > n {
-		n = len(s.responseItem)
-	}
-	if n == 0 {
-		return ""
-	}
-	parts := make([]string, 0, n)
-	for i := 0; i < n; i++ {
-		if i < len(s.responseItem) {
-			parts = append(parts, s.responseItem[i])
-		} else {
-			parts = append(parts, s.eventMsg[i])
-		}
-	}
-	return strings.Join(parts, "\n")
-}
-
+// Observed Codex rollouts always emit the event_msg copy of a segment
+// immediately before its response_item counterpart, so this is implemented
+// as an in-place upgrade: an event_msg text is appended to the turn's Item
+// stream as a placeholder, and the next response_item text for that role
+// overwrites the oldest not-yet-upgraded placeholder in place (FIFO)
+// instead of appending a duplicate. This keeps the Item stream itself
+// already deduped, in true encounter order (interleaved with tool calls
+// and everything else), so the legacy UserText/AssistantText/ToolCalls
+// fields can be derived from Items by projection rather than by a second,
+// independent parse. Matching is positional per role, never content-based,
+// so two legitimately repeated messages (the same text sent again in a
+// later turn, or two distinct segments in the same turn that happen to
+// share text) are both preserved rather than collapsed.
 type turnBuilder struct {
-	current           *conversation.Turn
-	toolCallMap       map[string]int
-	turns             []conversation.Turn
-	unknown           []json.RawMessage
-	totalTokenUsage   conversation.TokenUsage
-	userSegments      dedupSegments
-	assistantSegments dedupSegments
+	current                  *conversation.Turn
+	turns                    []conversation.Turn
+	unknown                  []json.RawMessage
+	totalTokenUsage          conversation.TokenUsage
+	pendingUserEventMsg      []int
+	pendingAssistantEventMsg []int
 }
 
 func newTurnBuilder() *turnBuilder {
-	return &turnBuilder{toolCallMap: make(map[string]int)}
+	return &turnBuilder{}
 }
 
-// finalizeSegments reconciles any legacy-schema user/assistant text
-// accumulated for the current turn (see dedupSegments) into the turn's
-// final UserText/AssistantText. It is a no-op when nothing was recorded
-// through the legacy dedup path (e.g. the "new" dot-schema, which sets
-// these fields directly and never touches dedupSegments).
-func (b *turnBuilder) finalizeSegments() {
-	if merged := b.userSegments.merge(); merged != "" {
-		b.current.UserText = merged
+// addEventMsgText appends a new message Item sourced from the event_msg
+// channel and remembers its position as an upgrade candidate for a later
+// response_item segment at the same (turn, role) position.
+func (b *turnBuilder) addEventMsgText(kind conversation.ItemKind, role, text, timestamp string) {
+	idx := b.appendTextItem(kind, role, "", "event_msg", text, timestamp)
+	if kind == conversation.ItemKindUserMessage {
+		b.pendingUserEventMsg = append(b.pendingUserEventMsg, idx)
+	} else {
+		b.pendingAssistantEventMsg = append(b.pendingAssistantEventMsg, idx)
 	}
-	if merged := b.assistantSegments.merge(); merged != "" {
-		b.current.AssistantText = merged
+}
+
+// addResponseItemText reconciles a response_item text segment: it upgrades
+// the oldest pending event_msg placeholder for the same role in place, or
+// (when there is no pending placeholder — a response_item-only rollout, or
+// more response_item segments than event_msg ones) appends a new Item.
+func (b *turnBuilder) addResponseItemText(kind conversation.ItemKind, role, phase, text, timestamp string) {
+	pending := &b.pendingAssistantEventMsg
+	if kind == conversation.ItemKindUserMessage {
+		pending = &b.pendingUserEventMsg
 	}
+	if len(*pending) > 0 {
+		idx := (*pending)[0]
+		*pending = (*pending)[1:]
+		b.current.Items[idx].Text = text
+		b.current.Items[idx].Source = "response_item"
+		b.current.Items[idx].Phase = agentPhase(phase)
+		return
+	}
+	b.appendTextItem(kind, role, phase, "response_item", text, timestamp)
+}
+
+func (b *turnBuilder) appendTextItem(kind conversation.ItemKind, role, phase, source, text, timestamp string) int {
+	ts, _ := time.Parse(time.RFC3339, timestamp)
+	b.current.Items = append(b.current.Items, conversation.Item{
+		Kind:      kind,
+		Role:      role,
+		Phase:     agentPhase(phase),
+		Text:      text,
+		Timestamp: ts.UTC(),
+		Source:    source,
+	})
+	return len(b.current.Items) - 1
+}
+
+// agentPhase maps a Harmony-style "channel" value ("commentary"/"final"),
+// when a Codex rollout reports one, to the canonical AgentPhase. Absent or
+// unrecognized values map to PhaseUnspecified rather than being guessed.
+func agentPhase(channel string) conversation.AgentPhase {
+	switch channel {
+	case "commentary":
+		return conversation.PhaseCommentary
+	case "final":
+		return conversation.PhaseFinal
+	default:
+		return conversation.PhaseUnspecified
+	}
+}
+
+func (b *turnBuilder) appendToolCallItem(callID, name string, input json.RawMessage, timestamp string) {
+	ts, _ := time.Parse(time.RFC3339, timestamp)
+	b.current.Items = append(b.current.Items, conversation.Item{
+		ID:         callID,
+		Kind:       conversation.ItemKindToolCall,
+		ToolCallID: callID,
+		ToolName:   name,
+		Input:      input,
+		Timestamp:  ts.UTC(),
+	})
+}
+
+func (b *turnBuilder) appendToolResultItem(callID, output string, isError bool, timestamp string) {
+	ts, _ := time.Parse(time.RFC3339, timestamp)
+	b.current.Items = append(b.current.Items, conversation.Item{
+		Kind:       conversation.ItemKindToolResult,
+		ToolCallID: callID,
+		Output:     output,
+		IsError:    isError,
+		Timestamp:  ts.UTC(),
+	})
+}
+
+// projectLegacyFields derives the backward-compatible
+// UserText/AssistantText/ToolCalls fields from the turn's Items, rather
+// than re-parsing the rollout. Message items are joined per role in
+// encounter order (matching the historical dedupSegments.merge() join
+// behavior); tool call/result items are paired by ToolCallID.
+func (b *turnBuilder) projectLegacyFields() {
+	var userParts, assistantParts []string
+	var calls []conversation.ToolCall
+	callIndex := make(map[string]int)
+	for _, item := range b.current.Items {
+		switch item.Kind {
+		case conversation.ItemKindUserMessage:
+			userParts = append(userParts, item.Text)
+		case conversation.ItemKindAgentMessage:
+			assistantParts = append(assistantParts, item.Text)
+		case conversation.ItemKindToolCall:
+			callIndex[item.ToolCallID] = len(calls)
+			calls = append(calls, conversation.ToolCall{
+				ID:        item.ToolCallID,
+				Name:      item.ToolName,
+				Input:     item.Input,
+				Timestamp: item.Timestamp,
+			})
+		case conversation.ItemKindToolResult:
+			if idx, ok := callIndex[item.ToolCallID]; ok {
+				calls[idx].Output = item.Output
+				calls[idx].IsError = item.IsError
+			}
+		}
+	}
+	if len(userParts) > 0 {
+		b.current.UserText = strings.Join(userParts, "\n")
+	}
+	if len(assistantParts) > 0 {
+		b.current.AssistantText = strings.Join(assistantParts, "\n")
+	}
+	b.current.ToolCalls = calls
 }
 
 func (b *turnBuilder) flush() {
 	if b.current != nil {
-		b.finalizeSegments()
+		b.projectLegacyFields()
 	}
 	if b.current != nil && len(b.unknown) > 0 {
 		ext, _ := json.Marshal(map[string][]json.RawMessage{
@@ -199,10 +276,9 @@ func (b *turnBuilder) flush() {
 		b.turns = append(b.turns, *b.current)
 	}
 	b.current = nil
-	b.toolCallMap = make(map[string]int)
 	b.unknown = nil
-	b.userSegments = dedupSegments{}
-	b.assistantSegments = dedupSegments{}
+	b.pendingUserEventMsg = nil
+	b.pendingAssistantEventMsg = nil
 }
 
 func (b *turnBuilder) ensureTurn(id, timestamp string) {
@@ -253,9 +329,9 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 		b.ensureTurn(payload.TurnID, event.Timestamp)
 		switch payload.Type {
 		case "user_message":
-			b.userSegments.addEventMsg(payload.Message)
+			b.addEventMsgText(conversation.ItemKindUserMessage, "user", payload.Message, event.Timestamp)
 		case "agent_message":
-			b.assistantSegments.addEventMsg(payload.Message)
+			b.addEventMsgText(conversation.ItemKindAgentMessage, "assistant", payload.Message, event.Timestamp)
 		case "token_count":
 			b.applyTokenUsage(event.Timestamp, payload.Info.LastTokenUsage, payload.Info.TotalTokenUsage)
 			return
@@ -275,6 +351,7 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 			IsError   bool            `json:"is_error"`
 			Error     string          `json:"error"`
 			Role      string          `json:"role"`
+			Channel   string          `json:"channel"`
 			Content   json.RawMessage `json:"content"`
 			Info      struct {
 				LastTokenUsage  codexTokenUsage `json:"last_token_usage"`
@@ -285,42 +362,34 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 		b.ensureTurn("", event.Timestamp)
 		switch envelope.Type {
 		case "function_call", "custom_tool_call":
-			ts, _ := time.Parse(time.RFC3339, event.Timestamp)
 			callID := firstNonEmpty(envelope.CallID, envelope.ID)
 			input := json.RawMessage(envelope.Arguments)
 			if envelope.Type == "custom_tool_call" {
 				input = encodeCustomToolInput(envelope.Input)
 			}
-			call := conversation.ToolCall{
-				ID:        callID,
-				Name:      envelope.Name,
-				Input:     input,
-				Timestamp: ts.UTC(),
-			}
-			b.toolCallMap[callID] = len(b.current.ToolCalls)
-			b.current.ToolCalls = append(b.current.ToolCalls, call)
+			b.appendToolCallItem(callID, envelope.Name, input, event.Timestamp)
 		case "function_call_output", "custom_tool_call_output":
 			callID := firstNonEmpty(envelope.CallID, envelope.ID)
-			if idx, ok := b.toolCallMap[callID]; ok {
-				b.current.ToolCalls[idx].Output = envelope.Output
-				b.current.ToolCalls[idx].IsError = envelope.IsError || isErrorStatus(envelope.Status) || envelope.Error != ""
-				if b.current.ToolCalls[idx].Output == "" {
-					b.current.ToolCalls[idx].Output = envelope.Error
-				}
+			isError := envelope.IsError || isErrorStatus(envelope.Status) || envelope.Error != ""
+			output := envelope.Output
+			if output == "" {
+				output = envelope.Error
 			}
+			b.appendToolResultItem(callID, output, isError, event.Timestamp)
 		case "message":
 			text := extractResponseItemText(envelope.Content)
 			switch envelope.Role {
 			case "user":
-				b.userSegments.addResponseItem(text)
+				b.addResponseItemText(conversation.ItemKindUserMessage, "user", envelope.Channel, text, event.Timestamp)
 			case "assistant":
-				b.assistantSegments.addResponseItem(text)
+				b.addResponseItemText(conversation.ItemKindAgentMessage, "assistant", envelope.Channel, text, event.Timestamp)
 			case "developer", "system":
 				return
 			default:
 				b.appendUnknown(line)
 			}
 		case "reasoning":
+			b.current.Items = append(b.current.Items, conversation.NewRawItem(conversation.ItemKindReasoning, parseTimestamp(event.Timestamp), line))
 			return
 		case "token_count":
 			b.applyTokenUsage(event.Timestamp, envelope.Info.LastTokenUsage, envelope.Info.TotalTokenUsage)
@@ -382,13 +451,20 @@ func (b *turnBuilder) applyNew(line []byte) {
 		var payload struct {
 			Role    string `json:"role"`
 			Content string `json:"content"`
+			Channel string `json:"channel"`
 		}
 		_ = json.Unmarshal(event.Payload, &payload)
 		b.ensureTurn("", event.Timestamp)
+		// Unlike the legacy schema's dual event_msg/response_item channels,
+		// the dot-schema reports each message exactly once, so items are
+		// appended directly (no dedup upgrade needed) — but still appended
+		// rather than overwritten, so multiple commentary/final messages in
+		// one turn are all preserved in order instead of only the last one
+		// surviving.
 		if payload.Role == "user" {
-			b.current.UserText = payload.Content
+			b.appendTextItem(conversation.ItemKindUserMessage, "user", payload.Channel, "item.message", payload.Content, event.Timestamp)
 		} else if payload.Role == "assistant" {
-			b.current.AssistantText = payload.Content
+			b.appendTextItem(conversation.ItemKindAgentMessage, "assistant", payload.Channel, "item.message", payload.Content, event.Timestamp)
 		}
 	case "item.tool_call":
 		var payload struct {
@@ -398,14 +474,7 @@ func (b *turnBuilder) applyNew(line []byte) {
 		}
 		_ = json.Unmarshal(event.Payload, &payload)
 		b.ensureTurn("", event.Timestamp)
-		ts, _ := time.Parse(time.RFC3339, event.Timestamp)
-		b.toolCallMap[payload.ID] = len(b.current.ToolCalls)
-		b.current.ToolCalls = append(b.current.ToolCalls, conversation.ToolCall{
-			ID:        payload.ID,
-			Name:      payload.Name,
-			Input:     payload.Input,
-			Timestamp: ts.UTC(),
-		})
+		b.appendToolCallItem(payload.ID, payload.Name, payload.Input, event.Timestamp)
 	case "item.tool_result":
 		var payload struct {
 			ID      string `json:"id"`
@@ -413,22 +482,43 @@ func (b *turnBuilder) applyNew(line []byte) {
 			IsError bool   `json:"is_error"`
 		}
 		_ = json.Unmarshal(event.Payload, &payload)
-		if idx, ok := b.toolCallMap[payload.ID]; ok {
-			b.current.ToolCalls[idx].Output = payload.Output
-			b.current.ToolCalls[idx].IsError = payload.IsError
-		}
+		b.appendToolResultItem(payload.ID, payload.Output, payload.IsError, event.Timestamp)
 	case "turn.completed":
+		if b.current != nil {
+			b.current.Status = conversation.TurnStatusCompleted
+		}
 		b.flush()
 	case "turn.failed", "error":
 		b.appendUnknown(line)
+		b.current.Status = conversation.TurnStatusFailed
 	default:
 		b.appendUnknown(line)
 	}
 }
 
+// appendUnknown preserves an unrecognized event both in the legacy
+// Extensions.codex_events bag (unchanged, for backward compatibility) and
+// as a capped ItemKindUnknown Item in the ordered item stream, so
+// unrecognized event families are round-trippable at the item level too
+// without embedding unbounded raw payloads.
 func (b *turnBuilder) appendUnknown(line []byte) {
 	b.ensureTurn("", time.Now().UTC().Format(time.RFC3339))
 	b.unknown = append(b.unknown, append(json.RawMessage(nil), line...))
+
+	var stamped struct {
+		Timestamp string `json:"timestamp"`
+	}
+	_ = json.Unmarshal(line, &stamped)
+	ts := parseTimestamp(stamped.Timestamp)
+	if ts.IsZero() {
+		ts = b.current.Timestamp
+	}
+	b.current.Items = append(b.current.Items, conversation.NewRawItem(conversation.ItemKindUnknown, ts, line))
+}
+
+func parseTimestamp(timestamp string) time.Time {
+	t, _ := time.Parse(time.RFC3339, timestamp)
+	return t.UTC()
 }
 
 func encodeCustomToolInput(input json.RawMessage) json.RawMessage {

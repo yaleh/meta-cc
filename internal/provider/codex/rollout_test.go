@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/yaleh/meta-cc/internal/conversation"
 )
 
 func TestDetectSchemaVersion(t *testing.T) {
@@ -168,5 +170,147 @@ func TestLoadTurnsFromRolloutTokenCountUsesEventTimestamp(t *testing.T) {
 	want, _ := time.Parse(time.RFC3339, eventTime)
 	if !turns[0].Timestamp.Equal(want) {
 		t.Fatalf("token_count timestamp = %s, want %s", turns[0].Timestamp.Format(time.RFC3339), eventTime)
+	}
+}
+
+// TestLoadTurnsFromRolloutPreservesItemOrderAndPhase is a DIR-028
+// regression/acceptance test: a Codex turn with a commentary message, an
+// interleaved tool call/result, and a final message must preserve the
+// exact encounter order and each assistant message's phase (derived from
+// the response_item "channel" field) in the canonical Items stream — not
+// just a flattened, phase-less AssistantText string.
+func TestLoadTurnsFromRolloutPreservesItemOrderAndPhase(t *testing.T) {
+	turns, _, err := loadTurnsFromRollout(filepath.Join("..", "..", "..", "tests", "fixtures", "codex", "rollout-legacy-phased-sample.jsonl"), 100)
+	if err != nil {
+		t.Fatalf("phased load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d: %#v", len(turns), turns)
+	}
+	turn := turns[0]
+
+	wantKinds := []conversation.ItemKind{
+		conversation.ItemKindUserMessage,
+		conversation.ItemKindAgentMessage,
+		conversation.ItemKindToolCall,
+		conversation.ItemKindToolResult,
+		conversation.ItemKindAgentMessage,
+	}
+	if len(turn.Items) != len(wantKinds) {
+		t.Fatalf("expected %d items in encounter order, got %d: %#v", len(wantKinds), len(turn.Items), turn.Items)
+	}
+	for i, kind := range wantKinds {
+		if turn.Items[i].Kind != kind {
+			t.Fatalf("item %d: expected kind %s, got %s (%#v)", i, kind, turn.Items[i].Kind, turn.Items[i])
+		}
+	}
+
+	if turn.Items[1].Phase != conversation.PhaseCommentary || turn.Items[1].Text != "Investigating the failure..." {
+		t.Fatalf("expected commentary phase item, got %#v", turn.Items[1])
+	}
+	if turn.Items[4].Phase != conversation.PhaseFinal || turn.Items[4].Text != "Fixed the bug." {
+		t.Fatalf("expected final phase item, got %#v", turn.Items[4])
+	}
+
+	// Tool call/result retain linked identity via ToolCallID, and the turn
+	// carries a stable ID.
+	if turn.ID != "turn-phased" {
+		t.Fatalf("expected stable turn ID, got %q", turn.ID)
+	}
+	if turn.Items[2].ID != "call-phase-1" || turn.Items[2].ToolCallID != "call-phase-1" {
+		t.Fatalf("tool call item missing stable ID: %#v", turn.Items[2])
+	}
+	if turn.Items[3].ToolCallID != "call-phase-1" || turn.Items[3].Output != "found 2 matches" {
+		t.Fatalf("tool result item not paired with call via ToolCallID: %#v", turn.Items[3])
+	}
+
+	// The legacy compatibility projection must still be correct: both
+	// commentary and final text joined, and exactly one deduped tool call.
+	if turn.AssistantText != "Investigating the failure...\nFixed the bug." {
+		t.Fatalf("unexpected AssistantText projection: %q", turn.AssistantText)
+	}
+	if len(turn.ToolCalls) != 1 || turn.ToolCalls[0].Output != "found 2 matches" {
+		t.Fatalf("unexpected ToolCalls projection: %#v", turn.ToolCalls)
+	}
+}
+
+// TestLoadTurnsFromRollout0145EventFamiliesProducesUnknownItems extends the
+// 0145-event-families coverage (see TestLoadTurnsFromRollout0145EventFamilies
+// above) to the item level: every event that falls through to the legacy
+// Extensions.codex_events bag must also be representable as a capped,
+// round-trippable ItemKindUnknown Item, so the ordered item stream never
+// silently drops events even when it doesn't yet give them dedicated
+// semantic handling.
+func TestLoadTurnsFromRollout0145EventFamiliesProducesUnknownItems(t *testing.T) {
+	turns, _, err := loadTurnsFromRollout(filepath.Join("..", "..", "..", "tests", "fixtures", "codex", "rollout-legacy-0145-families-sample.jsonl"), 100)
+	if err != nil {
+		t.Fatalf("0145 families load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d", len(turns))
+	}
+
+	var unknown int
+	for _, item := range turns[0].Items {
+		if item.Kind != conversation.ItemKindUnknown {
+			continue
+		}
+		unknown++
+		if len(item.Raw) == 0 {
+			t.Fatalf("unknown item missing raw provenance: %#v", item)
+		}
+		if item.RawTruncated {
+			t.Fatalf("small fixture events should not be truncated: %#v", item)
+		}
+	}
+	if unknown != 8 {
+		t.Fatalf("expected 8 unknown items (matching the 8 codex_events entries), got %d", unknown)
+	}
+}
+
+// TestLoadTurnsFromRolloutDotSchemaPreservesMultipleAssistantMessages is a
+// DIR-028 regression test for a real gap in the pre-existing dot-schema
+// (item.message) handling: it used to directly overwrite
+// Turn.AssistantText on every item.message event, so a turn with more than
+// one assistant message silently lost every message but the last. Items
+// must now preserve all of them, in order, and the legacy projection must
+// join them (matching the legacy-schema join behavior) instead of losing
+// data.
+func TestLoadTurnsFromRolloutDotSchemaPreservesMultipleAssistantMessages(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "dot-schema-multi.jsonl")
+	content := `{"timestamp":"2026-07-27T09:00:00Z","type":"thread.started","payload":{"id":"sess-multi"}}
+{"timestamp":"2026-07-27T09:00:01Z","type":"turn.started","payload":{"id":"turn-multi"}}
+{"timestamp":"2026-07-27T09:00:02Z","type":"item.message","payload":{"role":"user","content":"do the thing"}}
+{"timestamp":"2026-07-27T09:00:03Z","type":"item.message","payload":{"role":"assistant","content":"first commentary"}}
+{"timestamp":"2026-07-27T09:00:04Z","type":"item.message","payload":{"role":"assistant","content":"second and final"}}
+{"timestamp":"2026-07-27T09:00:05Z","type":"turn.completed","payload":{"id":"turn-multi"}}
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	turns, _, err := loadTurnsFromRollout(path, 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d", len(turns))
+	}
+	turn := turns[0]
+	if turn.Status != conversation.TurnStatusCompleted {
+		t.Fatalf("expected completed status, got %q", turn.Status)
+	}
+	if turn.AssistantText != "first commentary\nsecond and final" {
+		t.Fatalf("expected both assistant messages preserved in order, got %q", turn.AssistantText)
+	}
+
+	var assistantItems int
+	for _, item := range turn.Items {
+		if item.Kind == conversation.ItemKindAgentMessage {
+			assistantItems++
+		}
+	}
+	if assistantItems != 2 {
+		t.Fatalf("expected 2 distinct assistant message items, got %d: %#v", assistantItems, turn.Items)
 	}
 }

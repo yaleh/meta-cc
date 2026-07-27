@@ -610,6 +610,82 @@ change affects user-visible query output, in
 test (through `providerrecords.Build`/`query_session_content`) asserting
 the parser still produces correct turns without data loss or duplication.
 
+### Canonical Item Model (DIR-028)
+
+Besides the flattened `UserText`/`AssistantText`/`ToolCalls` fields
+described above, `conversation.Turn` (see `internal/conversation/types.go`
+and `internal/conversation/item.go`) also carries an ordered `Items []Item`
+stream and a `Status TurnStatus`. This is the **loss-minimizing internal
+representation** (`Thread -> Turn -> Item`): provider adapters populate
+Items with one entry per event they can classify, in true encounter order,
+and the flattened fields are a **compatibility projection** computed *from*
+Items (not by a second, independent parse) so existing MCP query output
+(`query_session_content`, `query_session_signals`, etc.) is unaffected.
+
+**Item kinds** (`conversation.ItemKind`): `user_message`, `agent_message`
+(carries `Phase`: `commentary` | `final` | unspecified, derived from a
+Harmony-style `channel` field on Codex `response_item`/`item.message`
+events when present — never guessed when absent), `tool_call` /
+`tool_result` (linked via `ToolCallID`, preserving item and turn identity
+even though the compatibility projection merges them back into one
+`ToolCall` entry), `command_execution`, `file_change`, `web_search`,
+`plan_update`, `reasoning`, `compaction`, and `unknown` (a capped,
+round-trippable catch-all — see `conversation.NewRawItem`, which truncates
+any payload over 4KB rather than embedding it unbounded, and sets
+`RawTruncated` when it does).
+
+**Current adapter coverage** (intentionally scoped, DIR-028):
+
+- **Codex** (`internal/provider/codex/rollout.go`): emits
+  `user_message`/`agent_message`, `tool_call`/`tool_result`, and
+  `reasoning` items with real parsing; the 0.145+ event families documented
+  above (`tool_search_call`, `compacted`, `world_state`, etc.) are not yet
+  given dedicated Item kinds and continue to fall through to `unknown`
+  (mirroring their existing `Extensions.codex_events` fallback) — a future
+  change can promote them to `command_execution`/`web_search`/`compaction`
+  once their real-world payload shapes are confirmed.
+- **Claude** (`internal/provider/claude/turns.go`'s `itemsFromPair`): a thin
+  adapter over the existing `buildTurns`/`joinToolCalls` pipeline — it maps
+  the already-computed flattened fields into `user_message`,
+  `agent_message`, `tool_call`, and `tool_result` items. Claude's
+  transcript format has no phase/channel signal, so `Phase` stays
+  unspecified rather than guessed.
+
+**Extension rule — adding a new Item kind:**
+
+1. Add the `ItemKind` constant in `internal/conversation/item.go` with a
+   doc comment describing what it represents, and add it to the coverage
+   lists in `internal/conversation/item_test.go`'s
+   `TestItemKindCoverage`.
+2. In the provider adapter, populate the new kind as its own `Item` (do not
+   overload an existing kind) and make sure it's appended to the turn's
+   `Items` in true encounter order — do not reorder or batch during
+   projection.
+3. Update the adapter's legacy-field projection (`projectLegacyFields` in
+   `internal/provider/codex/rollout.go`, or `itemsFromPair`'s caller in
+   `internal/provider/claude/provider.go`) **only if** the new kind should
+   also surface through the existing flattened fields; if it shouldn't
+   (e.g. it has no analogue in the legacy message/tool schema), leave the
+   projection untouched so existing query output does not change.
+4. Add a parser-level test asserting order/fields (see
+   `TestLoadTurnsFromRolloutPreservesItemOrderAndPhase` in
+   `internal/provider/codex/rollout_test.go`), and, if the change is
+   user-visible through `query_session_content`/`query_session_signals`,
+   an end-to-end differential test through
+   `providerrecords.Build`/the real MCP handler (see
+   `TestQuerySessionContent_Codex_PhasedItemsProjectWithoutDuplicationOrReorder`
+   in `internal/mcp/executor/codex_dedup_e2e_test.go`) proving the legacy
+   projection is unchanged (no duplicated text, no reordered tool blocks).
+5. Unrecognized/unparsed events must always fall back to
+   `conversation.NewRawItem(conversation.ItemKindUnknown, ...)` rather than
+   being silently dropped — see `appendUnknown` in
+   `internal/provider/codex/rollout.go`.
+
+There is currently no dedicated MCP query surface for the Item stream
+itself (only the flattened compatibility projection is queryable); a
+future `query_session_items`-style tool is a natural extension once a
+concrete use case needs order/phase/item-kind fidelity at the query layer.
+
 ### Tool Calls
 
 Codex function tool calls:

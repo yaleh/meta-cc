@@ -103,12 +103,23 @@ func (p *Provider) LoadTurns(ctx context.Context, sessionID string) ([]conversat
 		} else if pair.assistant != nil {
 			ts, _ = time.Parse(time.RFC3339, pair.assistant.Timestamp)
 		}
+		ts = ts.UTC()
+		id := fmt.Sprintf("%s-%d", sessionID, idx+1)
+		userText := entryText(pair.user)
+		assistantText := entryText(pair.assistant)
+		calls := joinToolCalls(pair)
+		status := conversation.TurnStatusInProgress
+		if pair.assistant != nil {
+			status = conversation.TurnStatusCompleted
+		}
 		turns = append(turns, conversation.Turn{
-			ID:            fmt.Sprintf("%s-%d", sessionID, idx+1),
-			UserText:      entryText(pair.user),
-			AssistantText: entryText(pair.assistant),
-			ToolCalls:     joinToolCalls(pair),
-			Timestamp:     ts.UTC(),
+			ID:            id,
+			Status:        status,
+			UserText:      userText,
+			AssistantText: assistantText,
+			ToolCalls:     calls,
+			Items:         itemsFromPair(id, userText, assistantText, calls, ts),
+			Timestamp:     ts,
 		})
 	}
 	return turns, nil

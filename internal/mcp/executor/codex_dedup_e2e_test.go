@@ -152,3 +152,58 @@ func TestQuerySessionContent_Codex_ResponseItemOnlyFixtureStillWorks(t *testing.
 	textBlock := content[0].(map[string]interface{})
 	require.Equal(t, "running tools", textBlock["text"])
 }
+
+// TestQuerySessionContent_Codex_PhasedItemsProjectWithoutDuplicationOrReorder
+// is a DIR-028 differential/regression test: it proves that upgrading the
+// Codex adapter to build an ordered, phase-aware Item stream (see
+// internal/provider/codex/rollout.go's turnBuilder and
+// TestLoadTurnsFromRolloutPreservesItemOrderAndPhase in rollout_test.go for
+// the parser-level assertions) did not change the legacy
+// query_session_content(provider=codex) contract: a turn with a commentary
+// message, an interleaved tool call, and a final message must still
+// project to exactly one assistant record with a single joined text block
+// (no duplicated text, no reordered tool_use blocks) and one paired tool
+// result record — i.e. the new item-level fidelity is additive, not a
+// change in the existing normalized message/tool schema.
+func TestQuerySessionContent_Codex_PhasedItemsProjectWithoutDuplicationOrReorder(t *testing.T) {
+	projectPath := setupCodexRolloutFixtureProject(t, "rollout-legacy-phased-sample.jsonl")
+
+	e := NewToolExecutor()
+	result, err := handleQuerySessionContent(e, "project", map[string]interface{}{
+		"role":        "assistant",
+		"provider":    "codex",
+		"working_dir": projectPath,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Entries, 1, "expected exactly one assistant record for the turn")
+
+	m := result.Entries[0].(map[string]interface{})
+	message := m["message"].(map[string]interface{})
+	content := message["content"].([]interface{})
+
+	var textBlocks []string
+	var toolNames []string
+	for _, block := range content {
+		b := block.(map[string]interface{})
+		switch b["type"] {
+		case "text":
+			textBlocks = append(textBlocks, b["text"].(string))
+		case "tool_use":
+			toolNames = append(toolNames, b["name"].(string))
+		}
+	}
+	require.Len(t, textBlocks, 1, "commentary+final text must join into a single text block, not duplicate/split")
+	require.Equal(t, "Investigating the failure...\nFixed the bug.", textBlocks[0])
+	require.Equal(t, []string{"exec_command"}, toolNames, "tool_use block must appear exactly once, not reordered/duplicated")
+
+	toolResult, err := handleQuerySessionContent(e, "project", map[string]interface{}{
+		"role":        "tool",
+		"block_type":  "tool_result",
+		"provider":    "codex",
+		"working_dir": projectPath,
+	})
+	require.NoError(t, err)
+	require.Len(t, toolResult.Entries, 1, "expected exactly one paired tool result record")
+	trBlock := toolResult.Entries[0].(map[string]interface{})
+	require.Equal(t, "found 2 matches", trBlock["content"])
+}
