@@ -163,22 +163,27 @@ func ScanSourceDir(sourceDir string) (*TechDebtResult, error) {
 			return nil
 		}
 
-		scanner := bufio.NewScanner(f)
+		reader := bufio.NewReader(f)
 		lineCount := 0
-		for scanner.Scan() {
-			lineCount++
-			// Cap lines per file to avoid pathological files
-			if lineCount > 20000 {
+		for {
+			line, readErr := reader.ReadBytes('\n')
+			if len(line) > 0 {
+				lineCount++
+				// Cap lines per file to avoid pathological files
+				if lineCount > 20000 {
+					break
+				}
+				matches := markerPattern.FindAll(line, -1)
+				if len(matches) > 0 {
+					for _, m := range matches {
+						labelCounts[string(m)]++
+					}
+					fileCounts[p] += len(matches)
+				}
+			}
+			if readErr != nil {
 				break
 			}
-			matches := markerPattern.FindAllString(scanner.Text(), -1)
-			if len(matches) == 0 {
-				continue
-			}
-			for _, m := range matches {
-				labelCounts[m]++
-			}
-			fileCounts[p] += len(matches)
 		}
 		f.Close()
 		return nil
