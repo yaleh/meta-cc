@@ -142,6 +142,14 @@ func GetToolDefinitions() []Tool {
 				Type:        "string",
 				Description: "Query scope: 'session' (current session only) or 'project' (all sessions)",
 			},
+			"provider": {
+				Type:        "string",
+				Description: `Provider filter: "claude" (default) returns the Claude session directory unchanged; "codex" resolves only Codex rollout files (returned as an explicit "files" list plus "directory" when they share one parent); "all" returns a per-provider breakdown ({"providers": {"claude": ..., "codex": ...}}) since Claude and Codex files never share one directory. Unavailable/invalid providers fail with an error instead of silently falling back to Claude.`,
+			},
+			"working_dir": {
+				Type:        "string",
+				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
+			},
 		}, "scope"),
 		BuildTool("inspect_session_files", "Inspect session files for metadata (record types, time ranges, size).", map[string]Property{
 			"files": {
@@ -225,6 +233,14 @@ func GetToolDefinitions() []Tool {
 			"scope": {
 				Type:        "string",
 				Description: "Query scope: 'project' (default) or 'session'",
+			},
+			"provider": {
+				Type:        "string",
+				Description: `Provider filter: "claude" (default) returns the Claude JSONL schema/templates unchanged; "codex" returns Codex's own raw rollout schema and jq templates (never a lossy projection onto the Claude schema); "all" returns a per-provider breakdown ({"providers": {"claude": ..., "codex": ...}}). Unavailable/invalid providers fail with an error instead of silently falling back to Claude.`,
+			},
+			"working_dir": {
+				Type:        "string",
+				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 		}),
 		BuildTool("get_timeline", "Get chronological session events as JSON. Claude renders visualization. Default scope: project.", map[string]Property{

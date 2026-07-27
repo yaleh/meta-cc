@@ -22,16 +22,28 @@ const (
 )
 
 func loadTurnsFromSession(session conversation.Session, maxLines int) ([]conversation.Turn, conversation.TokenUsage, error) {
+	path, err := RolloutPath(session)
+	if err != nil {
+		return nil, conversation.TokenUsage{}, err
+	}
+	return loadTurnsFromRollout(path, maxLines)
+}
+
+// RolloutPath extracts the on-disk rollout file path recorded for a Codex
+// session (stored in session.Extensions by the SQLite scan). Callers that
+// need the raw file backing a Codex session — e.g. Stage 1 discovery tools —
+// should use this instead of re-deriving the path themselves.
+func RolloutPath(session conversation.Session) (string, error) {
 	var ext struct {
 		RolloutPath string `json:"rollout_path"`
 	}
 	if err := json.Unmarshal(session.Extensions, &ext); err != nil {
-		return nil, conversation.TokenUsage{}, err
+		return "", err
 	}
 	if ext.RolloutPath == "" {
-		return nil, conversation.TokenUsage{}, fmt.Errorf("missing rollout_path for session %s", session.ID)
+		return "", fmt.Errorf("missing rollout_path for session %s", session.ID)
 	}
-	return loadTurnsFromRollout(ext.RolloutPath, maxLines)
+	return ext.RolloutPath, nil
 }
 
 func loadTurnsFromRollout(path string, maxLines int) ([]conversation.Turn, conversation.TokenUsage, error) {

@@ -299,6 +299,66 @@ echo "$RESPONSE" | jq -e '.result.content[0].text | fromjson | .tool_frequency[]
 pass "get_work_patterns counted Codex tool usage"
 echo ""
 
+echo -e "${BLUE}Test 7: get_session_directory(provider=codex) resolves only Codex rollout files (DIR-024)${NC}"
+REQUEST=$(jq -nc --arg cwd "$PROJECT_DIR" \
+    '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get_session_directory","arguments":{"scope":"project","provider":"codex","working_dir":$cwd}}}')
+# shellcheck disable=SC2097,SC2098,SC1007  # env-prefix on shell function; shellcheck false positive
+RESPONSE=$(HOME="$TMP_DIR/home" CODEX_HOME="$CODEX_HOME" META_CC_CODEX_ROOT="$CODEX_HOME" META_CC_PROJECTS_ROOT= \
+    send_request "$REQUEST")
+[ -n "$RESPONSE" ] || fail "no JSON-RPC response for get_session_directory(provider=codex)"
+echo "$RESPONSE" | jq -e --arg rollout "$ROLLOUT_FILE" \
+    '.result.content[0].text | fromjson | .provider == "codex" and (.files | index($rollout) != null)' >/dev/null \
+    || fail "get_session_directory(provider=codex) did not return the Codex rollout file"
+echo "$RESPONSE" | jq -e '.result.content[0].text | fromjson | .files | all(test("\\.claude/") | not)' >/dev/null \
+    || fail "get_session_directory(provider=codex) leaked a Claude session path"
+pass "get_session_directory(provider=codex) returned only the Codex rollout file"
+
+REQUEST=$(jq -nc --arg cwd "$PROJECT_DIR" \
+    '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"get_session_directory","arguments":{"scope":"project","provider":"bogus","working_dir":$cwd}}}')
+# shellcheck disable=SC2097,SC2098,SC1007  # env-prefix on shell function; shellcheck false positive
+RESPONSE=$(HOME="$TMP_DIR/home" CODEX_HOME="$CODEX_HOME" META_CC_CODEX_ROOT="$CODEX_HOME" META_CC_PROJECTS_ROOT= \
+    send_request "$REQUEST")
+[ -n "$RESPONSE" ] || fail "no JSON-RPC response for get_session_directory(provider=bogus)"
+echo "$RESPONSE" | jq -e '.error.message | test("invalid provider")' >/dev/null \
+    || fail "get_session_directory(provider=bogus) did not fail closed with an actionable error"
+pass "get_session_directory(provider=bogus) failed closed with an actionable error"
+echo ""
+
+echo -e "${BLUE}Test 8: get_session_metadata(provider=codex) returns Codex raw schema, not Claude's (DIR-024)${NC}"
+REQUEST=$(jq -nc --arg cwd "$PROJECT_DIR" \
+    '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"get_session_metadata","arguments":{"scope":"project","provider":"codex","working_dir":$cwd}}}')
+# shellcheck disable=SC2097,SC2098,SC1007  # env-prefix on shell function; shellcheck false positive
+RESPONSE=$(HOME="$TMP_DIR/home" CODEX_HOME="$CODEX_HOME" META_CC_CODEX_ROOT="$CODEX_HOME" META_CC_PROJECTS_ROOT= \
+    send_request "$REQUEST")
+[ -n "$RESPONSE" ] || fail "no JSON-RPC response for get_session_metadata(provider=codex)"
+echo "$RESPONSE" | jq -e --arg rollout "$ROLLOUT_FILE" \
+    '.result.content[0].text | fromjson | .provider == "codex" and (.files[0].path == $rollout)' >/dev/null \
+    || fail "get_session_metadata(provider=codex) did not describe the Codex rollout file"
+echo "$RESPONSE" | jq -e '.result.content[0].text | fromjson | .jsonl_schema | has("legacy_response_item_fields") and (has("user_message_fields") | not)' >/dev/null \
+    || fail "get_session_metadata(provider=codex) did not use the Codex-specific raw schema"
+pass "get_session_metadata(provider=codex) returned Codex-specific raw schema and file info"
+
+REQUEST=$(jq -nc --arg cwd "$PROJECT_DIR" \
+    '{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"get_session_metadata","arguments":{"scope":"project","provider":"all","working_dir":$cwd}}}')
+# shellcheck disable=SC2097,SC2098,SC1007  # env-prefix on shell function; shellcheck false positive
+RESPONSE=$(HOME="$TMP_DIR/home" CODEX_HOME="$CODEX_HOME" META_CC_CODEX_ROOT="$CODEX_HOME" META_CC_PROJECTS_ROOT= \
+    send_request "$REQUEST")
+[ -n "$RESPONSE" ] || fail "no JSON-RPC response for get_session_metadata(provider=all)"
+echo "$RESPONSE" | jq -e '.result.content[0].text | fromjson | .providers.codex.jsonl_schema | has("legacy_response_item_fields")' >/dev/null \
+    || fail "get_session_metadata(provider=all) did not keep a separate Codex schema under providers.codex"
+pass "get_session_metadata(provider=all) kept Claude and Codex results separate"
+
+REQUEST=$(jq -nc --arg cwd "$PROJECT_DIR" \
+    '{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"get_session_metadata","arguments":{"scope":"project","provider":"bogus","working_dir":$cwd}}}')
+# shellcheck disable=SC2097,SC2098,SC1007  # env-prefix on shell function; shellcheck false positive
+RESPONSE=$(HOME="$TMP_DIR/home" CODEX_HOME="$CODEX_HOME" META_CC_CODEX_ROOT="$CODEX_HOME" META_CC_PROJECTS_ROOT= \
+    send_request "$REQUEST")
+[ -n "$RESPONSE" ] || fail "no JSON-RPC response for get_session_metadata(provider=bogus)"
+echo "$RESPONSE" | jq -e '.error.message | test("invalid provider")' >/dev/null \
+    || fail "get_session_metadata(provider=bogus) did not fail closed with an actionable error"
+pass "get_session_metadata(provider=bogus) failed closed with an actionable error"
+echo ""
+
 echo "=========================================="
 echo "Codex E2E Test Complete"
 echo "=========================================="

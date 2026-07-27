@@ -313,6 +313,26 @@ func TestExecuteStage2QueryDescriptionHints(t *testing.T) {
 	t.Fatal("execute_stage2_query not found in tool definitions")
 }
 
+// DIR-024: get_session_directory and get_session_metadata must advertise
+// "provider" and "working_dir" so the Stage 1 discovery tools describe the
+// same provider-aware contract as the convenience query tools.
+func TestGetSessionDirectoryAndMetadataSchema_AdvertiseProviderAndWorkingDir(t *testing.T) {
+	index := tools.BuildToolSchemaIndex()
+
+	for _, name := range []string{"get_session_directory", "get_session_metadata"} {
+		s, err := tools.GetToolSchemaByName(index, name)
+		if err != nil {
+			t.Fatalf("unexpected error for %s: %v", name, err)
+		}
+		if _, ok := s.Properties["provider"]; !ok {
+			t.Errorf("%s must have 'provider' parameter", name)
+		}
+		if _, ok := s.Properties["working_dir"]; !ok {
+			t.Errorf("%s must have 'working_dir' parameter", name)
+		}
+	}
+}
+
 // Phase D: Old tools must be removed from tool definitions.
 func TestOldToolsRemovedFromDefinitions(t *testing.T) {
 	removedTools := []string{

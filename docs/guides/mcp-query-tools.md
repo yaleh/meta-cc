@@ -174,14 +174,20 @@ query_file_activity({
 
 Use these when you need file selection control or custom jq over selected session files.
 
-| Tool | Purpose |
-|------|---------|
-| `get_session_directory` | Locate session directory and aggregate metadata |
-| `inspect_session_files` | Inspect selected JSONL files for record counts, time ranges, and samples |
-| `execute_stage2_query` | Run jq-style filter/sort/transform on selected files |
-| `get_session_metadata` | Return schema hints, file info, and query templates |
+| Tool | Purpose | Claude Code | Codex |
+|------|---------|-------------|-------|
+| `get_session_directory` | Locate session directory and aggregate metadata | Yes | Yes |
+| `inspect_session_files` | Inspect selected JSONL files for record counts, time ranges, and samples | Yes | Yes (files pre-selected by `get_session_directory`) |
+| `execute_stage2_query` | Run jq-style filter/sort/transform on selected files | Yes | Yes (jq expression must match the selected provider's raw schema) |
+| `get_session_metadata` | Return schema hints, file info, and query templates | Yes | Yes |
 
-Example workflow:
+`get_session_directory` and `get_session_metadata` accept `provider` (`claude` default, `codex`, or `all`) and `working_dir` just like the convenience query tools (see [Standard Parameters](#standard-parameters)). They never mix providers into one response:
+
+- `provider: "claude"` (default): unchanged response shape — a single `directory` plus aggregate counts.
+- `provider: "codex"`: resolves only Codex rollout files, returned as an explicit `files` list (Codex sessions are not guaranteed to share one directory) with Codex-specific `jsonl_schema`/`query_templates`.
+- `provider: "all"`: an explicit `{ "providers": { "claude": {...}, "codex": {...} } }` breakdown — Claude and Codex files/schemas are never merged. A provider with no data appears in `warnings` instead of silently vanishing; the call only fails if *no* provider has data. An invalid or unavailable single provider (e.g. `codex` with no Codex session state) fails closed with an error rather than silently falling back to Claude.
+
+Example workflow (Claude, default):
 
 ```javascript
 const dir = await get_session_directory({
@@ -197,6 +203,28 @@ const results = await execute_stage2_query({
   files: ["/path/to/session.jsonl"],
   filter: 'select(.type == "assistant") | select(.message | has("usage"))',
   transform: '{timestamp, usage: .message.usage}',
+  limit: 20
+})
+```
+
+Example workflow (Codex):
+
+```javascript
+const dir = await get_session_directory({
+  scope: "project",
+  provider: "codex",
+  working_dir: "/path/to/project"
+})
+// dir.files: ["/home/user/.codex/sessions/2026/06/14/rollout-abc.jsonl", ...]
+
+const inspection = await inspect_session_files({
+  files: dir.files,
+  include_samples: true
+})
+
+const results = await execute_stage2_query({
+  files: dir.files,
+  filter: 'select(.type == "item.tool_result" and .payload.is_error == true)',
   limit: 20
 })
 ```

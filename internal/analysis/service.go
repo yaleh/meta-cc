@@ -15,12 +15,9 @@ import (
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/analyzer"
-	"github.com/yaleh/meta-cc/internal/conversation"
 	"github.com/yaleh/meta-cc/internal/locator"
 	"github.com/yaleh/meta-cc/internal/parser"
-	providerpkg "github.com/yaleh/meta-cc/internal/provider"
-	claudeprovider "github.com/yaleh/meta-cc/internal/provider/claude"
-	codexprovider "github.com/yaleh/meta-cc/internal/provider/codex"
+	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
 	providerrecords "github.com/yaleh/meta-cc/internal/provider/records"
 	"github.com/yaleh/meta-cc/internal/types"
 )
@@ -132,14 +129,11 @@ func (s *Service) loadProviderData(scope, workingDir, providerName string) ([]ty
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to resolve project path: %w", err)
 	}
-	filters, err := providerFilter(providerName)
+	filters, err := rawfiles.ParseProviderFilter(providerName)
 	if err != nil {
 		return nil, nil, err
 	}
-	registry := providerpkg.NewRegistry(
-		claudeprovider.NewProvider(locator.NewSessionLocator(), projectPath),
-		codexprovider.NewProvider(locator.NewCodexLocator()),
-	)
+	registry := rawfiles.NewRegistry(projectPath)
 	records, _, err := providerrecords.Build(context.Background(), registry, filters, scope, projectPath)
 	if err != nil {
 		return nil, nil, err
@@ -149,17 +143,6 @@ func (s *Service) loadProviderData(scope, workingDir, providerName string) ([]ty
 		return nil, nil, err
 	}
 	return entries, types.ExtractToolCalls(entries), nil
-}
-
-func providerFilter(providerName string) ([]conversation.ProviderID, error) {
-	switch providerName {
-	case "codex":
-		return []conversation.ProviderID{conversation.ProviderCodex}, nil
-	case "all":
-		return []conversation.ProviderID{conversation.ProviderClaude, conversation.ProviderCodex}, nil
-	default:
-		return nil, fmt.Errorf("invalid provider %q: must be \"claude\", \"codex\", or \"all\"", providerName)
-	}
 }
 
 func entriesFromRecords(records []map[string]interface{}) ([]types.SessionEntry, error) {

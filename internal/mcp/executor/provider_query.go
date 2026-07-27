@@ -7,12 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/yaleh/meta-cc/internal/conversation"
-	"github.com/yaleh/meta-cc/internal/locator"
 	mcquery "github.com/yaleh/meta-cc/internal/mcp/query"
-	providerpkg "github.com/yaleh/meta-cc/internal/provider"
-	claudeprovider "github.com/yaleh/meta-cc/internal/provider/claude"
-	codexprovider "github.com/yaleh/meta-cc/internal/provider/codex"
+	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
 	providerrecords "github.com/yaleh/meta-cc/internal/provider/records"
 )
 
@@ -35,12 +31,9 @@ func (e *ToolExecutor) ExecuteQueryWithTimeRangeForProvider(providerName, scope,
 	}
 	projectPath, _ = filepath.Abs(projectPath)
 
-	registry := providerpkg.NewRegistry(
-		claudeprovider.NewProvider(locator.NewSessionLocator(), projectPath),
-		codexprovider.NewProvider(locator.NewCodexLocator()),
-	)
+	registry := rawfiles.NewRegistry(projectPath)
 
-	filters, err := parseProviderFilter(providerName)
+	filters, err := rawfiles.ParseProviderFilter(providerName)
 	if err != nil {
 		return mcquery.QueryResult{}, err
 	}
@@ -53,19 +46,6 @@ func (e *ToolExecutor) ExecuteQueryWithTimeRangeForProvider(providerName, scope,
 		return mcquery.QueryResult{}, err
 	}
 	return mcquery.QueryResult{Entries: results, Warnings: warnings}, nil
-}
-
-func parseProviderFilter(providerName string) ([]conversation.ProviderID, error) {
-	switch providerName {
-	case "claude":
-		return []conversation.ProviderID{conversation.ProviderClaude}, nil
-	case "codex":
-		return []conversation.ProviderID{conversation.ProviderCodex}, nil
-	case "all":
-		return []conversation.ProviderID{conversation.ProviderClaude, conversation.ProviderCodex}, nil
-	default:
-		return nil, fmt.Errorf("invalid provider %q: must be \"claude\", \"codex\", or \"all\"", providerName)
-	}
 }
 
 func runProviderJQ(records []map[string]interface{}, jqFilter string, limit int, tr mcquery.ParsedTimeRange) ([]interface{}, error) {

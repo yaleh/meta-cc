@@ -41,7 +41,13 @@ func Build(ctx context.Context, registry *providerpkg.Registry, filters []conver
 func FilterSessionsForScope(sessions []conversation.Session, scope, projectPath string, providerID conversation.ProviderID) []conversation.Session {
 	filtered := make([]conversation.Session, 0, len(sessions))
 	for _, session := range sessions {
-		if providerID == conversation.ProviderCodex && scope == "project" && session.CWD != "" && projectPath != "" && session.CWD != projectPath {
+		// Apply the project/CWD filter for BOTH "project" and "session"
+		// scope: a session-scope lookup must never cross project boundaries
+		// and return another project's most-recent session just because it
+		// sorts first. When projectPath or session.CWD is unset (e.g. no
+		// working_dir supplied), the filter is a no-op and every session
+		// stays eligible for the subsequent most-recent-first sort.
+		if providerID == conversation.ProviderCodex && session.CWD != "" && projectPath != "" && session.CWD != projectPath {
 			continue
 		}
 		filtered = append(filtered, session)

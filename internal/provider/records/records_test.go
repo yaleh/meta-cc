@@ -112,6 +112,54 @@ func TestNormalizeToolInputNullBecomesEmptyMap(t *testing.T) {
 	}
 }
 
+// TestFilterSessionsForScope_SessionScopeDoesNotCrossProjects is a
+// regression test for a bug where scope=="session" ignored projectPath
+// entirely, sorted ALL Codex sessions across every project by CreatedAt, and
+// returned only the single globally most-recent one. That meant a
+// session-scope lookup for project A could silently return project B's
+// session data whenever B's session was created more recently, even though
+// the caller explicitly scoped the query to project A.
+func TestFilterSessionsForScope_SessionScopeDoesNotCrossProjects(t *testing.T) {
+	sessions := []conversation.Session{
+		// Project B's session is the most recent globally, so a naive
+		// "sort everything, take the top one" implementation (ignoring
+		// projectPath) would incorrectly select it for project A's lookup.
+		{ID: "project-b-newer", Provider: conversation.ProviderCodex, CWD: "/project-b", CreatedAt: time.Unix(2, 0)},
+		{ID: "project-a-older", Provider: conversation.ProviderCodex, CWD: "/project-a", CreatedAt: time.Unix(1, 0)},
+	}
+
+	filtered := FilterSessionsForScope(sessions, "session", "/project-a", conversation.ProviderCodex)
+
+	if len(filtered) != 1 || filtered[0].ID != "project-a-older" {
+		t.Fatalf("session scope leaked across projects: got %#v, want only project-a-older", filtered)
+	}
+
+	// Symmetric check: project B's own session-scope lookup must still
+	// resolve to its own (only) session.
+	filteredB := FilterSessionsForScope(sessions, "session", "/project-b", conversation.ProviderCodex)
+	if len(filteredB) != 1 || filteredB[0].ID != "project-b-newer" {
+		t.Fatalf("unexpected session-scope result for project B: got %#v", filteredB)
+	}
+}
+
+// TestFilterSessionsForScope_SessionScopeWithoutProjectPathKeepsMostRecent
+// documents the deliberately-preserved fallback: when projectPath (or a
+// session's CWD) is unset, the project filter is a no-op and scope=="session"
+// still falls back to "most recent session overall". This is the path used
+// when no working_dir/project scoping information is available at all.
+func TestFilterSessionsForScope_SessionScopeWithoutProjectPathKeepsMostRecent(t *testing.T) {
+	sessions := []conversation.Session{
+		{ID: "older", Provider: conversation.ProviderCodex, CWD: "/project-a", CreatedAt: time.Unix(1, 0)},
+		{ID: "newer", Provider: conversation.ProviderCodex, CWD: "/project-b", CreatedAt: time.Unix(2, 0)},
+	}
+
+	filtered := FilterSessionsForScope(sessions, "session", "", conversation.ProviderCodex)
+
+	if len(filtered) != 1 || filtered[0].ID != "newer" {
+		t.Fatalf("expected most-recent session when projectPath is unset, got %#v", filtered)
+	}
+}
+
 func TestFilterSessionsForScopeDoesNotMutateInput(t *testing.T) {
 	sessions := []conversation.Session{
 		{ID: "keep", Provider: conversation.ProviderCodex, CWD: "/project", CreatedAt: time.Unix(2, 0)},

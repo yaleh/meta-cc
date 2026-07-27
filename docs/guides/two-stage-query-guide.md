@@ -140,28 +140,72 @@ Stage 1 provides two tools for understanding and selecting session files.
 
 **Parameters**:
 - `scope` (string, required): `"project"` or `"session"`
+- `provider` (string, optional): `"claude"` (default), `"codex"`, or `"all"`
+- `working_dir` (string, optional): override the project path used for session lookup
 
-**Returns**:
+**Returns (provider: "claude", default)** — unchanged from before Codex support:
 ```json
 {
+  "provider": "claude",
   "directory": "/home/user/.claude/projects/abc123/sessions",
   "scope": "project",
   "file_count": 660,
   "total_size_bytes": 453000000,
   "oldest_file": "2025-10-01T10:00:00Z",
-  "newest_file": "2025-10-27T12:00:00Z"
+  "newest_file": "2025-10-27T12:00:00Z",
+  "subagent_file_count": 3
+}
+```
+
+**Returns (provider: "codex")** — Codex rollout files aren't guaranteed to live under one
+flat directory, so the response exposes an explicit `files` list; `directory` is only set
+when every selected file happens to share one parent:
+```json
+{
+  "provider": "codex",
+  "scope": "project",
+  "files": [
+    "/home/user/.codex/sessions/2026/06/14/rollout-abc.jsonl"
+  ],
+  "file_count": 1,
+  "total_size_bytes": 45000,
+  "oldest_file": "2026-06-14T06:00:00Z",
+  "newest_file": "2026-06-14T06:00:07Z",
+  "directory": "/home/user/.codex/sessions/2026/06/14"
+}
+```
+
+**Returns (provider: "all")** — an explicit per-provider breakdown; Claude and Codex
+results are never merged into one directory or file list. A provider with no data is
+listed in `warnings` instead of silently disappearing; the call only fails if *no*
+provider has data:
+```json
+{
+  "provider": "all",
+  "scope": "project",
+  "providers": {
+    "claude": { "directory": "...", "file_count": 660, "...": "..." },
+    "codex": { "files": ["..."], "file_count": 1, "...": "..." }
+  },
+  "warnings": []
 }
 ```
 
 **Example**:
 ```javascript
 get_session_directory({scope: "project"})
+get_session_directory({scope: "project", provider: "codex", working_dir: "/path/to/project"})
 ```
 
 **Use Cases**:
 - Get overview of available session data
 - Determine time range of sessions
 - Assess data volume before querying
+- Confirm which provider's data you are about to query (`result.provider`)
+
+**Error handling**: an invalid `provider` value, or `provider: "codex"` when no Codex
+session state exists, fails with an actionable error instead of silently falling back to
+Claude.
 
 ---
 

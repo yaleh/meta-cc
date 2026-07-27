@@ -141,6 +141,23 @@ func (p *Provider) findSessionFile(sessionID string) (string, error) {
 	return "", err
 }
 
+// FilePath extracts the on-disk JSONL path recorded for a Claude session
+// (stored in session.Extensions by sessionFromFile). Callers that need the
+// raw file backing a Claude session — e.g. Stage 1 discovery tools — should
+// use this instead of re-deriving the path themselves.
+func FilePath(session conversation.Session) (string, error) {
+	var ext struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal(session.Extensions, &ext); err != nil {
+		return "", err
+	}
+	if ext.Path == "" {
+		return "", fmt.Errorf("missing path for session %s", session.ID)
+	}
+	return ext.Path, nil
+}
+
 func (p *Provider) sessionFromFile(file string) (conversation.Session, error) {
 	entries, err := parseClaudeEntries(file)
 	if err != nil {
