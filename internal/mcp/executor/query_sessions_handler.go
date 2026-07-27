@@ -37,7 +37,12 @@ func init() {
 // match anything, so it fails closed with an actionable error instead of
 // silently returning zero results (which would look identical to "no
 // sessions matched", masking the real mistake).
-var codexOnlyFilterArgs = []string{"source_kind", "model_provider", "parent_thread_id", "archived", "status"}
+var codexOnlyFilterArgs = []string{"source_kind", "model_provider", "parent_thread_id", "archived", "status", "ancestors_of"}
+
+// maxLineageDepth bounds ancestor-chain traversal (see handleAncestorsOf):
+// a pathological/cyclical parent_thread_id chain must terminate rather than
+// looping or recursing without limit.
+const maxLineageDepth = 32
 
 func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := GetStringParam(args, "provider", "claude")
@@ -86,6 +91,10 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 	}
 
 	ctx := context.Background()
+
+	if ancestorsOf := GetStringParam(args, "ancestors_of", ""); ancestorsOf != "" {
+		return handleAncestorsOf(ctx, boundaryCWD, ancestorsOf)
+	}
 	var (
 		merged   []conversation.Session
 		warnings []string
@@ -161,6 +170,103 @@ func reduceForScope(sessions []conversation.Session, scope, projectPath string, 
 	return providerrecords.FilterSessionsForScope(sessions, scope, projectPath, providerID)
 }
 
+// handleAncestorsOf is the DIR-032 lineage-traversal query: given a Codex
+// thread ID, it walks ParentThreadID upward (immediate parent, then
+// grandparent, ...) and returns that chain, each entry annotated with its
+// "lineage" classification (conversation.LineageStatus). It is a distinct
+// code path from the normal listing above (not just another SessionFilter
+// dimension) because it performs repeated single-ID lookups rather than one
+// list-and-filter pass.
+//
+// Boundary enforcement (DIR-030 precedent): every session in the chain,
+// including the starting one, must resolve to boundaryCWD — the same
+// project/cwd scope every other query_sessions path enforces. A lookup
+// landing outside that boundary, a lookup failure, a confirmed root, an
+// explicit LineageStatusUnknown, a cycle, or the maxLineageDepth bound all
+// stop traversal and return whatever chain was already resolved (never a
+// partial chain silently presented as complete) plus a warning explaining
+// why it stopped short.
+func handleAncestorsOf(ctx context.Context, boundaryCWD, sessionID string) (mcquery.QueryResult, error) {
+	p := codexprovider.NewProvider(locator.NewCodexLocator())
+	if !p.IsAvailable(ctx) {
+		return mcquery.QueryResult{}, fmt.Errorf("provider codex unavailable")
+	}
+
+	start, err := p.GetSession(ctx, sessionID)
+	if err != nil {
+		return mcquery.QueryResult{}, fmt.Errorf("ancestors_of %q: %w", sessionID, err)
+	}
+	// DIR-030 cwd-boundary precedent: a session_id lookup that resolves
+	// outside the caller's project scope must be rejected exactly like the
+	// exact-ID fast paths in provider_query.go/query_sessions_handler.go —
+	// this is a NEW lineage-traversal lookup path, so it gets its own
+	// explicit boundary check rather than inheriting one implicitly.
+	if start.CWD != boundaryCWD {
+		return mcquery.QueryResult{}, fmt.Errorf("session %q not found for the requested provider(s) within project %q", sessionID, boundaryCWD)
+	}
+
+	var (
+		chain     []conversation.Session
+		warnings  []string
+		truncated bool
+	)
+
+	if start.Lineage == conversation.LineageStatusUnknown {
+		warnings = append(warnings, fmt.Sprintf("lineage for %q is unknown: spawn metadata was not available, so its ancestry cannot be determined", sessionID))
+		truncated = true
+	}
+
+	current := start.ParentThreadID
+	seen := map[string]bool{sessionID: true}
+	for i := 0; current != "" && !truncated && i < maxLineageDepth; i++ {
+		if seen[current] {
+			warnings = append(warnings, fmt.Sprintf("cycle detected in ancestor chain at %q; stopping traversal", current))
+			truncated = true
+			break
+		}
+		seen[current] = true
+
+		ancestor, err := p.GetSession(ctx, current)
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("ancestor lookup for %q failed: %v", current, err))
+			truncated = true
+			break
+		}
+		if ancestor.CWD != boundaryCWD {
+			warnings = append(warnings, fmt.Sprintf("ancestor %q lies outside the project boundary %q; stopping traversal rather than crossing it", current, boundaryCWD))
+			truncated = true
+			break
+		}
+
+		chain = append(chain, ancestor)
+
+		if ancestor.Lineage == conversation.LineageStatusUnknown {
+			warnings = append(warnings, fmt.Sprintf("lineage for %q is unknown beyond this point", current))
+			truncated = true
+			break
+		}
+		current = ancestor.ParentThreadID
+		if current == "" && i == maxLineageDepth-1 {
+			// Loop about to exit on depth alone right as we also ran out of
+			// parent — no separate warning needed, this is a genuine root.
+			break
+		}
+	}
+	if current != "" && !truncated {
+		warnings = append(warnings, fmt.Sprintf("ancestor chain depth limit (%d) reached; traversal stopped", maxLineageDepth))
+	}
+
+	entries := make([]interface{}, 0, len(chain))
+	for _, s := range chain {
+		entries = append(entries, sessionToEntry(s))
+	}
+	if truncated && len(entries) > 0 {
+		entries[len(entries)-1].(map[string]interface{})["lineage_truncated"] = true
+	}
+
+	return mcquery.QueryResult{Entries: entries, Warnings: warnings}, nil
+}
+
 func sessionToEntry(s conversation.Session) map[string]interface{} {
 	entry := map[string]interface{}{
 		"session_id": s.ID,
@@ -180,6 +286,9 @@ func sessionToEntry(s conversation.Session) map[string]interface{} {
 	}
 	if s.ParentThreadID != "" {
 		entry["parent_thread_id"] = s.ParentThreadID
+	}
+	if s.Lineage != "" {
+		entry["lineage"] = string(s.Lineage)
 	}
 	if s.IsSubagent {
 		entry["is_subagent"] = true
@@ -216,6 +325,17 @@ func buildSessionFilterFromArgs(args map[string]interface{}) (conversation.Sessi
 		if *filter.Archived != wantArchived {
 			return filter, fmt.Errorf("conflicting filters: status=%q implies archived=%v, but archived=%v was also given", filter.Status, wantArchived, *filter.Archived)
 		}
+	}
+
+	// DIR-032: "archived sessions are discoverable only when requested" —
+	// prior to this, an omitted archived/status filter meant "no
+	// constraint" (both active and archived sessions returned), which is
+	// the opposite of the Contract. Neither dimension explicitly set now
+	// defaults to active-only; pass archived=true or status="archived" to
+	// see archived sessions (either alone or via provider="all"/"codex").
+	if filter.Archived == nil && filter.Status == "" {
+		defaultArchived := false
+		filter.Archived = &defaultArchived
 	}
 
 	if len(filter.SourceKinds) > 0 {

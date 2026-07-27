@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -103,16 +104,18 @@ func TestLoadTurnsFromRolloutDedupesAssistantSegments(t *testing.T) {
 	}
 }
 
-// TestLoadTurnsFromRollout0145EventFamilies exercises the Codex 0.145
-// event families absent from earlier fixtures: world_state, compacted,
+// TestLoadTurnsFromRollout0145EventFamilies exercises the Codex 0.145 event
+// families absent from earlier fixtures: world_state, compacted,
 // tool_search_call, tool_search_output, thread_settings_applied,
-// context_compacted, turn_aborted, and session_end. None of these are
-// semantically handled yet, but the contract is that they must not crash
-// parsing, must not silently disappear, and must not interfere with the
-// user/assistant text or tool calls that share their turn. They are
-// expected to be preserved as raw events in the turn's Extensions
-// (codex_events), the same fallback already used for any other unknown
-// event/payload type.
+// context_compacted, turn_aborted, and session_end. DIR-032 promotes four of
+// these (compacted, context_compacted, turn_aborted, session_end) to typed
+// handling (see TestLoadTurnsFromRollout0145TypedEventFamilies below);
+// world_state, tool_search_call, tool_search_output, and
+// thread_settings_applied remain raw passthrough (the highest-value
+// upgrades were prioritized per DIR-032's scoping note — see
+// docs/reference/codex-history-model.md). All eight must still never crash
+// parsing, never silently disappear, and never interfere with the
+// user/assistant text or tool calls that share their turn.
 //
 // Fixture-refresh procedure: when a newer Codex CLI version changes or
 // adds event families, capture a sanitized (no secrets/repo content),
@@ -145,10 +148,143 @@ func TestLoadTurnsFromRollout0145EventFamilies(t *testing.T) {
 		t.Fatalf("failed to unmarshal turn extensions: %v", err)
 	}
 	// world_state, tool_search_call, tool_search_output,
-	// thread_settings_applied, context_compacted, compacted, turn_aborted,
-	// session_end: 8 unrecognized events, all preserved raw.
-	if len(ext.CodexEvents) != 8 {
-		t.Fatalf("expected 8 preserved raw events for unrecognized 0145 families, got %d: %#v", len(ext.CodexEvents), ext.CodexEvents)
+	// thread_settings_applied: 4 unrecognized events remain raw passthrough
+	// (compacted, context_compacted, turn_aborted, session_end are now
+	// typed — see TestLoadTurnsFromRollout0145TypedEventFamilies).
+	if len(ext.CodexEvents) != 4 {
+		t.Fatalf("expected 4 preserved raw events for the still-unrecognized 0145 families, got %d: %#v", len(ext.CodexEvents), ext.CodexEvents)
+	}
+}
+
+// TestLoadTurnsFromRollout0145TypedEventFamilies is the DIR-032 "typed
+// status/boundary rather than opaque unknown events" proof for the four
+// event families promoted out of raw passthrough: the top-level "compacted"
+// event and the event_msg "context_compacted" notification both become
+// typed ItemKindCompaction items carrying CompactionBoundary metadata
+// (never folded into UserText/AssistantText), "turn_aborted" sets
+// TurnStatusAborted, and "session_end" becomes a typed ItemKindSessionEnd
+// item.
+func TestLoadTurnsFromRollout0145TypedEventFamilies(t *testing.T) {
+	turns, _, err := loadTurnsFromRollout(filepath.Join("..", "..", "..", "tests", "fixtures", "codex", "rollout-legacy-0145-families-sample.jsonl"), 100)
+	if err != nil {
+		t.Fatalf("0145 families load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d", len(turns))
+	}
+	turn := turns[0]
+
+	if turn.Status != conversation.TurnStatusAborted {
+		t.Fatalf("expected turn_aborted to set TurnStatusAborted, got %q", turn.Status)
+	}
+
+	var compactions []conversation.Item
+	var sessionEnds []conversation.Item
+	for _, item := range turn.Items {
+		switch item.Kind {
+		case conversation.ItemKindCompaction:
+			compactions = append(compactions, item)
+		case conversation.ItemKindSessionEnd:
+			sessionEnds = append(sessionEnds, item)
+		}
+	}
+
+	if len(compactions) != 2 {
+		t.Fatalf("expected 2 typed compaction items (compacted + context_compacted), got %d: %#v", len(compactions), compactions)
+	}
+	var sawReason, sawSummary bool
+	for _, c := range compactions {
+		if c.Compaction == nil {
+			t.Fatalf("compaction item missing CompactionBoundary: %#v", c)
+		}
+		if c.Compaction.Reason == "context_window" {
+			sawReason = true
+		}
+		if c.Compaction.Summary == "Trimmed 4 earlier turns" {
+			sawSummary = true
+		}
+	}
+	if !sawReason || !sawSummary {
+		t.Fatalf("expected one compaction item with Reason and one with Summary, got %#v", compactions)
+	}
+
+	// The compaction summary must never leak into the message projection —
+	// otherwise a content query would present replaced/summarized text as
+	// if it were an ordinary (and potentially duplicate) assistant message.
+	if strings.Contains(turn.AssistantText, "Trimmed 4 earlier turns") {
+		t.Fatalf("compaction summary must not be folded into AssistantText, got %q", turn.AssistantText)
+	}
+
+	if len(sessionEnds) != 1 || sessionEnds[0].Text != "completed" {
+		t.Fatalf("expected 1 typed session_end item with reason %q, got %#v", "completed", sessionEnds)
+	}
+}
+
+// TestLoadTurnsFromRolloutCompactionDoesNotDuplicateContent is the DIR-032
+// compaction-dedup acceptance test (Contract: "Compaction preserves visible
+// replacement history and boundary metadata without duplicating superseded
+// content"). The fixture has a pre-compaction user/assistant exchange, a
+// compaction boundary (event_msg context_compacted + top-level compacted),
+// and a post-compaction user/assistant exchange, all within the same turn.
+// Both exchanges must survive intact and exactly once each in the
+// UserText/AssistantText content projection (the same fields
+// query_session_content ultimately reads), and the compaction boundary's
+// own summary text must never appear inside that projection — proving a
+// content query cannot end up presenting the replaced text and its
+// boundary/replacement as if they were both live, duplicate message
+// content.
+func TestLoadTurnsFromRolloutCompactionDoesNotDuplicateContent(t *testing.T) {
+	turns, _, err := loadTurnsFromRollout(filepath.Join("..", "..", "..", "tests", "fixtures", "codex", "rollout-legacy-compaction-boundary-sample.jsonl"), 100)
+	if err != nil {
+		t.Fatalf("compaction boundary load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d: %#v", len(turns), turns)
+	}
+	turn := turns[0]
+
+	wantUser := "What does main.go do?\nNow add a flag."
+	if turn.UserText != wantUser {
+		t.Fatalf("UserText = %q, want %q (pre- and post-compaction text joined exactly once each)", turn.UserText, wantUser)
+	}
+	wantAssistant := "It parses CLI args.\nAdded --verbose flag."
+	if turn.AssistantText != wantAssistant {
+		t.Fatalf("AssistantText = %q, want %q", turn.AssistantText, wantAssistant)
+	}
+
+	if strings.Count(turn.UserText, "What does main.go do?") != 1 {
+		t.Fatalf("pre-compaction user text duplicated: %q", turn.UserText)
+	}
+	if strings.Contains(turn.UserText, "Summarized 1 earlier exchange") || strings.Contains(turn.AssistantText, "Summarized 1 earlier exchange") {
+		t.Fatalf("compaction summary leaked into message projection: user=%q assistant=%q", turn.UserText, turn.AssistantText)
+	}
+
+	// The Item stream itself must retain both pre- and post-compaction
+	// message items (the historical record) plus exactly one compaction
+	// boundary item in between — nothing collapsed, nothing duplicated.
+	var kinds []conversation.ItemKind
+	compactionIdx := -1
+	for i, item := range turn.Items {
+		kinds = append(kinds, item.Kind)
+		if item.Kind == conversation.ItemKindCompaction && item.Compaction != nil && item.Compaction.Summary != "" {
+			compactionIdx = i
+		}
+	}
+	if compactionIdx == -1 {
+		t.Fatalf("expected a compaction item carrying the summary boundary, got items: %#v", kinds)
+	}
+	var preUser, postUser int
+	for i, item := range turn.Items {
+		if item.Kind == conversation.ItemKindUserMessage {
+			if i < compactionIdx {
+				preUser++
+			} else {
+				postUser++
+			}
+		}
+	}
+	if preUser != 1 || postUser != 1 {
+		t.Fatalf("expected exactly one pre- and one post-compaction user message item, got pre=%d post=%d (items: %#v)", preUser, postUser, kinds)
 	}
 }
 
@@ -236,10 +372,10 @@ func TestLoadTurnsFromRolloutPreservesItemOrderAndPhase(t *testing.T) {
 
 // TestLoadTurnsFromRollout0145EventFamiliesProducesUnknownItems extends the
 // 0145-event-families coverage (see TestLoadTurnsFromRollout0145EventFamilies
-// above) to the item level: every event that falls through to the legacy
-// Extensions.codex_events bag must also be representable as a capped,
-// round-trippable ItemKindUnknown Item, so the ordered item stream never
-// silently drops events even when it doesn't yet give them dedicated
+// above) to the item level: every event that still falls through to the
+// legacy Extensions.codex_events bag must also be representable as a
+// capped, round-trippable ItemKindUnknown Item, so the ordered item stream
+// never silently drops events even when it doesn't yet give them dedicated
 // semantic handling.
 func TestLoadTurnsFromRollout0145EventFamiliesProducesUnknownItems(t *testing.T) {
 	turns, _, err := loadTurnsFromRollout(filepath.Join("..", "..", "..", "tests", "fixtures", "codex", "rollout-legacy-0145-families-sample.jsonl"), 100)
@@ -263,8 +399,8 @@ func TestLoadTurnsFromRollout0145EventFamiliesProducesUnknownItems(t *testing.T)
 			t.Fatalf("small fixture events should not be truncated: %#v", item)
 		}
 	}
-	if unknown != 8 {
-		t.Fatalf("expected 8 unknown items (matching the 8 codex_events entries), got %d", unknown)
+	if unknown != 4 {
+		t.Fatalf("expected 4 unknown items (matching the 4 remaining codex_events entries; compacted/context_compacted/turn_aborted/session_end are now typed), got %d", unknown)
 	}
 }
 

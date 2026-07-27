@@ -37,8 +37,15 @@ const (
 	// a regular message).
 	ItemKindReasoning ItemKind = "reasoning"
 	// ItemKindCompaction marks a context-compaction event (history summarized
-	// or trimmed).
+	// or trimmed). See CompactionBoundary (populated on the Compaction field)
+	// for typed boundary metadata: what replaced the preceding context and
+	// why, without re-embedding the superseded content itself.
 	ItemKindCompaction ItemKind = "compaction"
+	// ItemKindSessionEnd marks a session-lifecycle end event (e.g. Codex's
+	// "session_end"), carrying an optional reason in Text. This is distinct
+	// from TurnStatus because a session can end independent of any single
+	// turn's own completion state (DIR-032).
+	ItemKindSessionEnd ItemKind = "session_end"
 	// ItemKindUnknown is a catch-all for events not yet modeled by a typed
 	// kind above. It round-trips via the capped Raw field (see NewRawItem)
 	// so nothing is silently dropped while still bounding memory use.
@@ -77,6 +84,103 @@ const (
 	TurnStatusCompleted   TurnStatus = "completed"
 	TurnStatusFailed      TurnStatus = "failed"
 	TurnStatusInProgress  TurnStatus = "in_progress"
+	// TurnStatusAborted marks a turn explicitly interrupted before
+	// completion (e.g. Codex's "turn_aborted" event — a user interrupt or
+	// similar), distinct from TurnStatusFailed (an error) and
+	// TurnStatusUnspecified (no terminal signal observed at all, e.g. a
+	// turn still open when the rollout stream ends — see the DIR-032
+	// "live/ongoing" note in docs/reference/codex-history-model.md).
+	TurnStatusAborted TurnStatus = "aborted"
+)
+
+// HistoryCompleteness describes how much of a Turn's content is actually
+// present, distinguishing a fully materialized record from a placeholder.
+// Backends that only ever return complete records (the Codex rollout/files
+// adapter, and the stable app-server thread/read surface as currently
+// confirmed — see docs/reference/codex-app-server.md) leave this at
+// HistoryCompletenessUnspecified; IsFull treats that the same as
+// HistoryCompletenessFull. Backends that CAN return partial/placeholder
+// records (e.g. a future paginated or summary-view app-server response)
+// must set one of the other values explicitly so a placeholder is never
+// mistaken for complete content (DIR-032 Contract).
+type HistoryCompleteness string
+
+const (
+	HistoryCompletenessUnspecified HistoryCompleteness = ""
+	HistoryCompletenessFull        HistoryCompleteness = "full"
+	// HistoryCompletenessSummary marks a turn whose content is a
+	// server-provided summary/preview standing in for the full record —
+	// e.g. a preview-only projection returned by a listing call that never
+	// loaded full turn content.
+	HistoryCompletenessSummary HistoryCompleteness = "summary"
+	// HistoryCompletenessUnloaded marks a turn whose content was never
+	// requested/fetched at all (a placeholder position is known, but no
+	// content — not even a summary — has been retrieved for it).
+	HistoryCompletenessUnloaded HistoryCompleteness = "unloaded"
+	// HistoryCompletenessTruncated marks a turn at (or after) the point
+	// where loading stopped early (e.g. a rollout's maxLines cap), so
+	// callers know turns/content after this point are missing, not merely
+	// absent from this particular query.
+	HistoryCompletenessTruncated HistoryCompleteness = "truncated"
+	// HistoryCompletenessUnavailable marks a turn known to exist (from
+	// metadata) whose content could not be loaded at all (e.g. a page
+	// fetch failed and no retry has succeeded yet).
+	HistoryCompletenessUnavailable HistoryCompleteness = "unavailable"
+)
+
+// IsFull reports whether c represents fully materialized content: true for
+// HistoryCompletenessFull and the zero value (a backend that doesn't
+// distinguish completeness states but has always returned complete
+// records). Every other value is a placeholder/partial state a caller must
+// not treat as complete.
+func (c HistoryCompleteness) IsFull() bool {
+	return c == HistoryCompletenessUnspecified || c == HistoryCompletenessFull
+}
+
+// CompactionBoundary is typed metadata for an ItemKindCompaction item: it
+// marks a point in a Turn's Item stream where preceding context was
+// replaced/summarized. It deliberately does NOT re-embed the superseded
+// content — the original pre-compaction Items remain in the stream, in
+// their original position, as the historical record. CompactionBoundary
+// only records that/why/what replaced them, so a caller reconstructing
+// "current" context can skip everything before the boundary without a
+// content query ever concatenating the original text and its replacement
+// as if both were live simultaneously (DIR-032 Contract: "preserves visible
+// replacement history and boundary metadata without duplicating superseded
+// content").
+type CompactionBoundary struct {
+	// Reason is the provider-reported cause (e.g. "context_window"), when
+	// reported.
+	Reason string `json:"reason,omitempty"`
+	// Summary is a human-readable note of what replaced the prior context,
+	// when the provider reports one. It is boundary metadata, not a
+	// duplicate message: callers must not fold it into UserText/
+	// AssistantText message projections.
+	Summary string `json:"summary,omitempty"`
+}
+
+// LineageStatus describes what is known about a session/thread's
+// parent/child spawn relationship (see Session.ParentThreadID). Unlike a
+// bare empty ParentThreadID (which is ambiguous between "confirmed no
+// parent" and "spawn metadata unavailable"), LineageStatus makes that
+// distinction explicit per the DIR-032 Contract: "explicit unknown state
+// when spawn metadata was suppressed".
+type LineageStatus string
+
+const (
+	LineageStatusUnspecified LineageStatus = ""
+	// LineageStatusRoot means the provider positively confirmed this
+	// session has no parent (a genuine top-level thread).
+	LineageStatusRoot LineageStatus = "root"
+	// LineageStatusChild means ParentThreadID is populated from a source
+	// that reliably reports it.
+	LineageStatusChild LineageStatus = "child"
+	// LineageStatusUnknown means spawn metadata was not available (e.g. an
+	// older threads-table schema with no parent_thread_id column, or a
+	// subagent source kind whose spawn edge was suppressed) — this session
+	// must NOT be presented as a confirmed root just because
+	// ParentThreadID is empty.
+	LineageStatusUnknown LineageStatus = "unknown"
 )
 
 // maxRawBytes bounds how much raw provenance an unknown/raw Item may embed.
@@ -128,6 +232,10 @@ type Item struct {
 
 	// PlanSteps is populated for ItemKindPlanUpdate.
 	PlanSteps []string `json:"plan_steps,omitempty"`
+
+	// Compaction carries typed boundary metadata for ItemKindCompaction
+	// items (DIR-032). Nil for every other Kind.
+	Compaction *CompactionBoundary `json:"compaction,omitempty"`
 
 	Timestamp time.Time `json:"timestamp"`
 

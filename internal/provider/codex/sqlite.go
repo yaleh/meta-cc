@@ -171,6 +171,28 @@ func scanSession(rows *sql.Rows) (conversation.Session, error) {
 	}
 	sourceKind := stringValue(colMap["source"])
 	archived := boolValue(colMap["archived"])
+	isSubagent := strings.HasPrefix(sourceKind, "subAgent")
+
+	// Lineage (DIR-032): a threads-table schema without a parent_thread_id
+	// column at all cannot report lineage, so it's Unknown rather than
+	// Root — an older/incompatible schema must not be presented as "this
+	// session confirmed has no parent". When the column exists, an empty
+	// value for a subagent source kind is still Unknown (spawn metadata
+	// was not recorded even though the column exists); every other empty
+	// value is a confirmed Root.
+	_, hasParentCol := colMap["parent_thread_id"]
+	parentThreadID := stringValue(colMap["parent_thread_id"])
+	lineage := conversation.LineageStatusUnknown
+	if hasParentCol {
+		switch {
+		case parentThreadID != "":
+			lineage = conversation.LineageStatusChild
+		case isSubagent:
+			lineage = conversation.LineageStatusUnknown
+		default:
+			lineage = conversation.LineageStatusRoot
+		}
+	}
 
 	ext, _ := json.Marshal(map[string]interface{}{
 		"rollout_path":   stringValue(colMap["rollout_path"]),
@@ -194,8 +216,9 @@ func scanSession(rows *sql.Rows) (conversation.Session, error) {
 		SourceKind:     sourceKind,
 		Status:         status,
 		Archived:       archived,
-		ParentThreadID: stringValue(colMap["parent_thread_id"]),
-		IsSubagent:     strings.HasPrefix(sourceKind, "subAgent"),
+		ParentThreadID: parentThreadID,
+		Lineage:        lineage,
+		IsSubagent:     isSubagent,
 		CreatedAt:      createdAt.UTC(),
 		UpdatedAt:      updatedAt.UTC(),
 		TokenUsage: conversation.TokenUsage{

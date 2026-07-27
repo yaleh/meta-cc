@@ -35,6 +35,60 @@ func TestRefresh_IndexesNewSessions(t *testing.T) {
 	}
 }
 
+// TestRefresh_SummaryAndUnloadedTurnsExcludedFromIndex is the DIR-032
+// "a summary/unloaded placeholder never enters the full-content index"
+// proof (Contract: "summary/unloaded records are never presented as
+// complete turns"). A session with one Full turn and one
+// HistoryCompletenessSummary placeholder turn must only index the Full
+// turn's items: the placeholder's own (summary) text must not become a
+// searchable hit standing in for real conversation content, and
+// ItemsIndexed/item row counts must reflect only the indexable turn.
+func TestRefresh_SummaryAndUnloadedTurnsExcludedFromIndex(t *testing.T) {
+	db, _ := openTestDB(t)
+	ctx := context.Background()
+	now := time.Now()
+
+	sess := session(conversation.ProviderCodex, "s1", "/proj", "session one", now)
+	fullTurn := turn("t1", now, textItem("i1", conversation.ItemKindUserMessage, "user", "please add banana support", now))
+	fullTurn.Completeness = conversation.HistoryCompletenessFull
+
+	summaryTurn := turn("t2", now, textItem("i2", conversation.ItemKindAgentMessage, "assistant", "summary placeholder text never actually said", now))
+	summaryTurn.Completeness = conversation.HistoryCompletenessSummary
+
+	unloadedTurn := turn("t3", now, textItem("i3", conversation.ItemKindAgentMessage, "assistant", "unloaded placeholder text", now))
+	unloadedTurn.Completeness = conversation.HistoryCompletenessUnloaded
+
+	turns := []conversation.Turn{fullTurn, summaryTurn, unloadedTurn}
+	loader := newCountingLoader(map[string][]conversation.Turn{sessionKey("codex", "s1"): turns})
+	metaMap := map[string]SourceMeta{sessionKey("codex", "s1"): {Path: "/fake/s1.jsonl", Size: 100, ModTime: now}}
+
+	stats, warnings, err := Refresh(ctx, db, []conversation.Session{sess}, staticSourceMeta(metaMap), loader.Load, DefaultBodyLimitBytes)
+	if err != nil {
+		t.Fatalf("Refresh: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %v", warnings)
+	}
+	if stats.ItemsIndexed != 1 {
+		t.Fatalf("ItemsIndexed = %d, want 1 (only the Full turn's item)", stats.ItemsIndexed)
+	}
+
+	if hits, _ := Search(ctx, db, "banana", SearchFilter{CWD: "/proj"}, 10); len(hits) != 1 {
+		t.Fatalf("expected 1 hit for the Full turn's real content, got %d", len(hits))
+	}
+	if hits, _ := Search(ctx, db, "placeholder", SearchFilter{CWD: "/proj"}, 10); len(hits) != 0 {
+		t.Fatalf("summary/unloaded placeholder text must never be searchable as if it were real content, got %d hits", len(hits))
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM items WHERE session_key = ?`, sessionKey("codex", "s1")).Scan(&count); err != nil {
+		t.Fatalf("count items: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("items row count = %d, want 1 (summary/unloaded turns excluded)", count)
+	}
+}
+
 func TestRefresh_SkipsUnchangedSessions_NoDeepReparse(t *testing.T) {
 	db, _ := openTestDB(t)
 	ctx := context.Background()

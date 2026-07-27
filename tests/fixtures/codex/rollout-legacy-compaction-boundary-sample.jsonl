@@ -1,0 +1,8 @@
+{"timestamp":"2026-07-27T09:00:00Z","type":"session_meta","payload":{"id":"sess-compact","cwd":"/tmp/project","model":"gpt-5"}}
+{"timestamp":"2026-07-27T09:00:01Z","type":"turn_context","payload":{"turn_id":"turn-compact"}}
+{"timestamp":"2026-07-27T09:00:02Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"What does main.go do?"}]}}
+{"timestamp":"2026-07-27T09:00:03Z","type":"response_item","payload":{"type":"message","role":"assistant","channel":"final","content":[{"type":"output_text","text":"It parses CLI args."}]}}
+{"timestamp":"2026-07-27T09:00:04Z","type":"event_msg","payload":{"type":"context_compacted","summary":"Summarized 1 earlier exchange"}}
+{"timestamp":"2026-07-27T09:00:05Z","type":"compacted","payload":{"turn_id":"turn-compact","reason":"context_window"}}
+{"timestamp":"2026-07-27T09:00:06Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Now add a flag."}]}}
+{"timestamp":"2026-07-27T09:00:07Z","type":"response_item","payload":{"type":"message","role":"assistant","channel":"final","content":[{"type":"output_text","text":"Added --verbose flag."}]}}

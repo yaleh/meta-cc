@@ -119,6 +119,18 @@ func reindexSessionTx(ctx context.Context, db *sql.DB, key string, session conve
 
 	count := 0
 	for _, turn := range turns {
+		// DIR-032: a placeholder turn (HistoryCompletenessSummary/
+		// Unloaded/Unavailable) must never enter the full-content index as
+		// if it were real message content — a search hit on a summary
+		// string is not the same evidence as a hit on the actual
+		// conversation text it stands in for. A Truncated turn's own
+		// content is still genuine (whatever was actually parsed before
+		// loading stopped), so it IS indexed; only the states that mean
+		// "this specific turn's content was never really fetched" are
+		// skipped here.
+		if !turnCompletenessIndexable(turn.Completeness) {
+			continue
+		}
 		for idx, item := range turn.Items {
 			body, truncated := itemBody(item, bodyLimit)
 			ts := item.Timestamp
@@ -162,6 +174,17 @@ func reindexSessionTx(ctx context.Context, db *sql.DB, key string, session conve
 		return count, err
 	}
 	return count, nil
+}
+
+// turnCompletenessIndexable reports whether a turn's content is real enough
+// to enter the full-content index (DIR-032): HistoryCompletenessFull, the
+// zero value (a backend that doesn't distinguish states but has always
+// returned complete records), and HistoryCompletenessTruncated (whatever
+// was actually parsed before loading stopped is still genuine content) are
+// indexable. HistoryCompletenessSummary/Unloaded/Unavailable are
+// placeholders and must not be presented as searchable full content.
+func turnCompletenessIndexable(c conversation.HistoryCompleteness) bool {
+	return c.IsFull() || c == conversation.HistoryCompletenessTruncated
 }
 
 func boolToInt(b bool) int {

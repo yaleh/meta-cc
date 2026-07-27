@@ -43,6 +43,43 @@ func (v Version) String() string {
 	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
 }
 
+// SupportsPagination reports whether v exposes the thread/list cursor-based
+// pagination surface (cursor/nextCursor/backwardsCursor) DIR-029's backend
+// already relies on. This is part of the same stable, empirically-confirmed
+// thread/list surface as MinSupportedVersion — not a separately negotiated
+// capability — so it is currently equivalent to
+// !v.Less(MinSupportedVersion). It exists as its own named, documented,
+// unit-testable capability query (DIR-032) so callers reason about "can I
+// use cursor-based continuation" explicitly (see codex.Provider.ListSessionsPage)
+// rather than re-deriving it from MinSupportedVersion inline every time.
+func (v Version) SupportsPagination() bool {
+	return !v.Less(MinSupportedVersion)
+}
+
+// ExperimentalTurnPaginationMinVersion is a placeholder floor for a
+// not-yet-empirically-confirmed turn/item-level pagination method some
+// future Codex app-server release may expose (distinct from the stable
+// thread/list pagination SupportsPagination reports on). No known Codex CLI
+// version has been confirmed to support turn/item-level pagination, so it
+// is set intentionally out of reach of any real version string — this is
+// the single place a future confirmed version/method pair would get wired
+// in, rather than scattering an "always unsupported" assumption across
+// callers (see docs/reference/codex-history-model.md's "Experimental
+// pagination" section).
+var ExperimentalTurnPaginationMinVersion = Version{Major: 9999, Minor: 0, Patch: 0}
+
+// SupportsExperimentalTurnPagination reports whether v satisfies
+// ExperimentalTurnPaginationMinVersion. It always returns false for every
+// real Codex CLI version today — meta-cc never issues a turn/item
+// pagination request, and callers must keep using thread/read(includeTurns)
+// (the confirmed, stable, non-paginated full-turn fetch) regardless of this
+// result, per the Contract's "experimental methods are capability-
+// negotiated and optional" — a false result here must fail safely to
+// existing behavior, never be treated as a hard error.
+func (v Version) SupportsExperimentalTurnPagination() bool {
+	return !v.Less(ExperimentalTurnPaginationMinVersion)
+}
+
 // ParseVersion extracts a dotted major.minor.patch version from CLI output
 // such as "codex-cli 0.145.0". It takes the last whitespace-separated field
 // and parses leading digits from each dot-separated component, so trailing

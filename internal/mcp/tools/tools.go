@@ -448,11 +448,15 @@ func GetToolDefinitions() []Tool {
 				"session_id": SessionIDProperty(),
 				"archived": {
 					Type:        "boolean",
-					Description: `Codex only (provider="codex" or "all"). Filter by archived state: true = only archived threads, false = only active threads, omitted = both.`,
+					Description: `Codex only (provider="codex" or "all"). Filter by archived state: true = only archived threads, false = only active threads. Archived threads are excluded by default (omitting both this and status is equivalent to archived=false) — pass archived=true or status="archived" to discover them.`,
 				},
 				"status": {
 					Type:        "string",
-					Description: `Codex only. "active" or "archived" — an alias for the archived filter expressed as a status value. Conflicting status/archived values fail with an error.`,
+					Description: `Codex only. "active" or "archived" — an alias for the archived filter expressed as a status value. Conflicting status/archived values fail with an error. Like archived, omitting this defaults to active-only.`,
+				},
+				"ancestors_of": {
+					Type:        "string",
+					Description: `Codex only. Given a thread ID, return its ancestor chain (parent, grandparent, ...) instead of the normal listing, each entry annotated with "lineage" ("root", "child", or "unknown" when spawn metadata wasn't available). Traversal stops — and the last entry's "lineage_truncated" is set — if an ancestor lookup crosses the project/cwd boundary or a bounded depth limit is reached, rather than silently continuing into another project's data.`,
 				},
 				"source_kind": {
 					Type:        "array",

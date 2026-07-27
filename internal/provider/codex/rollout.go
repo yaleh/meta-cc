@@ -72,6 +72,7 @@ func loadTurnsFromRollout(path string, maxLines int) ([]conversation.Turn, conve
 		lineCount++
 		if lineCount > maxLines {
 			slog.Warn("codex rollout truncated", "path", path, "max_lines", maxLines)
+			builder.truncated = true
 			break
 		}
 		if !detected {
@@ -135,6 +136,14 @@ type turnBuilder struct {
 	totalTokenUsage          conversation.TokenUsage
 	pendingUserEventMsg      []int
 	pendingAssistantEventMsg []int
+
+	// truncated is set once, immediately before the final flush() call that
+	// follows loadTurnsFromRollout's maxLines-triggered break, so that
+	// final (possibly partial) turn is marked HistoryCompletenessTruncated
+	// instead of Full — a caller reading the returned turns then knows
+	// "content after this point is missing", not merely absent from this
+	// particular query (DIR-032).
+	truncated bool
 }
 
 func newTurnBuilder() *turnBuilder {
@@ -273,6 +282,11 @@ func (b *turnBuilder) flush() {
 		b.current.Extensions = ext
 	}
 	if b.current != nil && (b.current.UserText != "" || b.current.AssistantText != "" || len(b.current.ToolCalls) > 0 || hasUsage(b.current.TokenUsage) || len(b.current.Extensions) > 0) {
+		if b.truncated {
+			b.current.Completeness = conversation.HistoryCompletenessTruncated
+		} else {
+			b.current.Completeness = conversation.HistoryCompletenessFull
+		}
 		b.turns = append(b.turns, *b.current)
 	}
 	b.current = nil
@@ -315,6 +329,7 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 			Type    string `json:"type"`
 			Message string `json:"message"`
 			TurnID  string `json:"turn_id"`
+			Summary string `json:"summary"`
 			Info    struct {
 				LastTokenUsage  codexTokenUsage `json:"last_token_usage"`
 				TotalTokenUsage codexTokenUsage `json:"total_token_usage"`
@@ -335,6 +350,11 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 		case "token_count":
 			b.applyTokenUsage(event.Timestamp, payload.Info.LastTokenUsage, payload.Info.TotalTokenUsage)
 			return
+		case "context_compacted":
+			// DIR-032: typed compaction boundary rather than raw passthrough
+			// (see CompactionBoundary's doc comment) — the summary is
+			// boundary metadata, never folded into UserText/AssistantText.
+			b.appendCompactionItem("", payload.Summary, event.Timestamp)
 		default:
 			b.appendUnknown(line)
 		}
@@ -397,9 +417,62 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 		default:
 			b.appendUnknown(line)
 		}
+	case "compacted":
+		// DIR-032: typed compaction boundary (see CompactionBoundary) for
+		// the top-level "compacted" event family, distinct from the
+		// event_msg "context_compacted" notification handled above — Codex
+		// 0.145 rollouts emit both for the same logical boundary, so each
+		// becomes its own typed compaction Item rather than being merged.
+		var payload struct {
+			TurnID string `json:"turn_id"`
+			Reason string `json:"reason"`
+		}
+		_ = json.Unmarshal(event.Payload, &payload)
+		b.ensureTurn("", event.Timestamp)
+		b.appendCompactionItem(payload.Reason, "", event.Timestamp)
+	case "turn_aborted":
+		// DIR-032: typed turn lifecycle status rather than raw passthrough —
+		// see docs/reference/codex-history-model.md's turn-status coverage.
+		var payload struct {
+			TurnID string `json:"turn_id"`
+		}
+		_ = json.Unmarshal(event.Payload, &payload)
+		b.ensureTurn(payload.TurnID, event.Timestamp)
+		b.current.Status = conversation.TurnStatusAborted
+	case "session_end":
+		// DIR-032: typed session-lifecycle item rather than raw passthrough.
+		var payload struct {
+			Reason string `json:"reason"`
+		}
+		_ = json.Unmarshal(event.Payload, &payload)
+		b.ensureTurn("", event.Timestamp)
+		b.current.Items = append(b.current.Items, conversation.Item{
+			Kind:      conversation.ItemKindSessionEnd,
+			Text:      payload.Reason,
+			Timestamp: parseTimestamp(event.Timestamp),
+			Source:    "session_end",
+		})
 	default:
 		b.appendUnknown(line)
 	}
+}
+
+// appendCompactionItem appends a typed ItemKindCompaction item carrying a
+// CompactionBoundary (DIR-032). reason/summary are whichever fields the
+// triggering event reported (the legacy schema splits them across two
+// separate event families — top-level "compacted" reports reason, event_msg
+// "context_compacted" reports summary — so each call only ever sets one).
+func (b *turnBuilder) appendCompactionItem(reason, summary, timestamp string) {
+	ts := parseTimestamp(timestamp)
+	b.current.Items = append(b.current.Items, conversation.Item{
+		Kind:      conversation.ItemKindCompaction,
+		Timestamp: ts,
+		Source:    "compaction_boundary",
+		Compaction: &conversation.CompactionBoundary{
+			Reason:  reason,
+			Summary: summary,
+		},
+	})
 }
 
 type codexTokenUsage struct {

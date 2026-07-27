@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/conversation"
@@ -143,10 +144,32 @@ var KnownSourceKinds = []string{
 // fork, archive, delete, or any other mutating method.
 type appServerBackend struct {
 	connect connectFunc
+
+	mu       sync.Mutex
+	warnings []string
 }
 
 func newAppServerBackend(loc *locator.CodexLocator) *appServerBackend {
 	return &appServerBackend{connect: connectProcess(loc)}
+}
+
+// recordWarning appends a bounded diagnostic (e.g. a per-page thread/list
+// failure — see listAll) without aborting the caller's in-flight listing.
+func (b *appServerBackend) recordWarning(msg string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.warnings = append(b.warnings, msg)
+}
+
+// drainWarnings returns and clears accumulated warnings, so a caller (see
+// Provider.ListSessions/ListSessionsFiltered) can fold them into its own
+// Warnings() exactly once per call rather than re-reporting stale entries.
+func (b *appServerBackend) drainWarnings() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	w := b.warnings
+	b.warnings = nil
+	return w
 }
 
 // listSessions requests every session the app-server can report. Two
@@ -182,19 +205,7 @@ func (b *appServerBackend) listSessionsFiltered(ctx context.Context, filter conv
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 
-	base := appserver.ThreadListParams{
-		SourceKinds:    KnownSourceKinds,
-		ModelProviders: []string{},
-	}
-	if len(filter.SourceKinds) > 0 {
-		base.SourceKinds = filter.SourceKinds
-	}
-	if filter.CWD != "" {
-		base.CWD = []string{filter.CWD}
-	}
-	if filter.ModelProvider != "" {
-		base.ModelProviders = []string{filter.ModelProvider}
-	}
+	base := buildThreadListParams(filter)
 
 	archivedPasses := []bool{false, true}
 	if filter.Archived != nil {
@@ -203,6 +214,16 @@ func (b *appServerBackend) listSessionsFiltered(ctx context.Context, filter conv
 
 	var sessions []conversation.Session
 	for _, archived := range archivedPasses {
+		// DIR-032: a failure on the very FIRST page of a pass (zero threads
+		// fetched) is still treated as a real pass failure and aborts the
+		// whole listing, preserving pre-DIR-032 semantics (ModeAuto's
+		// ordinary fallback/circuit-breaker behavior — see dispatch — still
+		// applies when app-server appears to not be working at all). A
+		// failure AFTER at least one page already succeeded is different:
+		// listAll returns the threads fetched so far plus a recorded
+		// warning (drained by the caller via drainWarnings) instead of
+		// discarding them, so a genuine mid-pagination blip degrades
+		// gracefully rather than causing whole-corpus loss.
 		threads, err := b.listAll(ctx, src, base, archived)
 		if err != nil {
 			return nil, err
@@ -221,6 +242,9 @@ func (b *appServerBackend) listSessionsFiltered(ctx context.Context, filter conv
 	return sessions, nil
 }
 
+// listAll follows thread/list pagination (cursor/nextCursor) to completion
+// for one archived-state pass. See listSessionsFiltered's comment for the
+// first-page-vs-later-page failure distinction.
 func (b *appServerBackend) listAll(ctx context.Context, src threadSource, base appserver.ThreadListParams, archived bool) ([]appserver.Thread, error) {
 	var threads []appserver.Thread
 	cursor := ""
@@ -230,7 +254,18 @@ func (b *appServerBackend) listAll(ctx context.Context, src threadSource, base a
 		params.Archived = &archived
 		result, err := src.ThreadList(ctx, params)
 		if err != nil {
-			return nil, fmt.Errorf("thread/list: %w", err)
+			if len(threads) == 0 {
+				return nil, fmt.Errorf("thread/list: %w", err)
+			}
+			if ctx.Err() != nil {
+				// The caller's own shutdown, not a page-specific problem —
+				// stop silently rather than recording a spurious warning.
+				return threads, nil
+			}
+			b.recordWarning(fmt.Sprintf(
+				"thread/list page failed (archived=%v, cursor=%q): %v; returning %d thread(s) fetched so far; resume from cursor=%q",
+				archived, cursor, err, len(threads), cursor))
+			return threads, nil
 		}
 		threads = append(threads, result.Data...)
 		if result.NextCursor == nil || *result.NextCursor == "" {
@@ -238,6 +273,78 @@ func (b *appServerBackend) listAll(ctx context.Context, src threadSource, base a
 		}
 		cursor = *result.NextCursor
 	}
+}
+
+// buildThreadListParams derives the base ThreadListParams shared by
+// listSessionsFiltered (which pages through every result) and
+// listSessionsPage (DIR-032 — which fetches exactly one page). Centralized
+// so both honor the same "explicit sourceKinds/modelProviders, never the
+// server's narrower unqualified default" rule (see docs/reference/
+// codex-app-server.md's "avoiding the default-filter pitfall").
+func buildThreadListParams(filter conversation.SessionFilter) appserver.ThreadListParams {
+	base := appserver.ThreadListParams{
+		SourceKinds:    KnownSourceKinds,
+		ModelProviders: []string{},
+	}
+	if len(filter.SourceKinds) > 0 {
+		base.SourceKinds = filter.SourceKinds
+	}
+	if filter.CWD != "" {
+		base.CWD = []string{filter.CWD}
+	}
+	if filter.ModelProvider != "" {
+		base.ModelProviders = []string{filter.ModelProvider}
+	}
+	return base
+}
+
+// listSessionsPage fetches exactly ONE thread/list page (DIR-032's
+// cursor-based continuation API — see codex.Provider.ListSessionsPage): the
+// server's "archived" filter is exclusive (see listSessionsFiltered's
+// comment), so a caller that leaves filter.Archived unset gets the
+// non-archived pass; pass filter.Archived explicitly to page through
+// archived threads instead. Unlike listSessionsFiltered/listAll (which
+// tolerate a mid-pagination page failure by returning partial results plus
+// a warning), a single-page fetch that fails simply returns the error: the
+// caller already holds the cursor it passed in and can retry it directly,
+// so there is no "partial progress to preserve" within this one call.
+func (b *appServerBackend) listSessionsPage(ctx context.Context, filter conversation.SessionFilter, cursor string) (sessions []conversation.Session, nextCursor string, err error) {
+	src, closer, err := b.connect(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	defer closer.Close()
+
+	ctx, cancel := context.WithTimeout(ctx, callTimeout)
+	defer cancel()
+
+	archived := false
+	if filter.Archived != nil {
+		archived = *filter.Archived
+	}
+
+	params := buildThreadListParams(filter)
+	params.Cursor = cursor
+	params.Archived = &archived
+
+	result, err := src.ThreadList(ctx, params)
+	if err != nil {
+		return nil, "", fmt.Errorf("thread/list: %w", err)
+	}
+	for _, t := range result.Data {
+		session := appserver.MapThread(t)
+		session.Archived = archived
+		if archived {
+			session.Status = "archived"
+		} else {
+			session.Status = "active"
+		}
+		sessions = append(sessions, session)
+	}
+	if result.NextCursor != nil {
+		nextCursor = *result.NextCursor
+	}
+	return sessions, nextCursor, nil
 }
 
 func (b *appServerBackend) getSession(ctx context.Context, sessionID string) (conversation.Session, error) {

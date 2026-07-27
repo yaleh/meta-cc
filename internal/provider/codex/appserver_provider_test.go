@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/yaleh/meta-cc/internal/conversation"
@@ -20,12 +21,24 @@ type fakeThreadSource struct {
 	readErr  error
 	thread   appserver.Thread
 	listCall []appserver.ThreadListParams
+
+	// failOnCursor, when non-nil, makes exactly one ThreadList call whose
+	// cursor matches *failOnCursor return failErr instead of the mapped
+	// page — used to simulate a page failing partway through a multi-page
+	// fetch (see TestAppServerBackendListAllToleratesPageFailureMidPagination).
+	failOnCursor *string
+	failErr      error
+	failed       bool
 }
 
 func (f *fakeThreadSource) ThreadList(_ context.Context, p appserver.ThreadListParams) (appserver.ThreadListResult, error) {
 	f.listCall = append(f.listCall, p)
 	if f.listErr != nil {
 		return appserver.ThreadListResult{}, f.listErr
+	}
+	if f.failOnCursor != nil && !f.failed && p.Cursor == *f.failOnCursor {
+		f.failed = true
+		return appserver.ThreadListResult{}, f.failErr
 	}
 	archived := false
 	if p.Archived != nil {
@@ -174,6 +187,119 @@ func TestAppServerBackendListSessionsFilteredPushesParamsDownIntoThreadList(t *t
 	}
 	if len(p.SourceKinds) != 2 {
 		t.Fatalf("expected explicit sourceKinds pushed into thread/list params, got %#v", p.SourceKinds)
+	}
+}
+
+// TestAppServerBackendListAllToleratesPageFailureMidPagination is the
+// DIR-032 "per-page failures produce bounded warnings and resumable
+// cursors rather than whole-corpus loss" proof: page 1 of a 3-page fetch
+// succeeds, page 2 fails, and listAll must still return page 1's threads
+// (not lose everything), plus a warning naming the exact cursor to retry
+// from, rather than the whole listing returning zero sessions and no
+// diagnostic.
+func TestAppServerBackendListAllToleratesPageFailureMidPagination(t *testing.T) {
+	cur1 := "cursor-1"
+	cur2 := "cursor-2"
+	failCursor := cur1
+	src := &fakeThreadSource{
+		pages: map[string]appserver.ThreadListResult{
+			"active:":        {Data: []appserver.Thread{{ID: "t1", CreatedAt: 1}}, NextCursor: &cur1},
+			"active:" + cur1: {Data: []appserver.Thread{{ID: "t2", CreatedAt: 2}}, NextCursor: &cur2},
+			"active:" + cur2: {Data: []appserver.Thread{{ID: "t3", CreatedAt: 3}}},
+			"archived:":      {}, // no archived threads
+		},
+		failOnCursor: &failCursor,
+		failErr:      errors.New("transient network error"),
+	}
+	b := &appServerBackend{connect: connectFake(src, &noopCloser{}, nil)}
+
+	sessions, err := b.listSessionsFiltered(context.Background(), conversation.SessionFilter{})
+	if err != nil {
+		t.Fatalf("listSessionsFiltered should tolerate a mid-pagination page failure, got error: %v", err)
+	}
+	if len(sessions) != 1 || sessions[0].ID != "t1" {
+		t.Fatalf("expected only page 1's thread (t1) to survive the page-2 failure, got %#v", sessions)
+	}
+
+	warnings := b.drainWarnings()
+	if len(warnings) != 1 {
+		t.Fatalf("expected exactly one warning for the failed page, got %v", warnings)
+	}
+	if !strings.Contains(warnings[0], cur1) {
+		t.Fatalf("expected the warning to name the resumable cursor %q, got %q", cur1, warnings[0])
+	}
+}
+
+// TestAppServerBackendListAllStopsSilentlyOnMidPaginationCancellation
+// proves a context cancellation that occurs AFTER at least one page
+// already succeeded (the caller's own shutdown mid-pagination, not a
+// transient page error) returns the partial results without error and
+// without a spurious warning — unlike a genuine page failure, "the caller
+// gave up" doesn't need a resumable-cursor diagnostic.
+func TestAppServerBackendListAllStopsSilentlyOnMidPaginationCancellation(t *testing.T) {
+	cur1 := "cursor-1"
+	failCursor := cur1
+	src := &fakeThreadSource{
+		pages: map[string]appserver.ThreadListResult{
+			"active:": {Data: []appserver.Thread{{ID: "t1", CreatedAt: 1}}, NextCursor: &cur1},
+		},
+		failOnCursor: &failCursor,
+		failErr:      context.Canceled,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	b := &appServerBackend{connect: connectFake(src, &noopCloser{}, nil)}
+
+	sessions, err := b.listSessionsFiltered(ctx, conversation.SessionFilter{Archived: boolPtr(false)})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sessions) != 1 || sessions[0].ID != "t1" {
+		t.Fatalf("expected page 1's thread to survive, got %#v", sessions)
+	}
+	if warnings := b.drainWarnings(); len(warnings) != 0 {
+		t.Fatalf("expected no warnings for a mid-pagination cancellation, got %v", warnings)
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
+
+// TestAppServerBackendListSessionsPageFetchesOnePage is the DIR-032
+// cursor-based continuation proof at the backend level: listSessionsPage
+// issues exactly one thread/list call for the given cursor and returns the
+// server's own nextCursor, rather than paging through to completion like
+// listSessionsFiltered/listAll does.
+func TestAppServerBackendListSessionsPageFetchesOnePage(t *testing.T) {
+	cur1 := "cursor-1"
+	src := &fakeThreadSource{pages: map[string]appserver.ThreadListResult{
+		"active:":        {Data: []appserver.Thread{{ID: "t1", CreatedAt: 1}}, NextCursor: &cur1},
+		"active:" + cur1: {Data: []appserver.Thread{{ID: "t2", CreatedAt: 2}}},
+	}}
+	b := &appServerBackend{connect: connectFake(src, &noopCloser{}, nil)}
+
+	sessions, next, err := b.listSessionsPage(context.Background(), conversation.SessionFilter{}, "")
+	if err != nil {
+		t.Fatalf("listSessionsPage: %v", err)
+	}
+	if len(sessions) != 1 || sessions[0].ID != "t1" {
+		t.Fatalf("expected only page 1's thread, got %#v", sessions)
+	}
+	if next != cur1 {
+		t.Fatalf("expected NextCursor=%q, got %q", cur1, next)
+	}
+	if len(src.listCall) != 1 {
+		t.Fatalf("expected exactly one thread/list call for a single-page fetch, got %d", len(src.listCall))
+	}
+
+	sessions, next, err = b.listSessionsPage(context.Background(), conversation.SessionFilter{}, next)
+	if err != nil {
+		t.Fatalf("listSessionsPage page 2: %v", err)
+	}
+	if len(sessions) != 1 || sessions[0].ID != "t2" {
+		t.Fatalf("expected page 2's thread, got %#v", sessions)
+	}
+	if next != "" {
+		t.Fatalf("expected empty NextCursor at the end of pagination, got %q", next)
 	}
 }
 

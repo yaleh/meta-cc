@@ -189,4 +189,73 @@ func TestScanSessionPopulatesDIR030Metadata(t *testing.T) {
 	if session.Status != "active" || session.Archived {
 		t.Fatalf("expected default Status=active/Archived=false when no archived column exists, got %q/%v", session.Status, session.Archived)
 	}
+	if session.Lineage != conversation.LineageStatusUnknown {
+		t.Fatalf("expected Lineage=unknown for a subAgent row with no parent_thread_id value, got %q", session.Lineage)
+	}
+}
+
+// TestScanSessionLineage is the DIR-032 "explicit unknown state when spawn
+// metadata was suppressed" proof at the SQLite scan level: a schema with no
+// parent_thread_id column at all cannot report lineage (Unknown, not Root);
+// once the column exists, a non-subagent row with no value is a confirmed
+// Root, and a row with a value is a confirmed Child regardless of source
+// kind.
+func TestScanSessionLineage(t *testing.T) {
+	// Case 1: no parent_thread_id column in the schema at all.
+	dsn1 := "file:test-lineage-nocol?mode=memory&cache=shared"
+	db1, err := sql.Open("sqlite", dsn1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db1.Close()
+	if _, err := db1.Exec(`CREATE TABLE threads (
+		id TEXT PRIMARY KEY, cwd TEXT, title TEXT, source TEXT, created_at INTEGER
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db1.Exec(`INSERT INTO threads(id, cwd, title, source, created_at) VALUES ('s1', '/proj', 't', 'cli', 1700000000)`); err != nil {
+		t.Fatal(err)
+	}
+	session, err := getSessionFromDB(context.Background(), dsn1, "s1")
+	if err != nil {
+		t.Fatalf("getSessionFromDB: %v", err)
+	}
+	if session.Lineage != conversation.LineageStatusUnknown {
+		t.Fatalf("expected Lineage=unknown when the schema has no parent_thread_id column, got %q", session.Lineage)
+	}
+
+	// Case 2: column present, empty value, non-subagent source -> Root.
+	dsn2 := "file:test-lineage-root?mode=memory&cache=shared"
+	db2, err := sql.Open("sqlite", dsn2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db2.Close()
+	if _, err := db2.Exec(`CREATE TABLE threads (
+		id TEXT PRIMARY KEY, cwd TEXT, title TEXT, source TEXT, created_at INTEGER, parent_thread_id TEXT
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db2.Exec(`INSERT INTO threads(id, cwd, title, source, created_at, parent_thread_id) VALUES ('s2', '/proj', 't', 'cli', 1700000000, '')`); err != nil {
+		t.Fatal(err)
+	}
+	session, err = getSessionFromDB(context.Background(), dsn2, "s2")
+	if err != nil {
+		t.Fatalf("getSessionFromDB: %v", err)
+	}
+	if session.Lineage != conversation.LineageStatusRoot {
+		t.Fatalf("expected Lineage=root for a non-subagent row with an empty parent_thread_id, got %q", session.Lineage)
+	}
+
+	// Case 3: column present, non-empty value -> Child.
+	if _, err := db2.Exec(`INSERT INTO threads(id, cwd, title, source, created_at, parent_thread_id) VALUES ('s3', '/proj', 't', 'subAgent', 1700000000, 'parent-1')`); err != nil {
+		t.Fatal(err)
+	}
+	session, err = getSessionFromDB(context.Background(), dsn2, "s3")
+	if err != nil {
+		t.Fatalf("getSessionFromDB: %v", err)
+	}
+	if session.Lineage != conversation.LineageStatusChild {
+		t.Fatalf("expected Lineage=child for a row with a non-empty parent_thread_id, got %q", session.Lineage)
+	}
 }

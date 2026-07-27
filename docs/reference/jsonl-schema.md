@@ -686,6 +686,14 @@ itself (only the flattened compatibility projection is queryable); a
 future `query_session_items`-style tool is a natural extension once a
 concrete use case needs order/phase/item-kind fidelity at the query layer.
 
+**See also**: `docs/reference/codex-history-model.md` (DIR-032) extends
+this model with `Turn.Completeness` (full/summary/unloaded/truncated/
+unavailable — "a placeholder is never presented as complete"),
+`Item.Compaction` (typed compaction boundary metadata, replacing raw
+passthrough for the `compacted`/`context_compacted` event families),
+`TurnStatusAborted`/`ItemKindSessionEnd`, `Session.Lineage`, and
+capability-negotiated app-server pagination.
+
 ### Tool Calls
 
 Codex function tool calls:

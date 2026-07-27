@@ -10,6 +10,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
+	"github.com/yaleh/meta-cc/internal/conversation"
 	"github.com/yaleh/meta-cc/internal/locator"
 	"github.com/yaleh/meta-cc/internal/provider/codex/appserver"
 )
@@ -141,6 +142,73 @@ func TestProviderDetectAppServerReportsAbsentBinary(t *testing.T) {
 	result := p.DetectAppServer(context.Background())
 	if result.Found {
 		t.Fatalf("expected Found=false for a nonexistent binary, got %#v", result)
+	}
+}
+
+// TestProviderListSessionsPageCapabilityPresent is the DIR-032 "capability
+// present" path: when app-server is reachable (ModeAppServer here), a
+// single ListSessionsPage call issues exactly one thread/list request and
+// returns the server's real cursor for continuation, rather than loading
+// everything up front.
+func TestProviderListSessionsPageCapabilityPresent(t *testing.T) {
+	cur1 := "cursor-1"
+	src := &fakeThreadSource{pages: map[string]appserver.ThreadListResult{
+		"active:":        {Data: []appserver.Thread{{ID: "as-1", CreatedAt: 1}}, NextCursor: &cur1},
+		"active:" + cur1: {Data: []appserver.Thread{{ID: "as-2", CreatedAt: 2}}},
+	}}
+	fake := &appServerBackend{connect: connectFake(src, &noopCloser{}, nil)}
+	p := filesFixtureProvider(t, ModeAppServer, fake)
+
+	page, err := p.ListSessionsPage(context.Background(), conversation.SessionFilter{}, "")
+	if err != nil {
+		t.Fatalf("ListSessionsPage: %v", err)
+	}
+	if page.Backend != "app_server" {
+		t.Fatalf("expected Backend=app_server, got %q", page.Backend)
+	}
+	if len(page.Sessions) != 1 || page.Sessions[0].ID != "as-1" {
+		t.Fatalf("unexpected page 1 sessions: %#v", page.Sessions)
+	}
+	if page.NextCursor != cur1 {
+		t.Fatalf("expected NextCursor=%q, got %q", cur1, page.NextCursor)
+	}
+	if len(src.listCall) != 1 {
+		t.Fatalf("expected exactly one thread/list call, got %d", len(src.listCall))
+	}
+
+	page, err = p.ListSessionsPage(context.Background(), conversation.SessionFilter{}, page.NextCursor)
+	if err != nil {
+		t.Fatalf("ListSessionsPage page 2: %v", err)
+	}
+	if len(page.Sessions) != 1 || page.Sessions[0].ID != "as-2" || page.NextCursor != "" {
+		t.Fatalf("unexpected page 2: %#v", page)
+	}
+}
+
+// TestProviderListSessionsPageCapabilityAbsentFallsBackSafely is the
+// DIR-032 "capability absent" path: ModeFiles has no app-server pagination
+// surface at all, so ListSessionsPage must fail safely to the existing
+// non-paginated behavior — the full filtered result as a single page with
+// an empty NextCursor — rather than erroring or returning a broken cursor.
+func TestProviderListSessionsPageCapabilityAbsentFallsBackSafely(t *testing.T) {
+	fake := &appServerBackend{connect: func(context.Context) (threadSource, io.Closer, error) {
+		t.Fatalf("ModeFiles must never invoke the app-server connector")
+		return nil, nil, nil
+	}}
+	p := filesFixtureProvider(t, ModeFiles, fake)
+
+	page, err := p.ListSessionsPage(context.Background(), conversation.SessionFilter{}, "")
+	if err != nil {
+		t.Fatalf("ListSessionsPage: %v", err)
+	}
+	if page.Backend != "files" {
+		t.Fatalf("expected Backend=files, got %q", page.Backend)
+	}
+	if len(page.Sessions) != 1 || page.Sessions[0].ID != "files-1" {
+		t.Fatalf("unexpected sessions: %#v", page.Sessions)
+	}
+	if page.NextCursor != "" {
+		t.Fatalf("expected empty NextCursor (no pagination capability), got %q", page.NextCursor)
 	}
 }
 

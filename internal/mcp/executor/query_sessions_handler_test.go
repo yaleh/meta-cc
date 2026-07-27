@@ -1,14 +1,205 @@
 package executor
 
 import (
+	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	_ "modernc.org/sqlite"
+
 	"github.com/stretchr/testify/require"
 )
+
+// setupCodexArchivedAndActiveSessionFixtureProject wires a temporary Codex
+// home whose threads table has one active session and one archived
+// session, both under the same cwd, so query_sessions default-filtering
+// behavior around the archived dimension can be tested directly (DIR-032).
+func setupCodexArchivedAndActiveSessionFixtureProject(t *testing.T) (projectPath string) {
+	t.Helper()
+
+	projectDir := t.TempDir()
+	resolvedProject, err := filepath.EvalSymlinks(projectDir)
+	require.NoError(t, err)
+
+	codexHome := filepath.Join(t.TempDir(), "codex-home")
+	t.Setenv("META_CC_CODEX_ROOT", codexHome)
+	require.NoError(t, os.MkdirAll(codexHome, 0o755))
+
+	db, err := sql.Open("sqlite", filepath.Join(codexHome, "state_5.sqlite"))
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE threads (
+		id TEXT PRIMARY KEY, rollout_path TEXT, cwd TEXT, title TEXT,
+		model TEXT, model_provider TEXT, tokens_used INTEGER, source TEXT,
+		created_at INTEGER, archived INTEGER
+	)`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO threads(id, rollout_path, cwd, title, model, model_provider, tokens_used, source, created_at, archived)
+		VALUES ('active-session', '', ?, 'active', 'gpt-5', 'openai', 0, 'cli', 1700000000, 0)`, resolvedProject)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO threads(id, rollout_path, cwd, title, model, model_provider, tokens_used, source, created_at, archived)
+		VALUES ('archived-session', '', ?, 'archived', 'gpt-5', 'openai', 0, 'cli', 1699999999, 1)`, resolvedProject)
+	require.NoError(t, err)
+
+	return resolvedProject
+}
+
+// setupCodexLineageFixtureProject wires a temporary Codex home with a
+// threads table containing a root/child/grandchild lineage chain, plus (if
+// withUnknownSubagent) a subagent-sourced thread with no parent_thread_id
+// value recorded — the "spawn metadata suppressed" case. All threads share
+// resolvedProject as their cwd unless a row explicitly overrides it (used
+// by the boundary-crossing test).
+func setupCodexLineageFixtureProject(t *testing.T) (projectPath string) {
+	t.Helper()
+
+	projectDir := t.TempDir()
+	resolvedProject, err := filepath.EvalSymlinks(projectDir)
+	require.NoError(t, err)
+
+	codexHome := filepath.Join(t.TempDir(), "codex-home")
+	t.Setenv("META_CC_CODEX_ROOT", codexHome)
+	require.NoError(t, os.MkdirAll(codexHome, 0o755))
+
+	db, err := sql.Open("sqlite", filepath.Join(codexHome, "state_5.sqlite"))
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE threads (
+		id TEXT PRIMARY KEY, rollout_path TEXT, cwd TEXT, title TEXT,
+		model TEXT, model_provider TEXT, tokens_used INTEGER, source TEXT,
+		created_at INTEGER, parent_thread_id TEXT
+	)`)
+	require.NoError(t, err)
+
+	insert := func(id, cwd, source, parent string) {
+		_, err := db.Exec(`INSERT INTO threads(id, rollout_path, cwd, title, model, model_provider, tokens_used, source, created_at, parent_thread_id)
+			VALUES (?, '', ?, ?, 'gpt-5', 'openai', 0, ?, 1700000000, ?)`, id, cwd, id, source, parent)
+		require.NoError(t, err)
+	}
+
+	insert("root", resolvedProject, "cli", "")
+	insert("child", resolvedProject, "cli", "root")
+	insert("grandchild", resolvedProject, "cli", "child")
+	insert("subagent-no-parent", resolvedProject, "subAgent", "")
+	insert("outside-root", "/some/other/project", "cli", "")
+	insert("child-of-outside-root", resolvedProject, "cli", "outside-root")
+
+	return resolvedProject
+}
+
+// TestQuerySessions_AncestorsOf_KnownLineage is the DIR-032 "ancestor chain
+// works when metadata exists" proof: querying ancestors_of=grandchild
+// returns [child, root] in nearest-first order, each annotated with its
+// lineage classification, and no warnings.
+func TestQuerySessions_AncestorsOf_KnownLineage(t *testing.T) {
+	projectPath := setupCodexLineageFixtureProject(t)
+
+	result, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+		"provider":     "codex",
+		"working_dir":  projectPath,
+		"ancestors_of": "grandchild",
+	})
+	require.NoError(t, err)
+	require.Empty(t, result.Warnings)
+	require.Len(t, result.Entries, 2)
+
+	first := result.Entries[0].(map[string]interface{})
+	require.Equal(t, "child", first["session_id"])
+	require.Equal(t, "child", first["lineage"])
+
+	second := result.Entries[1].(map[string]interface{})
+	require.Equal(t, "root", second["session_id"])
+	require.Equal(t, "root", second["lineage"])
+}
+
+// TestQuerySessions_AncestorsOf_UnknownLineageReportsUncertainty proves a
+// subagent thread with no recorded parent_thread_id reports lineage
+// "unknown" via an explanatory warning and an empty chain, rather than
+// silently being treated as a root with no ancestors.
+func TestQuerySessions_AncestorsOf_UnknownLineageReportsUncertainty(t *testing.T) {
+	projectPath := setupCodexLineageFixtureProject(t)
+
+	result, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+		"provider":     "codex",
+		"working_dir":  projectPath,
+		"ancestors_of": "subagent-no-parent",
+	})
+	require.NoError(t, err)
+	require.Empty(t, result.Entries)
+	require.Len(t, result.Warnings, 1)
+	require.Contains(t, result.Warnings[0], "unknown")
+}
+
+// TestQuerySessions_AncestorsOf_StopsAtProjectBoundary proves ancestor
+// traversal stops (with a warning, not an error) rather than crossing into
+// another project's data when a parent thread resolves outside the
+// caller's cwd boundary — the DIR-030 precedent this new lookup path must
+// also respect.
+func TestQuerySessions_AncestorsOf_StopsAtProjectBoundary(t *testing.T) {
+	projectPath := setupCodexLineageFixtureProject(t)
+
+	result, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+		"provider":     "codex",
+		"working_dir":  projectPath,
+		"ancestors_of": "child-of-outside-root",
+	})
+	require.NoError(t, err)
+	require.Empty(t, result.Entries, "the only ancestor lies outside the project boundary, so it must not be returned")
+	require.Len(t, result.Warnings, 1)
+	require.Contains(t, result.Warnings[0], "boundary")
+}
+
+// TestQuerySessions_AncestorsOf_ClaudeProviderFailsClosed proves
+// ancestors_of is rejected for the default/claude provider (Claude sessions
+// don't carry lineage metadata), matching every other Codex-only filter.
+func TestQuerySessions_AncestorsOf_ClaudeProviderFailsClosed(t *testing.T) {
+	_, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+		"working_dir":  t.TempDir(),
+		"ancestors_of": "some-id",
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `provider="codex"`)
+}
+
+// TestQuerySessions_DefaultExcludesArchived is the DIR-032
+// "archived sessions are discoverable only when requested" proof: with
+// neither archived nor status set, only the active session is returned.
+// Explicit archived=true (or status="archived") must then surface the
+// archived session, and archived=false must remain equivalent to the
+// default.
+func TestQuerySessions_DefaultExcludesArchived(t *testing.T) {
+	projectPath := setupCodexArchivedAndActiveSessionFixtureProject(t)
+
+	result, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+		"provider":    "codex",
+		"working_dir": projectPath,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Entries, 1, "expected archived session excluded by default")
+	require.Equal(t, "active-session", result.Entries[0].(map[string]interface{})["session_id"])
+
+	result, err = handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+		"provider":    "codex",
+		"working_dir": projectPath,
+		"archived":    true,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Entries, 1, "expected only the archived session when explicitly requested")
+	require.Equal(t, "archived-session", result.Entries[0].(map[string]interface{})["session_id"])
+
+	result, err = handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+		"provider":    "codex",
+		"working_dir": projectPath,
+		"status":      "archived",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Entries, 1, "status=archived must behave the same as archived=true")
+	require.Equal(t, "archived-session", result.Entries[0].(map[string]interface{})["session_id"])
+}
 
 // setupClaudeSessionFixtureProject wires a temporary Claude projects root
 // with one real session JSONL under the project's hashed directory, so the

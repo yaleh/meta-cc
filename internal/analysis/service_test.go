@@ -326,6 +326,106 @@ func TestService_WithStubErrorAnalyzer_Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to analyze errors")
 }
 
+// capturingErrorAnalyzer records whether it was invoked and what entries it
+// received, so tests can distinguish "blocked before reaching the analyzer"
+// from "leaked cross-project content into the analyzer".
+type capturingErrorAnalyzer struct {
+	called  bool
+	entries []types.SessionEntry
+}
+
+func (c *capturingErrorAnalyzer) AnalyzeErrors(entries []types.SessionEntry, _ []types.ToolCall, _ int) (*analyzer.ErrorAnalysisResult, error) {
+	c.called = true
+	c.entries = entries
+	return &analyzer.ErrorAnalysisResult{}, nil
+}
+
+// seedSessionForBoundaryTest writes a copy of tests/fixtures/sample-session.jsonl
+// under its own resolved project-hash directory (rooted at projectsRoot) with
+// a distinct session ID substituted in, and returns the resolved project
+// path. Mirrors the seeding approach used by
+// TestGetSessionEnforcesWorkingDirBoundary in
+// internal/provider/claude/provider_test.go for the sibling DIR-032 fix.
+func seedSessionForBoundaryTest(t *testing.T, projectsRoot, newSessionID string) (resolvedProject string) {
+	t.Helper()
+	const fixtureSessionID = "6a32f273-191a-49c8-a5fc-a5dcba08531a"
+
+	data, err := os.ReadFile(filepath.Join("..", "..", "tests", "fixtures", "sample-session.jsonl"))
+	require.NoError(t, err)
+
+	project := t.TempDir()
+	resolved, err := filepath.EvalSymlinks(project)
+	require.NoError(t, err)
+
+	hash := strings.ReplaceAll(resolved, "\\", "-")
+	hash = strings.ReplaceAll(hash, "/", "-")
+	hash = strings.ReplaceAll(hash, ":", "-")
+	projectDir := filepath.Join(projectsRoot, hash)
+	require.NoError(t, os.MkdirAll(projectDir, 0o755))
+
+	content := strings.ReplaceAll(string(data), fixtureSessionID, newSessionID)
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, newSessionID+".jsonl"), []byte(content), 0o644))
+
+	return resolved
+}
+
+// TestService_AnalyzeErrors_RejectsCrossProjectSessionID is the DIR-032
+// regression test for the third instance of a bug class that has now hit
+// this repo three times: internal/analysis/service.go's loadData resolved
+// session_id via locator.FromSessionID (a GLOBAL, unscoped search across
+// every project-hash directory on disk) with zero comparison against the
+// caller's working_dir. A caller who knew a session_id belonging to project
+// B could read its content by simply passing working_dir=<project A>,
+// session_id=<project B's session> — exercised here through the real public
+// API (Service.AnalyzeErrors), the same surface all six loadData-backed MCP
+// tools (analyze_errors, analyze_bugs, quality_scan, get_work_patterns,
+// get_timeline, get_tech_debt) share.
+func TestService_AnalyzeErrors_RejectsCrossProjectSessionID(t *testing.T) {
+	projectsRoot := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex-home"))
+
+	projectA := seedSessionForBoundaryTest(t, projectsRoot, "session-in-project-a")
+	_ = seedSessionForBoundaryTest(t, projectsRoot, "session-in-project-b")
+
+	stub := &capturingErrorAnalyzer{}
+	svc := analysis.NewWithAnalyzers(analysis.Analyzers{ErrorAnalyzer: stub})
+
+	// working_dir scoped to project A, but session_id belongs to project B.
+	_, err := svc.AnalyzeErrors(map[string]interface{}{
+		"working_dir": projectA,
+		"session_id":  "session-in-project-b",
+	})
+	require.Error(t, err, "expected AnalyzeErrors to reject a session_id outside the working_dir boundary")
+	assert.False(t, stub.called, "analyzer must never see cross-project session content")
+}
+
+// TestService_AnalyzeErrors_AllowsSameProjectSessionID is the sanity
+// counterpart to the regression test above: a session_id that genuinely
+// belongs to the working_dir's own project must keep working after the
+// DIR-032 boundary fix.
+func TestService_AnalyzeErrors_AllowsSameProjectSessionID(t *testing.T) {
+	projectsRoot := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex-home"))
+
+	projectA := seedSessionForBoundaryTest(t, projectsRoot, "session-in-project-a")
+
+	stub := &capturingErrorAnalyzer{}
+	svc := analysis.NewWithAnalyzers(analysis.Analyzers{ErrorAnalyzer: stub})
+
+	out, err := svc.AnalyzeErrors(map[string]interface{}{
+		"working_dir": projectA,
+		"session_id":  "session-in-project-a",
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, out)
+	assert.True(t, stub.called, "analyzer must be invoked for a legitimately-scoped session_id")
+	assert.NotEmpty(t, stub.entries, "analyzer must receive the project's own session content")
+}
+
 func TestService_QueryEditSequences_NoSessionData_ReturnsEmptyResult(t *testing.T) {
 	// Set META_CC_PROJECTS_ROOT to a temp dir with no hashed entry for any project
 	projectsRoot := t.TempDir()

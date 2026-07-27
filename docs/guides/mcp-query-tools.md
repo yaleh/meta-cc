@@ -81,29 +81,30 @@ Lists session/thread **metadata** — id, cwd, title, status, source_kind, model
 |-----------|------|-------|
 | `session_id` | string | Exact session/thread ID; returns metadata for just that one session (still no turn content loaded). |
 | `cwd` | string | Exact cwd to scope the listing to. Defaults to the project boundary derived from `working_dir`. |
-| `archived` | boolean | Codex only. `true` = archived threads, `false` = active threads, omitted = both. |
-| `status` | string | Codex only. `"active"` or `"archived"` — alias for `archived`. Conflicting `status`/`archived` values are a validation error. |
+| `archived` | boolean | Codex only. `true` = archived threads, `false` = active threads. **Archived threads are excluded by default** (DIR-032) — omitting both this and `status` is equivalent to `archived: false`. |
+| `status` | string | Codex only. `"active"` or `"archived"` — alias for `archived`. Conflicting `status`/`archived` values are a validation error. Also defaults to active-only when omitted. |
 | `source_kind` | array of string | Codex only. One or more of `cli`, `vscode`, `exec`, `appServer`, `subAgent`, `subAgentReview`, `subAgentCompact`, `subAgentThreadSpawn`, `subAgentOther`, `unknown`. An unrecognized value is a validation error. |
 | `model_provider` | string | Codex only (e.g. `"openai"`). |
 | `model` | string | Substring match against the model name. |
-| `parent_thread_id` | string | Codex only. Exact parent/ancestor thread ID (subagent lineage). |
+| `parent_thread_id` | string | Codex only. Exact parent/ancestor thread ID — lists that thread's direct **children**. |
+| `ancestors_of` | string | Codex only (DIR-032). Given a thread ID, returns its **ancestor chain** (parent, grandparent, ...) instead of the normal listing. Each entry carries `lineage` (`"root"`, `"child"`, or `"unknown"` when spawn metadata wasn't available). Traversal stops — with a warning, never silently — at a confirmed root, an explicit `unknown`, a project/cwd boundary crossing, a cycle, or a depth limit. |
 | `title_contains` | string | Case-insensitive substring match against the session title. |
 | `created_since` / `created_until` | string (RFC3339) | Filter by creation time range. |
 | `updated_since` / `updated_until` | string (RFC3339) | Codex only. Filter by last-updated time range. |
 | `include_subagents` | boolean | Default `true`; `false` excludes subagent-sourced sessions. |
 | `limit` | number | Max sessions to return. Combine with the standard `offset`/`page_size` parameters for pagination over a large project. |
 
-Codex-only filters (`source_kind`, `model_provider`, `parent_thread_id`, `archived`, `status`) fail with an actionable error if used while `provider` is `"claude"` (the default) — Claude sessions don't carry this metadata, so the filter could never match and a silent empty result would be indistinguishable from "no sessions found".
+Codex-only filters (`source_kind`, `model_provider`, `parent_thread_id`, `archived`, `status`, `ancestors_of`) fail with an actionable error if used while `provider` is `"claude"` (the default) — Claude sessions don't carry this metadata, so the filter could never match and a silent empty result would be indistinguishable from "no sessions found".
 
 A session whose metadata can't be read (e.g. a corrupted `threads` row) is skipped with a warning rather than aborting the whole listing; other sessions still return normally.
 
 Examples:
 
 ```javascript
-// List active Codex sessions in the current project, most recent first
+// List active (non-archived) Codex sessions in the current project, most recent first
 query_sessions({ provider: "codex" })
 
-// Find archived subagent threads under a given parent
+// Include archived subagent threads under a given parent (must opt in)
 query_sessions({
   provider: "codex",
   archived: true,
@@ -113,6 +114,9 @@ query_sessions({
 
 // Exact lookup (metadata only, no turns)
 query_sessions({ provider: "codex", session_id: "thread-abc" })
+
+// Walk a subagent thread's ancestor chain
+query_sessions({ provider: "codex", ancestors_of: "thread-abc" })
 ```
 
 ### Consolidated Query Tools

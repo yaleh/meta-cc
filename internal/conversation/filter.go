@@ -113,6 +113,26 @@ func SortSessionsDeterministic(sessions []Session) {
 	})
 }
 
+// ChildrenOf returns the subset of sessions whose ParentThreadID equals
+// parentID, preserving relative order. It is a pure, metadata-only lineage
+// query (DIR-032): callers are responsible for having already scoped
+// sessions to whatever cwd/project boundary applies (see
+// internal/mcp/executor/query_sessions_handler.go) before calling this —
+// ChildrenOf itself performs no lookup and enforces no boundary, so it
+// cannot introduce a cross-project leak on its own.
+func ChildrenOf(sessions []Session, parentID string) []Session {
+	if parentID == "" {
+		return nil
+	}
+	out := make([]Session, 0)
+	for _, s := range sessions {
+		if s.ParentThreadID == parentID {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 func statusFor(archived bool) string {
 	if archived {
 		return "archived"

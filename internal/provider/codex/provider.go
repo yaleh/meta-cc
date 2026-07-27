@@ -125,7 +125,25 @@ func (p *Provider) DetectAppServer(ctx context.Context) appserver.DetectResult {
 }
 
 func (p *Provider) ListSessions(ctx context.Context) ([]conversation.Session, error) {
-	return dispatch(p, ctx, p.appServer.listSessions, p.filesListSessions)
+	return dispatch(p, ctx, p.appServerListSessions, p.filesListSessions)
+}
+
+// appServerListSessions wraps appServerBackend.listSessions and folds any
+// per-page warnings it accumulated (see appServerBackend.listAll) into
+// Provider.Warnings(), so a partial-but-successful listing's diagnostics
+// are never silently dropped just because the overall call "succeeded".
+func (p *Provider) appServerListSessions(ctx context.Context) ([]conversation.Session, error) {
+	sessions, err := p.appServer.listSessions(ctx)
+	p.drainAppServerWarnings()
+	return sessions, err
+}
+
+func (p *Provider) drainAppServerWarnings() {
+	if w := p.appServer.drainWarnings(); len(w) > 0 {
+		p.mu.Lock()
+		p.warnings = append(p.warnings, w...)
+		p.mu.Unlock()
+	}
 }
 
 // ListSessionsFiltered is ListSessions extended with DIR-030 metadata
@@ -157,7 +175,9 @@ func (p *Provider) ListSessionsFiltered(ctx context.Context, filter conversation
 
 	sessions, err := dispatch(p, ctx,
 		func(ctx context.Context) ([]conversation.Session, error) {
-			return p.appServer.listSessionsFiltered(ctx, filter)
+			sessions, err := p.appServer.listSessionsFiltered(ctx, filter)
+			p.drainAppServerWarnings()
+			return sessions, err
 		},
 		func(ctx context.Context) ([]conversation.Session, error) {
 			return p.filesListSessionsFiltered(ctx, filter)
@@ -169,6 +189,76 @@ func (p *Provider) ListSessionsFiltered(ctx context.Context, filter conversation
 	sessions = conversation.ApplyFilter(sessions, filter)
 	conversation.SortSessionsDeterministic(sessions)
 	return sessions, nil
+}
+
+// SessionPage is one page of a DIR-032 cursor-based session listing: see
+// ListSessionsPage.
+type SessionPage struct {
+	Sessions []conversation.Session
+	// NextCursor is empty when there are no more pages.
+	NextCursor string
+	// Backend reports which backend actually answered this page
+	// ("app_server" or "files"), mirroring Provider.Backend()'s per-call
+	// provenance.
+	Backend string
+}
+
+// ListSessionsPage is DIR-032's capability-negotiated, cursor-based
+// continuation API: when app-server is reachable (ModeAppServer, or
+// ModeAuto with the circuit closed), it fetches exactly one real
+// thread/list page and returns the server's own nextCursor, so a caller can
+// iterate a large corpus page by page instead of loading everything at
+// once. The files backend has no server-side pagination surface at all, so
+// whenever app-server isn't in play (ModeFiles, or ModeAuto having fallen
+// back), this returns the full filtered result as a single page with an
+// empty NextCursor ("no more pages") rather than a partial/broken cursor
+// contract — the Contract's "if not supported, fail safely to the existing
+// non-paginated behavior".
+//
+// A cursor value is only ever meaningful for the backend that issued it: a
+// files-backend cursor is always "" (there's nothing to resume), and an
+// app-server cursor should not be replayed after falling back to files.
+// Callers that need to resume across a backend switch should simply
+// restart the page sequence from cursor="".
+func (p *Provider) ListSessionsPage(ctx context.Context, filter conversation.SessionFilter, cursor string) (SessionPage, error) {
+	switch p.mode {
+	case ModeFiles:
+		return p.filesSessionPage(ctx, filter)
+
+	case ModeAppServer:
+		sessions, nextCursor, err := p.appServer.listSessionsPage(ctx, filter, cursor)
+		if err != nil {
+			p.recordBackend("app_server", err)
+			return SessionPage{}, fmt.Errorf("codex app_server backend: %w", err)
+		}
+		p.recordBackend("app_server", nil)
+		return SessionPage{Sessions: sessions, NextCursor: nextCursor, Backend: "app_server"}, nil
+
+	default: // ModeAuto
+		if !p.circuitOpen() {
+			sessions, nextCursor, err := p.appServer.listSessionsPage(ctx, filter, cursor)
+			if err == nil {
+				p.recordSuccess()
+				return SessionPage{Sessions: sessions, NextCursor: nextCursor, Backend: "app_server"}, nil
+			}
+			p.recordFailure(err)
+		}
+		return p.filesSessionPage(ctx, filter)
+	}
+}
+
+// filesSessionPage is ListSessionsPage's files-backend fallback: no
+// server-side pagination surface exists here, so it returns the full
+// filtered result as a single page with an empty NextCursor.
+func (p *Provider) filesSessionPage(ctx context.Context, filter conversation.SessionFilter) (SessionPage, error) {
+	sessions, err := p.filesListSessionsFiltered(ctx, filter)
+	p.recordBackend("files", err)
+	if err != nil {
+		return SessionPage{}, err
+	}
+	sessions = conversation.ApplyFilter(sessions, filter)
+	conversation.SortSessionsDeterministic(sessions)
+	return SessionPage{Sessions: sessions, Backend: "files"}, nil
 }
 
 func (p *Provider) GetSession(ctx context.Context, sessionID string) (conversation.Session, error) {

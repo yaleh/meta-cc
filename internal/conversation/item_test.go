@@ -67,6 +67,7 @@ func TestItemKindCoverage(t *testing.T) {
 		ItemKindPlanUpdate,
 		ItemKindReasoning,
 		ItemKindCompaction,
+		ItemKindSessionEnd,
 		ItemKindUnknown,
 	}
 	seen := make(map[ItemKind]bool)
@@ -90,6 +91,65 @@ func TestAgentPhaseValues(t *testing.T) {
 func TestTurnStatusValues(t *testing.T) {
 	if TurnStatusCompleted != "completed" || TurnStatusFailed != "failed" || TurnStatusInProgress != "in_progress" || TurnStatusUnspecified != "" {
 		t.Fatalf("unexpected turn status constants")
+	}
+	if TurnStatusAborted != "aborted" {
+		t.Fatalf("unexpected TurnStatusAborted constant: %q", TurnStatusAborted)
+	}
+}
+
+// TestHistoryCompletenessIsFull is the DIR-032 "a placeholder is never
+// silently treated as complete" proof at the type level: only the zero
+// value and HistoryCompletenessFull report IsFull()==true; every other
+// state (summary/unloaded/truncated/unavailable) must not.
+func TestHistoryCompletenessIsFull(t *testing.T) {
+	full := map[HistoryCompleteness]bool{
+		HistoryCompletenessUnspecified: true,
+		HistoryCompletenessFull:        true,
+		HistoryCompletenessSummary:     false,
+		HistoryCompletenessUnloaded:    false,
+		HistoryCompletenessTruncated:   false,
+		HistoryCompletenessUnavailable: false,
+	}
+	for c, want := range full {
+		if got := c.IsFull(); got != want {
+			t.Fatalf("HistoryCompleteness(%q).IsFull() = %v, want %v", c, got, want)
+		}
+	}
+}
+
+// TestCompactionBoundaryRoundTrip proves an ItemKindCompaction item's typed
+// boundary metadata (reason/summary) round-trips through JSON without being
+// folded into Text (which would risk it being treated as ordinary message
+// content by a naive consumer).
+func TestCompactionBoundaryRoundTrip(t *testing.T) {
+	now := time.Unix(1700000000, 0).UTC()
+	item := Item{
+		Kind:      ItemKindCompaction,
+		Timestamp: now,
+		Compaction: &CompactionBoundary{
+			Reason:  "context_window",
+			Summary: "Trimmed 4 earlier turns",
+		},
+	}
+	data, err := json.Marshal(item)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var got Item
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.Compaction == nil || got.Compaction.Reason != "context_window" || got.Compaction.Summary != "Trimmed 4 earlier turns" {
+		t.Fatalf("compaction boundary mismatch: %#v", got.Compaction)
+	}
+	if got.Text != "" {
+		t.Fatalf("compaction boundary must not leak into Text: %q", got.Text)
+	}
+}
+
+func TestLineageStatusValues(t *testing.T) {
+	if LineageStatusRoot != "root" || LineageStatusChild != "child" || LineageStatusUnknown != "unknown" || LineageStatusUnspecified != "" {
+		t.Fatalf("unexpected lineage status constants")
 	}
 }
 

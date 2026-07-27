@@ -1,5 +1,11 @@
 # Codex App-Server History Backend (DIR-029)
 
+> **See also**: `docs/reference/codex-history-model.md` (DIR-032) extends
+> this backend with per-page failure tolerance, a `Provider.ListSessionsPage`
+> cursor-based continuation API, capability-negotiated (and currently
+> unsupported) experimental turn/item pagination, and archive/lineage
+> semantics.
+
 meta-cc can read Codex conversation history two ways:
 
 - **files**: parse the existing SQLite thread index (`state_5.sqlite`) and
@@ -113,6 +119,9 @@ and `app_server`) populate those compatibility fields identically.
 Item-type coverage (confirmed against the live protocol schema): `userMessage`,
 `agentMessage`, `commandExecution`, `fileChange`, `mcpToolCall`, `webSearch`,
 `reasoning`, `plan`, and `contextCompaction` get dedicated field mapping.
+`contextCompaction` additionally decodes optional `reason`/`summary` fields
+into a typed `conversation.CompactionBoundary` (DIR-032, best-effort — not
+yet empirically confirmed against a live payload).
 Everything else (`hookPrompt`, `dynamicToolCall`, `collabAgentToolCall`,
 `subAgentActivity`, `imageView`, `sleep`, `imageGeneration`,
 `enteredReviewMode`, `exitedReviewMode`) is preserved losslessly via

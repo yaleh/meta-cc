@@ -31,6 +31,7 @@ func MapThread(t Thread) conversation.Session {
 		parentThreadID = *t.ParentThreadID
 	}
 	sourceKind := parseSourceKind(t.Source)
+	isSubagent := strings.HasPrefix(sourceKind, "subAgent")
 
 	ext, _ := json.Marshal(map[string]interface{}{
 		"backend":          "app_server",
@@ -50,12 +51,30 @@ func MapThread(t Thread) conversation.Session {
 		SourceKind:     sourceKind,
 		Status:         "active", // caller (listSessions) overwrites with Archived/Status when it knows which archived-pass this thread came from
 		ParentThreadID: parentThreadID,
-		IsSubagent:     strings.HasPrefix(sourceKind, "subAgent"),
+		Lineage:        mapLineage(parentThreadID, isSubagent),
+		IsSubagent:     isSubagent,
 		CreatedAt:      time.Unix(t.CreatedAt, 0).UTC(),
 		UpdatedAt:      time.Unix(t.UpdatedAt, 0).UTC(),
 		Turns:          turns,
 		Extensions:     ext,
 	}
+}
+
+// mapLineage classifies what MapThread actually knows about a thread's
+// spawn relationship (DIR-032). A non-empty parentThreadID is a confirmed
+// child. An empty parentThreadID from a subagent source kind is treated as
+// unknown rather than root: subagent threads are spawned by construction,
+// so a missing parent edge there means the app-server suppressed/omitted
+// the spawn metadata, not that the thread has no parent. Every other empty
+// case (an ordinary cli/vscode/exec/appServer thread) is a confirmed root.
+func mapLineage(parentThreadID string, isSubagent bool) conversation.LineageStatus {
+	if parentThreadID != "" {
+		return conversation.LineageStatusChild
+	}
+	if isSubagent {
+		return conversation.LineageStatusUnknown
+	}
+	return conversation.LineageStatusRoot
 }
 
 // parseSourceKind extracts the "type" discriminant from a Thread's raw
@@ -82,6 +101,14 @@ func mapTurn(t Turn) conversation.Turn {
 		ID:        t.ID,
 		Status:    mapTurnStatus(t.Status),
 		Timestamp: unixPtrOrZero(t.StartedAt, t.CompletedAt),
+		// thread/read(includeTurns) is the only app-server turn-content
+		// surface DIR-029/032 currently confirm; it always returns full
+		// item content (no summary/unloaded projection is known to exist
+		// yet — see docs/reference/codex-history-model.md's "Experimental
+		// pagination" section), so every turn mapped here is Full. A future
+		// confirmed partial-content surface should set a different
+		// HistoryCompleteness value explicitly rather than defaulting here.
+		Completeness: conversation.HistoryCompletenessFull,
 	}
 	for _, item := range t.Items {
 		out.Items = append(out.Items, mapItems(item, out.Timestamp)...)
@@ -249,12 +276,21 @@ func mapItems(item ThreadItem, ts time.Time) []conversation.Item {
 			Timestamp: ts, Source: "app_server",
 		}}
 	case "contextCompaction":
+		// DIR-032: best-effort typed CompactionBoundary. reason/summary are
+		// not yet confirmed against a live payload (see
+		// docs/reference/codex-history-model.md), so both are optional and
+		// this defensively decodes them if present rather than assuming the
+		// shape — an absent field just yields a boundary with empty
+		// Reason/Summary, still distinct from ItemKindUnknown.
 		var payload struct {
-			ID string `json:"id"`
+			ID      string `json:"id"`
+			Reason  string `json:"reason"`
+			Summary string `json:"summary"`
 		}
 		_ = json.Unmarshal(item.Raw, &payload)
 		return []conversation.Item{{
 			ID: payload.ID, Kind: conversation.ItemKindCompaction, Timestamp: ts, Source: "app_server",
+			Compaction: &conversation.CompactionBoundary{Reason: payload.Reason, Summary: payload.Summary},
 		}}
 	default:
 		return []conversation.Item{conversation.NewRawItem(conversation.ItemKindUnknown, ts, item.Raw)}

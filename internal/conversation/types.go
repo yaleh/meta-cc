@@ -27,13 +27,21 @@ type Session struct {
 	// carry this metadata). Zero values (ModelProvider == "", Archived ==
 	// false, ...) mean "unknown/not applicable", not "filtered out" —
 	// SessionFilter treats an unset filter dimension as "no constraint".
-	ModelProvider  string    `json:"model_provider,omitempty"`
-	SourceKind     string    `json:"source_kind,omitempty"`
-	Status         string    `json:"status,omitempty"` // "active" or "archived"; derived from Archived
-	Archived       bool      `json:"archived,omitempty"`
-	ParentThreadID string    `json:"parent_thread_id,omitempty"`
-	IsSubagent     bool      `json:"is_subagent,omitempty"`
-	UpdatedAt      time.Time `json:"updated_at,omitempty"`
+	ModelProvider  string `json:"model_provider,omitempty"`
+	SourceKind     string `json:"source_kind,omitempty"`
+	Status         string `json:"status,omitempty"` // "active" or "archived"; derived from Archived
+	Archived       bool   `json:"archived,omitempty"`
+	ParentThreadID string `json:"parent_thread_id,omitempty"`
+	// Lineage records what is known about ParentThreadID's provenance
+	// (DIR-032): a session with ParentThreadID == "" is only a confirmed
+	// root when Lineage == LineageStatusRoot; LineageStatusUnknown means
+	// spawn metadata simply wasn't available, so callers must not treat it
+	// as a root. Left at LineageStatusUnspecified by adapters that haven't
+	// been updated to populate it (treated the same as "unknown" by
+	// lineage-aware callers).
+	Lineage    LineageStatus `json:"lineage,omitempty"`
+	IsSubagent bool          `json:"is_subagent,omitempty"`
+	UpdatedAt  time.Time     `json:"updated_at,omitempty"`
 
 	CreatedAt  time.Time       `json:"created_at"`
 	TokenUsage TokenUsage      `json:"token_usage"`
@@ -57,6 +65,12 @@ type Turn struct {
 	TokenUsage    TokenUsage      `json:"token_usage,omitempty"`
 	Timestamp     time.Time       `json:"timestamp"`
 	Extensions    json.RawMessage `json:"extensions,omitempty"`
+
+	// Completeness reports whether this Turn is fully materialized content
+	// or a placeholder (DIR-032). See HistoryCompleteness.IsFull — a caller
+	// must check this before treating UserText/AssistantText/Items as
+	// complete when it is anything other than full/unspecified.
+	Completeness HistoryCompleteness `json:"completeness,omitempty"`
 }
 
 type ToolCall struct {
