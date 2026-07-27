@@ -209,6 +209,69 @@ RESOLVED_BIN="$INSTALLED_PATH/$RELATIVE_COMMAND"
 [ -x "$RESOLVED_BIN" ] || fail "MCP command resolved from the installed plugin is not an executable file: $RESOLVED_BIN"
 pass "MCP command '$MCP_COMMAND' resolves to an executable artifact under the installed plugin path"
 
+# Regression check for a real bug found via manual Codex session testing:
+# Codex execs a plugin's declared MCP "command" *literally* — it does not
+# resolve a relative command against the plugin's install directory, and it
+# does not adjust the child process's cwd unless the manifest declares one.
+# Without an explicit "cwd" in .codex-mcp.json, a relative command like
+# "./bin/meta-cc-mcp" only happens to resolve when Codex's own working
+# directory is the plugin's cache dir — never true in real usage, where Codex
+# is launched from a project directory. The fix is a "cwd": "." entry, which
+# Codex DOES resolve to an absolute path (confirmed below). This check proves
+# the declared command actually starts when invoked exactly as Codex would,
+# from a directory that has nothing to do with the plugin's install path.
+MCP_CWD=$(echo "$MCP_LIST_OUT" | jq -r '.[] | select(.name == "meta-cc") | .transport.cwd')
+[ -n "$MCP_CWD" ] && [ "$MCP_CWD" != "null" ] || fail "meta-cc MCP entry has no cwd set — a relative command ('$MCP_COMMAND') cannot reliably resolve without one"
+# Codex resolves the manifest's "cwd": "." to "$INSTALLED_PATH/." (trailing
+# "/."), not a normalized path — canonicalize both sides before comparing.
+MCP_CWD_REAL=$(cd "$MCP_CWD" 2>/dev/null && pwd -P) || fail "MCP cwd does not resolve to a real directory: $MCP_CWD"
+INSTALLED_PATH_REAL=$(cd "$INSTALLED_PATH" && pwd -P)
+[ "$MCP_CWD_REAL" = "$INSTALLED_PATH_REAL" ] || fail "MCP cwd ($MCP_CWD -> $MCP_CWD_REAL) does not match the installed plugin path ($INSTALLED_PATH -> $INSTALLED_PATH_REAL)"
+pass "meta-cc MCP entry declares cwd=$MCP_CWD (resolved to the installed plugin path)"
+
+UNRELATED_DIR="$TMP_DIR/unrelated-caller-dir"
+mkdir -p "$UNRELATED_DIR"
+
+# 1) Prove the original bug reproduces: the raw relative command, invoked
+#    from an unrelated directory with no cwd applied, must fail (ENOENT).
+if (cd "$UNRELATED_DIR" && "$MCP_COMMAND" >/dev/null 2>&1); then
+    fail "raw relative command '$MCP_COMMAND' unexpectedly succeeded from an unrelated directory without cwd applied — test assumption is stale"
+fi
+pass "raw relative command fails from an unrelated directory without cwd applied (confirms the bug this regression test targets)"
+
+# 2) Prove the fix works: applying the declared cwd (exactly as Codex should)
+#    lets the same relative command start correctly from that same directory.
+CROSS_DIR_RESPONSE=$(cd "$UNRELATED_DIR" && HOME="$TMP_DIR/fake-home" python3 - "$MCP_COMMAND" "$MCP_CWD" <<'PY' 2>&1 || true
+import subprocess
+import sys
+
+command, cwd = sys.argv[1], sys.argv[2]
+payload = '{"jsonrpc":"2.0","id":1,"method":"tools/list"}\n'
+try:
+    proc = subprocess.run(
+        [command],
+        input=payload,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=8,
+        cwd=cwd,
+        check=False,
+    )
+    print(proc.stdout, end="")
+except Exception as exc:
+    print(f"__EXEC_ERROR__ {exc}")
+PY
+)
+if echo "$CROSS_DIR_RESPONSE" | grep -q "__EXEC_ERROR__"; then
+    fail "declared command+cwd failed to spawn from an unrelated directory: $CROSS_DIR_RESPONSE"
+fi
+CROSS_DIR_JSONRPC=$(echo "$CROSS_DIR_RESPONSE" | grep -E '^\s*\{' | grep '"jsonrpc"' | head -1)
+[ -n "$CROSS_DIR_JSONRPC" ] || fail "no JSON-RPC response when invoking the declared command+cwd from an unrelated directory: $CROSS_DIR_RESPONSE"
+echo "$CROSS_DIR_JSONRPC" | jq -e '.result.tools | length > 0' >/dev/null \
+    || fail "declared command+cwd returned no tools when invoked from an unrelated directory"
+pass "declared command+cwd correctly starts meta-cc-mcp when invoked from a directory unrelated to the plugin install path"
+
 # Live tools/list against the ACTUAL installed artifact (not the source binary).
 TOOLS_RESPONSE=$(send_jsonrpc "$RESOLVED_BIN" '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$CODEX_HOME_A")
 [ -n "$TOOLS_RESPONSE" ] || fail "no JSON-RPC response from installed artifact for tools/list"

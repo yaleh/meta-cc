@@ -3,7 +3,8 @@
     "meta-cc": {
       "command": "./bin/meta-cc-mcp",
       "args": [],
-      "env": {}
+      "env": {},
+      "cwd": "."
     }
   }
 }
