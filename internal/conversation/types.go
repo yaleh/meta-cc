@@ -13,11 +13,28 @@ const (
 )
 
 type Session struct {
-	ID         string          `json:"id"`
-	Provider   ProviderID      `json:"provider"`
-	Title      string          `json:"title,omitempty"`
-	CWD        string          `json:"cwd"`
-	Model      string          `json:"model,omitempty"`
+	ID       string     `json:"id"`
+	Provider ProviderID `json:"provider"`
+	Title    string     `json:"title,omitempty"`
+	CWD      string     `json:"cwd"`
+	Model    string     `json:"model,omitempty"`
+
+	// Metadata fields below (DIR-030) describe a session/thread WITHOUT
+	// requiring its turns to be loaded — populated on a best-effort basis
+	// per provider/backend (see internal/provider/codex/appserver/map.go
+	// and internal/provider/codex/sqlite.go for Codex; the Claude provider
+	// leaves most of them at their zero value since Claude sessions don't
+	// carry this metadata). Zero values (ModelProvider == "", Archived ==
+	// false, ...) mean "unknown/not applicable", not "filtered out" —
+	// SessionFilter treats an unset filter dimension as "no constraint".
+	ModelProvider  string    `json:"model_provider,omitempty"`
+	SourceKind     string    `json:"source_kind,omitempty"`
+	Status         string    `json:"status,omitempty"` // "active" or "archived"; derived from Archived
+	Archived       bool      `json:"archived,omitempty"`
+	ParentThreadID string    `json:"parent_thread_id,omitempty"`
+	IsSubagent     bool      `json:"is_subagent,omitempty"`
+	UpdatedAt      time.Time `json:"updated_at,omitempty"`
+
 	CreatedAt  time.Time       `json:"created_at"`
 	TokenUsage TokenUsage      `json:"token_usage"`
 	Turns      []Turn          `json:"turns,omitempty"`

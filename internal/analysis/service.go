@@ -90,19 +90,31 @@ func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, [
 	}
 
 	providerName := stringArg(args, "provider")
+	// DIR-030: session_id, when set, is an exact-thread selector distinct
+	// from scope="session" ("most recent session") — it takes precedence
+	// over scope entirely and reads only the one requested session.
+	sessionID := stringArg(args, "session_id")
+
 	if providerName != "" && providerName != "claude" {
-		return s.loadProviderData(scope, workingDir, providerName)
+		return s.loadProviderData(scope, workingDir, providerName, sessionID)
 	}
 
 	loc := locator.NewSessionLocator()
 	var files []string
-	if scope == "session" {
+	switch {
+	case sessionID != "":
+		sessionFile, err := loc.FromSessionID(sessionID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("session_id %q not found: %w", sessionID, err)
+		}
+		files = []string{sessionFile}
+	case scope == "session":
 		sessionFile, err := loc.FromProjectPath(workingDir)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to locate session: %w", err)
 		}
 		files = []string{sessionFile}
-	} else {
+	default:
 		var err error
 		files, err = loc.AllSessionsFromProject(workingDir)
 		if err != nil {
@@ -124,7 +136,7 @@ func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, [
 	return allEntries, toolCalls, nil
 }
 
-func (s *Service) loadProviderData(scope, workingDir, providerName string) ([]types.SessionEntry, []types.ToolCall, error) {
+func (s *Service) loadProviderData(scope, workingDir, providerName, sessionID string) ([]types.SessionEntry, []types.ToolCall, error) {
 	projectPath, err := filepath.Abs(workingDir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to resolve project path: %w", err)
@@ -134,7 +146,15 @@ func (s *Service) loadProviderData(scope, workingDir, providerName string) ([]ty
 		return nil, nil, err
 	}
 	registry := rawfiles.NewRegistry(projectPath)
-	records, _, err := providerrecords.Build(context.Background(), registry, filters, scope, projectPath)
+
+	var records []map[string]interface{}
+	if sessionID != "" {
+		// DIR-030 exact-session fast path: GetSession/LoadTurns for this
+		// one ID only, never ListSessions across the whole project.
+		records, _, err = providerrecords.BuildForSession(context.Background(), registry, filters, sessionID, projectPath)
+	} else {
+		records, _, err = providerrecords.Build(context.Background(), registry, filters, scope, projectPath)
+	}
 	if err != nil {
 		return nil, nil, err
 	}

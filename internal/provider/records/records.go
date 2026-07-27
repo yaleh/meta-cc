@@ -30,10 +30,69 @@ func Build(ctx context.Context, registry *providerpkg.Registry, filters []conver
 		for _, session := range sessions {
 			turns, err := p.LoadTurns(ctx, session.ID)
 			if err != nil {
-				return nil, warnings, err
+				// DIR-030: one corrupt/unreadable session must not erase
+				// valid results from every other session a project query
+				// would otherwise return — record a per-session warning
+				// and keep going, rather than aborting the whole query.
+				warnings = append(warnings, fmt.Sprintf("provider %s session %s: failed to load turns, skipped: %v", p.ID(), session.ID, err))
+				continue
 			}
 			out = append(out, Normalize(session, turns)...)
 		}
+	}
+	return out, warnings, nil
+}
+
+// BuildForSession is Build narrowed to exactly one session ID: rather than
+// listing every session for the requested provider(s) and iterating them,
+// it calls GetSession/LoadTurns directly for sessionID on each requested
+// provider — satisfying the DIR-030 "exact session lookup reads only the
+// requested thread" contract. When filters names more than one provider
+// (e.g. "all"), a session not found in a given provider (or found but
+// outside projectPath's cwd boundary) is recorded as a warning and that
+// provider is skipped, rather than aborting the whole call — mirroring
+// Build's per-session tolerance. An error is returned only when the
+// session was not found (within bounds) in ANY requested provider.
+func BuildForSession(ctx context.Context, registry *providerpkg.Registry, filters []conversation.ProviderID, sessionID, projectPath string) ([]map[string]interface{}, []string, error) {
+	var (
+		out      []map[string]interface{}
+		warnings []string
+		found    bool
+	)
+
+	for _, p := range registry.Providers(filters) {
+		if !p.IsAvailable(ctx) {
+			warnings = append(warnings, fmt.Sprintf("provider %s unavailable", p.ID()))
+			continue
+		}
+		session, err := p.GetSession(ctx, sessionID)
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("provider %s: session %s not found: %v", p.ID(), sessionID, err))
+			continue
+		}
+		// Mirror FilterSessionsForScope's cwd-boundary check: a session_id
+		// lookup must never cross project boundaries, e.g. by returning a
+		// same-named session that actually belongs to a different project.
+		// Unlike FilterSessionsForScope (which only needs this for Codex,
+		// since Claude's ListSessions is already project-scoped by
+		// construction via locator.AllSessionsFromProject), GetSession's
+		// underlying lookup for EVERY provider can resolve outside
+		// projectPath (Claude's findSessionFile falls back to a global,
+		// unscoped locator.FromSessionID search), so this check applies to
+		// all providers, not just Codex.
+		if session.CWD != "" && projectPath != "" && session.CWD != projectPath {
+			warnings = append(warnings, fmt.Sprintf("provider %s: session %s belongs to a different project (%s), excluded", p.ID(), sessionID, session.CWD))
+			continue
+		}
+		turns, err := p.LoadTurns(ctx, sessionID)
+		if err != nil {
+			return nil, warnings, fmt.Errorf("provider %s: failed to load turns for session %s: %w", p.ID(), sessionID, err)
+		}
+		out = append(out, Normalize(session, turns)...)
+		found = true
+	}
+	if !found {
+		return nil, warnings, fmt.Errorf("session %q not found for the requested provider(s) within project %q", sessionID, projectPath)
 	}
 	return out, warnings, nil
 }

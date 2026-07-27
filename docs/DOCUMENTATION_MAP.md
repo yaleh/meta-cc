@@ -136,7 +136,7 @@ graph TD
 
 ### For Advanced Users
 
-1. **MCP Tools Reference**: [docs/guides/mcp.md](guides/mcp.md) - Complete MCP tool reference (15 tools)
+1. **MCP Tools Reference**: [docs/guides/mcp.md](guides/mcp.md) - Complete MCP tool reference (16 tools)
 2. **JSONL Reference**: [docs/reference/jsonl.md](reference/jsonl.md) - Output format and jq patterns
 3. **JSONL Schema**: [docs/reference/jsonl-schema.md](reference/jsonl-schema.md) - Session file structure specification
 4. **Query Examples**:

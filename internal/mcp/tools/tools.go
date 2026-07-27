@@ -59,6 +59,23 @@ func StandardToolParameters() map[string]Property {
 	}
 }
 
+// SessionIDProperty is the "session_id" property shared by tools that
+// support an exact-thread fast path (DIR-030): unlike scope="session"
+// (which means "the most recently modified session"), session_id selects
+// one specific session/thread by ID and reads only that session — see
+// docs/guides/mcp-query-tools.md's "scope vs session_id" section for the
+// full distinction. Declared once so every tool that wires it through
+// (see internal/mcp/executor's dispatchProviderQuery/loadData callers)
+// documents it identically.
+func SessionIDProperty() Property {
+	return Property{
+		Type: "string",
+		Description: `Exact session/thread ID to query, reading only that one session (never "most recent" and never every session in scope). ` +
+			`Distinct from scope="session" (which means "the most recently modified session" and is unrelated to a specific ID). ` +
+			`When set, "scope" and "cwd"/project-boundary filters still apply to the fetched session's metadata (e.g. a session outside the current project is excluded), but no other session is listed or loaded.`,
+	}
+}
+
 // JqFilterWithSchema creates a jq_filter property with output schema documentation
 func JqFilterWithSchema(fields map[string]string, example string) Property {
 	var fieldDocs []string
@@ -206,6 +223,7 @@ func GetToolDefinitions() []Tool {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
+			"session_id": SessionIDProperty(),
 		}),
 		BuildTool("analyze_bugs", "Detect error-fix pairs and recurring bug patterns. Default scope: project.", map[string]Property{
 			"limit": {
@@ -216,18 +234,21 @@ func GetToolDefinitions() []Tool {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
+			"session_id": SessionIDProperty(),
 		}),
 		BuildTool("quality_scan", "Compute quality dimensions: error rate, retry rate, diversity, completion. Default scope: project.", map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
+			"session_id": SessionIDProperty(),
 		}),
 		BuildTool("get_work_patterns", "Get tool frequency, hourly activity, and context switches. Default scope: project.", map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
+			"session_id": SessionIDProperty(),
 		}),
 		BuildTool("get_session_metadata", "Get session metadata including JSONL schema, file info, and query templates. Default scope: project.", map[string]Property{
 			"scope": {
@@ -264,6 +285,7 @@ func GetToolDefinitions() []Tool {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
+			"session_id": SessionIDProperty(),
 		}),
 		BuildTool("get_tech_debt", "Detect TODO/FIXME/HACK/XXX markers and unresolved errors as tech debt. Default scope: project.", map[string]Property{
 			"working_dir": {
@@ -274,6 +296,7 @@ func GetToolDefinitions() []Tool {
 				Type:        "string",
 				Description: "Optional path to source code directory to scan for TODO/FIXME/HACK/XXX markers on disk. Results merged with session-transcript markers.",
 			},
+			"session_id": SessionIDProperty(),
 		}),
 		// ─── New consolidated query tools (replacing the 10 legacy query_* tools) ───
 
@@ -360,6 +383,7 @@ func GetToolDefinitions() []Tool {
 					Type:        "string",
 					Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 				},
+				"session_id": SessionIDProperty(),
 			}, "role"),
 
 		BuildTool("query_session_signals",
@@ -393,6 +417,7 @@ func GetToolDefinitions() []Tool {
 					Type:        "string",
 					Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 				},
+				"session_id": SessionIDProperty(),
 			}, "type"),
 
 		BuildTool("query_file_activity",
@@ -410,7 +435,71 @@ func GetToolDefinitions() []Tool {
 					Type:        "string",
 					Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 				},
+				"session_id": SessionIDProperty(),
 			}, "type"),
+
+		BuildTool("query_sessions",
+			"List session/thread metadata without loading turn content. Default scope: project.",
+			map[string]Property{
+				"cwd": {
+					Type:        "string",
+					Description: `Exact cwd to scope the listing to. Defaults to the project boundary derived from working_dir (or MCP server CWD) — sessions outside that cwd are never returned, matching every other tool's project-scope behavior.`,
+				},
+				"session_id": SessionIDProperty(),
+				"archived": {
+					Type:        "boolean",
+					Description: `Codex only (provider="codex" or "all"). Filter by archived state: true = only archived threads, false = only active threads, omitted = both.`,
+				},
+				"status": {
+					Type:        "string",
+					Description: `Codex only. "active" or "archived" — an alias for the archived filter expressed as a status value. Conflicting status/archived values fail with an error.`,
+				},
+				"source_kind": {
+					Type:        "array",
+					Description: `Codex only. Filter by one or more source kinds: "cli", "vscode", "exec", "appServer", "subAgent", "subAgentReview", "subAgentCompact", "subAgentThreadSpawn", "subAgentOther", "unknown". An unrecognized value is a validation error, not a silently-empty result.`,
+					Items:       &Property{Type: "string"},
+				},
+				"model_provider": {
+					Type:        "string",
+					Description: `Codex only. Filter by model provider (e.g. "openai").`,
+				},
+				"model": {
+					Type:        "string",
+					Description: "Filter by model name substring (case-insensitive).",
+				},
+				"parent_thread_id": {
+					Type:        "string",
+					Description: "Codex only. Filter by exact parent/ancestor thread ID (e.g. to list a subagent thread's lineage).",
+				},
+				"title_contains": {
+					Type:        "string",
+					Description: "Filter by a case-insensitive substring match against the session title.",
+				},
+				"created_since": {
+					Type:        "string",
+					Description: `Include only sessions created at/after this value (RFC3339, e.g. "2026-03-07T00:00:00Z").`,
+				},
+				"created_until": {
+					Type:        "string",
+					Description: `Include only sessions created before this value (RFC3339).`,
+				},
+				"updated_since": {
+					Type:        "string",
+					Description: `Include only sessions updated at/after this value (RFC3339). Codex only — Claude sessions don't track a separate updated_at.`,
+				},
+				"updated_until": {
+					Type:        "string",
+					Description: `Include only sessions updated before this value (RFC3339). Codex only.`,
+				},
+				"limit": {
+					Type:        "number",
+					Description: "Max sessions to return (0 = unlimited). Combine with the standard offset/page_size parameters for cursor-style pagination over a large project.",
+				},
+				"working_dir": {
+					Type:        "string",
+					Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
+				},
+			}),
 
 		BuildTool("query_edit_sequences", "Analyze file edit/read patterns: docRole, co-accessed docs, DocVoid. Default scope: project.", map[string]Property{
 			"files": {

@@ -26,6 +26,12 @@ func MapThread(t Thread) conversation.Session {
 		turns = append(turns, mapTurn(turn))
 	}
 
+	parentThreadID := ""
+	if t.ParentThreadID != nil {
+		parentThreadID = *t.ParentThreadID
+	}
+	sourceKind := parseSourceKind(t.Source)
+
 	ext, _ := json.Marshal(map[string]interface{}{
 		"backend":          "app_server",
 		"session_id":       t.SessionID,
@@ -35,15 +41,40 @@ func MapThread(t Thread) conversation.Session {
 	})
 
 	return conversation.Session{
-		ID:         t.ID,
-		Provider:   conversation.ProviderCodex,
-		Title:      title,
-		CWD:        t.CWD,
-		Model:      t.ModelProvider,
-		CreatedAt:  time.Unix(t.CreatedAt, 0).UTC(),
-		Turns:      turns,
-		Extensions: ext,
+		ID:             t.ID,
+		Provider:       conversation.ProviderCodex,
+		Title:          title,
+		CWD:            t.CWD,
+		Model:          t.ModelProvider,
+		ModelProvider:  t.ModelProvider,
+		SourceKind:     sourceKind,
+		Status:         "active", // caller (listSessions) overwrites with Archived/Status when it knows which archived-pass this thread came from
+		ParentThreadID: parentThreadID,
+		IsSubagent:     strings.HasPrefix(sourceKind, "subAgent"),
+		CreatedAt:      time.Unix(t.CreatedAt, 0).UTC(),
+		UpdatedAt:      time.Unix(t.UpdatedAt, 0).UTC(),
+		Turns:          turns,
+		Extensions:     ext,
 	}
+}
+
+// parseSourceKind extracts the "type" discriminant from a Thread's raw
+// Source payload (a oneOf tagged by "type", matching the ThreadSourceKind
+// enum documented in docs/reference/codex-app-server.md — "cli", "vscode",
+// "exec", "subAgent", ...). An unparseable/empty Source yields "" rather
+// than an error: source kind is a filter convenience, not something a
+// listing should fail over.
+func parseSourceKind(raw json.RawMessage) string {
+	var payload struct {
+		Type string `json:"type"`
+	}
+	if len(raw) == 0 {
+		return ""
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return ""
+	}
+	return payload.Type
 }
 
 func mapTurn(t Turn) conversation.Turn {

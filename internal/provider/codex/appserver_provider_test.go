@@ -6,6 +6,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/yaleh/meta-cc/internal/conversation"
 	"github.com/yaleh/meta-cc/internal/provider/codex/appserver"
 )
 
@@ -127,5 +128,84 @@ func TestAppServerBackendConnectErrorPropagates(t *testing.T) {
 	b := &appServerBackend{connect: connectFake(nil, nil, errors.New("no app-server"))}
 	if _, err := b.listSessions(context.Background()); err == nil {
 		t.Fatalf("expected connect error to propagate")
+	}
+}
+
+// TestAppServerBackendListSessionsFilteredPushesParamsDownIntoThreadList is
+// the DIR-030 "query planning demonstrates metadata filtering before deep
+// loading" proof for the app_server backend: it asserts the CWD/Archived/
+// ModelProviders/SourceKinds filter dimensions reach the thread/list
+// request itself (real server-side narrowing), not just a post-hoc Go
+// filter over an unfiltered response. thread/read (the only call that
+// would parse turn/item content) is never invoked at all.
+func TestAppServerBackendListSessionsFilteredPushesParamsDownIntoThreadList(t *testing.T) {
+	src := &fakeThreadSource{pages: map[string]appserver.ThreadListResult{
+		"active:": {Data: []appserver.Thread{{ID: "t1", CWD: "/proj", CreatedAt: 1}}},
+	}}
+	b := &appServerBackend{connect: connectFake(src, &noopCloser{}, nil)}
+
+	archivedFalse := false
+	filter := conversation.SessionFilter{
+		CWD:           "/proj",
+		Archived:      &archivedFalse,
+		ModelProvider: "openai",
+		SourceKinds:   []string{"cli", "exec"},
+	}
+	sessions, err := b.listSessionsFiltered(context.Background(), filter)
+	if err != nil {
+		t.Fatalf("listSessionsFiltered: %v", err)
+	}
+	if len(sessions) != 1 || sessions[0].ID != "t1" {
+		t.Fatalf("unexpected sessions: %#v", sessions)
+	}
+
+	if len(src.listCall) != 1 {
+		t.Fatalf("expected exactly one thread/list call (archived filter is exclusive, so only one pass), got %d", len(src.listCall))
+	}
+	p := src.listCall[0]
+	if len(p.CWD) != 1 || p.CWD[0] != "/proj" {
+		t.Fatalf("expected cwd pushed into thread/list params, got %#v", p.CWD)
+	}
+	if p.Archived == nil || *p.Archived != false {
+		t.Fatalf("expected archived=false pushed into thread/list params, got %#v", p.Archived)
+	}
+	if len(p.ModelProviders) != 1 || p.ModelProviders[0] != "openai" {
+		t.Fatalf("expected modelProvider pushed into thread/list params, got %#v", p.ModelProviders)
+	}
+	if len(p.SourceKinds) != 2 {
+		t.Fatalf("expected explicit sourceKinds pushed into thread/list params, got %#v", p.SourceKinds)
+	}
+}
+
+// TestAppServerBackendListSessionsFilteredArchivedNilRunsBothPasses proves
+// that an unset Archived filter still runs both the non-archived and
+// archived thread/list passes (matching listSessions' existing behavior),
+// while an explicit Archived value narrows to exactly one pass.
+func TestAppServerBackendListSessionsFilteredArchivedNilRunsBothPasses(t *testing.T) {
+	src := &fakeThreadSource{pages: map[string]appserver.ThreadListResult{
+		"active:":   {Data: []appserver.Thread{{ID: "t1", CreatedAt: 1}}},
+		"archived:": {Data: []appserver.Thread{{ID: "t2", CreatedAt: 2}}},
+	}}
+	b := &appServerBackend{connect: connectFake(src, &noopCloser{}, nil)}
+
+	sessions, err := b.listSessionsFiltered(context.Background(), conversation.SessionFilter{})
+	if err != nil {
+		t.Fatalf("listSessionsFiltered: %v", err)
+	}
+	if len(sessions) != 2 {
+		t.Fatalf("expected both archived-state passes merged, got %#v", sessions)
+	}
+	for _, s := range sessions {
+		wantArchived := s.ID == "t2"
+		if s.Archived != wantArchived {
+			t.Fatalf("session %s: expected Archived=%v, got %v", s.ID, wantArchived, s.Archived)
+		}
+		wantStatus := "active"
+		if wantArchived {
+			wantStatus = "archived"
+		}
+		if s.Status != wantStatus {
+			t.Fatalf("session %s: expected Status=%q, got %q", s.ID, wantStatus, s.Status)
+		}
 	}
 }

@@ -45,7 +45,75 @@ Codex rollout normalization covers:
 
 Claude-specific records without Codex equivalents remain host-specific: `file-history-snapshot`, top-level `summary`, and `system` records with `subtype: "api_error"`.
 
+## `scope` vs exact `session_id` (DIR-030)
+
+`scope="session"` (on `query_session_content`, `query_session_signals`, `query_file_activity`, and the analysis tools) means **"the most recently modified session in the current project"** — it is a convenience default, not a way to target one specific session by ID. It has meant this since before DIR-030 and that meaning is unchanged.
+
+`session_id` is a separate, optional parameter on those same tools (and on `query_sessions`, see below) that selects **exactly one session/thread by its ID**, regardless of how recent it is or how many other sessions exist in the project:
+
+- `scope="session"` — "give me whatever I was just working on" (most-recent, no ID needed).
+- `session_id="<id>"` — "give me exactly this session" (id required, works for any session in the project, not just the most recent).
+
+When `session_id` is set, the query reads only that one session — it never lists or loads any other session, which is both faster and precise for a project with many sessions. Combine `query_sessions` (to discover which session you want) with `session_id` on a content/signal tool (to query it):
+
+```javascript
+// 1. Discover: find the session about "migration"
+const sessions = await query_sessions({
+  provider: "codex",
+  title_contains: "migration"
+})
+
+// 2. Query: read exactly that session's tool errors
+query_session_signals({
+  type: "errors",
+  provider: "codex",
+  session_id: sessions[0].session_id
+})
+```
+
 ## Tool Catalog
+
+### `query_sessions` (session discovery)
+
+Lists session/thread **metadata** — id, cwd, title, status, source_kind, model, model_provider, archived, parent_thread_id, is_subagent, created_at, updated_at — **without loading any turn/message content**. Use it to discover which session to target before querying it with `session_id` on another tool (see above). Default scope: project.
+
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `session_id` | string | Exact session/thread ID; returns metadata for just that one session (still no turn content loaded). |
+| `cwd` | string | Exact cwd to scope the listing to. Defaults to the project boundary derived from `working_dir`. |
+| `archived` | boolean | Codex only. `true` = archived threads, `false` = active threads, omitted = both. |
+| `status` | string | Codex only. `"active"` or `"archived"` — alias for `archived`. Conflicting `status`/`archived` values are a validation error. |
+| `source_kind` | array of string | Codex only. One or more of `cli`, `vscode`, `exec`, `appServer`, `subAgent`, `subAgentReview`, `subAgentCompact`, `subAgentThreadSpawn`, `subAgentOther`, `unknown`. An unrecognized value is a validation error. |
+| `model_provider` | string | Codex only (e.g. `"openai"`). |
+| `model` | string | Substring match against the model name. |
+| `parent_thread_id` | string | Codex only. Exact parent/ancestor thread ID (subagent lineage). |
+| `title_contains` | string | Case-insensitive substring match against the session title. |
+| `created_since` / `created_until` | string (RFC3339) | Filter by creation time range. |
+| `updated_since` / `updated_until` | string (RFC3339) | Codex only. Filter by last-updated time range. |
+| `include_subagents` | boolean | Default `true`; `false` excludes subagent-sourced sessions. |
+| `limit` | number | Max sessions to return. Combine with the standard `offset`/`page_size` parameters for pagination over a large project. |
+
+Codex-only filters (`source_kind`, `model_provider`, `parent_thread_id`, `archived`, `status`) fail with an actionable error if used while `provider` is `"claude"` (the default) — Claude sessions don't carry this metadata, so the filter could never match and a silent empty result would be indistinguishable from "no sessions found".
+
+A session whose metadata can't be read (e.g. a corrupted `threads` row) is skipped with a warning rather than aborting the whole listing; other sessions still return normally.
+
+Examples:
+
+```javascript
+// List active Codex sessions in the current project, most recent first
+query_sessions({ provider: "codex" })
+
+// Find archived subagent threads under a given parent
+query_sessions({
+  provider: "codex",
+  archived: true,
+  source_kind: ["subAgent"],
+  parent_thread_id: "thread-abc"
+})
+
+// Exact lookup (metadata only, no turns)
+query_sessions({ provider: "codex", session_id: "thread-abc" })
+```
 
 ### Consolidated Query Tools
 
@@ -267,9 +335,10 @@ Most query tools accept:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `scope` | string | `project` (default) or `session` |
+| `scope` | string | `project` (default) or `session` (= most recently modified session — see [`scope` vs exact `session_id`](#scope-vs-exact-session_id-dir-030)) |
 | `provider` | string | `claude` (default), `codex`, or `all` |
 | `working_dir` | string | Override project path used for session lookup |
+| `session_id` | string | Exact session/thread ID (content/signal/file-activity/analysis tools, and `query_sessions`). Reads only that one session; distinct from `scope="session"`. |
 | `limit` | number | Maximum results; default is no limit |
 | `stats_only` | boolean | Return aggregate statistics only |
 | `stats_first` | boolean | Return stats followed by details |

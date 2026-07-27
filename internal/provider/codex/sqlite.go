@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -38,6 +39,60 @@ func listSessionsFromDB(ctx context.Context, dsn string) ([]conversation.Session
 		sessions = append(sessions, session)
 	}
 	return sessions, rows.Err()
+}
+
+// listSessionsFromDBFiltered is listSessionsFromDB extended with DIR-030
+// metadata filters. It pushes a "cwd" predicate into the SQL WHERE clause
+// when filter.CWD is set (the "cwd" column is part of the tested/supported
+// threads schema — see scanSession's "required" columns — so this pushdown
+// is always safe), then applies conversation.ApplyFilter for every other
+// dimension in Go. That second pass still touches only the metadata this
+// SELECT already fetched — no rollout file is opened — so this remains a
+// metadata-only listing regardless of how much of the filter reached SQL.
+//
+// A single row that fails to scan (e.g. a NULL/type mismatch in one
+// corrupted threads-table row) is skipped with a warning rather than
+// aborting the whole listing, mirroring the per-session tolerance the
+// files backend's turn-loading path (providerrecords.Build) applies.
+func listSessionsFromDBFiltered(ctx context.Context, dsn string, filter conversation.SessionFilter) ([]conversation.Session, []string, error) {
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer db.Close()
+
+	if err := ensureThreadsTable(ctx, db); err != nil {
+		return nil, nil, err
+	}
+
+	query := "SELECT * FROM threads"
+	var args []interface{}
+	if filter.CWD != "" {
+		query += " WHERE cwd = ?"
+		args = append(args, filter.CWD)
+	}
+	query += " ORDER BY created_at DESC, id DESC"
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	var sessions []conversation.Session
+	var warnings []string
+	for rows.Next() {
+		session, err := scanSession(rows)
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("codex files backend: skipped unreadable threads row: %v", err))
+			continue
+		}
+		sessions = append(sessions, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, warnings, err
+	}
+	return conversation.ApplyFilter(sessions, filter), warnings, nil
 }
 
 func getSessionFromDB(ctx context.Context, dsn, sessionID string) (conversation.Session, error) {
@@ -102,21 +157,47 @@ func scanSession(rows *sql.Rows) (conversation.Session, error) {
 	if createdAt.IsZero() {
 		createdAt = extractTime(colMap["created_at"])
 	}
+	// updated_at/updated_at_ms and archived/parent_thread_id are NOT part
+	// of the tested/documented threads schema (see sqlite_test.go), so
+	// these are opportunistic: present on schemas that have them, zero
+	// value (colMap lookup miss -> "") on schemas that don't, exactly like
+	// every other optional column this function already tolerates.
+	updatedAt := extractTime(colMap["updated_at_ms"])
+	if updatedAt.IsZero() {
+		updatedAt = extractTime(colMap["updated_at"])
+	}
+	if updatedAt.IsZero() {
+		updatedAt = createdAt
+	}
+	sourceKind := stringValue(colMap["source"])
+	archived := boolValue(colMap["archived"])
 
 	ext, _ := json.Marshal(map[string]interface{}{
 		"rollout_path":   stringValue(colMap["rollout_path"]),
-		"source":         stringValue(colMap["source"]),
+		"source":         sourceKind,
 		"thread_source":  stringValue(colMap["thread_source"]),
 		"model_provider": stringValue(colMap["model_provider"]),
 	})
 
+	status := "active"
+	if archived {
+		status = "archived"
+	}
+
 	return conversation.Session{
-		ID:        stringValue(colMap["id"]),
-		Provider:  conversation.ProviderCodex,
-		Title:     stringValue(colMap["title"]),
-		CWD:       stringValue(colMap["cwd"]),
-		Model:     firstNonEmpty(stringValue(colMap["model"]), stringValue(colMap["model_provider"])),
-		CreatedAt: createdAt.UTC(),
+		ID:             stringValue(colMap["id"]),
+		Provider:       conversation.ProviderCodex,
+		Title:          stringValue(colMap["title"]),
+		CWD:            stringValue(colMap["cwd"]),
+		Model:          firstNonEmpty(stringValue(colMap["model"]), stringValue(colMap["model_provider"])),
+		ModelProvider:  stringValue(colMap["model_provider"]),
+		SourceKind:     sourceKind,
+		Status:         status,
+		Archived:       archived,
+		ParentThreadID: stringValue(colMap["parent_thread_id"]),
+		IsSubagent:     strings.HasPrefix(sourceKind, "subAgent"),
+		CreatedAt:      createdAt.UTC(),
+		UpdatedAt:      updatedAt.UTC(),
 		TokenUsage: conversation.TokenUsage{
 			InputTokens: intValue(colMap["tokens_used"]),
 		},
@@ -169,6 +250,28 @@ func intValue(v interface{}) int {
 		return n
 	default:
 		return 0
+	}
+}
+
+// boolValue interprets a threads-table column value as a boolean. SQLite
+// has no native boolean type, so drivers commonly surface it as int64(0/1)
+// or occasionally a string; a missing column (nil) or any unrecognized
+// value defaults to false, matching the "unknown metadata" convention used
+// throughout this file rather than erroring.
+func boolValue(v interface{}) bool {
+	switch x := v.(type) {
+	case bool:
+		return x
+	case int64:
+		return x != 0
+	case int:
+		return x != 0
+	case []byte:
+		return boolValue(string(x))
+	case string:
+		return x == "1" || x == "true" || x == "t"
+	default:
+		return false
 	}
 }
 

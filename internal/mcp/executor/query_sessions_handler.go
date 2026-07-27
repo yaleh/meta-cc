@@ -1,0 +1,265 @@
+package executor
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/yaleh/meta-cc/internal/conversation"
+	"github.com/yaleh/meta-cc/internal/locator"
+	mcquery "github.com/yaleh/meta-cc/internal/mcp/query"
+	claudeprovider "github.com/yaleh/meta-cc/internal/provider/claude"
+	codexprovider "github.com/yaleh/meta-cc/internal/provider/codex"
+	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
+	providerrecords "github.com/yaleh/meta-cc/internal/provider/records"
+)
+
+// query_sessions_handler.go implements the DIR-030 metadata-first session
+// discovery tool: it lists session/thread metadata (id, cwd, title,
+// status, source kind, model, archived, parent thread, timestamps)
+// WITHOUT loading turn/rollout content, and supports the filter
+// dimensions in conversation.SessionFilter. It is a distinct tool from
+// scope="session" on the existing content/signal tools (which means "the
+// most recently modified session") — see docs/guides/mcp-query-tools.md.
+
+func init() {
+	registerQueryHandler("query_sessions", func(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
+		return handleQuerySessions(e, scope, args)
+	})
+}
+
+// codexOnlyFilterArgs names the query_sessions arguments that only apply
+// to Codex session metadata (Claude sessions never populate these fields).
+// Using one of these with an explicit/default provider="claude" can never
+// match anything, so it fails closed with an actionable error instead of
+// silently returning zero results (which would look identical to "no
+// sessions matched", masking the real mistake).
+var codexOnlyFilterArgs = []string{"source_kind", "model_provider", "parent_thread_id", "archived", "status"}
+
+func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
+	providerName := GetStringParam(args, "provider", "claude")
+	workingDir := GetStringParam(args, "working_dir", "")
+
+	providers, err := rawfiles.ParseProviderFilter(providerName)
+	if err != nil {
+		return mcquery.QueryResult{}, err
+	}
+
+	if providerName == "" || providerName == "claude" {
+		for _, argName := range codexOnlyFilterArgs {
+			if _, set := args[argName]; set {
+				return mcquery.QueryResult{}, fmt.Errorf(
+					"filter %q is only supported for provider=\"codex\" or provider=\"all\" (Claude sessions don't carry this metadata); "+
+						"pass provider explicitly or drop the filter", argName)
+			}
+		}
+	}
+
+	filter, err := buildSessionFilterFromArgs(args)
+	if err != nil {
+		return mcquery.QueryResult{}, err
+	}
+
+	projectPath := workingDir
+	if projectPath == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return mcquery.QueryResult{}, err
+		}
+		projectPath = cwd
+	}
+	if abs, err := filepath.Abs(projectPath); err == nil {
+		projectPath = abs
+	}
+	// The project/cwd boundary: an explicit "cwd" filter narrows further,
+	// but scope always stays bounded to projectPath — query_sessions never
+	// lists sessions across every project on disk (matching every other
+	// query/analysis tool's default project scope).
+	boundaryCWD := projectPath
+	if filter.CWD != "" {
+		boundaryCWD = filter.CWD
+	} else {
+		filter.CWD = projectPath
+	}
+
+	ctx := context.Background()
+	var (
+		merged   []conversation.Session
+		warnings []string
+	)
+
+	for _, pid := range providers {
+		switch pid {
+		case conversation.ProviderCodex:
+			p := codexprovider.NewProvider(locator.NewCodexLocator())
+			if !p.IsAvailable(ctx) {
+				warnings = append(warnings, "provider codex unavailable")
+				continue
+			}
+			sessions, err := p.ListSessionsFiltered(ctx, filter)
+			if err != nil {
+				warnings = append(warnings, fmt.Sprintf("provider codex: %v", err))
+				continue
+			}
+			warnings = append(warnings, p.Warnings()...)
+			sessions = reduceForScope(sessions, scope, boundaryCWD, conversation.ProviderCodex)
+			merged = append(merged, sessions...)
+
+		case conversation.ProviderClaude:
+			p := claudeprovider.NewProvider(locator.NewSessionLocator(), boundaryCWD)
+			if !p.IsAvailable(ctx) {
+				warnings = append(warnings, "provider claude unavailable")
+				continue
+			}
+			var sessions []conversation.Session
+			if filter.SessionID != "" {
+				session, err := p.GetSession(ctx, filter.SessionID)
+				if err != nil {
+					warnings = append(warnings, fmt.Sprintf("provider claude: session %s not found: %v", filter.SessionID, err))
+					continue
+				}
+				sessions = []conversation.Session{session}
+			} else {
+				sessions, err = p.ListSessions(ctx)
+				if err != nil {
+					return mcquery.QueryResult{}, fmt.Errorf("provider claude: %w", err)
+				}
+			}
+			claudeFilter := filter
+			claudeFilter.SessionID = "" // already resolved via GetSession above
+			sessions = conversation.ApplyFilter(sessions, claudeFilter)
+			sessions = reduceForScope(sessions, scope, boundaryCWD, conversation.ProviderClaude)
+			merged = append(merged, sessions...)
+		}
+	}
+
+	conversation.SortSessionsDeterministic(merged)
+
+	if limit := GetIntParam(args, "limit", 0); limit > 0 && len(merged) > limit {
+		merged = merged[:limit]
+	}
+
+	entries := make([]interface{}, 0, len(merged))
+	for _, s := range merged {
+		entries = append(entries, sessionToEntry(s))
+	}
+
+	return mcquery.QueryResult{Entries: entries, Warnings: warnings}, nil
+}
+
+// reduceForScope applies scope=="session" (most recent) via the same
+// providerrecords.FilterSessionsForScope helper the content-query path
+// uses, so query_sessions and query_session_content agree on what
+// "session scope" means (backward-compatible: "most recently modified
+// session", NOT the same thing as an exact session_id — see
+// docs/guides/mcp-query-tools.md). scope=="project" (default) is a no-op
+// here since these sessions are already cwd-boundary-filtered.
+func reduceForScope(sessions []conversation.Session, scope, projectPath string, providerID conversation.ProviderID) []conversation.Session {
+	return providerrecords.FilterSessionsForScope(sessions, scope, projectPath, providerID)
+}
+
+func sessionToEntry(s conversation.Session) map[string]interface{} {
+	entry := map[string]interface{}{
+		"session_id": s.ID,
+		"provider":   string(s.Provider),
+		"cwd":        s.CWD,
+		"title":      s.Title,
+		"model":      s.Model,
+		"status":     s.Status,
+		"archived":   s.Archived,
+		"created_at": s.CreatedAt.Format(time.RFC3339),
+	}
+	if s.ModelProvider != "" {
+		entry["model_provider"] = s.ModelProvider
+	}
+	if s.SourceKind != "" {
+		entry["source_kind"] = s.SourceKind
+	}
+	if s.ParentThreadID != "" {
+		entry["parent_thread_id"] = s.ParentThreadID
+	}
+	if s.IsSubagent {
+		entry["is_subagent"] = true
+	}
+	if !s.UpdatedAt.IsZero() {
+		entry["updated_at"] = s.UpdatedAt.Format(time.RFC3339)
+	}
+	return entry
+}
+
+// buildSessionFilterFromArgs parses and validates the query_sessions
+// filter arguments into a conversation.SessionFilter, failing closed
+// (actionable error, not a silently-ignored/ambiguous filter) on
+// unparseable time values or a status/archived contradiction.
+func buildSessionFilterFromArgs(args map[string]interface{}) (conversation.SessionFilter, error) {
+	filter := conversation.SessionFilter{
+		SessionID:        GetStringParam(args, "session_id", ""),
+		CWD:              GetStringParam(args, "cwd", ""),
+		Archived:         GetBoolPtrParam(args, "archived"),
+		SourceKinds:      GetStringSliceParam(args, "source_kind"),
+		ModelProvider:    GetStringParam(args, "model_provider", ""),
+		Model:            GetStringParam(args, "model", ""),
+		Status:           GetStringParam(args, "status", ""),
+		ParentThreadID:   GetStringParam(args, "parent_thread_id", ""),
+		TitleContains:    GetStringParam(args, "title_contains", ""),
+		IncludeSubagents: GetBoolParam(args, "include_subagents", true),
+	}
+
+	if filter.Status != "" && filter.Status != "active" && filter.Status != "archived" {
+		return filter, fmt.Errorf(`invalid status %q: must be "active" or "archived"`, filter.Status)
+	}
+	if filter.Status != "" && filter.Archived != nil {
+		wantArchived := filter.Status == "archived"
+		if *filter.Archived != wantArchived {
+			return filter, fmt.Errorf("conflicting filters: status=%q implies archived=%v, but archived=%v was also given", filter.Status, wantArchived, *filter.Archived)
+		}
+	}
+
+	if len(filter.SourceKinds) > 0 {
+		for _, sk := range filter.SourceKinds {
+			if !containsFoldSlice(codexprovider.KnownSourceKinds, sk) {
+				return filter, fmt.Errorf("invalid source_kind %q: must be one of %s", sk, strings.Join(codexprovider.KnownSourceKinds, ", "))
+			}
+		}
+	}
+
+	var err error
+	if filter.CreatedSince, err = parseOptionalRFC3339(args, "created_since"); err != nil {
+		return filter, err
+	}
+	if filter.CreatedUntil, err = parseOptionalRFC3339(args, "created_until"); err != nil {
+		return filter, err
+	}
+	if filter.UpdatedSince, err = parseOptionalRFC3339(args, "updated_since"); err != nil {
+		return filter, err
+	}
+	if filter.UpdatedUntil, err = parseOptionalRFC3339(args, "updated_until"); err != nil {
+		return filter, err
+	}
+
+	return filter, nil
+}
+
+func parseOptionalRFC3339(args map[string]interface{}, key string) (*time.Time, error) {
+	raw := GetStringParam(args, key, "")
+	if raw == "" {
+		return nil, nil
+	}
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s value %q: must be RFC3339 (e.g. 2026-03-07T00:00:00Z)", key, raw)
+	}
+	return &t, nil
+}
+
+func containsFoldSlice(list []string, v string) bool {
+	for _, item := range list {
+		if strings.EqualFold(item, v) {
+			return true
+		}
+	}
+	return false
+}

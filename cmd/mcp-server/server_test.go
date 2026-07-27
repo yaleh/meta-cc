@@ -147,8 +147,9 @@ func TestHandleToolsList(t *testing.T) {
 	// - 4 two-stage query tools (get_session_directory, inspect_session_files, execute_stage2_query, get_session_metadata)
 	// - 6 analysis tools (analyze_errors, quality_scan, get_work_patterns, get_timeline, analyze_bugs, get_tech_debt)
 	// - 1 doc session signals tool (query_edit_sequences)
-	if len(toolsSlice) != 15 {
-		t.Errorf("expected 15 tools after TASK-7, got %d", len(toolsSlice))
+	// DIR-030 added query_sessions (metadata-first session discovery): 16 tools.
+	if len(toolsSlice) != 16 {
+		t.Errorf("expected 16 tools after DIR-030, got %d", len(toolsSlice))
 	}
 }
 

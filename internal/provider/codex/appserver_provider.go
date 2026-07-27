@@ -127,12 +127,12 @@ func (c *processCloser) Close() error {
 	return err
 }
 
-// knownSourceKinds is the full ThreadSourceKind enum (confirmed against
+// KnownSourceKinds is the full ThreadSourceKind enum (confirmed against
 // `codex app-server generate-json-schema` for Codex CLI 0.145.0 — see
 // docs/reference/codex-app-server.md), requested explicitly on every
 // thread/list call so listing never silently narrows to the server's
 // unqualified default (interactive sources only).
-var knownSourceKinds = []string{
+var KnownSourceKinds = []string{
 	"cli", "vscode", "exec", "appServer",
 	"subAgent", "subAgentReview", "subAgentCompact", "subAgentThreadSpawn", "subAgentOther",
 	"unknown",
@@ -153,13 +153,26 @@ func newAppServerBackend(loc *locator.CodexLocator) *appServerBackend {
 // concerns make this more than a single thread/list call:
 //
 //   - sourceKinds: an omitted/empty filter defaults to interactive sources
-//     only, so knownSourceKinds is always passed explicitly.
+//     only, so KnownSourceKinds is always passed explicitly.
 //   - archived: the server treats this as an exclusive boolean filter
 //     (omitted/false returns only non-archived threads; true returns only
 //     archived ones — there is no "both" value), so listSessions issues two
 //     independently paginated passes and merges them, rather than silently
 //     omitting archived threads from the default listing.
 func (b *appServerBackend) listSessions(ctx context.Context) ([]conversation.Session, error) {
+	return b.listSessionsFiltered(ctx, conversation.SessionFilter{})
+}
+
+// listSessionsFiltered is listSessions extended with DIR-030 metadata
+// filters pushed directly into the thread/list request: cwd, archived,
+// modelProvider, and sourceKinds are all fields ThreadListParams already
+// supports server-side (see docs/reference/codex-app-server.md), so
+// sending them narrows what the app-server itself returns — no thread/read
+// (and therefore no turn loading) happens here at all. Filter dimensions
+// the server doesn't support (title, parent thread, updated/created time
+// range) are NOT applied here; callers apply conversation.ApplyFilter on
+// the result for those, which is still metadata-only (no deep parse).
+func (b *appServerBackend) listSessionsFiltered(ctx context.Context, filter conversation.SessionFilter) ([]conversation.Session, error) {
 	src, closer, err := b.connect(ctx)
 	if err != nil {
 		return nil, err
@@ -169,31 +182,52 @@ func (b *appServerBackend) listSessions(ctx context.Context) ([]conversation.Ses
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 
+	base := appserver.ThreadListParams{
+		SourceKinds:    KnownSourceKinds,
+		ModelProviders: []string{},
+	}
+	if len(filter.SourceKinds) > 0 {
+		base.SourceKinds = filter.SourceKinds
+	}
+	if filter.CWD != "" {
+		base.CWD = []string{filter.CWD}
+	}
+	if filter.ModelProvider != "" {
+		base.ModelProviders = []string{filter.ModelProvider}
+	}
+
+	archivedPasses := []bool{false, true}
+	if filter.Archived != nil {
+		archivedPasses = []bool{*filter.Archived}
+	}
+
 	var sessions []conversation.Session
-	for _, archived := range []bool{false, true} {
-		threads, err := b.listAll(ctx, src, archived)
+	for _, archived := range archivedPasses {
+		threads, err := b.listAll(ctx, src, base, archived)
 		if err != nil {
 			return nil, err
 		}
 		for _, t := range threads {
-			sessions = append(sessions, appserver.MapThread(t))
+			session := appserver.MapThread(t)
+			session.Archived = archived
+			if archived {
+				session.Status = "archived"
+			} else {
+				session.Status = "active"
+			}
+			sessions = append(sessions, session)
 		}
 	}
 	return sessions, nil
 }
 
-func (b *appServerBackend) listAll(ctx context.Context, src threadSource, archived bool) ([]appserver.Thread, error) {
+func (b *appServerBackend) listAll(ctx context.Context, src threadSource, base appserver.ThreadListParams, archived bool) ([]appserver.Thread, error) {
 	var threads []appserver.Thread
 	cursor := ""
 	for {
-		params := appserver.ThreadListParams{
-			SourceKinds:    knownSourceKinds,
-			ModelProviders: []string{},
-			Cursor:         cursor,
-		}
-		if archived {
-			params.Archived = &archived
-		}
+		params := base
+		params.Cursor = cursor
+		params.Archived = &archived
 		result, err := src.ThreadList(ctx, params)
 		if err != nil {
 			return nil, fmt.Errorf("thread/list: %w", err)

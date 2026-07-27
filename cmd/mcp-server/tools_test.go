@@ -372,7 +372,8 @@ func TestToolCountIncreasedTo14(t *testing.T) {
 	// - 4 two-stage query tools (get_session_directory, inspect_session_files, execute_stage2_query, get_session_metadata)
 	// - 6 analysis tools (analyze_errors, quality_scan, get_work_patterns, get_timeline, analyze_bugs, get_tech_debt)
 	// - 1 doc session signals tool (query_edit_sequences)
-	expectedCount := 15
+	// - 1 metadata-first session discovery tool (query_sessions, DIR-030)
+	expectedCount := 16
 	actualCount := len(tools)
 
 	if actualCount != expectedCount {

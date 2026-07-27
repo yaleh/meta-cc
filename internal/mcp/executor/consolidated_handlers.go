@@ -53,6 +53,7 @@ func handleQuerySessionContent(e *ToolExecutor, scope string, args map[string]in
 		limit := GetIntParam(args, "limit", 0)
 		workingDir := GetStringParam(args, "working_dir", "")
 		includeSubagents := GetBoolParam(args, "include_subagents", true)
+		sessionID := GetStringParam(args, "session_id", "")
 
 		jqFilter := `select(.type == "assistant")`
 		if contains != "" {
@@ -62,7 +63,7 @@ func handleQuerySessionContent(e *ToolExecutor, scope string, args map[string]in
 			// This fixes query_summaries null return when content is null or absent.
 			jqFilter = fmt.Sprintf(`%s | select((.message.content // empty | tostring) | test("%s"; "i"))`, jqFilter, escaped)
 		}
-		return e.ExecuteQueryForProvider(providerName, scope, jqFilter, limit, workingDir, includeSubagents)
+		return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
 
 	case "tool":
 		// Delegate to handleQueryToolBlocks; block_type may be passed through

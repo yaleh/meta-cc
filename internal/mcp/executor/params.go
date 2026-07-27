@@ -34,3 +34,32 @@ func GetFloatParam(args map[string]interface{}, key string, defaultVal float64) 
 	}
 	return defaultVal
 }
+
+// GetBoolPtrParam extracts an optional bool parameter, returning nil when
+// the key is absent so callers can distinguish "not set" (no constraint)
+// from "explicitly false" — GetBoolParam collapses both to its default.
+func GetBoolPtrParam(args map[string]interface{}, key string) *bool {
+	v, ok := args[key].(bool)
+	if !ok {
+		return nil
+	}
+	return &v
+}
+
+// GetStringSliceParam extracts a []string parameter from args map (JSON
+// arrays decode as []interface{}; non-string elements are skipped rather
+// than erroring, matching this file's other Get*Param helpers' "best
+// effort, defaultVal on shape mismatch" convention).
+func GetStringSliceParam(args map[string]interface{}, key string) []string {
+	raw, ok := args[key].([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(raw))
+	for _, v := range raw {
+		if s, ok := v.(string); ok && s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}

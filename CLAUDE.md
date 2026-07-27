@@ -15,7 +15,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 - **Plugin development**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md) - Complete workflow
 
 ### MCP Server Usage
-- **MCP guide**: [docs/guides/mcp.md](docs/guides/mcp.md) - Complete MCP reference (15 tools)
+- **MCP guide**: [docs/guides/mcp.md](docs/guides/mcp.md) - Complete MCP reference (16 tools)
 - **Quick test**: Use MCP tool `get_session_stats`
 
 ### Common Tasks
@@ -166,7 +166,7 @@ A: Currently project-local. A future update may add global library in `~/.meta-c
 ### Architecture
 
 **MCP-based architecture**:
-- **MCP Server**: Provides 15 tools for session history analysis and query
+- **MCP Server**: Provides 16 tools for session history analysis and query
 - **Claude Integration**: Slash commands for prompt management
 
 **Key principle**: MCP server handles data extraction and query. Claude performs semantic understanding and recommendations.
@@ -338,7 +338,7 @@ git commit -m "feat: improve prompt-find matching"
 
 **Integration and Usage**:
 - [Integration Guide](docs/guides/integration.md) - Choose MCP/Slash
-- [MCP Guide](docs/guides/mcp.md) - Complete MCP server reference (15 tools)
+- [MCP Guide](docs/guides/mcp.md) - Complete MCP server reference (16 tools)
 
 **Reference**:
 - [JSONL Reference](docs/reference/jsonl.md) - Output format and jq patterns

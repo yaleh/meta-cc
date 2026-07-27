@@ -183,7 +183,8 @@ func TestPhase25ToolCount(t *testing.T) {
 	//
 	// TASK-7 Removed: 10 old query_* tools
 	// TASK-7 Added: query_session_content, query_session_signals, query_file_activity
-	expectedCount := 15
+	// DIR-030 Added: query_sessions (metadata-first session discovery)
+	expectedCount := 16
 
 	actualCount := len(tools)
 	require.Equal(t, expectedCount, actualCount,

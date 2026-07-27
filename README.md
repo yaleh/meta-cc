@@ -6,7 +6,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/yaleh/meta-cc)](go.mod)
 [![Host Support](https://img.shields.io/badge/Hosts-Claude_Code%20%2B%20Codex-blue)](https://github.com/yaleh/meta-cc)
 
-**Meta-cognition tool for Claude Code and Codex** - Analyze session history, detect patterns, optimize workflows. 15 MCP tools.
+**Meta-cognition tool for Claude Code and Codex** - Analyze session history, detect patterns, optimize workflows. 16 MCP tools.
 
 > **Note**: Skills and agents from previous versions have been moved to [yaleh/baime](https://github.com/yaleh/baime). meta-cc 3.0.0 focuses exclusively on session history analysis via MCP tools.
 
@@ -17,7 +17,7 @@
 meta-cc helps you understand and improve your Claude Code and Codex workflows through:
 
 - **Autonomous analysis** - Claude Code or Codex can query session data via MCP tools
-- **15 MCP tools** - Error analysis, quality scanning, work patterns, timelines, bug detection, edit sequence analysis, and more
+- **16 MCP tools** - Error analysis, quality scanning, work patterns, timelines, bug detection, edit sequence analysis, and more
 - **Prompt library** - Save, search, and reuse optimized prompts with Claude Code slash commands or Codex skills
 
 **Native host integrations** - Claude Code marketplace/archive support plus Codex plugin and skills packaging.
@@ -37,7 +37,7 @@ Restart Claude Code. The MCP server is automatically configured via `.mcp.json` 
 
 The meta-cc plugin includes:
 - **3 Slash Commands** - `/prompt-find`, `/prompt-list`, `/prompt-show` for prompt library management
-- **15 MCP Tools** - Session data analysis with consolidated query and two-stage architecture
+- **16 MCP Tools** - Session data analysis with consolidated query and two-stage architecture
 
 ### Method 2: Archive Install (Claude Code + Codex)
 
@@ -116,7 +116,7 @@ Ask Claude Code or Codex naturally - MCP tools are invoked automatically:
 "Find bug fix pairs in my session"
 ```
 
-**15 MCP tools: consolidated query tools, two-stage jq, and analysis tools**:
+**16 MCP tools: consolidated query tools, two-stage jq, and analysis tools**:
 
 ```javascript
 // Consolidated query tools - cover the most common access patterns
@@ -182,7 +182,7 @@ Save and reuse your best prompts with 3 built-in Claude Code slash commands or C
 
 ### Integration
 
-- **[MCP Guide](docs/guides/mcp.md)** - Complete MCP tool reference (15 tools)
+- **[MCP Guide](docs/guides/mcp.md)** - Complete MCP tool reference (16 tools)
 - **[Integration Guide](docs/guides/integration.md)** - MCP and Slash Commands
 - **[MCP Query Tools Reference](docs/guides/mcp-query-tools.md)** - Consolidated query tools, two-stage jq, hybrid output
 
@@ -209,7 +209,7 @@ Save and reuse your best prompts with 3 built-in Claude Code slash commands or C
 
 ## Key Features
 
-- **15 MCP tools** - Autonomous session data analysis: 3 consolidated query + 4 utility + 1 metadata + 1 cleanup + 6 analysis
+- **16 MCP tools** - Autonomous session data analysis: 1 session discovery + 3 consolidated query + 4 utility + 1 metadata + 1 cleanup + 6 analysis
 - **Claude Code + Codex transcript analysis** - Shared query/analysis surface over both host schemas
 - **3 Prompt Library commands/skills** - Prompt management (`prompt-find`, `prompt-list`, `prompt-show`)
 - **Advanced analytics** - jq-based filtering, aggregation, time series; `since`/`until` time filtering on all query tools

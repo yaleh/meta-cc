@@ -59,7 +59,7 @@ func TestConnectProcessKeepsChildAliveAfterConnectorReturns(t *testing.T) {
 	// "write |1: broken pipe"-shaped error against the buggy code: a call
 	// issued strictly after connect() has already returned.
 	if _, err := src.ThreadList(ctx, appserver.ThreadListParams{
-		SourceKinds:    knownSourceKinds,
+		SourceKinds:    KnownSourceKinds,
 		ModelProviders: []string{},
 	}); err != nil {
 		t.Fatalf("ThreadList after connect() returned: %v (child process was likely killed by a premature context cancellation)", err)

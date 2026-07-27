@@ -59,10 +59,18 @@ META_CC_CODEX_ROOT=/tmp/codex meta-cc-mcp
 
 ## Tool Catalog
 
-The MCP server currently registers **15 tools**, derived at test time from
+The MCP server currently registers **16 tools**, derived at test time from
 `internal/mcp/tools.GetToolDefinitions()` (see `internal/release` for the
 consistency check that keeps this document's tool-count claims from
 drifting from the live `tools/list` response).
+
+### Session Discovery
+
+| Tool | Purpose | Claude Code | Codex |
+|------|---------|-------------|-------|
+| `query_sessions` | List session/thread metadata (id, cwd, title, status, source_kind, archived, ...) without loading turn content. Supports an exact `session_id` lookup. | Yes | Yes (full filter set: archived, source_kind, model_provider, parent_thread_id) |
+
+`query_sessions` is metadata-first (DIR-030): it never parses Codex rollout content or Claude turn content, so it stays fast even against a project with many sessions. See [MCP Query Tools Reference](mcp-query-tools.md#query_sessions-session-discovery) for the full filter list and the `scope="session"` vs exact `session_id` distinction.
 
 ### Consolidated Query Tools
 
@@ -75,6 +83,8 @@ These 4 tools replace the older set of individual `query_*` tools (see
 | `query_session_signals` | Query signals: `errors`, `tokens`, `system_errors`, `timestamps`, `tool_stats` | Yes | Yes (`system_errors` is Claude-specific) |
 | `query_file_activity` | Query file history (`type: "snapshots"`) | Yes | Host-specific empty |
 | `query_edit_sequences` | Analyze file edit/read patterns: docRole, co-accessed docs, DocVoid | Yes | Yes |
+
+All three of `query_session_content`, `query_session_signals`, and `query_file_activity` also accept an exact `session_id` parameter (DIR-030): when set, the query reads only that one session instead of listing/loading every session in scope — see [`scope` vs exact `session_id`](mcp-query-tools.md#scope-vs-exact-session_id-dir-030).
 
 Examples:
 
@@ -155,9 +165,10 @@ Most query and analysis tools accept:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `scope` | string | `project` (default) or `session` |
+| `scope` | string | `project` (default) or `session` (= most recently modified session) |
 | `provider` | string | `claude` (default), `codex`, or `all` |
 | `working_dir` | string | Override project path used for session lookup |
+| `session_id` | string | Exact session ID (query/analysis tools and `query_sessions`). Distinct from `scope="session"` — see [MCP Query Tools Reference](mcp-query-tools.md#scope-vs-exact-session_id-dir-030). |
 | `limit` | number | Maximum results; default is no limit |
 | `stats_only` | boolean | Return aggregate statistics only |
 | `stats_first` | boolean | Return stats followed by details |

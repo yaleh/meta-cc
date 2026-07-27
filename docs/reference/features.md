@@ -17,7 +17,7 @@ The `provider` parameter controls which history is queried:
 
 ## MCP Tools
 
-meta-cc exposes 15 MCP tools.
+meta-cc exposes 16 MCP tools.
 
 ### Consolidated Query Tools
 

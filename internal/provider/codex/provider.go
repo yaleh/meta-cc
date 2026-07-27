@@ -128,6 +128,49 @@ func (p *Provider) ListSessions(ctx context.Context) ([]conversation.Session, er
 	return dispatch(p, ctx, p.appServer.listSessions, p.filesListSessions)
 }
 
+// ListSessionsFiltered is ListSessions extended with DIR-030 metadata
+// filters (see conversation.SessionFilter): cwd/archived/modelProvider/
+// sourceKinds are pushed into the underlying app-server thread/list call
+// or SQLite WHERE clause (see appServerBackend.listSessionsFiltered and
+// listSessionsFromDBFiltered) so filtering happens before — not after —
+// any deep loading; conversation.ApplyFilter is then applied as a
+// correctness backstop covering every filter dimension a given backend
+// didn't push down. No rollout content or turn is parsed at any point.
+//
+// filter.SessionID, if set, takes an exact-lookup fast path (GetSession)
+// that reads only the one requested thread, rather than listing every
+// session in the project. This satisfies the "exact session lookup reads
+// only the requested thread" contract regardless of Mode/backend.
+//
+// Results are sorted by conversation.SortSessionsDeterministic so repeated
+// calls (and offset-based pagination over them) are stable.
+func (p *Provider) ListSessionsFiltered(ctx context.Context, filter conversation.SessionFilter) ([]conversation.Session, error) {
+	if filter.SessionID != "" {
+		session, err := p.GetSession(ctx, filter.SessionID)
+		if err != nil {
+			return nil, err
+		}
+		exact := filter
+		exact.SessionID = ""
+		return conversation.ApplyFilter([]conversation.Session{session}, exact), nil
+	}
+
+	sessions, err := dispatch(p, ctx,
+		func(ctx context.Context) ([]conversation.Session, error) {
+			return p.appServer.listSessionsFiltered(ctx, filter)
+		},
+		func(ctx context.Context) ([]conversation.Session, error) {
+			return p.filesListSessionsFiltered(ctx, filter)
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	sessions = conversation.ApplyFilter(sessions, filter)
+	conversation.SortSessionsDeterministic(sessions)
+	return sessions, nil
+}
+
 func (p *Provider) GetSession(ctx context.Context, sessionID string) (conversation.Session, error) {
 	return dispatch(p, ctx,
 		func(ctx context.Context) (conversation.Session, error) { return p.appServer.getSession(ctx, sessionID) },
@@ -144,6 +187,22 @@ func (p *Provider) LoadTurns(ctx context.Context, sessionID string) ([]conversat
 
 func (p *Provider) filesListSessions(ctx context.Context) ([]conversation.Session, error) {
 	return listSessionsFromDB(ctx, p.locator.SQLiteDB())
+}
+
+// filesListSessionsFiltered pushes filter.CWD into the SQLite WHERE clause
+// (see listSessionsFromDBFiltered) and records any per-row warnings (e.g. a
+// corrupted threads-table row) via Warnings() rather than losing them —
+// dispatch's generic signature only carries a single ([]Session, error),
+// so warnings from a successful-but-imperfect listing are threaded through
+// p.warnings instead of the return value.
+func (p *Provider) filesListSessionsFiltered(ctx context.Context, filter conversation.SessionFilter) ([]conversation.Session, error) {
+	sessions, warnings, err := listSessionsFromDBFiltered(ctx, p.locator.SQLiteDB(), filter)
+	if len(warnings) > 0 {
+		p.mu.Lock()
+		p.warnings = append(p.warnings, warnings...)
+		p.mu.Unlock()
+	}
+	return sessions, err
 }
 
 func (p *Provider) filesGetSession(ctx context.Context, sessionID string) (conversation.Session, error) {
