@@ -5,6 +5,41 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2026-07-27
+
+
+### Added
+
+- establish one release version and MCP capability source of truth
+- make session discovery and metadata provider-aware for Codex
+- test and document the current Codex plugin installation path
+- Implement enhancements and bug fixes across multiple tasks
+- DIR-004 implementation (via quay loop)
+- DIR-001 implementation (via quay loop)
+- DIR-003 implementation (via quay loop)
+
+### Changed
+
+- gofmt internal/filter/pagination_test.go and internal/types/toolcall_test.go
+- Maintenance: mark DIR-024/025/026 done, record gate events
+- Maintenance: Remove compiled Python cache files from experiments
+- Documentation: add Codex observation development tasks
+
+### Fixed
+
+- replace raw bufio.Scanner with bufio.Reader in ScanSourceDir
+- unblock make commit gate — tool description length and pagination offset metadata
+- normalize ToolCall.Status from IsError when absent in JSONL
+- forward include_subagents for role=assistant and fix file_count for session scope
+
+### Other
+
+- merge: DIR-002 — quay loop build (done ✓, +200/-1)
+- merge: DIR-004 — quay loop build + audit (needs-human: small fixes pending)
+- merge: DIR-003 — quay loop build + audit (needs-human: small fixes pending)
+- quay: install workflows, agents, gate-scripts; loop.md; DIR-001..004
+- Merge branch 'task/TASK-23'
+
 ## [3.4.0] - 2026-07-15
 
 
