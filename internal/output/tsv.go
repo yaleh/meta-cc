@@ -114,7 +114,7 @@ func FormatGenericTSV(data interface{}) (string, error) {
 	}
 
 	// Handle pointer
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		if v.IsNil() {
 			return "", nil
 		}
@@ -166,7 +166,7 @@ func getStructFields(v reflect.Value) []string {
 	var fields []string
 
 	// Handle pointer
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		if v.IsNil() {
 			return fields
 		}
@@ -207,7 +207,7 @@ func getStructValues(v reflect.Value) []string {
 	var values []string
 
 	// Handle pointer
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		if v.IsNil() {
 			return values
 		}
@@ -237,7 +237,7 @@ func getStructValues(v reflect.Value) []string {
 // formatTSVValue formats a reflect.Value as string for TSV
 func formatTSVValue(v reflect.Value) string {
 	// Handle pointer
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		if v.IsNil() {
 			return ""
 		}

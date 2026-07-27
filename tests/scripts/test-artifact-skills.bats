@@ -267,6 +267,7 @@ teardown() {
     cp plugin-src/.mcp.json "$PKG_DIR/.mcp.json"
     cp plugin-src/.codex-mcp.json "$PKG_DIR/.codex-mcp.json"
     cp plugin-src/.claude-plugin/plugin.json "$PKG_DIR/.claude-plugin/plugin.json"
+    cp plugin-src/.claude-plugin/marketplace.json "$PKG_DIR/.claude-plugin/marketplace.json"
     cp plugin-src/.codex-plugin/plugin.json "$PKG_DIR/.codex-plugin/plugin.json"
     cp scripts/install/install.sh "$PKG_DIR/install.sh"
 

@@ -564,7 +564,7 @@ lint: fmt vet lint-errors lint-error-handling lint-markdown check-no-scanner
 		golangci-lint run ./...; \
 	else \
 		echo "golangci-lint not found. Install with:"; \
-		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8"; \
+		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@v2.12.2"; \
 		echo "Skipping lint checks..."; \
 	fi
 
@@ -639,7 +639,7 @@ lint-fix:
 		golangci-lint run --fix ./...; \
 	else \
 		echo "golangci-lint not found. Install with:"; \
-		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8"; \
+		echo "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@v2.12.2"; \
 		exit 1; \
 	fi
 

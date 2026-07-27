@@ -291,11 +291,11 @@ jobs:
 golangci-lint version
 
 # 安装指定版本 (与 CI 保持一致)
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v2.12.2
 
 # 或使用 asdf
-asdf install golangci-lint 1.64.8
-asdf local golangci-lint 1.64.8
+asdf install golangci-lint 2.12.2
+asdf local golangci-lint 2.12.2
 ```
 
 ## 📈 性能优化技巧
