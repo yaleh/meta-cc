@@ -542,6 +542,74 @@ Normalization:
 - `payload.role == "assistant"` becomes a `type: "assistant"` entry with text content blocks.
 - `developer` and `system` messages become `type: "system"` entries.
 
+### Duplicate Assistant/User Text (event_msg vs response_item)
+
+Live Codex CLI 0.145 rollouts record the same logical user/assistant
+utterance through **two independent channels** for the same turn:
+
+- The legacy notification stream: `event_msg` with `payload.type` of
+  `user_message` or `agent_message`.
+- The transcript stream: `response_item` with `payload.type == "message"`
+  and `payload.role` of `user` or `assistant` (see "Messages" above).
+
+meta-cc reconciles these with a fixed precedence rule, scoped to
+`(turn, role, position)`:
+
+- `response_item` is the richer, canonical representation and **wins**
+  whenever both channels report a segment at the same position within a
+  turn.
+- `event_msg` is used only as a **fallback**, for positions `response_item`
+  never reported (e.g. older/event-only rollouts that predate the
+  `response_item.message` transcript stream).
+- Matching is **positional**, not content-based: the Nth `event_msg`
+  segment for a role pairs with the Nth `response_item` segment for that
+  role within the same turn. Text is never compared for equality, so two
+  legitimately repeated messages — the same text sent again in a later
+  turn, or two distinct segments within one turn that happen to share text
+  — are never collapsed into one.
+
+This keeps `query_session_content(provider=codex, role=assistant)` (and
+`role=user`) returning each logical message exactly once instead of
+doubling every segment. See `internal/provider/codex/rollout.go`'s
+`dedupSegments` type for the implementation and
+`tests/fixtures/codex/rollout-legacy-dedup-sample.jsonl` for a fixture
+covering: same-position dedup, legitimate repeats across turns, and
+multiple distinct segments within one turn.
+
+### Newer Event Families (Codex 0.145+)
+
+Besides the record types documented above, Codex 0.145 rollouts also emit:
+
+- Top-level types: `world_state`, `compacted`, `turn_aborted`, `session_end`
+- `response_item.payload.type` values: `tool_search_call`,
+  `tool_search_output`
+- `event_msg.payload.type` values: `thread_settings_applied`,
+  `context_compacted`
+
+meta-cc does not yet give these dedicated semantic handling. They fall
+through to the existing "unknown event" fallback: each unrecognized record
+is archived verbatim into the enclosing turn's
+`Extensions` (`{"codex_events": [...]}`), so they are observable and never
+silently dropped, but they don't yet produce typed fields (e.g.
+`tool_search_call` does not currently become a `ToolCall`). Parsing must
+not error or panic on any of them.
+
+See `tests/fixtures/codex/rollout-legacy-0145-families-sample.jsonl` for a
+sanitized fixture covering all of the above, and
+`internal/provider/codex/rollout_test.go`'s
+`TestLoadTurnsFromRollout0145EventFamilies` for the corresponding
+assertions.
+
+**Fixture-refresh procedure:** when a newer Codex CLI version changes or
+introduces event shapes, capture a sanitized (no secrets, no repository
+content, no unbounded tool output), minimal excerpt reproducing the new
+shape, add it under `tests/fixtures/codex/`, and add/extend a test in
+`internal/provider/codex/rollout_test.go` (parser-level) and, if the
+change affects user-visible query output, in
+`internal/mcp/executor/codex_dedup_e2e_test.go` or a sibling end-to-end
+test (through `providerrecords.Build`/`query_session_content`) asserting
+the parser still produces correct turns without data loss or duplication.
+
 ### Tool Calls
 
 Codex function tool calls:
@@ -691,4 +759,4 @@ See the following files for complete examples:
 
 **Document Status:** Covers Claude Code native records and Codex records normalized by meta-cc
 **Schema Coverage:** Claude Code message/tool records plus Codex message/tool/token records
-**Last Updated:** 2026-06-14
+**Last Updated:** 2026-07-27

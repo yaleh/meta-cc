@@ -1,0 +1,17 @@
+{"timestamp":"2026-07-20T09:00:00Z","type":"session_meta","payload":{"id":"sess-dedup","cwd":"/tmp/project","model":"gpt-5"}}
+{"timestamp":"2026-07-20T09:00:01Z","type":"turn_context","payload":{"turn_id":"turn-1"}}
+{"timestamp":"2026-07-20T09:00:02Z","type":"event_msg","payload":{"type":"user_message","message":"please summarize"}}
+{"timestamp":"2026-07-20T09:00:03Z","type":"event_msg","payload":{"type":"agent_message","message":"Summary: done."}}
+{"timestamp":"2026-07-20T09:00:04Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Summary: done."}]}}
+{"timestamp":"2026-07-20T09:00:05Z","type":"turn_context","payload":{"turn_id":"turn-2"}}
+{"timestamp":"2026-07-20T09:00:06Z","type":"event_msg","payload":{"type":"user_message","message":"please summarize again"}}
+{"timestamp":"2026-07-20T09:00:07Z","type":"event_msg","payload":{"type":"agent_message","message":"Summary: done."}}
+{"timestamp":"2026-07-20T09:00:08Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Summary: done."}]}}
+{"timestamp":"2026-07-20T09:00:09Z","type":"turn_context","payload":{"turn_id":"turn-3"}}
+{"timestamp":"2026-07-20T09:00:10Z","type":"event_msg","payload":{"type":"user_message","message":"do it"}}
+{"timestamp":"2026-07-20T09:00:11Z","type":"event_msg","payload":{"type":"agent_message","message":"Starting task"}}
+{"timestamp":"2026-07-20T09:00:12Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Starting task"}]}}
+{"timestamp":"2026-07-20T09:00:13Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"call-dedup-1","arguments":"{\"cmd\":\"ls\"}"}}
+{"timestamp":"2026-07-20T09:00:14Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call-dedup-1","output":"file.txt"}}
+{"timestamp":"2026-07-20T09:00:15Z","type":"event_msg","payload":{"type":"agent_message","message":"Task complete"}}
+{"timestamp":"2026-07-20T09:00:16Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Task complete"}]}}

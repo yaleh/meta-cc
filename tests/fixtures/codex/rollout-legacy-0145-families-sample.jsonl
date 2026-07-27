@@ -1,0 +1,13 @@
+{"timestamp":"2026-07-20T10:00:00Z","type":"session_meta","payload":{"id":"sess-0145","cwd":"/tmp/project","model":"gpt-5"}}
+{"timestamp":"2026-07-20T10:00:01Z","type":"turn_context","payload":{"turn_id":"turn-0145"}}
+{"timestamp":"2026-07-20T10:00:02Z","type":"world_state","payload":{"cwd":"/tmp/project","approval_policy":"on-request"}}
+{"timestamp":"2026-07-20T10:00:03Z","type":"event_msg","payload":{"type":"user_message","message":"search the repo for TODOs"}}
+{"timestamp":"2026-07-20T10:00:04Z","type":"response_item","payload":{"type":"tool_search_call","call_id":"call-search-1","name":"repo_search","arguments":"{\"query\":\"TODO\"}"}}
+{"timestamp":"2026-07-20T10:00:05Z","type":"response_item","payload":{"type":"tool_search_output","call_id":"call-search-1","output":"3 matches found"}}
+{"timestamp":"2026-07-20T10:00:06Z","type":"event_msg","payload":{"type":"thread_settings_applied","settings":{"model":"gpt-5","approval_policy":"on-request"}}}
+{"timestamp":"2026-07-20T10:00:07Z","type":"event_msg","payload":{"type":"context_compacted","summary":"Trimmed 4 earlier turns"}}
+{"timestamp":"2026-07-20T10:00:08Z","type":"compacted","payload":{"turn_id":"turn-0145","reason":"context_window"}}
+{"timestamp":"2026-07-20T10:00:09Z","type":"event_msg","payload":{"type":"agent_message","message":"Found 3 TODOs."}}
+{"timestamp":"2026-07-20T10:00:10Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Found 3 TODOs."}]}}
+{"timestamp":"2026-07-20T10:00:11Z","type":"turn_aborted","payload":{"turn_id":"turn-0145","reason":"user_interrupt"}}
+{"timestamp":"2026-07-20T10:00:12Z","type":"session_end","payload":{"id":"sess-0145","reason":"completed"}}

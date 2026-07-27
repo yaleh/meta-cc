@@ -101,19 +101,94 @@ func detectSchemaVersion(firstLine []byte) schemaVersion {
 	return schemaLegacy
 }
 
+// dedupSegments accumulates one role's text (user or assistant) as it is
+// reported through two independent Codex rollout channels for the same
+// turn: the legacy "event_msg" notification stream (e.g. agent_message /
+// user_message) and the "response_item" transcript stream (message records
+// with role user/assistant). Live Codex CLI 0.145 rollouts record the same
+// logical utterance through BOTH channels, so naively concatenating every
+// occurrence doubles every message.
+//
+// Precedence rule (see docs/reference/jsonl-schema.md "Duplicate
+// Assistant/User Text"): response_item is the richer, canonical
+// representation and wins whenever both channels report a segment at the
+// same position within the turn; event_msg is used only as a fallback for
+// positions response_item never reported (legacy/event-only sessions).
+// Matching is positional and scoped to (turn, role) — content is never
+// compared for equality — so two legitimately repeated messages (e.g. the
+// same text sent again in a later turn, or two distinct segments in the
+// same turn that happen to share text) are both preserved rather than
+// collapsed.
+type dedupSegments struct {
+	eventMsg     []string
+	responseItem []string
+}
+
+func (s *dedupSegments) addEventMsg(text string) {
+	s.eventMsg = append(s.eventMsg, text)
+}
+
+func (s *dedupSegments) addResponseItem(text string) {
+	s.responseItem = append(s.responseItem, text)
+}
+
+// merge reconciles the two channels position-by-position, preferring
+// response_item and falling back to event_msg. Returns "" when neither
+// channel reported anything for this role, so callers can distinguish "no
+// legacy-schema segments recorded" from "segments recorded via the newer
+// (dot-schema) path", which sets the turn's text directly and never
+// populates dedupSegments.
+func (s *dedupSegments) merge() string {
+	n := len(s.eventMsg)
+	if len(s.responseItem) > n {
+		n = len(s.responseItem)
+	}
+	if n == 0 {
+		return ""
+	}
+	parts := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		if i < len(s.responseItem) {
+			parts = append(parts, s.responseItem[i])
+		} else {
+			parts = append(parts, s.eventMsg[i])
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
 type turnBuilder struct {
-	current         *conversation.Turn
-	toolCallMap     map[string]int
-	turns           []conversation.Turn
-	unknown         []json.RawMessage
-	totalTokenUsage conversation.TokenUsage
+	current           *conversation.Turn
+	toolCallMap       map[string]int
+	turns             []conversation.Turn
+	unknown           []json.RawMessage
+	totalTokenUsage   conversation.TokenUsage
+	userSegments      dedupSegments
+	assistantSegments dedupSegments
 }
 
 func newTurnBuilder() *turnBuilder {
 	return &turnBuilder{toolCallMap: make(map[string]int)}
 }
 
+// finalizeSegments reconciles any legacy-schema user/assistant text
+// accumulated for the current turn (see dedupSegments) into the turn's
+// final UserText/AssistantText. It is a no-op when nothing was recorded
+// through the legacy dedup path (e.g. the "new" dot-schema, which sets
+// these fields directly and never touches dedupSegments).
+func (b *turnBuilder) finalizeSegments() {
+	if merged := b.userSegments.merge(); merged != "" {
+		b.current.UserText = merged
+	}
+	if merged := b.assistantSegments.merge(); merged != "" {
+		b.current.AssistantText = merged
+	}
+}
+
 func (b *turnBuilder) flush() {
+	if b.current != nil {
+		b.finalizeSegments()
+	}
 	if b.current != nil && len(b.unknown) > 0 {
 		ext, _ := json.Marshal(map[string][]json.RawMessage{
 			"codex_events": b.unknown,
@@ -126,6 +201,8 @@ func (b *turnBuilder) flush() {
 	b.current = nil
 	b.toolCallMap = make(map[string]int)
 	b.unknown = nil
+	b.userSegments = dedupSegments{}
+	b.assistantSegments = dedupSegments{}
 }
 
 func (b *turnBuilder) ensureTurn(id, timestamp string) {
@@ -176,12 +253,9 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 		b.ensureTurn(payload.TurnID, event.Timestamp)
 		switch payload.Type {
 		case "user_message":
-			b.current.UserText = payload.Message
+			b.userSegments.addEventMsg(payload.Message)
 		case "agent_message":
-			if b.current.AssistantText != "" {
-				b.current.AssistantText += "\n"
-			}
-			b.current.AssistantText += payload.Message
+			b.assistantSegments.addEventMsg(payload.Message)
 		case "token_count":
 			b.applyTokenUsage(event.Timestamp, payload.Info.LastTokenUsage, payload.Info.TotalTokenUsage)
 			return
@@ -238,14 +312,9 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 			text := extractResponseItemText(envelope.Content)
 			switch envelope.Role {
 			case "user":
-				if b.current.UserText == "" {
-					b.current.UserText = text
-				}
+				b.userSegments.addResponseItem(text)
 			case "assistant":
-				if b.current.AssistantText != "" && text != "" {
-					b.current.AssistantText += "\n"
-				}
-				b.current.AssistantText += text
+				b.assistantSegments.addResponseItem(text)
 			case "developer", "system":
 				return
 			default:
