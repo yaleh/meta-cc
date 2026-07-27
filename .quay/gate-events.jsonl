@@ -19,3 +19,4 @@
 {"id":"4c69646b-ad85-466c-a552-64550669b4e5","item_id":"DIR-007","pipeline_id":"DIR-007","gate":"acceptance","actor":"quay-cli","verdict":"pass","timestamp":"2026-07-26T01:32:29.966Z","payload":{"reason":"acceptance passed (exit 0)"}}
 {"id":"4225f612-ebed-4605-b4a2-ff9973d4e3d6","item_id":"DIR-007","pipeline_id":"DIR-007","gate":"acceptance","actor":"quay-cli","verdict":"pass","timestamp":"2026-07-26T01:34:56.467Z","payload":{"reason":"acceptance passed (exit 0)"}}
 {"id":"720ab3c0-9f16-4ed9-953d-f615c5f5e74e","item_id":"DIR-007","pipeline_id":"DIR-007","gate":"complete","actor":"quay-cli","verdict":"pass","timestamp":"2026-07-26T01:34:56.481Z","payload":{"from":"ready","to":"done"}}
+{"id":"7d7b174f-0605-49ba-8841-a88cb8cf7894","item_id":"DIR-024","pipeline_id":"DIR-024","gate":"acceptance","actor":"quay-cli","verdict":"fail","timestamp":"2026-07-26T16:23:56.877Z","payload":{"reason":"acceptance failed (exit 2)"}}
