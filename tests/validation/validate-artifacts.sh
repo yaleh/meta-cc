@@ -80,8 +80,16 @@ else
     [ "$ARCH" = "aarch64" ] && ARCH="arm64"
     NATIVE_PLATFORM="${OS}-${ARCH}"
 
-    LDFLAGS="-X github.com/yaleh/meta-cc/cmd.Version=${TEST_VERSION}"
-    go build -ldflags "${LDFLAGS}" \
+    # DIR-052: derive the -X assignments from the Makefile's single source of
+    # truth (print-ldflags-value, added in DIR-049) instead of hand-duplicating
+    # an -X string here. The hand-written copy previously pointed at the
+    # nonexistent repo-root cmd package (silent linker no-op), so validation
+    # binaries never embedded commit/build-time. Deriving from the Makefile
+    # keeps this build in lockstep with the release pipeline; the
+    # TestNoHandDuplicatedDeadPathLDFLAGS regression test fails if this script
+    # ever hand-writes an -X string again.
+    LDFLAGS_VALUE="$(make -s print-ldflags-value)"
+    go build -ldflags "${LDFLAGS_VALUE}" \
         -o "$BUILD_DIR/mcp/meta-cc-mcp-${TEST_VERSION}-${NATIVE_PLATFORM}" \
         ./cmd/mcp-server
     chmod +x "$BUILD_DIR/mcp/meta-cc-mcp-${TEST_VERSION}-${NATIVE_PLATFORM}"

@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -16,10 +18,10 @@ import (
 // the Makefile injects commit/build-time info via `-X` linker flags when
 // building ./cmd/mcp-server (see Makefile's LDFLAGS/LDFLAGS_VALUE, used by
 // the `build`, `install`, and `cross-compile` targets). Those flags used to
-// target a nonexistent package (github.com/yaleh/meta-cc/cmd.Commit /
-// .BuildTime), which Go's linker silently no-ops on when an -X target is
-// unresolvable -- no build error, no warning, just a binary that never got
-// the values.
+// target a nonexistent package (the repo-root cmd package's Version / Commit
+// / BuildTime vars), which Go's linker silently no-ops on when an -X target
+// is unresolvable -- no build error, no warning, just a binary that never
+// got the values.
 //
 // This test does NOT hardcode a duplicate copy of the -X target paths --
 // that would pass even if the Makefile itself were wrong, since it would
@@ -30,9 +32,15 @@ import (
 // asserts its "MCP server starting" startup log reports a commit that
 // matches the real `git rev-parse --short HEAD` and is never empty/
 // "unknown". If the Makefile's -X target path is ever reverted to the
-// nonexistent github.com/yaleh/meta-cc/cmd package, this test fails,
-// because the linker will then silently fail to resolve the symbol and
-// internal/version.Commit will keep its "unknown" default.
+// nonexistent repo-root cmd package, this test fails, because the linker
+// will then silently fail to resolve the symbol and internal/version.Commit
+// will keep its "unknown" default.
+//
+// Its companion TestNoHandDuplicatedDeadPathLDFLAGS below guards the other
+// half of the same defect class (DIR-052): hand-copied duplicates of the
+// broken -X string that lived OUTSIDE the Makefile (release.yml,
+// validate-artifacts.sh) and kept shipping dead LDFLAGS even after the
+// Makefile itself was fixed.
 func TestLDFLAGSCommitAndBuildTimeAreWired(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 
@@ -46,9 +54,9 @@ func TestLDFLAGSCommitAndBuildTimeAreWired(t *testing.T) {
 	// leave a stale cached PASS in place after the Makefile regresses --
 	// silently defeating this entire regression test. This read was
 	// verified empirically to fix that: `go clean -testcache` once, then
-	// toggling the Makefile's LDFLAGS_VALUE back to the broken
-	// github.com/yaleh/meta-cc/cmd.* path with no Go file touched still
-	// forces a real re-run (not "(cached)") and fails.
+	// toggling the Makefile's LDFLAGS_VALUE back to the broken repo-root
+	// cmd-package path with no Go file touched still forces a real re-run
+	// (not "(cached)") and fails.
 	makefilePath := filepath.Join(repoRoot, "Makefile")
 	makefileBytes, err := os.ReadFile(makefilePath)
 	if err != nil {
@@ -105,6 +113,85 @@ func TestLDFLAGSCommitAndBuildTimeAreWired(t *testing.T) {
 	}
 	if gotBuildTime == "" || gotBuildTime == "unknown" {
 		t.Errorf("startup log build_time = %q, must not be empty/\"unknown\" for a build produced by the real Makefile LDFLAGS -- the -X target did not resolve to a real symbol", gotBuildTime)
+	}
+}
+
+// TestNoHandDuplicatedDeadPathLDFLAGS is the DIR-052 drift guard: DIR-049
+// fixed the Makefile's -X targets to point at the real internal/version
+// symbols, but hand-copied duplicates of the OLD broken string survived in
+// .github/workflows/release.yml and tests/validation/validate-artifacts.sh,
+// so the release pipeline kept silently shipping binaries with no commit/
+// build-time (Go's linker no-ops on unresolvable -X targets -- no error,
+// no warning). This test walks the repository and fails if any non-Makefile
+// file hardcodes an -X target in the nonexistent repo-root cmd package, so
+// copy-paste drift is caught by `go test` (and thus `make commit`) instead
+// of only being noticed at release time. New build steps must derive their
+// LDFLAGS from `make print-ldflags-value`.
+func TestNoHandDuplicatedDeadPathLDFLAGS(t *testing.T) {
+	repoRoot := findRepoRoot(t)
+
+	// Assembled from pieces so this test file does not itself contain the
+	// literal string it searches for (it would otherwise flag itself).
+	deadPath := regexp.MustCompile(
+		regexp.QuoteMeta("github.com/yaleh/meta-cc/cmd.") + `(Version|Commit|BuildTime)`)
+
+	// Historical records that intentionally quote the broken string as part
+	// of the bug's narrative (task write-ups, plans, past experiment logs),
+	// plus VCS/build internals. None of these are consumed by `go build`;
+	// the guard targets live build wiring (workflows, scripts, tooling).
+	skipDirs := map[string]bool{
+		".git":         true,
+		"tasks":        true,
+		"plans":        true,
+		"_experiments": true,
+		"build":        true,
+		"dist":         true,
+		"bin":          true,
+		".archguard":   true,
+	}
+
+	var hits []string
+	walkErr := filepath.Walk(repoRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(repoRoot, path)
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if rel != "." && skipDirs[rel] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		// The Makefile is the single source of truth for the -X targets (and
+		// TestLDFLAGSCommitAndBuildTimeAreWired already fails if those targets
+		// regress), so it is exempt from the duplication check.
+		if rel == "Makefile" {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for i, line := range strings.Split(string(data), "\n") {
+			if deadPath.MatchString(line) {
+				hits = append(hits, fmt.Sprintf("%s:%d: %s", rel, i+1, strings.TrimSpace(line)))
+			}
+		}
+		return nil
+	})
+	if walkErr != nil {
+		t.Fatalf("walking repo root %s: %v", repoRoot, walkErr)
+	}
+
+	if len(hits) > 0 {
+		t.Errorf(
+			"found %d hand-duplicated dead-path LDFLAGS string(s) outside the Makefile;\n"+
+				"derive LDFLAGS from `make print-ldflags-value` instead of hand-writing -X targets\n"+
+				"(see Makefile's LDFLAGS_VALUE / print-ldflags-value, tasks/DIR-049.md and DIR-052.md):\n  %s",
+			len(hits), strings.Join(hits, "\n  "))
 	}
 }
 
