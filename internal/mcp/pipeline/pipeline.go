@@ -4,9 +4,12 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/yaleh/meta-cc/internal/config"
@@ -14,6 +17,8 @@ import (
 	filterspkg "github.com/yaleh/meta-cc/internal/mcp/filters"
 	mcquerypkg "github.com/yaleh/meta-cc/internal/mcp/query"
 	responsepkg "github.com/yaleh/meta-cc/internal/mcp/response"
+	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
+	providerrecords "github.com/yaleh/meta-cc/internal/provider/records"
 	querypkg "github.com/yaleh/meta-cc/internal/query/stats"
 )
 
@@ -72,16 +77,35 @@ func BuildResponse(cfg *config.Config, result mcquerypkg.QueryResult, args map[s
 
 	if pc.ContextTurns > 0 && pc.ApplyMessageFilters &&
 		pipelineStringArg(args, "content_type") != "array" {
-		baseDir, err := mcquerypkg.GetQueryBaseDir(
-			pipelineStringArg(args, "scope", "project"),
-			pipelineStringArg(args, "working_dir", ""),
-		)
-		if err != nil {
-			return "", err
-		}
-		parsedData, err = filterspkg.ExpandContextTurns(parsedData, pc.ContextTurns, baseDir, pc.ExcludeCompactSummaries)
-		if err != nil {
-			return "", err
+		providerName := pipelineStringArg(args, "provider", "claude")
+		scope := pipelineStringArg(args, "scope", "project")
+		workingDir := pipelineStringArg(args, "working_dir", "")
+
+		if providerName == "" || providerName == "claude" {
+			// Claude-only queries keep the pre-existing behavior exactly:
+			// matched records carry a native Claude uuid, so the direct
+			// baseDir JSONL rescan remains correct and backward compatible.
+			baseDir, err := mcquerypkg.GetQueryBaseDir(scope, workingDir)
+			if err != nil {
+				return "", err
+			}
+			parsedData, err = filterspkg.ExpandContextTurns(parsedData, pc.ContextTurns, baseDir, pc.ExcludeCompactSummaries)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			// DIR-036: codex/all queries never carry a Claude uuid and are
+			// never backed by a Claude project directory, so context must be
+			// loaded through the provider/session abstraction instead of
+			// rescanning a provider-blind base directory.
+			expanded, ctxWarnings, err := expandProviderContext(providerName, workingDir, parsedData, pc.ContextTurns, pc.ExcludeCompactSummaries)
+			if err != nil {
+				return "", err
+			}
+			parsedData = expanded
+			if len(ctxWarnings) > 0 {
+				result.Warnings = append(result.Warnings, ctxWarnings...)
+			}
 		}
 	}
 
@@ -114,6 +138,53 @@ func BuildResponse(cfg *config.Config, result mcquerypkg.QueryResult, args map[s
 	}
 
 	return InjectWarnings(output, result.Warnings)
+}
+
+// expandProviderContext is the DIR-036 provider-neutral context-expansion
+// entry point for any provider other than the Claude default ("codex" or
+// "all"). It resolves the same Claude+Codex provider registry the original
+// query used (internal/provider/rawfiles.NewRegistry), and for each session
+// referenced by an already-matched record, reloads that session's full
+// canonical, normalized turn stream via providerrecords.BuildForSession —
+// the same projection (internal/provider/records.Normalize) the original
+// query itself was built from — rather than reaching behind the provider
+// abstraction to rescan raw Codex rollout/app-server files directly.
+//
+// Per the DIR-036 contract, a session that fails to (re)load never causes its
+// already-matched records to silently disappear: ExpandContextTurnsCanonical
+// retains those matches and returns a warning describing the failure instead.
+func expandProviderContext(providerName, workingDir string, parsedData []interface{}, n int, excludeCompactSummaries bool) ([]interface{}, []string, error) {
+	projectPath := workingDir
+	if projectPath == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to resolve working directory for context expansion: %w", err)
+		}
+		projectPath = cwd
+	}
+	if abs, err := filepath.Abs(projectPath); err == nil {
+		projectPath = abs
+	}
+
+	filters, err := rawfiles.ParseProviderFilter(providerName)
+	if err != nil {
+		return nil, nil, err
+	}
+	registry := rawfiles.NewRegistry(projectPath)
+
+	loadSession := func(sessionID string) ([]interface{}, error) {
+		records, _, err := providerrecords.BuildForSession(context.Background(), registry, filters, sessionID, projectPath)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]interface{}, len(records))
+		for i, r := range records {
+			out[i] = r
+		}
+		return out, nil
+	}
+
+	return filterspkg.ExpandContextTurnsCanonical(parsedData, n, loadSession, excludeCompactSummaries)
 }
 
 // pipelineStringArg extracts a string value from args map with an optional default.

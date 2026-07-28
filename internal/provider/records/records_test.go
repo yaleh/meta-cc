@@ -112,6 +112,59 @@ func TestNormalizeToolInputNullBecomesEmptyMap(t *testing.T) {
 	}
 }
 
+// TestNormalizeAssignsCanonicalIdentity is a DIR-036 regression test: every
+// emitted record must carry a stable, provider-neutral identity (turn_id,
+// turn_index, seq) that context-window expansion can rely on instead of a
+// Claude-only uuid. seq must be unique and strictly increasing across the
+// whole call's output, and must not merely reflect timestamp order (turns
+// sharing one timestamp still get distinct seq values).
+func TestNormalizeAssignsCanonicalIdentity(t *testing.T) {
+	sameTS := time.Unix(1700000000, 0).UTC()
+	session := conversation.Session{ID: "sess-identity", Provider: conversation.ProviderCodex, CWD: "/tmp/project"}
+	turns := []conversation.Turn{
+		{ID: "turn-1", UserText: "hello", AssistantText: "hi", Timestamp: sameTS},
+		{ID: "turn-2", UserText: "second", Timestamp: sameTS}, // same timestamp as turn-1
+	}
+
+	got := Normalize(session, turns)
+	if len(got) != 3 {
+		t.Fatalf("expected 3 records (turn-1 user+assistant, turn-2 user), got %#v", got)
+	}
+
+	seenSeq := map[int]bool{}
+	for i, rec := range got {
+		seq, ok := rec["seq"].(int)
+		if !ok {
+			t.Fatalf("record %d missing int seq: %#v", i, rec)
+		}
+		if seq != i {
+			t.Errorf("record %d: expected seq=%d, got %d (seq must be 0-based and strictly increasing)", i, i, seq)
+		}
+		if seenSeq[seq] {
+			t.Errorf("duplicate seq %d at record %d", seq, i)
+		}
+		seenSeq[seq] = true
+
+		turnID, ok := rec["turn_id"].(string)
+		if !ok || turnID == "" {
+			t.Errorf("record %d missing turn_id: %#v", i, rec)
+		}
+	}
+
+	if got[0]["turn_id"] != "turn-1" || got[1]["turn_id"] != "turn-1" {
+		t.Errorf("records 0,1 should both carry turn_id=turn-1 (same turn), got %#v, %#v", got[0]["turn_id"], got[1]["turn_id"])
+	}
+	if got[2]["turn_id"] != "turn-2" {
+		t.Errorf("record 2 should carry turn_id=turn-2, got %#v", got[2]["turn_id"])
+	}
+	if got[0]["turn_index"] != 0 || got[1]["turn_index"] != 0 {
+		t.Errorf("records 0,1 should both carry turn_index=0, got %#v, %#v", got[0]["turn_index"], got[1]["turn_index"])
+	}
+	if got[2]["turn_index"] != 1 {
+		t.Errorf("record 2 should carry turn_index=1, got %#v", got[2]["turn_index"])
+	}
+}
+
 // TestFilterSessionsForScope_SessionScopeDoesNotCrossProjects is a
 // regression test for a bug where scope=="session" ignored projectPath
 // entirely, sorted ALL Codex sessions across every project by CreatedAt, and

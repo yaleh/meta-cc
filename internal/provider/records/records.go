@@ -126,12 +126,37 @@ func FilterSessionsForScope(sessions []conversation.Session, scope, projectPath 
 	return filtered[:1]
 }
 
+// Normalize converts a provider's ordered Turn stream into the common,
+// jq-queryable record schema. Beyond the pre-existing fields, every emitted
+// record also carries a canonical, provider-neutral identity (DIR-036):
+//
+//   - turn_id:    the originating Turn's stable ID (conversation.Turn.ID).
+//   - turn_index: the Turn's 0-based position in the turns slice passed in.
+//   - seq:        a 0-based, strictly increasing position of THIS record
+//     within this call's output (one session's full normalized record
+//     stream). Combined with session_id, (session_id, seq) is a stable
+//     identity that never relies on timestamp uniqueness (multiple records
+//     from one turn legitimately share a timestamp) and survives jq
+//     projections that only select/filter (rather than reshape) records.
+//
+// This identity/order is what lets context-window expansion (see
+// internal/mcp/filters.ExpandContextTurnsCanonical) locate a matched record
+// inside a freshly reloaded canonical session stream without depending on
+// Claude's uuid field, which normalized records never carry.
 func Normalize(session conversation.Session, turns []conversation.Turn) []map[string]interface{} {
 	var out []map[string]interface{}
-	for _, turn := range turns {
+	seq := 0
+	emit := func(rec map[string]interface{}, turnIndex int, turnID string) {
+		rec["turn_id"] = turnID
+		rec["turn_index"] = turnIndex
+		rec["seq"] = seq
+		seq++
+		out = append(out, rec)
+	}
+	for turnIndex, turn := range turns {
 		ts := turn.Timestamp.Format(time.RFC3339)
 		if turn.UserText != "" {
-			out = append(out, map[string]interface{}{
+			emit(map[string]interface{}{
 				"type":       "user",
 				"provider":   session.Provider,
 				"session_id": session.ID,
@@ -142,7 +167,7 @@ func Normalize(session conversation.Session, turns []conversation.Turn) []map[st
 					"role":    "user",
 					"content": turn.UserText,
 				},
-			})
+			}, turnIndex, turn.ID)
 		}
 		if turn.AssistantText != "" || len(turn.ToolCalls) > 0 || hasUsage(turn.TokenUsage) {
 			content := make([]interface{}, 0, len(turn.ToolCalls)+1)
@@ -167,7 +192,7 @@ func Normalize(session conversation.Session, turns []conversation.Turn) []map[st
 			} else if session.Provider != conversation.ProviderCodex && hasUsage(session.TokenUsage) {
 				message["usage"] = map[string]interface{}{"input_tokens": session.TokenUsage.InputTokens, "output_tokens": session.TokenUsage.OutputTokens, "cache_tokens": session.TokenUsage.CacheTokens}
 			}
-			out = append(out, map[string]interface{}{
+			emit(map[string]interface{}{
 				"type":       "assistant",
 				"provider":   session.Provider,
 				"session_id": session.ID,
@@ -175,7 +200,7 @@ func Normalize(session conversation.Session, turns []conversation.Turn) []map[st
 				"cwd":        session.CWD,
 				"timestamp":  ts,
 				"message":    message,
-			})
+			}, turnIndex, turn.ID)
 		}
 		var toolResults []interface{}
 		for _, call := range turn.ToolCalls {
@@ -198,7 +223,7 @@ func Normalize(session conversation.Session, turns []conversation.Turn) []map[st
 			toolResults = append(toolResults, entry)
 		}
 		if len(toolResults) > 0 {
-			out = append(out, map[string]interface{}{
+			emit(map[string]interface{}{
 				"type":       "user",
 				"provider":   session.Provider,
 				"session_id": session.ID,
@@ -209,7 +234,7 @@ func Normalize(session conversation.Session, turns []conversation.Turn) []map[st
 					"role":    "user",
 					"content": toolResults,
 				},
-			})
+			}, turnIndex, turn.ID)
 		}
 	}
 	return out

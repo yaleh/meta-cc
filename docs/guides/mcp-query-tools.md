@@ -142,7 +142,7 @@ Additional parameters when `role=user`:
 - `min_content_length` / `max_content_length` — filter by content length
 - `content_summary` — return summary only (session_id/turn/timestamp/preview)
 - `group_by_session` — group results by session
-- `context_turns` — include N turns before/after each match
+- `context_turns` — include up to N adjacent records before/after each match (see "Context window semantics (`context_turns`)" below); supported for every provider (`claude`, `codex`, `all`)
 - `since` / `until` — RFC3339 time range filter
 
 Additional parameters when `role=assistant`:
@@ -176,6 +176,41 @@ query_session_content({
   scope: "session"
 })
 ```
+
+##### Context window semantics (`context_turns`)
+
+`context_turns=N` expands each matched `role=user` record to include up to `N`
+adjacent records on each side, from the same session only:
+
+- **Ordering/counting is by record position**, not turn count or timestamp:
+  each provider assigns every record a stable position in that session's
+  normalized record stream when the query first loads it. Windows are
+  bounded at the session's start/end, and overlapping windows (from two
+  nearby matches) are merged so no record repeats. Records sharing one
+  timestamp still get distinct positions, so `context_turns` never conflates
+  them.
+- **Matched vs. added records**: a matched record is returned with
+  `context: false`; a record added purely for context is returned with
+  `context: true`.
+- **Provider support is uniform**: `context_turns` works identically for
+  `provider: "claude"`, `"codex"` (both the rollout and app-server Codex
+  backends), and `"all"`. A match returned with `context_turns: 0` is never
+  silently erased by adding `context_turns > 0` — this was a defect (DIR-036)
+  fixed by routing context loading through the same provider/session
+  abstraction the original query used, instead of assuming Claude's on-disk
+  JSONL layout for every provider.
+- **Failure handling**: if a session's full history cannot be reloaded for
+  context (e.g. a transient backend failure), the session's original matches
+  are still returned (with `context: false` and no added context) and a
+  warning is included in the response — never a silent, unexplained empty
+  result for a query that had real matches.
+- `context_turns` composes with `group_by_session`, pagination,
+  `exclude_compact_summaries`, `scope: "session"`, and an explicit
+  `session_id` without erasing matches. It also composes with
+  `content_summary`: the match is preserved, but (both for Claude and Codex)
+  the expanded window's records reflect the freshly reloaded canonical
+  records rather than the `content_summary` preview projection — this is
+  pre-existing, provider-symmetric behavior, not something DIR-036 changed.
 
 #### `query_session_signals`
 

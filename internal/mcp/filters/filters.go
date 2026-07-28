@@ -131,11 +131,18 @@ func ApplyContentSummary(messages []interface{}, previewLength int) []interface{
 			}
 		}
 
-		// Create summary object
+		// Create summary object. "uuid" (Claude) and "seq" (provider-normalized
+		// records, see internal/provider/records.Normalize) are both preserved
+		// even though this is a summary projection: context-window expansion
+		// (ExpandContextTurns / ExpandContextTurnsCanonical) needs one of them
+		// to locate the matched record inside a freshly reloaded session
+		// stream, so content_summary must not erase whichever identity the
+		// record actually carries (DIR-036).
 		summary[i] = map[string]interface{}{
 			"session_id":      msgMap["sessionId"],
 			"turn_sequence":   i,
 			"uuid":            msgMap["uuid"],
+			"seq":             msgMap["seq"],
 			"timestamp":       msgMap["timestamp"],
 			"content_preview": preview,
 		}

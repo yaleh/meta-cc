@@ -360,8 +360,10 @@ func GetToolDefinitions() []Tool {
 					Description: "Aggregation level for stats_only/stats_first: 'turn' (default) or 'session'.",
 				},
 				"context_turns": {
-					Type:        "integer",
-					Description: "When role=user: number of turns to include before/after each matched turn. Default: 0.",
+					Type: "integer",
+					Description: "When role=user: number of adjacent records to include before/after each matched record, bounded at session start/end and deduplicated across overlapping windows. Default: 0. " +
+						"Supported for every provider (claude, codex, all): a match returned with context_turns=0 is never erased by setting context_turns>0. Ordering/counting is by each record's position in that session's normalized record stream (chronological order), not by turn count or timestamp equality — multiple records can share one timestamp. Matched records are marked context:false; added records are marked context:true. " +
+						"For codex/all, context is loaded through the same provider/session backend (rollout or app-server) the query itself used; if that reload fails for a given session, its original matches are still returned (context:false, no added context) and a warning is included rather than silently returning no data.",
 				},
 				"exclude_compact_summaries": {
 					Type:        "boolean",
