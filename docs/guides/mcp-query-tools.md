@@ -265,6 +265,21 @@ Additional parameters when `type=tool_stats`:
   `tool_stats` total. Any value other than `error`/`success` is a validation
   error, not a silently-ignored filter.
 
+**`provider: "all"` and outcome filtering (`status`, and `type: "errors"`)**
+(DIR-046): `provider: "all"` (and `provider: "codex"`) route Claude session
+data through a normalized, cross-provider record shape rather than raw
+Claude JSONL. A join-direction bug in that normalization path used to
+correlate each Claude `tool_use` with the WRONG neighboring `tool_result`
+(the one answering the *previous* tool call, not this one), which silently
+dropped almost all Claude-sourced outcome/error signal once records passed
+through it — `status: "error"`/`status: "success"` under `provider: "all"`
+would collapse to near-zero or a single session, and `type: "errors"` would
+do the same. This is now fixed at the source (Claude turn/tool-result
+pairing), so `status` filtering and `type: "errors"` return complete,
+multi-session, multi-provider results under `provider: "all"` exactly like
+`provider: "claude"` does alone — no separate workaround or warning is
+needed.
+
 All types support `since` / `until` RFC3339 time range filters.
 
 Examples:

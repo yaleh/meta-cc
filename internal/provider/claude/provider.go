@@ -95,6 +95,7 @@ func (p *Provider) LoadTurns(ctx context.Context, sessionID string) ([]conversat
 	}
 
 	pairs := buildTurns(entries)
+	resultsByAssistantUUID := userByParentUUID(entries)
 	turns := make([]conversation.Turn, 0, len(pairs))
 	for idx, pair := range pairs {
 		ts := time.Time{}
@@ -107,7 +108,7 @@ func (p *Provider) LoadTurns(ctx context.Context, sessionID string) ([]conversat
 		id := fmt.Sprintf("%s-%d", sessionID, idx+1)
 		userText := entryText(pair.user)
 		assistantText := entryText(pair.assistant)
-		calls := joinToolCalls(pair)
+		calls := joinToolCalls(pair, resultsByAssistantUUID)
 		status := conversation.TurnStatusInProgress
 		if pair.assistant != nil {
 			status = conversation.TurnStatusCompleted

@@ -34,14 +34,35 @@ func buildTurns(entries []types.SessionEntry) []turnPair {
 	return pairs
 }
 
-func joinToolCalls(pair turnPair) []conversation.ToolCall {
+// userByParentUUID indexes every user-typed entry by its parentUuid so that,
+// given an assistant entry, the tool_result-carrying entry correlated with
+// it can be found directly. In Claude's transcript chain, a tool_use call
+// made by assistant entry A is answered by the NEXT user-typed entry whose
+// parentUuid equals A's uuid — NOT by the user entry that triggered A
+// (that entry's parentUuid points at the PREVIOUS assistant turn, and its
+// content — if it carries tool_result blocks at all — answers that
+// previous turn's calls, not A's). joinToolCalls uses this map (rather
+// than turnPair.user) to correlate each tool_use with its own result; see
+// the DIR-046 regression test in provider_test.go for the concrete
+// off-by-one this fixes.
+func userByParentUUID(entries []types.SessionEntry) map[string]*types.SessionEntry {
+	m := make(map[string]*types.SessionEntry)
+	for i := range entries {
+		if entries[i].Type == "user" && entries[i].ParentUUID != "" {
+			m[entries[i].ParentUUID] = &entries[i]
+		}
+	}
+	return m
+}
+
+func joinToolCalls(pair turnPair, resultsByAssistantUUID map[string]*types.SessionEntry) []conversation.ToolCall {
 	if pair.assistant == nil || pair.assistant.Message == nil {
 		return nil
 	}
 
 	results := make(map[string]*types.ToolResult)
-	if pair.user != nil && pair.user.Message != nil {
-		for _, block := range pair.user.Message.Content {
+	if resultEntry := resultsByAssistantUUID[pair.assistant.UUID]; resultEntry != nil && resultEntry.Message != nil {
+		for _, block := range resultEntry.Message.Content {
 			if block.Type == "tool_result" && block.ToolResult != nil {
 				results[block.ToolResult.ToolUseID] = block.ToolResult
 			}
