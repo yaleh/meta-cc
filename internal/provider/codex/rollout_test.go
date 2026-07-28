@@ -547,3 +547,81 @@ func TestLoadTurnsFromRolloutLifecycleOnlyCompaction(t *testing.T) {
 		t.Fatalf("expected 1 typed compaction item with Reason %q, got %#v", "context_window", compactions)
 	}
 }
+
+// TestLoadTurnsFromRolloutDotSchemaToolResultFirstLine is the DIR-061
+// regression test for a dot-schema rollout whose FIRST record is an
+// item.tool_result event (head-truncated/rotated rollout file). No
+// turn.started precedes it, so b.current is nil when the item.tool_result
+// case runs; the parser must ensureTurn rather than nil-deref panic, and
+// must yield a turn containing that tool-result item.
+func TestLoadTurnsFromRolloutDotSchemaToolResultFirstLine(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "dot-schema-tool-result-first.jsonl")
+	content := `{"timestamp":"2026-07-27T10:00:00Z","type":"item.tool_result","payload":{"id":"call-1","output":"late result","is_error":false}}
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	turns, _, err := loadTurnsFromRollout(path, 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn (not discarded, no panic), got %d: %#v", len(turns), turns)
+	}
+
+	var results []conversation.Item
+	for _, item := range turns[0].Items {
+		if item.Kind == conversation.ItemKindToolResult {
+			results = append(results, item)
+		}
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected exactly 1 tool-result item, got %d: %#v", len(results), turns[0].Items)
+	}
+	if results[0].ToolCallID != "call-1" || results[0].Output != "late result" || results[0].IsError {
+		t.Fatalf("unexpected tool-result item: %#v", results[0])
+	}
+}
+
+// TestLoadTurnsFromRolloutDotSchemaToolResultAfterTurnCompleted is the
+// DIR-061 regression test for a stray item.tool_result that arrives AFTER a
+// turn.completed (which flushes -> b.current = nil), e.g. a late/duplicate
+// notification line or a resumed stream. The parser must not panic; the
+// stray result is folded into a fresh turn rather than crashing the request.
+func TestLoadTurnsFromRolloutDotSchemaToolResultAfterTurnCompleted(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "dot-schema-tool-result-after-completed.jsonl")
+	content := `{"timestamp":"2026-07-27T10:00:00Z","type":"thread.started","payload":{"id":"sess-stray"}}
+{"timestamp":"2026-07-27T10:00:01Z","type":"turn.started","payload":{"id":"turn-1"}}
+{"timestamp":"2026-07-27T10:00:02Z","type":"item.message","payload":{"role":"user","content":"do the thing"}}
+{"timestamp":"2026-07-27T10:00:03Z","type":"turn.completed","payload":{"id":"turn-1"}}
+{"timestamp":"2026-07-27T10:00:04Z","type":"item.tool_result","payload":{"id":"call-9","output":"stray result","is_error":true}}
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	turns, _, err := loadTurnsFromRollout(path, 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 2 {
+		t.Fatalf("expected 2 turns (completed turn + stray-result turn), got %d: %#v", len(turns), turns)
+	}
+	if turns[0].Status != conversation.TurnStatusCompleted {
+		t.Fatalf("expected first turn completed, got %q", turns[0].Status)
+	}
+
+	var results []conversation.Item
+	for _, item := range turns[1].Items {
+		if item.Kind == conversation.ItemKindToolResult {
+			results = append(results, item)
+		}
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected exactly 1 tool-result item in the stray turn, got %d: %#v", len(results), turns[1].Items)
+	}
+	if results[0].ToolCallID != "call-9" || results[0].Output != "stray result" || !results[0].IsError {
+		t.Fatalf("unexpected stray tool-result item: %#v", results[0])
+	}
+}

@@ -182,7 +182,14 @@ func (b *turnBuilder) addResponseItemText(kind conversation.ItemKind, role, phas
 	b.appendTextItem(kind, role, phase, "response_item", text, timestamp)
 }
 
+// The append*Item helpers (appendTextItem, appendToolCallItem,
+// appendToolResultItem, appendCompactionItem) each begin with a defensive
+// ensureTurn (DIR-061): every dispatch case already ensures a turn before
+// appending, but the guard here means no future event case can reintroduce
+// a nil-deref panic by omitting it. ensureTurn is a no-op when b.current is
+// already set, so existing behavior is unchanged.
 func (b *turnBuilder) appendTextItem(kind conversation.ItemKind, role, phase, source, text, timestamp string) int {
+	b.ensureTurn("", timestamp)
 	ts, _ := time.Parse(time.RFC3339, timestamp)
 	b.current.Items = append(b.current.Items, conversation.Item{
 		Kind:      kind,
@@ -210,6 +217,7 @@ func agentPhase(channel string) conversation.AgentPhase {
 }
 
 func (b *turnBuilder) appendToolCallItem(callID, name string, input json.RawMessage, timestamp string) {
+	b.ensureTurn("", timestamp) // DIR-061 defensive guard, see appendTextItem
 	ts, _ := time.Parse(time.RFC3339, timestamp)
 	b.current.Items = append(b.current.Items, conversation.Item{
 		ID:         callID,
@@ -222,6 +230,7 @@ func (b *turnBuilder) appendToolCallItem(callID, name string, input json.RawMess
 }
 
 func (b *turnBuilder) appendToolResultItem(callID, output string, isError bool, timestamp string) {
+	b.ensureTurn("", timestamp) // DIR-061 defensive guard, see appendTextItem
 	ts, _ := time.Parse(time.RFC3339, timestamp)
 	b.current.Items = append(b.current.Items, conversation.Item{
 		Kind:       conversation.ItemKindToolResult,
@@ -474,6 +483,7 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 // separate event families — top-level "compacted" reports reason, event_msg
 // "context_compacted" reports summary — so each call only ever sets one).
 func (b *turnBuilder) appendCompactionItem(reason, summary, timestamp string) {
+	b.ensureTurn("", timestamp) // DIR-061 defensive guard, see appendTextItem
 	ts := parseTimestamp(timestamp)
 	b.current.Items = append(b.current.Items, conversation.Item{
 		Kind:      conversation.ItemKindCompaction,
@@ -566,6 +576,12 @@ func (b *turnBuilder) applyNew(line []byte) {
 			IsError bool   `json:"is_error"`
 		}
 		_ = json.Unmarshal(event.Payload, &payload)
+		// DIR-061: guard like the item.message/item.tool_call siblings — an
+		// item.tool_result can be the first record of a head-truncated
+		// rollout or arrive after turn.completed (which flushes, setting
+		// b.current = nil); without this guard appendToolResultItem
+		// nil-derefs instead of degrading gracefully.
+		b.ensureTurn("", event.Timestamp)
 		b.appendToolResultItem(payload.ID, payload.Output, payload.IsError, event.Timestamp)
 	case "turn.completed":
 		if b.current != nil {
