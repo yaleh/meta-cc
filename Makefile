@@ -12,9 +12,24 @@ export PATH := $(PATH):/usr/local/go/bin:$(HOME)/go/bin
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
-LDFLAGS := -ldflags "-X github.com/yaleh/meta-cc/cmd.Version=$(VERSION) \
-                     -X github.com/yaleh/meta-cc/cmd.Commit=$(COMMIT) \
-                     -X github.com/yaleh/meta-cc/cmd.BuildTime=$(BUILD_TIME)"
+# DIR-049: LDFLAGS_VALUE holds just the -X assignments (no "-ldflags" prefix,
+# no surrounding quotes) so `print-ldflags-value` can hand it, verbatim, to a
+# `go build -ldflags <value>` invocation from a test or script -- proving the
+# actual Makefile-computed -X targets resolve, not a hand-copied duplicate.
+# These target real package-level vars in internal/version (see
+# internal/version/version.go); a previous version of this file pointed at
+# the nonexistent github.com/yaleh/meta-cc/cmd package, which Go's linker
+# silently no-ops on instead of erroring (see tasks/DIR-049.md).
+LDFLAGS_VALUE := -X github.com/yaleh/meta-cc/internal/version.Commit=$(COMMIT) \
+                 -X github.com/yaleh/meta-cc/internal/version.BuildTime=$(BUILD_TIME)
+LDFLAGS := -ldflags "$(LDFLAGS_VALUE)"
+
+# DIR-049: prints the exact -X assignments used by build/install/cross-compile,
+# with no surrounding quotes, so a Go test can pass it straight to
+# `go build -ldflags <value>` and prove the Makefile's actual LDFLAGS wiring
+# resolves to real symbols (internal/version/ldflags_test.go).
+print-ldflags-value:
+	@echo $(LDFLAGS_VALUE)
 
 GOCMD := go
 GOBUILD := $(GOCMD) build
@@ -29,7 +44,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # Default target when running 'make' without arguments
 .DEFAULT_GOAL := all
 
-.PHONY: all build stage test test-all test-coverage clean install install-local install-user install-user-codex uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-path-independence _path-independence-probe
+.PHONY: all build stage test test-all test-coverage clean install install-local install-user install-user-codex uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-path-independence _path-independence-probe print-ldflags-value
 
 # ==============================================================================
 # Build Quality Gates (BAIME Experiment - Iteration 1)
@@ -336,7 +351,7 @@ ci: push
 build:
 	@echo "Building $(MCP_BINARY_NAME) $(VERSION)..."
 	@mkdir -p bin
-	$(GOBUILD) -o bin/$(MCP_BINARY_NAME) ./cmd/mcp-server
+	$(GOBUILD) $(LDFLAGS) -o bin/$(MCP_BINARY_NAME) ./cmd/mcp-server
 
 stage: build
 	@echo "Staging binary to plugin-src/bin/..."

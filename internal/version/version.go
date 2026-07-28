@@ -37,6 +37,25 @@ type release struct {
 // package-init time from the embedded release.json.
 var Version = mustLoadVersion()
 
+// Commit and BuildTime are per-build fingerprints, distinct from the
+// hand-bumped release Version above. Unlike Version (loaded from the
+// go:embed'd release.json, which cannot be overridden by the linker), these
+// are plain package-level vars so that `go build -ldflags "-X ...Commit=..."`
+// can inject the actual git commit and build timestamp at link time. The
+// Makefile's LDFLAGS (see Makefile's COMMIT/BUILD_TIME shell-derived
+// variables) targets these exact symbols:
+//
+//	-X github.com/yaleh/meta-cc/internal/version.Commit=$(COMMIT)
+//	-X github.com/yaleh/meta-cc/internal/version.BuildTime=$(BUILD_TIME)
+//
+// If a build does not go through the Makefile's LDFLAGS (e.g. `go build`
+// invoked directly, or `go test`), these retain their zero-value defaults
+// below.
+var (
+	Commit    = "unknown"
+	BuildTime = "unknown"
+)
+
 func mustLoadVersion() string {
 	var r release
 	if err := json.Unmarshal(releaseJSON, &r); err != nil {

@@ -47,6 +47,18 @@ kept in agreement as follows:
   into the MCP server binary via `internal/version` (`go:embed`), so the
   server's `initialize` response and startup log always reflect this file —
   there is no separate hardcoded server version to forget.
+- **`internal/version.Commit` and `internal/version.BuildTime`** (DIR-049)
+  are a separate, per-build fingerprint, not a substitute for the
+  hand-bumped release version above — they distinguish two builds that
+  happen to share the same un-bumped `Version` (e.g. mid-development
+  commits between releases). `Makefile`'s `build`/`install`/`cross-compile`
+  targets embed them via linker `-X` flags (`COMMIT`/`BUILD_TIME`, sourced
+  from `git rev-parse --short HEAD` / the build's UTC timestamp), and the
+  MCP server logs both alongside `version` in its "MCP server starting"
+  entry. See [Plugin Development
+  Guide](plugin-development.md#verifying-which-commitbuild-is-actually-installed)
+  for how to read this to confirm which commit a running/installed server
+  actually came from.
 - **The MCP tool count is never hand-maintained as an independent number.**
   It is always read from `internal/mcp/tools.GetToolDefinitions()` (the same
   function that answers the live `tools/list` request). Docs and manifests

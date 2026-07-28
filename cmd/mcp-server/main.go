@@ -32,6 +32,8 @@ func main() {
 	slog.Info("MCP server starting",
 		"server_name", version.ServerName,
 		"version", version.Version,
+		"commit", version.Commit,
+		"build_time", version.BuildTime,
 	)
 
 	// Initialize distributed tracing

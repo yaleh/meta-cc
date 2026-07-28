@@ -83,6 +83,32 @@ Both behaviors -- `stage`'s locked-binary safety and the Codex TOML update
 `tests/scripts/codex-registration.bats`, run via `make test-bats` (wired
 into `make push`).
 
+### Verifying which commit/build is actually installed
+
+`Makefile`'s `build`, `install`, and `cross-compile` targets all embed the
+exact commit and build timestamp into the binary via linker `-X` flags
+(`internal/version.Commit` / `internal/version.BuildTime`, alongside the
+existing hand-bumped `internal/version.Version`). The running MCP server
+logs all three in its startup entry:
+
+```json
+{"msg":"MCP server starting","server_name":"meta-cc-mcp","version":"3.5.1","commit":"78aea25","build_time":"2026-07-28_16:12:37"}
+```
+
+This closes a real gap (DIR-049): before this, the same un-bumped
+`version.Version` could be reported by two materially different builds,
+with no way to tell them apart. Now `commit` should match
+`git rev-parse --short HEAD` at build time, so you can confirm exactly
+which source snapshot is actually running.
+
+Since `install-local`/`install-user` copy the binary at `stage`/`build`
+time (not at every session start), **a user-scope install only picks up
+new commits when you re-run `make install-user`** (and similarly
+`make install-local` for the local scope) -- restarting Claude Code alone
+reloads the *existing* installed binary, it does not rebuild it. If a
+session's logged `commit` doesn't match your current `git rev-parse --short
+HEAD`, that's the signal you need to reinstall.
+
 ## Plugin Structure
 
 ### Files and Directories
