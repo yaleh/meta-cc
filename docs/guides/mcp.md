@@ -172,10 +172,30 @@ Most query and analysis tools accept:
 | `limit` | number | Maximum results; default is no limit |
 | `stats_only` | boolean | Return aggregate statistics only |
 | `stats_first` | boolean | Return stats followed by details |
-| `output_format` | string | `jsonl` or `tsv` |
 | `inline_threshold_bytes` | number | Threshold for inline vs file reference output |
 
 Time-aware tools also accept RFC3339 `since` and `until`.
+
+### `output_format` (DIR-044: scoped to 4 tools, not universal)
+
+`output_format` (`jsonl` default, or `tsv`) is declared only on the four consolidated query
+tools whose results are built via the shared response pipeline: `query_sessions`,
+`query_session_content`, `query_session_signals`, `query_file_activity`. It is genuinely
+implemented — `output_format: "tsv"` returns a header row (the sorted union of field names
+across all returned records) followed by one tab-separated row per record; nested
+object/array field values are JSON-encoded inline within their own cell rather than
+flattened, and any literal tab/newline/backslash inside a scalar string value is
+backslash-escaped. Envelope metadata (`mode`, `pagination`, `warnings`) is emitted as leading
+`#`-prefixed comment lines before the header. TSV only applies to inline-mode responses —
+large (`file_ref`-mode) result sets remain JSON regardless of `output_format`.
+
+The other 12 tools (`analyze_errors`, `analyze_bugs`, `quality_scan`, `get_work_patterns`,
+`get_timeline`, `get_tech_debt`, `query_edit_sequences`, `cleanup_temp_files`,
+`get_session_directory`, `inspect_session_files`, `execute_stage2_query`,
+`get_session_metadata`) do not declare `output_format` — they marshal their own typed,
+non-flat-record result structs directly and never route through the pipeline that
+implements TSV serialization, so the parameter isn't advertised on them (previously it was
+declared on all 16 tools but silently ignored everywhere).
 
 ### `get_timeline` and `stats_only`
 

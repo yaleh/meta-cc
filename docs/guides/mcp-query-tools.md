@@ -418,8 +418,33 @@ Most query tools accept:
 | `limit` | number | Maximum results; default is no limit |
 | `stats_only` | boolean | Return aggregate statistics only — no per-item `examples`/detail arrays. Honored consistently by all six `analysis.Service` tools (`analyze_errors`, `analyze_bugs`, `quality_scan`, `get_work_patterns`, `get_tech_debt`, `get_timeline`); `analyze_errors`/`analyze_bugs` return per-tool/per-pattern *counts* with no `examples` text, and `get_tech_debt` returns a `hotspot_file_count` in place of the full per-file `hotspot_files` list. `quality_scan` and `get_work_patterns` are already aggregate-only, so `stats_only` returns their normal (unchanged) shape. |
 | `stats_first` | boolean | Return stats followed by details |
-| `output_format` | string | `jsonl` or `tsv` |
 | `inline_threshold_bytes` | number | Threshold for inline vs file reference output |
+
+### `output_format` (DIR-044: scoped to 4 tools, not universal)
+
+`output_format` (`jsonl` default, or `tsv`) is declared only on the four consolidated query
+tools whose results are built via `internal/mcp/pipeline.BuildResponse`: `query_sessions`,
+`query_session_content`, `query_session_signals`, `query_file_activity`. It is genuinely
+implemented (not just schema-declared): `output_format: "tsv"` returns a header row (the
+sorted union of field names across all returned records) followed by one tab-separated row
+per record. Nested object/array field values are JSON-encoded inline within their own cell
+rather than flattened, and any literal tab/newline/backslash inside a scalar string value is
+backslash-escaped so row structure (one record per line, fields split on tab) stays intact.
+Envelope metadata (`mode`, `pagination`, `warnings`) is emitted as leading `#`-prefixed
+comment lines before the header rather than being silently dropped. TSV only applies to
+inline-mode responses — large result sets returned in `file_ref` mode are unaffected by
+`output_format` and remain JSON (the data already lives in a separate JSONL temp file).
+
+The other 12 tools — the six `analysis.Service` tools (`analyze_errors`, `analyze_bugs`,
+`quality_scan`, `get_work_patterns`, `get_timeline`, `get_tech_debt`), plus
+`query_edit_sequences`, `cleanup_temp_files`, `get_session_directory`,
+`inspect_session_files`, `execute_stage2_query`, and `get_session_metadata` — do not declare
+`output_format` in their MCP schema. Each of them marshals its own typed, non-flat-record
+result struct to JSON directly and never touches `PipelineConfig`, so retrofitting TSV there
+would mean special-casing each analyzer's distinct result shape rather than a single bounded
+change. Previously `output_format` was declared (via `StandardToolParameters()`) on all 16
+tools uniformly, but `pipeline.BuildResponse` never branched on it, so every tool silently
+ignored the parameter regardless of what was passed.
 
 ## Hybrid Output Mode
 

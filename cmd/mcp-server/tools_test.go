@@ -12,7 +12,7 @@ func TestStandardToolParameters(t *testing.T) {
 	// Verify all standard parameters exist
 	requiredParams := []string{
 		"scope", "jq_filter", "stats_only",
-		"stats_first", "inline_threshold_bytes", "output_format",
+		"stats_first", "inline_threshold_bytes",
 	}
 
 	for _, param := range requiredParams {
@@ -37,8 +37,42 @@ func TestStandardToolParameters(t *testing.T) {
 	if params["inline_threshold_bytes"].Type != "number" {
 		t.Errorf("inline_threshold_bytes should be number, got %s", params["inline_threshold_bytes"].Type)
 	}
-	if params["output_format"].Type != "string" {
-		t.Errorf("output_format should be string, got %s", params["output_format"].Type)
+}
+
+// TestStandardToolParameters_OutputFormatNotUniversal is the DIR-044
+// regression: output_format used to be a universal StandardToolParameters
+// entry even though pipeline.BuildResponse never consulted it for most
+// tools. It's now declared per-tool (see tools.OutputFormatProperty), only
+// on the 4 tools routed through pipeline.BuildResponse -- see
+// TestOutputFormat_ScopedToSupportedTools below.
+func TestStandardToolParameters_OutputFormatNotUniversal(t *testing.T) {
+	params := StandardToolParameters()
+	if _, ok := params["output_format"]; ok {
+		t.Error("output_format must not be a universal StandardToolParameters entry (DIR-044)")
+	}
+}
+
+// TestOutputFormat_ScopedToSupportedTools is the DIR-044 regression: only
+// the 4 tools whose results are built via pipeline.BuildResponse (and
+// therefore actually honor output_format=tsv) declare "output_format" in
+// their MCP schema.
+func TestOutputFormat_ScopedToSupportedTools(t *testing.T) {
+	supported := map[string]bool{
+		"query_sessions":        true,
+		"query_session_content": true,
+		"query_session_signals": true,
+		"query_file_activity":   true,
+	}
+
+	for _, tool := range getToolDefinitions() {
+		_, hasOutputFormat := tool.InputSchema.Properties["output_format"]
+		if supported[tool.Name] {
+			if !hasOutputFormat {
+				t.Errorf("tool %q must declare output_format (routed through pipeline.BuildResponse)", tool.Name)
+			}
+		} else if hasOutputFormat {
+			t.Errorf("tool %q must not declare output_format (never reaches pipeline.BuildResponse)", tool.Name)
+		}
 	}
 }
 
@@ -84,7 +118,7 @@ func TestAllToolsHaveStandardParameters(t *testing.T) {
 	tools := getToolDefinitions()
 
 	requiredParams := []string{
-		"scope", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes", "output_format",
+		"scope", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes",
 	}
 
 	// Tools that should have message truncation parameters (Stage 15.1)

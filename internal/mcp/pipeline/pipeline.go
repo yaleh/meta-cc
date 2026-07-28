@@ -145,9 +145,9 @@ func BuildResponse(cfg *config.Config, result mcquerypkg.QueryResult, args map[s
 	var output string
 	var err error
 	if pc.StatsFirst {
-		output, err = BuildStatsFirstResponse(cfg, rawData, parsedData, args, toolName, pc.UseTimestampStats, pc.StatsLevel, paginationMeta)
+		output, err = BuildStatsFirstResponse(cfg, rawData, parsedData, args, toolName, pc.UseTimestampStats, pc.StatsLevel, paginationMeta, pc.OutputFormat)
 	} else {
-		output, err = BuildStandardResponse(cfg, parsedData, args, toolName, paginationMeta)
+		output, err = BuildStandardResponse(cfg, parsedData, args, toolName, paginationMeta, pc.OutputFormat)
 	}
 
 	if err != nil {
@@ -358,6 +358,10 @@ func BuildStatsOnlyResponse(parsedData []interface{}, useTimestampStats bool, st
 // useTimestampStats selects time-bucketed stats; when false, key-count stats are used.
 // toolName is passed through to AdaptResponse for output formatting only.
 // paginationMeta carries pagination metadata for the response envelope.
+// outputFormat selects the detail section's serialization: "tsv" switches it to
+// tab-separated values (inline mode only; file_ref mode falls back to JSON —
+// see responsepkg.SerializeResponseTSV); anything else (including the default
+// "jsonl") keeps the existing JSON serialization (DIR-044).
 func BuildStatsFirstResponse(
 	cfg *config.Config,
 	rawData []interface{},
@@ -367,6 +371,7 @@ func BuildStatsFirstResponse(
 	useTimestampStats bool,
 	statsLevel string,
 	paginationMeta *filterpkg.PaginationMetadata,
+	outputFormat string,
 ) (string, error) {
 	// Use rawData for stats (sessionId field preserved, not renamed by content_summary)
 	jsonlData, err := DataToJSONL(rawData)
@@ -399,6 +404,12 @@ func BuildStatsFirstResponse(
 		return "", err
 	}
 
+	if outputFormat == "tsv" {
+		if tsvOut, ok := responsepkg.SerializeResponseTSV(response); ok {
+			return stats + "\n---\n" + tsvOut, nil
+		}
+	}
+
 	serialized, err := responsepkg.SerializeResponse(response)
 	if err != nil {
 		slog.Error("response serialization failed (stats_first)",
@@ -414,12 +425,18 @@ func BuildStatsFirstResponse(
 
 // BuildStandardResponse generates a standard (non-stats) response for the given data.
 // paginationMeta carries pagination metadata for the response envelope.
+// outputFormat: "tsv" switches inline-mode output to tab-separated values
+// (declared on the 4 tools whose data flows through this pipeline — see
+// tools.OutputFormatProperty); file_ref mode falls back to JSON regardless —
+// see responsepkg.SerializeResponseTSV. Any other value (including the
+// default "jsonl") keeps the existing JSON serialization (DIR-044).
 func BuildStandardResponse(
 	cfg *config.Config,
 	parsedData []interface{},
 	args map[string]interface{},
 	toolName string,
 	paginationMeta *filterpkg.PaginationMetadata,
+	outputFormat string,
 ) (string, error) {
 	response, err := responsepkg.AdaptResponse(cfg, parsedData, args, toolName, paginationMeta)
 	if err != nil {
@@ -429,6 +446,12 @@ func BuildStandardResponse(
 			"error_type", "execution_error",
 		)
 		return "", fmt.Errorf("response adaptation error for tool %s: %w", toolName, err)
+	}
+
+	if outputFormat == "tsv" {
+		if tsvOut, ok := responsepkg.SerializeResponseTSV(response); ok {
+			return tsvOut, nil
+		}
 	}
 
 	output, err := responsepkg.SerializeResponse(response)

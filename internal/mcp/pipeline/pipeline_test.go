@@ -202,7 +202,7 @@ func TestBuildStatsFirstResponse_Basic(t *testing.T) {
 		testConfig(),
 		rawData, parsedData,
 		map[string]interface{}{},
-		"query_session_signals", false, "turn", nil,
+		"query_session_signals", false, "turn", nil, "jsonl",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -220,7 +220,7 @@ func TestBuildStatsFirstResponse_TimestampTool(t *testing.T) {
 		testConfig(),
 		rawData, rawData,
 		map[string]interface{}{},
-		"query_session_content", true, "turn", nil,
+		"query_session_content", true, "turn", nil, "jsonl",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -236,7 +236,7 @@ func TestBuildStatsFirstResponse_SessionLevel(t *testing.T) {
 		testConfig(),
 		rawData, rawData,
 		map[string]interface{}{},
-		"query_session_content", true, "session", nil,
+		"query_session_content", true, "session", nil, "jsonl",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -254,7 +254,7 @@ func TestBuildStandardResponse_Basic(t *testing.T) {
 		testConfig(),
 		data,
 		map[string]interface{}{},
-		"query_session_signals", nil,
+		"query_session_signals", nil, "jsonl",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -440,7 +440,7 @@ func TestBuildStandardResponse_WithPagination(t *testing.T) {
 		testConfig(),
 		data[:25],
 		map[string]interface{}{},
-		"query_session_signals", meta,
+		"query_session_signals", meta, "jsonl",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -464,7 +464,7 @@ func TestBuildStandardResponse_WithPagination(t *testing.T) {
 		testConfig(),
 		data[75:],
 		map[string]interface{}{},
-		"query_session_signals", meta2,
+		"query_session_signals", meta2, "jsonl",
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -696,5 +696,119 @@ func TestBuildResponse_JQFilter_InvalidExpressionFailsClosed(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "jq_filter") {
 		t.Errorf("expected error to mention 'jq_filter', got: %v", err)
+	}
+}
+
+// ─── output_format: tsv (DIR-044) ────────────────────────────────────────────
+//
+// StandardToolParameters() (internal/mcp/tools/tools.go) declares
+// "output_format": "jsonl or tsv" on every one of the 16 MCP tools, but until
+// this fix BuildResponse never branched on it — a caller passing
+// output_format: "tsv" silently got the same JSON/JSONL shape back. These
+// tests assert output_format: "tsv" actually changes the returned response
+// format relative to the default, for more than one tool name, both via the
+// full BuildResponse entry point and via BuildStandardResponse directly.
+
+// isJSONObject reports whether s parses as a JSON object (used to assert TSV
+// output is NOT the same JSON envelope the default jsonl format produces).
+func isJSONObject(s string) bool {
+	var m map[string]interface{}
+	return json.Unmarshal([]byte(s), &m) == nil
+}
+
+func TestBuildResponse_OutputFormatTSV_DiffersFromDefault(t *testing.T) {
+	entries := []interface{}{
+		map[string]interface{}{"tool_name": "Bash", "status": "success"},
+		map[string]interface{}{"tool_name": "Read", "status": "error"},
+	}
+
+	for _, toolName := range []string{"query_sessions", "query_session_content", "analyze_errors"} {
+		t.Run(toolName, func(t *testing.T) {
+			pcDefault := pipeline.PipelineConfig{}
+			outDefault, err := pipeline.BuildResponse(testConfig(), makeQueryResult(entries...), map[string]interface{}{}, toolName, pcDefault)
+			if err != nil {
+				t.Fatalf("unexpected error (default): %v", err)
+			}
+			if !isJSONObject(outDefault) {
+				t.Fatalf("expected default output_format to be a JSON object, got: %s", outDefault)
+			}
+
+			pcTSV := pipeline.PipelineConfig{OutputFormat: "tsv"}
+			args := map[string]interface{}{"output_format": "tsv"}
+			outTSV, err := pipeline.BuildResponse(testConfig(), makeQueryResult(entries...), args, toolName, pcTSV)
+			if err != nil {
+				t.Fatalf("unexpected error (tsv): %v", err)
+			}
+
+			if outTSV == outDefault {
+				t.Fatalf("expected output_format=tsv to differ from default output, got identical output: %s", outTSV)
+			}
+			if isJSONObject(outTSV) {
+				t.Fatalf("expected output_format=tsv to produce a non-JSON, tab-separated response, got JSON: %s", outTSV)
+			}
+			if !strings.Contains(outTSV, "\t") {
+				t.Fatalf("expected output_format=tsv output to contain tab-separated fields, got: %q", outTSV)
+			}
+			if !strings.Contains(outTSV, "tool_name") || !strings.Contains(outTSV, "status") {
+				t.Fatalf("expected tsv header to include record field names, got: %q", outTSV)
+			}
+		})
+	}
+}
+
+func TestBuildStandardResponse_OutputFormatTSV(t *testing.T) {
+	data := []interface{}{
+		map[string]interface{}{"tool_name": "Bash", "status": "success"},
+	}
+	out, err := pipeline.BuildStandardResponse(testConfig(), data, map[string]interface{}{}, "query_session_signals", nil, "tsv")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if isJSONObject(out) {
+		t.Errorf("expected non-JSON tsv output, got: %s", out)
+	}
+	if !strings.Contains(out, "tool_name\tBash") && !strings.Contains(out, "Bash") {
+		t.Errorf("expected tsv output to include record data, got: %q", out)
+	}
+}
+
+func TestBuildStatsFirstResponse_OutputFormatTSV(t *testing.T) {
+	rawData := []interface{}{
+		map[string]interface{}{"tool_name": "Bash", "status": "success"},
+	}
+	out, err := pipeline.BuildStatsFirstResponse(
+		testConfig(),
+		rawData, rawData,
+		map[string]interface{}{},
+		"query_session_signals", false, "turn", nil, "tsv",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "---") {
+		t.Fatalf("expected '---' separator in stats_first output, got: %s", out)
+	}
+	detail := strings.SplitN(out, "\n---\n", 2)[1]
+	if isJSONObject(detail) {
+		t.Errorf("expected non-JSON tsv detail section, got: %s", detail)
+	}
+	if !strings.Contains(detail, "tool_name\tBash") && !strings.Contains(detail, "Bash") {
+		t.Errorf("expected tsv detail section to include record data, got: %q", detail)
+	}
+}
+
+func TestBuildResponse_OutputFormatDefault_UnaffectedByTSVSupport(t *testing.T) {
+	// Regression guard: adding tsv support must not change default (jsonl)
+	// behavior when output_format is omitted entirely.
+	entries := []interface{}{
+		map[string]interface{}{"tool_name": "Bash", "status": "success"},
+	}
+	pc := pipeline.PipelineConfig{}
+	out, err := pipeline.BuildResponse(testConfig(), makeQueryResult(entries...), map[string]interface{}{}, "query_session_signals", pc)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !isJSONObject(out) {
+		t.Fatalf("expected default output to remain a JSON object, got: %s", out)
 	}
 }

@@ -13,12 +13,57 @@ func TestStandardToolParameters(t *testing.T) {
 
 	requiredParams := []string{
 		"scope", "provider", "jq_filter", "stats_only",
-		"stats_first", "inline_threshold_bytes", "output_format",
+		"stats_first", "inline_threshold_bytes",
 	}
 
 	for _, param := range requiredParams {
 		if _, ok := params[param]; !ok {
 			t.Errorf("missing standard parameter: %s", param)
+		}
+	}
+}
+
+// TestStandardToolParameters_OutputFormatNotUniversal is the DIR-044
+// regression: output_format used to be declared here (merged onto all 16
+// tools) even though pipeline.BuildResponse never consulted it for most of
+// them. It's now added per-tool (see OutputFormatProperty) only on the four
+// tools whose data flows through pipeline.BuildResponse, not as a standard
+// parameter merged onto every tool.
+func TestStandardToolParameters_OutputFormatNotUniversal(t *testing.T) {
+	params := tools.StandardToolParameters()
+	if _, ok := params["output_format"]; ok {
+		t.Error("output_format must not be a universal StandardToolParameters entry (DIR-044): " +
+			"it's only implemented for the 4 tools routed through pipeline.BuildResponse, " +
+			"declare it per-tool via tools.OutputFormatProperty() instead")
+	}
+}
+
+// TestOutputFormat_ScopedToSupportedTools is the DIR-044 regression: only
+// the 4 tools whose results are built via internal/mcp/pipeline.BuildResponse
+// (and therefore actually honor output_format=tsv) declare "output_format" in
+// their MCP schema. The other 12 tools marshal their own typed,
+// non-flat-record analyzer results directly and never touch PipelineConfig,
+// so output_format is not advertised on them (previously it was declared but
+// silently ignored for every one of the 16 tools).
+func TestOutputFormat_ScopedToSupportedTools(t *testing.T) {
+	supported := map[string]bool{
+		"query_sessions":        true,
+		"query_session_content": true,
+		"query_session_signals": true,
+		"query_file_activity":   true,
+	}
+
+	for _, def := range tools.GetToolDefinitions() {
+		_, hasOutputFormat := def.InputSchema.Properties["output_format"]
+		if supported[def.Name] {
+			if !hasOutputFormat {
+				t.Errorf("tool %q must declare output_format (it is routed through pipeline.BuildResponse)", def.Name)
+			}
+		} else {
+			if hasOutputFormat {
+				t.Errorf("tool %q must not declare output_format (it never reaches pipeline.BuildResponse, "+
+					"so output_format would be silently ignored)", def.Name)
+			}
 		}
 	}
 }

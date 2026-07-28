@@ -41,10 +41,6 @@ func StandardToolParameters() map[string]Property {
 			Type:        "number",
 			Description: "Threshold for inline vs file_ref mode in bytes (default: 32768). Can also set META_CC_INLINE_THRESHOLD env var",
 		},
-		"output_format": {
-			Type:        "string",
-			Description: "Output format: jsonl or tsv (default: jsonl)",
-		},
 		"include_subagents": {
 			Type:        "boolean",
 			Description: "Include subagent session files (default: true). Pass false to query only top-level sessions.",
@@ -74,6 +70,34 @@ func SessionIDProperty() Property {
 		Description: `Exact session/thread ID to query, reading only that one session (never "most recent" and never every session in scope). ` +
 			`Distinct from scope="session" (which means "the most recently modified session" and is unrelated to a specific ID). ` +
 			`When set, "scope" and "cwd"/project-boundary filters still apply to the fetched session's metadata (e.g. a session outside the current project is excluded), but no other session is listed or loaded.`,
+	}
+}
+
+// OutputFormatProperty is the "output_format" property shared by the four
+// consolidated query tools (query_sessions, query_session_content,
+// query_session_signals, query_file_activity) whose results are produced via
+// internal/mcp/pipeline.BuildResponse. DIR-044: this was formerly declared on
+// all 16 MCP tools via StandardToolParameters(), but pipeline.BuildResponse
+// never branched on it, so every tool silently ignored it. It's now (a)
+// genuinely implemented as real TSV serialization here, in
+// pipeline.BuildResponse (see internal/mcp/response's SerializeResponseTSV /
+// RecordsToTSV), and (b) scoped to only the tools whose data actually flows
+// through that pipeline — the other 12 tools (analyze_errors, analyze_bugs,
+// quality_scan, get_work_patterns, get_timeline, get_tech_debt,
+// query_edit_sequences, cleanup_temp_files, get_session_directory,
+// inspect_session_files, execute_stage2_query, get_session_metadata) marshal
+// their own typed, non-flat analyzer-result structs directly and never
+// touch PipelineConfig, so output_format is no longer advertised on them
+// rather than left declared-but-inert.
+func OutputFormatProperty() Property {
+	return Property{
+		Type: "string",
+		Description: "Output format: \"jsonl\" (default) or \"tsv\". TSV output (inline-mode responses only) is a header row " +
+			"(the sorted union of field names across all returned records) followed by one tab-separated row per record; " +
+			"nested object/array field values are JSON-encoded inline within their own cell rather than flattened, and any " +
+			"literal tab/newline/backslash inside a scalar string value is backslash-escaped. Envelope metadata (mode, " +
+			"pagination, warnings) is emitted as leading \"#\"-prefixed comment lines before the header. file_ref-mode " +
+			"responses (large result sets written to a temp file) are unaffected by this setting and remain JSON.",
 	}
 }
 
@@ -386,7 +410,8 @@ func GetToolDefinitions() []Tool {
 					Type:        "string",
 					Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 				},
-				"session_id": SessionIDProperty(),
+				"session_id":    SessionIDProperty(),
+				"output_format": OutputFormatProperty(),
 			}, "role"),
 
 		BuildTool("query_session_signals",
@@ -420,7 +445,8 @@ func GetToolDefinitions() []Tool {
 					Type:        "string",
 					Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 				},
-				"session_id": SessionIDProperty(),
+				"session_id":    SessionIDProperty(),
+				"output_format": OutputFormatProperty(),
 			}, "type"),
 
 		BuildTool("query_file_activity",
@@ -438,7 +464,8 @@ func GetToolDefinitions() []Tool {
 					Type:        "string",
 					Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 				},
-				"session_id": SessionIDProperty(),
+				"session_id":    SessionIDProperty(),
+				"output_format": OutputFormatProperty(),
 			}, "type"),
 
 		BuildTool("query_sessions",
@@ -506,6 +533,7 @@ func GetToolDefinitions() []Tool {
 					Type:        "string",
 					Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 				},
+				"output_format": OutputFormatProperty(),
 			}),
 
 		BuildTool("query_edit_sequences", "Analyze file edit/read patterns: docRole, co-accessed docs, DocVoid. Default scope: project.", map[string]Property{
