@@ -31,31 +31,16 @@ func FileActionType(toolName string) string {
 
 // ExtractToolCalls extracts all tool calls from a SessionEntry slice.
 // It pairs each ToolUse with its corresponding ToolResult by tool_use_id.
+//
+// Ordering guarantee (DIR-058): the returned slice is in entry (JSONL) order —
+// each ToolCall appears at the position of its tool_use block as entries are
+// walked in slice order (and, within a single entry, in content-block order).
+// The output is deterministic: this function never ranges over a map to build
+// the result slice. If the same tool_use_id appears more than once, only the
+// first occurrence is emitted. Callers that need a different order (e.g.
+// turn-number order) must sort explicitly.
 func ExtractToolCalls(entries []SessionEntry) []ToolCall {
-	// Step 1: collect all ToolUse blocks indexed by ID
-	type toolUseRecord struct {
-		uuid      string
-		toolUse   *ToolUse
-		timestamp string
-	}
-	toolUseMap := make(map[string]toolUseRecord)
-
-	for _, entry := range entries {
-		if entry.Message == nil {
-			continue
-		}
-		for _, block := range entry.Message.Content {
-			if block.Type == "tool_use" && block.ToolUse != nil {
-				toolUseMap[block.ToolUse.ID] = toolUseRecord{
-					uuid:      entry.UUID,
-					toolUse:   block.ToolUse,
-					timestamp: entry.Timestamp,
-				}
-			}
-		}
-	}
-
-	// Step 2: collect all ToolResult blocks indexed by tool_use_id
+	// Step 1: collect all ToolResult blocks indexed by tool_use_id
 	toolResultMap := make(map[string]*ToolResult)
 	for _, entry := range entries {
 		if entry.Message == nil {
@@ -68,32 +53,49 @@ func ExtractToolCalls(entries []SessionEntry) []ToolCall {
 		}
 	}
 
-	// Step 3: pair ToolUse with ToolResult
+	// Step 2: re-iterate entries in slice order and emit a ToolCall at each
+	// tool_use block, looking up its paired result in toolResultMap. Iterating
+	// entries (not a map) keeps the emit order deterministic across calls.
 	var toolCalls []ToolCall
-	for toolUseID, tu := range toolUseMap {
-		tc := ToolCall{
-			UUID:      tu.uuid,
-			ToolName:  tu.toolUse.Name,
-			Input:     tu.toolUse.Input,
-			Timestamp: tu.timestamp,
+	emitted := make(map[string]struct{})
+	for _, entry := range entries {
+		if entry.Message == nil {
+			continue
 		}
-		if result, found := toolResultMap[toolUseID]; found {
-			tc.Output = result.Content
-			tc.Status = result.Status
-			tc.Error = result.Error
+		for _, block := range entry.Message.Content {
+			if block.Type != "tool_use" || block.ToolUse == nil {
+				continue
+			}
+			toolUseID := block.ToolUse.ID
+			if _, dup := emitted[toolUseID]; dup {
+				continue // one ToolCall per tool_use_id; first occurrence wins
+			}
+			emitted[toolUseID] = struct{}{}
 
-			// Normalize Status from IsError when the JSONL omits a "status" field.
-			// Real Claude Code tool_result blocks only carry "is_error":true/false,
-			// so result.Status is "" for every successful call.
-			if tc.Status == "" {
-				if result.IsError {
-					tc.Status = "error"
-				} else {
-					tc.Status = "success"
+			tc := ToolCall{
+				UUID:      entry.UUID,
+				ToolName:  block.ToolUse.Name,
+				Input:     block.ToolUse.Input,
+				Timestamp: entry.Timestamp,
+			}
+			if result, found := toolResultMap[toolUseID]; found {
+				tc.Output = result.Content
+				tc.Status = result.Status
+				tc.Error = result.Error
+
+				// Normalize Status from IsError when the JSONL omits a "status" field.
+				// Real Claude Code tool_result blocks only carry "is_error":true/false,
+				// so result.Status is "" for every successful call.
+				if tc.Status == "" {
+					if result.IsError {
+						tc.Status = "error"
+					} else {
+						tc.Status = "success"
+					}
 				}
 			}
+			toolCalls = append(toolCalls, tc)
 		}
-		toolCalls = append(toolCalls, tc)
 	}
 
 	return toolCalls
