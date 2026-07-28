@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 
@@ -257,5 +258,104 @@ func TestScanSessionLineage(t *testing.T) {
 	}
 	if session.Lineage != conversation.LineageStatusChild {
 		t.Fatalf("expected Lineage=child for a row with a non-empty parent_thread_id, got %q", session.Lineage)
+	}
+}
+
+// TestExtractTime is the DIR-063 regression: extractTime must never turn a
+// present-but-unparseable value into a bogus 1970 instant. A TEXT timestamp
+// must parse via RFC3339 (or be rejected outright), a numeric string must be a
+// fully-numeric epoch (not a leading-integer Sscan that reads "2026" out of a
+// date), and int64(0)/negative/"" must yield the zero time so the
+// created_at_ms -> created_at fallback chain engages. Any 1970 result for
+// these inputs is the exact bug this test guards against.
+func TestExtractTime(t *testing.T) {
+	rfc3339 := time.Date(2026, 7, 28, 10, 0, 0, 0, time.UTC)
+	epochSec := time.Unix(1700000000, 0)
+	epochMilli := time.UnixMilli(1700000000000)
+
+	cases := []struct {
+		name  string
+		value interface{}
+		want  time.Time
+	}{
+		// TEXT RFC3339 timestamp: correct instant, never 1970.
+		{"rfc3339 string", "2026-07-28T10:00:00Z", rfc3339},
+		{"rfc3339 []byte", []byte("2026-07-28T10:00:00Z"), rfc3339},
+		// Fully-numeric epoch strings (seconds and millis heuristic).
+		{"numeric string seconds", "1700000000", epochSec},
+		{"numeric string millis", "1700000000000", epochMilli},
+		{"numeric []byte seconds", []byte("1700000000"), epochSec},
+		// Integer epochs (seconds and millis heuristic).
+		{"int64 seconds", int64(1700000000), epochSec},
+		{"int64 millis", int64(1700000000000), epochMilli},
+		// Absent/invalid values must be the zero time so fallback engages.
+		{"int64 zero", int64(0), time.Time{}},
+		{"int64 negative", int64(-5), time.Time{}},
+		{"empty string", "", time.Time{}},
+		{"empty []byte", []byte(""), time.Time{}},
+		{"non-numeric string", "not-a-time", time.Time{}},
+		{"nil", nil, time.Time{}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := extractTime(tc.value)
+			if !got.Equal(tc.want) {
+				t.Fatalf("extractTime(%#v) = %v (IsZero=%v), want %v (IsZero=%v)",
+					tc.value, got, got.IsZero(), tc.want, tc.want.IsZero())
+			}
+			if tc.want.IsZero() && !got.IsZero() {
+				t.Fatalf("extractTime(%#v) = %v, want zero time (IsZero=true) so fallback engages", tc.value, got)
+			}
+		})
+	}
+
+	// Explicit guard against the exact reported bug: an RFC3339 TEXT
+	// timestamp must never collapse to a 1970 date.
+	if got := extractTime("2026-07-28T10:00:00Z"); got.Year() == 1970 {
+		t.Fatalf("extractTime(RFC3339) collapsed to 1970: %v", got)
+	}
+}
+
+// TestScanSessionCreatedAtMsZeroFallsBackToCreatedAt is the DIR-063
+// end-to-end proof of the fallback chain: a row whose created_at_ms is a
+// DEFAULT 0 integer must NOT pin CreatedAt to 1970 — extractTime returns the
+// zero time for 0, IsZero() engages, and CreatedAt is taken from the real
+// created_at column instead.
+func TestScanSessionCreatedAtMsZeroFallsBackToCreatedAt(t *testing.T) {
+	dsn := "file:test-created-at-fallback?mode=memory&cache=shared"
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	if _, err := db.Exec(`CREATE TABLE threads (
+		id TEXT PRIMARY KEY, cwd TEXT, title TEXT, source TEXT,
+		created_at INTEGER, created_at_ms INTEGER DEFAULT 0
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	// created_at_ms is the DEFAULT 0; created_at carries the real epoch.
+	if _, err := db.Exec(`INSERT INTO threads(id, cwd, title, source, created_at, created_at_ms)
+		VALUES ('s1', '/proj', 't', 'cli', 1700000000, 0)`); err != nil {
+		t.Fatal(err)
+	}
+
+	session, err := getSessionFromDB(context.Background(), dsn, "s1")
+	if err != nil {
+		t.Fatalf("getSessionFromDB: %v", err)
+	}
+
+	want := time.Unix(1700000000, 0).UTC()
+	if !session.CreatedAt.Equal(want) {
+		t.Fatalf("expected CreatedAt from created_at (%v), got %v", want, session.CreatedAt)
+	}
+	if session.CreatedAt.Year() == 1970 {
+		t.Fatalf("CreatedAt pinned to 1970 despite a valid created_at: %v", session.CreatedAt)
+	}
+	// UpdatedAt falls back to createdAt when no updated_at column exists.
+	if !session.UpdatedAt.Equal(want) {
+		t.Fatalf("expected UpdatedAt to fall back to created_at (%v), got %v", want, session.UpdatedAt)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -228,18 +229,40 @@ func scanSession(rows *sql.Rows) (conversation.Session, error) {
 	}, nil
 }
 
+// extractTime converts a threads-table timestamp column into a time.Time,
+// returning the zero time for any value that is absent or not a valid epoch
+// so the created_at_ms -> created_at fallback chain (in scanSession) can
+// engage on IsZero(). DIR-063: it must NEVER manufacture a bogus 1970
+// instant from a present-but-unparseable value — a TEXT timestamp is parsed
+// as RFC3339, an epoch is only accepted as a fully-numeric string or a
+// positive integer, and zero/negative/empty/non-numeric all map to the zero
+// time. (A real session never lived at the 1970 epoch, so treating int64(0)
+// as "absent" rather than a valid instant is always correct here.)
 func extractTime(value interface{}) time.Time {
 	switch v := value.(type) {
 	case int64:
-		if v > 1_000_000_000_000 {
+		switch {
+		case v > 1_000_000_000_000:
 			return time.UnixMilli(v)
+		case v <= 0:
+			return time.Time{}
+		default:
+			return time.Unix(v, 0)
 		}
-		return time.Unix(v, 0)
 	case []byte:
 		return extractTime(stringValue(v))
 	case string:
-		var iv int64
-		_, _ = fmt.Sscan(v, &iv)
+		// TEXT timestamp: try RFC3339 first, then a fully-numeric epoch
+		// string. strconv.ParseInt parses the WHOLE string, so a date like
+		// "2026-07-28T10:00:00Z" is rejected outright instead of being read
+		// as the leading integer 2026 (the old fmt.Sscan bug).
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			return t
+		}
+		iv, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return time.Time{}
+		}
 		return extractTime(iv)
 	default:
 		return time.Time{}
