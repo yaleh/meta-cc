@@ -287,6 +287,7 @@ func handleAncestorsOf(ctx context.Context, boundaryCWD, sessionID string) (mcqu
 	}
 	if current != "" && !truncated {
 		warnings = append(warnings, fmt.Sprintf("ancestor chain depth limit (%d) reached; traversal stopped", maxLineageDepth))
+		truncated = true
 	}
 
 	entries := make([]interface{}, 0, len(chain))

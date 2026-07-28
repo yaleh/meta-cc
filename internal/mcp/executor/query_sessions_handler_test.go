@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -97,6 +98,49 @@ func setupCodexLineageFixtureProject(t *testing.T) (projectPath string) {
 	return resolvedProject
 }
 
+// setupCodexDeepLineageFixtureProject wires a temporary Codex home with a
+// threads table holding one non-cyclical ancestor chain deeper than
+// maxLineageDepth: leaf → anc-1 → anc-2 → ... → anc-<ancestorCount>, where
+// anc-<ancestorCount> is a confirmed root. Every thread shares
+// resolvedProject as its cwd, has a cli source kind, and carries a
+// non-unknown lineage (child, or root for the chain top), so traversal
+// stops on the depth bound alone — the DIR-051 regression fixture.
+func setupCodexDeepLineageFixtureProject(t *testing.T, ancestorCount int) (projectPath string) {
+	t.Helper()
+
+	projectDir := t.TempDir()
+	resolvedProject, err := filepath.EvalSymlinks(projectDir)
+	require.NoError(t, err)
+
+	codexHome := filepath.Join(t.TempDir(), "codex-home")
+	t.Setenv("META_CC_CODEX_ROOT", codexHome)
+	require.NoError(t, os.MkdirAll(codexHome, 0o755))
+
+	db, err := sql.Open("sqlite", filepath.Join(codexHome, "state_5.sqlite"))
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE threads (
+		id TEXT PRIMARY KEY, rollout_path TEXT, cwd TEXT, title TEXT,
+		model TEXT, model_provider TEXT, tokens_used INTEGER, source TEXT,
+		created_at INTEGER, parent_thread_id TEXT
+	)`)
+	require.NoError(t, err)
+
+	insert := func(id, parent string) {
+		_, err := db.Exec(`INSERT INTO threads(id, rollout_path, cwd, title, model, model_provider, tokens_used, source, created_at, parent_thread_id)
+			VALUES (?, '', ?, ?, 'gpt-5', 'openai', 0, 'cli', 1700000000, ?)`, id, resolvedProject, id, parent)
+		require.NoError(t, err)
+	}
+
+	insert(fmt.Sprintf("anc-%d", ancestorCount), "")
+	for k := ancestorCount - 1; k >= 1; k-- {
+		insert(fmt.Sprintf("anc-%d", k), fmt.Sprintf("anc-%d", k+1))
+	}
+	insert("leaf", "anc-1")
+
+	return resolvedProject
+}
+
 // TestQuerySessions_AncestorsOf_KnownLineage is the DIR-032 "ancestor chain
 // works when metadata exists" proof: querying ancestors_of=grandchild
 // returns [child, root] in nearest-first order, each annotated with its
@@ -169,6 +213,39 @@ func TestQuerySessions_AncestorsOf_ClaudeProviderFailsClosed(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), `provider="codex"`)
+}
+
+// TestQuerySessions_AncestorsOf_DepthLimitSetsLineageTruncated is the
+// DIR-051 regression proof: traversal that stops on the maxLineageDepth
+// bound alone — with a chain still valid, in-boundary, non-cyclical, and
+// non-unknown — must flag the last returned entry with
+// lineage_truncated: true, exactly like the other four documented
+// stopping conditions, rather than only leaving a warnings string.
+// Without the flag, a depth-bounded chain is indistinguishable from a
+// complete one to a caller inspecting only structured fields.
+func TestQuerySessions_AncestorsOf_DepthLimitSetsLineageTruncated(t *testing.T) {
+	ancestorCount := maxLineageDepth + 1 // one more ancestor than traversal may return
+	projectPath := setupCodexDeepLineageFixtureProject(t, ancestorCount)
+
+	result, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+		"provider":     "codex",
+		"working_dir":  projectPath,
+		"ancestors_of": "leaf",
+	})
+	require.NoError(t, err)
+
+	// Traversal must return exactly maxLineageDepth entries, nearest-first.
+	require.Len(t, result.Entries, maxLineageDepth)
+	require.Equal(t, "anc-1", result.Entries[0].(map[string]interface{})["session_id"])
+
+	last := result.Entries[len(result.Entries)-1].(map[string]interface{})
+	require.Equal(t, fmt.Sprintf("anc-%d", maxLineageDepth), last["session_id"])
+	require.Equal(t, true, last["lineage_truncated"],
+		"a depth-bounded chain must be flagged on its last entry, not just warned about")
+
+	// The existing depth-limit warning must still be present (no regression).
+	require.Len(t, result.Warnings, 1)
+	require.Contains(t, result.Warnings[0], "depth limit")
 }
 
 // TestQuerySessions_DefaultExcludesArchived is the DIR-032
