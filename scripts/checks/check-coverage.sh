@@ -1,11 +1,11 @@
 #!/bin/bash
 # Check test coverage meets threshold
 # Usage: ./check-coverage.sh [THRESHOLD]
-#   Default threshold: 75% (adjusted for -short mode which skips integration tests)
+#   Default threshold: 80% (matches CLAUDE.md / docs/core/principles.md coverage target)
 
 set -e
 
-THRESHOLD=${1:-75.0}
+THRESHOLD=${1:-80.0}
 
 echo "=== Test Coverage Check ==="
 echo ""

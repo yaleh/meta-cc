@@ -102,7 +102,7 @@ jobs:
       - name: Check coverage threshold
         if: matrix.full == true
         shell: bash
-        run: bash scripts/checks/check-coverage.sh 75
+        run: bash scripts/checks/check-coverage.sh 80
 
       - name: Calculate test duration
         if: always() && matrix.os == 'ubuntu-latest' && matrix.go == '1.24'

@@ -308,7 +308,7 @@ commit: check-essential test
 	@echo "  make push"
 
 # Tier 3: PUSH - Full validation before push (<120s)
-push: check-code-quality check-build-quality check-comprehensive test-all test-bats lint build
+push: check-code-quality check-build-quality check-comprehensive test-all test-coverage-check test-bats lint build
 	@echo ""
 	@echo "✅ Ready to push"
 	@echo ""
@@ -319,6 +319,7 @@ push: check-code-quality check-build-quality check-comprehensive test-all test-b
 	@echo "  ✓ Comprehensive checks"
 	@echo "  ✓ All tests passed (including E2E)"
 	@echo "  ✓ Bats pipeline tests passed (incl. DIR-037 stage/Codex-registration regressions)"
+	@echo "  ✓ Test coverage meets threshold (80%)"
 	@echo "  ✓ Lint checks passed"
 	@echo "  ✓ Build successful"
 
@@ -701,7 +702,7 @@ install-pre-commit:
 
 test-coverage-check:
 	@$(GOTEST) -coverpkg=./... -coverprofile=coverage.out ./... > /dev/null 2>&1
-	@bash scripts/checks/check-coverage.sh 75
+	@bash scripts/checks/check-coverage.sh 80
 
 lint-fix:
 	@echo "Running golangci-lint with auto-fix..."
@@ -738,7 +739,7 @@ help:
 	@echo "  make test-all                - Run all tests (including slow E2E tests ~30s)"
 	@echo "  make test-e2e-codex          - Run Codex install/session E2E tests"
 	@echo "  make test-coverage           - Run tests with coverage report"
-	@echo "  make test-coverage-check     - Check test coverage meets 75% threshold"
+	@echo "  make test-coverage-check     - Check test coverage meets 80% threshold"
 	@echo "  make lint                    - Run static analysis (fmt + vet + error-linting + golangci-lint + markdown)"
 	@echo "  make lint-markdown           - Run markdown linting"
 	@echo "  make fmt                     - Format code with gofmt"
