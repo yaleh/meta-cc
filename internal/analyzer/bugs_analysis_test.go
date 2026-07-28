@@ -1,6 +1,8 @@
 package analyzer
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/yaleh/meta-cc/internal/types"
@@ -109,5 +111,65 @@ func TestAnalyzeBugs_DataSource(t *testing.T) {
 	}
 	if result.DataSource != DataSourceMeasured {
 		t.Errorf("Expected DataSource=%q, got %q", DataSourceMeasured, result.DataSource)
+	}
+}
+
+// TestAnalyzeBugsStats_OmitsExamples verifies stats_only's backing function
+// (analyzer.AnalyzeBugsStats) produces the same pattern counts as AnalyzeBugs
+// but with no per-pattern Examples text at all, mirroring
+// TestGetTimelineStats_Basic (DIR-042).
+func TestAnalyzeBugsStats_OmitsExamples(t *testing.T) {
+	toolCalls := []types.ToolCall{
+		{UUID: "uuid-1", ToolName: "Bash", Status: "error", Error: "permission denied: a very long diagnostic dump that would blow up response size if repeated verbatim"},
+		{UUID: "uuid-2", ToolName: "Bash", Status: "success"},
+		{UUID: "uuid-3", ToolName: "Bash", Status: "error", Error: "permission denied: a very long diagnostic dump that would blow up response size if repeated verbatim"},
+		{UUID: "uuid-4", ToolName: "Bash", Status: "success"},
+	}
+
+	stats, err := AnalyzeBugsStats([]types.SessionEntry{}, toolCalls)
+	if err != nil {
+		t.Fatalf("AnalyzeBugsStats returned error: %v", err)
+	}
+	if stats.TotalPairs != 2 {
+		t.Errorf("Expected TotalPairs=2, got %d", stats.TotalPairs)
+	}
+	if stats.TotalPatterns != 1 {
+		t.Errorf("Expected TotalPatterns=1, got %d", stats.TotalPatterns)
+	}
+	if len(stats.Patterns) != 1 {
+		t.Fatalf("Expected 1 pattern, got %d", len(stats.Patterns))
+	}
+	if stats.Patterns[0].Recurrences != 2 {
+		t.Errorf("Expected Recurrences=2, got %d", stats.Patterns[0].Recurrences)
+	}
+
+	// The BugPatternStat type has no Examples field at all -- verify this at
+	// the JSON level so a future field addition would be caught.
+	data, err := json.Marshal(stats)
+	if err != nil {
+		t.Fatalf("failed to marshal stats: %v", err)
+	}
+	if strings.Contains(string(data), "examples") {
+		t.Errorf("expected no 'examples' field in BugAnalysisStats JSON, got: %s", data)
+	}
+	if strings.Contains(string(data), "very long diagnostic dump") {
+		t.Errorf("expected no full-text error content in BugAnalysisStats JSON, got: %s", data)
+	}
+
+	if stats.DataSource != DataSourceMeasured {
+		t.Errorf("Expected DataSource=%q, got %q", DataSourceMeasured, stats.DataSource)
+	}
+}
+
+func TestAnalyzeBugsStats_Empty(t *testing.T) {
+	stats, err := AnalyzeBugsStats([]types.SessionEntry{}, []types.ToolCall{})
+	if err != nil {
+		t.Fatalf("AnalyzeBugsStats returned error: %v", err)
+	}
+	if stats.TotalPairs != 0 {
+		t.Errorf("Expected TotalPairs=0, got %d", stats.TotalPairs)
+	}
+	if len(stats.Patterns) != 0 {
+		t.Errorf("Expected 0 patterns, got %d", len(stats.Patterns))
 	}
 }

@@ -100,3 +100,18 @@ func GetWorkPatterns(entries []types.SessionEntry, toolCalls []types.ToolCall) (
 
 	return result, nil
 }
+
+// WorkPatternsStats is an alias for WorkPatternsResult: GetWorkPatterns's
+// output is already aggregate-only (tool counts, a fixed 24-slot hourly
+// histogram, and two scalar counters, with no per-item example text), so a
+// stats_only request returns the identical shape as the full call.
+type WorkPatternsStats = WorkPatternsResult
+
+// GetWorkPatternsStatsOnly returns the same aggregate result as
+// GetWorkPatterns. It exists so callers (internal/analysis.Service) have a
+// dedicated stats_only entrypoint mirroring GetTimelineStats/
+// AnalyzeErrorsStats, even though GetWorkPatterns's result never carries
+// per-item example text to strip (DIR-042).
+func GetWorkPatternsStatsOnly(entries []types.SessionEntry, toolCalls []types.ToolCall) (*WorkPatternsStats, error) {
+	return GetWorkPatterns(entries, toolCalls)
+}

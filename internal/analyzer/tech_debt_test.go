@@ -1,8 +1,10 @@
 package analyzer
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -218,4 +220,53 @@ func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	err := os.WriteFile(path, []byte(content), 0644)
 	require.NoError(t, err)
+}
+
+// TestTechDebtResultStats_OmitsHotspotFileList verifies the stats_only
+// backing conversion collapses a large HotspotFiles path list down to a
+// single count, keeping only the (small, label-bounded) Markers slice --
+// DIR-042.
+func TestTechDebtResultStats_OmitsHotspotFileList(t *testing.T) {
+	var toolCalls []types.ToolCall
+	for i := 0; i < 50; i++ {
+		toolCalls = append(toolCalls, makeToolCallWithOutput("Read", filepath.Join("pkg", "file"+itoa(i)+".go"), "// TODO: fix this", "success"))
+	}
+
+	full, err := GetTechDebt(nil, toolCalls)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(full.HotspotFiles) != 50 {
+		t.Fatalf("expected 50 hotspot files in the full result, got %d", len(full.HotspotFiles))
+	}
+
+	stats := TechDebtResultStats(full)
+	if stats.HotspotFileCount != 50 {
+		t.Errorf("expected HotspotFileCount=50, got %d", stats.HotspotFileCount)
+	}
+	if stats.TotalMarkers != 50 {
+		t.Errorf("expected TotalMarkers=50, got %d", stats.TotalMarkers)
+	}
+	if stats.OpenIssues != full.OpenIssues {
+		t.Errorf("expected OpenIssues to pass through: got %d, want %d", stats.OpenIssues, full.OpenIssues)
+	}
+
+	data, err := json.Marshal(stats)
+	if err != nil {
+		t.Fatalf("failed to marshal stats: %v", err)
+	}
+	out := string(data)
+	if strings.Contains(out, "hotspot_files") {
+		t.Errorf("expected no 'hotspot_files' path-list field in TechDebtStats JSON, got: %s", out)
+	}
+	if len(out) >= len(mustMarshal(t, full)) {
+		t.Errorf("expected stats JSON (%d bytes) to be smaller than full result JSON (%d bytes)", len(out), len(mustMarshal(t, full)))
+	}
+}
+
+func mustMarshal(t *testing.T, v interface{}) []byte {
+	t.Helper()
+	data, err := json.Marshal(v)
+	require.NoError(t, err)
+	return data
 }

@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -205,4 +206,26 @@ func TestQualityScan_AllDimensionsPresent(t *testing.T) {
 	for _, expected := range []string{"error_rate", "retry_rate", "tool_diversity", "completion_rate"} {
 		assert.True(t, names[expected], "dimension %q should be present", expected)
 	}
+}
+
+// TestQualityScanStatsOnly_MatchesQualityScan verifies the stats_only
+// backing function returns the same aggregate-only shape as QualityScan
+// itself (QualityScan never carries per-item example text, so there is
+// nothing further to omit) -- DIR-042.
+func TestQualityScanStatsOnly_MatchesQualityScan(t *testing.T) {
+	toolCalls := makeToolCalls("Bash", "error", "boom")
+
+	full, err := QualityScan(nil, toolCalls)
+	require.NoError(t, err)
+
+	stats, err := QualityScanStatsOnly(nil, toolCalls)
+	require.NoError(t, err)
+	require.NotNil(t, stats)
+
+	assert.Equal(t, full.Dimensions, stats.Dimensions)
+	assert.Equal(t, full.DataSource, stats.DataSource)
+
+	data, err := json.Marshal(stats)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "examples")
 }

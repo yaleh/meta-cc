@@ -226,10 +226,20 @@ func marshalResult(v interface{}) (string, error) {
 }
 
 // AnalyzeBugs implements the analyze_bugs MCP tool.
+// When stats_only is set, short-circuits to an aggregate-only pattern-count
+// summary (analyzer.AnalyzeBugsStats) with no per-pattern Examples text,
+// mirroring GetTimeline's own stats_only short-circuit (DIR-042).
 func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
 	entries, toolCalls, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+	if boolArg(args, "stats_only") {
+		stats, err := analyzer.AnalyzeBugsStats(entries, toolCalls)
+		if err != nil {
+			return "", fmt.Errorf("analyze bugs failed: %w", err)
+		}
+		return marshalResult(stats)
 	}
 	result, err := s.analyzers.BugAnalyzer.AnalyzeBugs(entries, toolCalls, intArg(args, "limit"))
 	if err != nil {
@@ -239,10 +249,20 @@ func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
 }
 
 // AnalyzeErrors implements the analyze_errors MCP tool.
+// When stats_only is set, short-circuits to an aggregate-only per-tool/
+// per-type count summary (analyzer.AnalyzeErrorsStats) with no examples
+// text, mirroring GetTimeline's own stats_only short-circuit (DIR-042).
 func (s *Service) AnalyzeErrors(args map[string]interface{}) (string, error) {
 	entries, toolCalls, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+	if boolArg(args, "stats_only") {
+		stats, err := analyzer.AnalyzeErrorsStats(entries, toolCalls)
+		if err != nil {
+			return "", fmt.Errorf("failed to analyze errors: %w", err)
+		}
+		return marshalResult(stats)
 	}
 	result, err := s.analyzers.ErrorAnalyzer.AnalyzeErrors(entries, toolCalls, intArg(args, "limit"))
 	if err != nil {
@@ -252,10 +272,22 @@ func (s *Service) AnalyzeErrors(args map[string]interface{}) (string, error) {
 }
 
 // QualityScan implements the quality_scan MCP tool.
+// QualityScan's result is already aggregate-only (four scored dimensions,
+// no per-item example text); the stats_only short-circuit
+// (analyzer.QualityScanStatsOnly) exists so this method still honors the
+// documented stats_only contract explicitly rather than silently ignoring it
+// (DIR-042).
 func (s *Service) QualityScan(args map[string]interface{}) (string, error) {
 	entries, toolCalls, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+	if boolArg(args, "stats_only") {
+		stats, err := analyzer.QualityScanStatsOnly(entries, toolCalls)
+		if err != nil {
+			return "", fmt.Errorf("quality scan failed: %w", err)
+		}
+		return marshalResult(stats)
 	}
 	result, err := s.analyzers.QualityScanner.QualityScan(entries, toolCalls)
 	if err != nil {
@@ -265,10 +297,22 @@ func (s *Service) QualityScan(args map[string]interface{}) (string, error) {
 }
 
 // GetWorkPatterns implements the get_work_patterns MCP tool.
+// GetWorkPatterns's result is already aggregate-only (tool counts, a fixed
+// 24-slot hourly histogram, and two scalar counters, no per-item example
+// text); the stats_only short-circuit (analyzer.GetWorkPatternsStatsOnly)
+// exists so this method still honors the documented stats_only contract
+// explicitly rather than silently ignoring it (DIR-042).
 func (s *Service) GetWorkPatterns(args map[string]interface{}) (string, error) {
 	entries, toolCalls, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+	if boolArg(args, "stats_only") {
+		stats, err := analyzer.GetWorkPatternsStatsOnly(entries, toolCalls)
+		if err != nil {
+			return "", fmt.Errorf("get work patterns failed: %w", err)
+		}
+		return marshalResult(stats)
 	}
 	result, err := s.analyzers.WorkPatterns.GetWorkPatterns(entries, toolCalls)
 	if err != nil {
@@ -391,6 +435,13 @@ func parseEntryTimestamp(ts string) (time.Time, error) {
 }
 
 // GetTechDebt implements the get_tech_debt MCP tool.
+// When stats_only is set, short-circuits to an aggregate-only summary
+// (analyzer.TechDebtResultStats): marker counts (bounded to the four known
+// marker labels) plus a hotspot *file count* in place of the full
+// HotspotFiles path list, which can grow to one entry per matched file
+// across an entire scanned source tree. Applied after any source_dir merge
+// so stats_only reflects the same combined result the full response would
+// (DIR-042).
 func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
 	entries, toolCalls, err := s.loadData(args)
 	if err != nil {
@@ -403,12 +454,14 @@ func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
 
 	sourceDir := stringArg(args, "source_dir")
 	if sourceDir != "" {
-		srcResult, err := s.analyzers.TechDebt.ScanSourceDir(sourceDir)
-		if err != nil {
-			// Degrade gracefully: log and return session-only result.
-			return marshalResult(result)
+		if srcResult, scanErr := s.analyzers.TechDebt.ScanSourceDir(sourceDir); scanErr == nil {
+			result = analyzer.MergeTechDebtResults(result, srcResult, analyzer.DataSourceMeasured)
 		}
-		result = analyzer.MergeTechDebtResults(result, srcResult, analyzer.DataSourceMeasured)
+		// Degrade gracefully on scan error: keep the session-only result.
+	}
+
+	if boolArg(args, "stats_only") {
+		return marshalResult(analyzer.TechDebtResultStats(result))
 	}
 
 	return marshalResult(result)

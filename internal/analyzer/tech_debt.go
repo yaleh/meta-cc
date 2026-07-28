@@ -282,6 +282,36 @@ func MergeTechDebtResults(a, b *TechDebtResult, combinedSource DataSource) *Tech
 	}
 }
 
+// TechDebtStats holds aggregate-only tech debt output: marker counts (bounded
+// to the four known marker labels) and a hotspot file *count*, omitting the
+// full HotspotFiles path list — which can grow to one entry per matched file
+// across an entire scanned source tree — and any other per-item detail
+// (DIR-042).
+type TechDebtStats struct {
+	TotalMarkers     int           `json:"total_markers"`
+	Markers          []MarkerCount `json:"markers"`
+	HotspotFileCount int           `json:"hotspot_file_count"`
+	OpenIssues       int           `json:"open_issues"`
+	DataSource       DataSource    `json:"data_source"`
+}
+
+// TechDebtResultStats converts an already-computed TechDebtResult (which may
+// already be a session+source_dir merge, per MergeTechDebtResults) into an
+// aggregate-only stats view with no per-file hotspot list.
+func TechDebtResultStats(result *TechDebtResult) *TechDebtStats {
+	total := 0
+	for _, m := range result.Markers {
+		total += m.Count
+	}
+	return &TechDebtStats{
+		TotalMarkers:     total,
+		Markers:          result.Markers,
+		HotspotFileCount: len(result.HotspotFiles),
+		OpenIssues:       result.OpenIssues,
+		DataSource:       result.DataSource,
+	}
+}
+
 // getFilePath extracts file path from tool input map.
 func getFilePath(input map[string]interface{}) string {
 	for _, key := range []string{"file_path", "path"} {

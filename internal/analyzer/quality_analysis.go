@@ -94,6 +94,21 @@ func QualityScan(entries []types.SessionEntry, toolCalls []types.ToolCall) (*Qua
 	}, nil
 }
 
+// QualityScanStats is an alias for QualityScanResult: QualityScan's output
+// is already aggregate-only (four scored dimensions, no per-item example
+// text), so a stats_only request returns the identical shape as the full
+// call.
+type QualityScanStats = QualityScanResult
+
+// QualityScanStatsOnly returns the same aggregate result as QualityScan. It
+// exists so callers (internal/analysis.Service) have a dedicated stats_only
+// entrypoint mirroring GetTimelineStats/AnalyzeErrorsStats, even though
+// QualityScan's result never carries per-item example text to strip
+// (DIR-042).
+func QualityScanStatsOnly(entries []types.SessionEntry, toolCalls []types.ToolCall) (*QualityScanStats, error) {
+	return QualityScan(entries, toolCalls)
+}
+
 func itoa(n int) string {
 	if n == 0 {
 		return "0"

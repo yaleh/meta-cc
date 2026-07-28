@@ -1,6 +1,8 @@
 package analyzer
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/yaleh/meta-cc/internal/types"
@@ -172,5 +174,65 @@ func TestAnalyzeErrors_EmptySession(t *testing.T) {
 	}
 	if len(result.ByType) != 0 {
 		t.Errorf("Expected empty ByType, got %d entries", len(result.ByType))
+	}
+}
+
+// TestAnalyzeErrorsStats_OmitsExamples reproduces (at the analyzer level) the
+// DIR-042 finding: a single very long error string, repeated many times,
+// must not appear anywhere in the stats_only-backing result. This mirrors
+// TestGetTimelineStats_Basic as the template.
+func TestAnalyzeErrorsStats_OmitsExamples(t *testing.T) {
+	longErr := strings.Repeat("x", 4000) // stand-in for the 3,988-char example from the live failure
+	var toolCalls []types.ToolCall
+	for i := 0; i < 21; i++ {
+		toolCalls = append(toolCalls, types.ToolCall{UUID: "u", ToolName: "Bash", Status: "error", Error: longErr})
+	}
+	toolCalls = append(toolCalls, types.ToolCall{UUID: "u2", ToolName: "Read", Status: "error", Error: "not found"})
+
+	stats, err := AnalyzeErrorsStats([]types.SessionEntry{}, toolCalls)
+	if err != nil {
+		t.Fatalf("AnalyzeErrorsStats returned error: %v", err)
+	}
+	if stats.TotalErrors != 22 {
+		t.Errorf("Expected TotalErrors=22, got %d", stats.TotalErrors)
+	}
+	if len(stats.ByTool) != 2 {
+		t.Fatalf("Expected 2 tool groups, got %d", len(stats.ByTool))
+	}
+
+	toolCounts := make(map[string]int)
+	for _, g := range stats.ByTool {
+		toolCounts[g.ToolName] = g.Count
+	}
+	if toolCounts["Bash"] != 21 {
+		t.Errorf("Expected Bash count 21, got %d", toolCounts["Bash"])
+	}
+
+	data, err := json.Marshal(stats)
+	if err != nil {
+		t.Fatalf("failed to marshal stats: %v", err)
+	}
+	out := string(data)
+	if strings.Contains(out, "examples") {
+		t.Errorf("expected no 'examples' field in ErrorAnalysisStats JSON, got: %s", out)
+	}
+	if strings.Contains(out, longErr) {
+		t.Errorf("expected no full-text error content in ErrorAnalysisStats JSON")
+	}
+	if len(out) > 2000 {
+		t.Errorf("expected a small bounded stats JSON, got %d bytes", len(out))
+	}
+}
+
+func TestAnalyzeErrorsStats_DataSource(t *testing.T) {
+	stats, err := AnalyzeErrorsStats([]types.SessionEntry{}, []types.ToolCall{})
+	if err != nil {
+		t.Fatalf("AnalyzeErrorsStats returned error: %v", err)
+	}
+	if stats.DataSource != DataSourceMeasured {
+		t.Errorf("Expected DataSource=%q, got %q", DataSourceMeasured, stats.DataSource)
+	}
+	if stats.TotalErrors != 0 {
+		t.Errorf("Expected TotalErrors=0, got %d", stats.TotalErrors)
 	}
 }

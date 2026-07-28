@@ -91,3 +91,74 @@ func AnalyzeBugs(entries []types.SessionEntry, toolCalls []types.ToolCall, limit
 		DataSource: DataSourceMeasured,
 	}, nil
 }
+
+// BugPatternStat is a per-pattern count summary with no per-item example text.
+type BugPatternStat struct {
+	ErrorSignature string `json:"error_signature"`
+	FixCount       int    `json:"fix_count"`
+	Recurrences    int    `json:"recurrences"`
+}
+
+// BugAnalysisStats holds aggregate-only bug analysis output: pattern counts
+// with no Examples text, mirroring GetTimelineStats's role for GetTimeline
+// (DIR-042).
+type BugAnalysisStats struct {
+	TotalPairs    int              `json:"total_pairs"`
+	TotalPatterns int              `json:"total_patterns"`
+	Patterns      []BugPatternStat `json:"patterns"`
+	DataSource    DataSource       `json:"data_source"`
+}
+
+// AnalyzeBugsStats computes the same error->success fix-pair analysis as
+// AnalyzeBugs but never accumulates per-pattern example text, so the result
+// stays small regardless of how many/how long the underlying error messages
+// are.
+func AnalyzeBugsStats(entries []types.SessionEntry, toolCalls []types.ToolCall) (*BugAnalysisStats, error) {
+	type patternData struct {
+		fixCount    int
+		recurrences int
+	}
+	patternMap := make(map[string]*patternData)
+
+	totalPairs := 0
+	for i := 0; i < len(toolCalls); i++ {
+		tc := toolCalls[i]
+		if tc.Status != "error" {
+			continue
+		}
+
+		for j := i + 1; j <= i+3 && j < len(toolCalls); j++ {
+			candidate := toolCalls[j]
+			if candidate.ToolName == tc.ToolName && candidate.Status == "success" {
+				sig := CalculateErrorSignature(tc.ToolName, tc.Error)
+				if _, ok := patternMap[sig]; !ok {
+					patternMap[sig] = &patternData{}
+				}
+				pd := patternMap[sig]
+				pd.recurrences++
+				pd.fixCount++
+				totalPairs++
+				break
+			}
+		}
+	}
+
+	patterns := make([]BugPatternStat, 0, len(patternMap))
+	for sig, pd := range patternMap {
+		patterns = append(patterns, BugPatternStat{
+			ErrorSignature: sig,
+			FixCount:       pd.fixCount,
+			Recurrences:    pd.recurrences,
+		})
+	}
+	sort.Slice(patterns, func(i, j int) bool {
+		return patterns[i].Recurrences > patterns[j].Recurrences
+	})
+
+	return &BugAnalysisStats{
+		TotalPairs:    totalPairs,
+		TotalPatterns: len(patterns),
+		Patterns:      patterns,
+		DataSource:    DataSourceMeasured,
+	}, nil
+}

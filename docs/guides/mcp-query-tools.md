@@ -408,7 +408,7 @@ Most query tools accept:
 | `working_dir` | string | Override project path used for session lookup |
 | `session_id` | string | Exact session/thread ID (content/signal/file-activity/analysis tools, and `query_sessions`). Reads only that one session; distinct from `scope="session"`. |
 | `limit` | number | Maximum results; default is no limit |
-| `stats_only` | boolean | Return aggregate statistics only |
+| `stats_only` | boolean | Return aggregate statistics only — no per-item `examples`/detail arrays. Honored consistently by all six `analysis.Service` tools (`analyze_errors`, `analyze_bugs`, `quality_scan`, `get_work_patterns`, `get_tech_debt`, `get_timeline`); `analyze_errors`/`analyze_bugs` return per-tool/per-pattern *counts* with no `examples` text, and `get_tech_debt` returns a `hotspot_file_count` in place of the full per-file `hotspot_files` list. `quality_scan` and `get_work_patterns` are already aggregate-only, so `stats_only` returns their normal (unchanged) shape. |
 | `stats_first` | boolean | Return stats followed by details |
 | `output_format` | string | `jsonl` or `tsv` |
 | `inline_threshold_bytes` | number | Threshold for inline vs file reference output |

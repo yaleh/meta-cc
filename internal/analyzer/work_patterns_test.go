@@ -1,6 +1,8 @@
 package analyzer
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/yaleh/meta-cc/internal/types"
@@ -107,5 +109,44 @@ func TestGetWorkPatterns_EmptySession(t *testing.T) {
 
 	if result.ContextSwitches != 0 {
 		t.Errorf("expected ContextSwitches==0, got %d", result.ContextSwitches)
+	}
+}
+
+// TestGetWorkPatternsStatsOnly_MatchesGetWorkPatterns verifies the
+// stats_only backing function returns the same aggregate-only shape as
+// GetWorkPatterns itself (GetWorkPatterns never carries per-item example
+// text, so there is nothing further to omit) -- DIR-042.
+func TestGetWorkPatternsStatsOnly_MatchesGetWorkPatterns(t *testing.T) {
+	toolCalls := []types.ToolCall{
+		{ToolName: "Bash"},
+		{ToolName: "Bash"},
+		{ToolName: "Read"},
+	}
+
+	full, err := GetWorkPatterns(nil, toolCalls)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	stats, err := GetWorkPatternsStatsOnly(nil, toolCalls)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(stats.ToolFrequency) != len(full.ToolFrequency) {
+		t.Fatalf("expected matching ToolFrequency lengths, got %d vs %d", len(stats.ToolFrequency), len(full.ToolFrequency))
+	}
+	for i := range full.ToolFrequency {
+		if stats.ToolFrequency[i] != full.ToolFrequency[i] {
+			t.Errorf("expected ToolFrequency[%d]=%v, got %v", i, full.ToolFrequency[i], stats.ToolFrequency[i])
+		}
+	}
+
+	data, err := json.Marshal(stats)
+	if err != nil {
+		t.Fatalf("failed to marshal stats: %v", err)
+	}
+	if strings.Contains(string(data), "examples") {
+		t.Errorf("expected no 'examples' field in WorkPatternsStats JSON, got: %s", data)
 	}
 }
