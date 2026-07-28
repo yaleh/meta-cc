@@ -129,10 +129,22 @@ All six analysis tools include a `data_source` field in their response (see
 |------|---------------------|---------------------------|
 | `analyze_errors` | `measured` | TotalErrors/ByTool/ByType are direct counts |
 | `analyze_bugs` | `measured` | Patterns/TotalPairs are direct error→success pair counts |
-| `quality_scan` | `measured` | All four dimensions are ratios of direct counts |
+| `quality_scan` | `measured` | All four dimensions are computed from direct counts of tool calls (see [Quality scan dimensions](#quality-scan-dimensions)) |
 | `get_work_patterns` | `measured` | ToolFrequency/HourlyActivity/PeakHour are direct counts; `context_switches` uses a heuristic (file changes within 5 min) |
 | `get_timeline` | `measured` | Events parsed directly from session entries |
 | `get_tech_debt` | `measured` | Markers/HotspotFiles scanned from tool output; `open_issues` uses a heuristic (error with no subsequent success) |
+
+#### Quality scan dimensions
+
+`quality_scan` reports four dimensions, each a score in `0.0–1.0` (higher =
+better quality) with a `raw_value` count:
+
+| Dimension | Semantics |
+|-----------|-----------|
+| `error_rate` | `1 − errors/total`; a tool call is an error when its status is `error` or it carries an error message |
+| `retry_rate` | `1 − retries/total`; a retry is an errored call followed by a call to the same tool within the next 5 positions |
+| `tool_diversity` | Size-independent *evenness* of the per-tool call distribution: Shannon entropy `H = −Σ pᵢ·ln(pᵢ)` normalized by `ln(unique tools)`. `1.0` = perfectly even usage across the tools actually used; approaches `0` as usage concentrates on one tool; a single tool is trivially even (`1.0`). Does not decay as call volume grows (`raw_value` is `unique/total`) |
+| `completion_rate` | Fraction of calls that produced an observed `tool_result` at all (status present). Distinct from `error_rate`: an errored call still completed (it returned a result), while a `tool_use` with no observed `tool_result` is incomplete without being an error |
 
 ### Two-Stage Query Tools
 

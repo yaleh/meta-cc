@@ -1,8 +1,29 @@
 package analyzer
 
-import "github.com/yaleh/meta-cc/internal/types"
+import (
+	"math"
+
+	"github.com/yaleh/meta-cc/internal/types"
+)
 
 // QualityDimension represents a single quality metric with a normalized score.
+//
+// Score semantics (DIR-059):
+//   - error_rate: 1 − errors/total; a call is an error when Status=="error"
+//     or Error!="".
+//   - retry_rate: 1 − retries/total; a retry is an errored call followed by a
+//     call to the same tool within the next 5 positions.
+//   - tool_diversity: size-independent evenness of the per-tool call
+//     distribution — Shannon entropy H = −Σ pᵢ·ln(pᵢ) normalized by
+//     ln(unique tools). 1.0 = perfectly even usage across the tools actually
+//     used; approaches 0 as usage concentrates on a single tool. One unique
+//     tool is trivially even (1.0). Unlike the former unique/total ratio,
+//     this does not decay toward 0 as call volume grows. RawValue is
+//     "unique/total".
+//   - completion_rate: fraction of calls that produced an observed
+//     tool_result at all (Status != ""). Distinct from error_rate: an errored
+//     call still completed (it returned a result), whereas a tool_use with no
+//     observed tool_result (Status=="") is incomplete without being an error.
 type QualityDimension struct {
 	Name     string  `json:"name"`
 	Score    float64 `json:"score"`     // 0.0–1.0 (higher = better quality)
@@ -65,30 +86,44 @@ func QualityScan(entries []types.SessionEntry, toolCalls []types.ToolCall) (*Qua
 	retryScore := 1.0 - float64(retries)/float64(total)
 
 	// --- tool_diversity ---
-	unique := make(map[string]struct{})
+	// Size-independent evenness: Shannon entropy of the per-tool call-count
+	// distribution, normalized by ln(unique). See QualityDimension for
+	// semantics. (DIR-059: replaced the unique/total ratio, which decayed
+	// toward 0 as call volume grew.)
+	counts := make(map[string]int)
 	for _, tc := range toolCalls {
-		unique[tc.ToolName] = struct{}{}
+		counts[tc.ToolName]++
 	}
-	diversityScore := float64(len(unique)) / float64(total)
-	if diversityScore > 1.0 {
-		diversityScore = 1.0
+	unique := len(counts)
+	diversityScore := 1.0 // single (or zero) unique tool: trivially even
+	if unique > 1 {
+		entropy := 0.0
+		for _, c := range counts {
+			p := float64(c) / float64(total)
+			entropy -= p * math.Log(p)
+		}
+		diversityScore = entropy / math.Log(float64(unique))
 	}
 
 	// --- completion_rate ---
-	successes := 0
+	// Fraction of calls with an observed tool_result (Status != ""). A call
+	// with Status=="" is a tool_use whose result was never observed; it is
+	// neither an error nor a completion. (DIR-059: the old success-or-blank
+	// count made this exactly 1−error_rate for every input.)
+	completed := 0
 	for _, tc := range toolCalls {
-		if tc.Status == "success" || (tc.Status == "" && tc.Error == "") {
-			successes++
+		if tc.Status != "" {
+			completed++
 		}
 	}
-	completionScore := float64(successes) / float64(total)
+	completionScore := float64(completed) / float64(total)
 
 	return &QualityScanResult{
 		Dimensions: []QualityDimension{
 			{Name: "error_rate", Score: errorScore, RawValue: itoa(errors) + "/" + itoa(total)},
 			{Name: "retry_rate", Score: retryScore, RawValue: itoa(retries) + "/" + itoa(total)},
-			{Name: "tool_diversity", Score: diversityScore, RawValue: itoa(len(unique)) + "/" + itoa(total)},
-			{Name: "completion_rate", Score: completionScore, RawValue: itoa(successes) + "/" + itoa(total)},
+			{Name: "tool_diversity", Score: diversityScore, RawValue: itoa(unique) + "/" + itoa(total)},
+			{Name: "completion_rate", Score: completionScore, RawValue: itoa(completed) + "/" + itoa(total)},
 		},
 		DataSource: DataSourceMeasured,
 	}, nil
