@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -329,5 +330,73 @@ func TestProviderFetchSessionsBoundedFallsBackWhenLimitZero(t *testing.T) {
 	}
 	if len(sessions) != totalPages {
 		t.Fatalf("expected all %d sessions from the full crawl, got %d", totalPages, len(sessions))
+	}
+}
+
+// TestProviderFetchSessionsBoundedToleratesPageFailureMidPagination is the
+// DIR-039 regression proof: page 1 of a 3-page fetch succeeds, page 2
+// fails, and FetchSessionsBounded(ctx, filter, limit=3) must still return
+// the 1 session collected from page 1 (not nil/empty), plus a non-nil
+// warning (surfaced via Provider.Warnings(), mirroring how
+// appServerListSessions/ListSessionsFiltered already fold app-server
+// warnings in) describing the failure and naming the cursor to resume
+// from — instead of discarding everything already collected, which is
+// what the pre-fix code did (return nil, err).
+func TestProviderFetchSessionsBoundedToleratesPageFailureMidPagination(t *testing.T) {
+	cur1 := "cursor-1"
+	cur2 := "cursor-2"
+	failCursor := cur1
+	src := &fakeThreadSource{
+		pages: map[string]appserver.ThreadListResult{
+			"active:":        {Data: []appserver.Thread{{ID: "t1", CreatedAt: 1}}, NextCursor: &cur1},
+			"active:" + cur1: {Data: []appserver.Thread{{ID: "t2", CreatedAt: 2}}, NextCursor: &cur2},
+			"active:" + cur2: {Data: []appserver.Thread{{ID: "t3", CreatedAt: 3}}},
+		},
+		failOnCursor: &failCursor,
+		failErr:      errors.New("transient network error"),
+	}
+	fake := &appServerBackend{connect: connectFake(src, &noopCloser{}, nil)}
+	p := filesFixtureProvider(t, ModeAppServer, fake)
+
+	sessions, err := p.FetchSessionsBounded(context.Background(), conversation.SessionFilter{}, 3)
+	if err != nil {
+		t.Fatalf("FetchSessionsBounded should tolerate a mid-pagination page failure (partial progress preserved), got error: %v", err)
+	}
+	if len(sessions) != 1 || sessions[0].ID != "t1" {
+		t.Fatalf("expected only page 1's session (t1) to survive the page-2 failure, got %#v (must NOT be empty)", sessions)
+	}
+
+	warnings := p.Warnings()
+	if len(warnings) == 0 {
+		t.Fatalf("expected a non-empty warning describing the page failure, got none")
+	}
+	found := false
+	for _, w := range warnings {
+		if strings.Contains(w, cur1) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a warning naming the resumable cursor %q, got %v", cur1, warnings)
+	}
+}
+
+// TestProviderFetchSessionsBoundedFirstPageFailureIsStillFatal proves the
+// DIR-039 fix preserves fail-fast behavior when the very FIRST page fails
+// with zero sessions collected: this must still be a hard error (not a
+// silent zero-result-plus-warning), matching
+// appServerBackend.listSessionsFiltered's own first-page-vs-later-page
+// distinction.
+func TestProviderFetchSessionsBoundedFirstPageFailureIsStillFatal(t *testing.T) {
+	src := &fakeThreadSource{listErr: errors.New("app-server totally unreachable")}
+	fake := &appServerBackend{connect: connectFake(src, &noopCloser{}, nil)}
+	p := filesFixtureProvider(t, ModeAppServer, fake)
+
+	sessions, err := p.FetchSessionsBounded(context.Background(), conversation.SessionFilter{}, 3)
+	if err == nil {
+		t.Fatalf("expected a hard error when the first page fails with zero sessions collected, got sessions=%#v, err=nil", sessions)
+	}
+	if len(sessions) != 0 {
+		t.Fatalf("expected no sessions on a first-page failure, got %#v", sessions)
 	}
 }

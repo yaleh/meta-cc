@@ -1,8 +1,10 @@
 package executor
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +13,10 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/yaleh/meta-cc/internal/locator"
+	codexprovider "github.com/yaleh/meta-cc/internal/provider/codex"
+	"github.com/yaleh/meta-cc/internal/provider/codex/appserver"
 )
 
 // setupCodexArchivedAndActiveSessionFixtureProject wires a temporary Codex
@@ -223,6 +229,81 @@ func TestQuerySessions_Codex_LimitUsesBoundedFetchAndReturnsMostRecent(t *testin
 	require.Len(t, result.Entries, 1, "limit=1 must still return exactly one entry")
 	require.Equal(t, "good-session-c", result.Entries[0].(map[string]interface{})["session_id"],
 		"expected the most-recently-created session (highest created_at), not an arbitrary one")
+}
+
+// codexPageFailureFixture is a hand-rolled codexprovider.ThreadSource: its
+// first thread/list call (empty cursor) succeeds with one thread plus a
+// nextCursor, and every subsequent call (matching that cursor) fails —
+// simulating a real app-server mid-pagination hiccup, without spawning a
+// subprocess. See NewProviderForAppServerTest.
+type codexPageFailureFixture struct {
+	cwd string
+}
+
+func (f *codexPageFailureFixture) ThreadList(_ context.Context, p appserver.ThreadListParams) (appserver.ThreadListResult, error) {
+	if p.Cursor == "" {
+		next := "cursor-1"
+		return appserver.ThreadListResult{
+			Data:       []appserver.Thread{{ID: "codex-page1", CWD: f.cwd, CreatedAt: 1}},
+			NextCursor: &next,
+		}, nil
+	}
+	return appserver.ThreadListResult{}, errors.New("simulated app-server page-2 failure")
+}
+
+func (f *codexPageFailureFixture) ThreadRead(context.Context, appserver.ThreadReadParams) (appserver.ThreadReadResult, error) {
+	return appserver.ThreadReadResult{}, errors.New("thread/read not supported by this fixture")
+}
+
+// TestQuerySessions_Codex_LimitToleratesMidPaginationFailure is DIR-039's
+// handler-level wiring proof: query_sessions(provider="codex", limit=N,
+// archived=false) routed through the DIR-034 bounded fetch
+// (FetchSessionsBounded) must still return the sessions collected before a
+// mid-pagination app-server failure in result.Entries, plus an
+// explanatory entry in result.Warnings — not zero entries with only an
+// opaque error. This exercises the real query_sessions handler code path
+// (newCodexProvider, FetchSessionsBounded, Provider.Warnings()) against a
+// fake app-server backend (codexprovider.NewProviderForAppServerTest)
+// instead of a real subprocess.
+func TestQuerySessions_Codex_LimitToleratesMidPaginationFailure(t *testing.T) {
+	projectDir := t.TempDir()
+	resolvedProject, err := filepath.EvalSymlinks(projectDir)
+	require.NoError(t, err)
+
+	codexHome := filepath.Join(t.TempDir(), "codex-home")
+	t.Setenv("META_CC_CODEX_ROOT", codexHome)
+	require.NoError(t, os.MkdirAll(codexHome, 0o755))
+	// codex.Provider.IsAvailable only checks that the SQLite DB file
+	// exists (see internal/provider/codex/provider.go) — ModeAppServer
+	// never touches the files backend, so an empty placeholder file is
+	// sufficient to make query_sessions attempt the Codex provider at all.
+	require.NoError(t, os.WriteFile(filepath.Join(codexHome, "state_5.sqlite"), nil, 0o644))
+
+	fixture := &codexPageFailureFixture{cwd: resolvedProject}
+	original := newCodexProvider
+	defer func() { newCodexProvider = original }()
+	newCodexProvider = func() *codexprovider.Provider {
+		return codexprovider.NewProviderForAppServerTest(locator.NewCodexLocator(), codexprovider.ModeAppServer, fixture)
+	}
+
+	result, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+		"provider":    "codex",
+		"working_dir": resolvedProject,
+		"limit":       3,
+		"archived":    false,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Entries, 1, "expected the 1 session collected before the page-2 failure, not zero entries")
+	require.Equal(t, "codex-page1", result.Entries[0].(map[string]interface{})["session_id"])
+
+	require.NotEmpty(t, result.Warnings, "expected an explanatory warning about the mid-pagination failure")
+	foundWarning := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "cursor-1") {
+			foundWarning = true
+		}
+	}
+	require.True(t, foundWarning, "expected a warning naming the resumable cursor, got %v", result.Warnings)
 }
 
 // setupClaudeSessionFixtureProject wires a temporary Claude projects root

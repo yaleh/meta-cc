@@ -44,6 +44,17 @@ var codexOnlyFilterArgs = []string{"source_kind", "model_provider", "parent_thre
 // looping or recursing without limit.
 const maxLineageDepth = 32
 
+// newCodexProvider constructs the Codex provider handleQuerySessions and
+// handleAncestorsOf use. It's a package-level var (not a hardcoded call at
+// each use site) so this package's own tests can substitute a Provider
+// backed by a fake app-server (see codexprovider.NewProviderForAppServerTest
+// and DIR-039's TestQuerySessions_Codex_LimitToleratesMidPaginationFailure),
+// exercising the real FetchSessionsBounded partial-result-plus-warning
+// wiring without spawning a subprocess.
+var newCodexProvider = func() *codexprovider.Provider {
+	return codexprovider.NewProvider(locator.NewCodexLocator())
+}
+
 func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := GetStringParam(args, "provider", "claude")
 	workingDir := GetStringParam(args, "working_dir", "")
@@ -105,7 +116,7 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 	for _, pid := range providers {
 		switch pid {
 		case conversation.ProviderCodex:
-			p := codexprovider.NewProvider(locator.NewCodexLocator())
+			p := newCodexProvider()
 			if !p.IsAvailable(ctx) {
 				warnings = append(warnings, "provider codex unavailable")
 				continue
@@ -209,7 +220,7 @@ func reduceForScope(sessions []conversation.Session, scope, projectPath string, 
 // partial chain silently presented as complete) plus a warning explaining
 // why it stopped short.
 func handleAncestorsOf(ctx context.Context, boundaryCWD, sessionID string) (mcquery.QueryResult, error) {
-	p := codexprovider.NewProvider(locator.NewCodexLocator())
+	p := newCodexProvider()
 	if !p.IsAvailable(ctx) {
 		return mcquery.QueryResult{}, fmt.Errorf("provider codex unavailable")
 	}

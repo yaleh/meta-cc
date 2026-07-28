@@ -273,6 +273,18 @@ func (p *Provider) ListSessionsPage(ctx context.Context, filter conversation.Ses
 // relying on thread/list already returning threads in a reasonable (and,
 // in practice, recency-oriented) order. limit <= 0 falls back to
 // ListSessionsFiltered unchanged, since there is nothing to bound against.
+//
+// DIR-039 partial-failure semantics: a ListSessionsPage failure draws the
+// same first-page-vs-later-page distinction appServerBackend.listAll
+// already established for the unbounded path. A failure on the very FIRST
+// page, with zero sessions collected so far, is still a hard error (fast
+// failure — "app-server appears to not be working at all"). A failure
+// AFTER at least one page already succeeded no longer discards
+// collected: it records a warning identifying the failure and the cursor
+// to resume from (via Warnings(), draining exactly like
+// appServerListSessions/ListSessionsFiltered already do) and returns the
+// sessions collected so far with a nil error, so a genuine mid-pagination
+// blip degrades gracefully instead of causing whole-corpus loss.
 func (p *Provider) FetchSessionsBounded(ctx context.Context, filter conversation.SessionFilter, limit int) ([]conversation.Session, error) {
 	if limit <= 0 {
 		return p.ListSessionsFiltered(ctx, filter)
@@ -283,7 +295,22 @@ func (p *Provider) FetchSessionsBounded(ctx context.Context, filter conversation
 	for {
 		page, err := p.ListSessionsPage(ctx, filter, cursor)
 		if err != nil {
-			return nil, err
+			if len(collected) == 0 {
+				// No progress at all yet: preserve the existing fail-fast
+				// contract rather than silently degrading to zero results
+				// with a warning that could be mistaken for "no matches".
+				return nil, err
+			}
+			// At least one page already succeeded: mirror listAll's
+			// contract (see appServerBackend.listAll) instead of
+			// contradicting it — return what was already collected plus a
+			// recorded, resumable-cursor warning rather than discarding it.
+			p.mu.Lock()
+			p.warnings = append(p.warnings, fmt.Sprintf(
+				"codex FetchSessionsBounded: page fetch failed after collecting %d session(s), resume from cursor=%q: %v",
+				len(collected), cursor, err))
+			p.mu.Unlock()
+			break
 		}
 		collected = append(collected, conversation.ApplyFilter(page.Sessions, filter)...)
 		if page.NextCursor == "" || len(collected) >= limit {
