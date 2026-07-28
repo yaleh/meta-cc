@@ -450,3 +450,100 @@ func TestLoadTurnsFromRolloutDotSchemaPreservesMultipleAssistantMessages(t *test
 		t.Fatalf("expected 2 distinct assistant message items, got %d: %#v", assistantItems, turn.Items)
 	}
 }
+
+// TestLoadTurnsFromRolloutLifecycleOnlySessionEnd is the DIR-050 regression
+// test: a turn opened by task_started whose ONLY content before EOF is a
+// bare session_end event (no user/assistant message, no tool call, no token
+// usage) must still be retained as a Turn carrying the typed
+// ItemKindSessionEnd item -- flush()'s retention condition must not discard
+// a turn just because none of UserText/AssistantText/ToolCalls/TokenUsage/
+// Extensions ended up populated, when the turn's Items stream is non-empty.
+func TestLoadTurnsFromRolloutLifecycleOnlySessionEnd(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "session-end-only.jsonl")
+	content := `{"timestamp":"2026-06-14T06:00:00Z","type":"event_msg","payload":{"type":"task_started","turn_id":"t1"}}
+{"timestamp":"2026-06-14T06:00:05Z","type":"session_end","payload":{"reason":"completed"}}
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	turns, _, err := loadTurnsFromRollout(path, 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn (not discarded), got %d: %#v", len(turns), turns)
+	}
+	turn := turns[0]
+
+	var sessionEnds []conversation.Item
+	for _, item := range turn.Items {
+		if item.Kind == conversation.ItemKindSessionEnd {
+			sessionEnds = append(sessionEnds, item)
+		}
+	}
+	if len(sessionEnds) != 1 || sessionEnds[0].Text != "completed" {
+		t.Fatalf("expected 1 typed session_end item with reason %q, got %#v", "completed", sessionEnds)
+	}
+}
+
+// TestLoadTurnsFromRolloutLifecycleOnlyTurnAborted is the DIR-050 regression
+// test for the turn_aborted analog: a turn opened by task_started then
+// immediately aborted (e.g. the user hits Ctrl-C right after the model
+// starts thinking), with no message/tool activity at all, must still be
+// retained as a Turn with Status == TurnStatusAborted rather than silently
+// discarded.
+func TestLoadTurnsFromRolloutLifecycleOnlyTurnAborted(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "turn-aborted-only.jsonl")
+	content := `{"timestamp":"2026-06-14T06:00:00Z","type":"event_msg","payload":{"type":"task_started","turn_id":"t1"}}
+{"timestamp":"2026-06-14T06:00:02Z","type":"turn_aborted","payload":{"turn_id":"t1"}}
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	turns, _, err := loadTurnsFromRollout(path, 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn (not discarded), got %d: %#v", len(turns), turns)
+	}
+	if turns[0].Status != conversation.TurnStatusAborted {
+		t.Fatalf("expected TurnStatusAborted, got %q", turns[0].Status)
+	}
+}
+
+// TestLoadTurnsFromRolloutLifecycleOnlyCompaction is the DIR-050 regression
+// test for the compaction analog: a turn whose only content is a
+// compacted/context_compacted event (no other message/tool/usage content in
+// that turn) must still be retained as a Turn carrying the typed
+// ItemKindCompaction item with its CompactionBoundary, not discarded.
+func TestLoadTurnsFromRolloutLifecycleOnlyCompaction(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "compaction-only.jsonl")
+	content := `{"timestamp":"2026-06-14T06:00:00Z","type":"event_msg","payload":{"type":"task_started","turn_id":"t1"}}
+{"timestamp":"2026-06-14T06:00:03Z","type":"compacted","payload":{"turn_id":"t1","reason":"context_window"}}
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	turns, _, err := loadTurnsFromRollout(path, 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn (not discarded), got %d: %#v", len(turns), turns)
+	}
+	turn := turns[0]
+
+	var compactions []conversation.Item
+	for _, item := range turn.Items {
+		if item.Kind == conversation.ItemKindCompaction {
+			compactions = append(compactions, item)
+		}
+	}
+	if len(compactions) != 1 || compactions[0].Compaction == nil || compactions[0].Compaction.Reason != "context_window" {
+		t.Fatalf("expected 1 typed compaction item with Reason %q, got %#v", "context_window", compactions)
+	}
+}

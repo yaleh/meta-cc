@@ -281,7 +281,18 @@ func (b *turnBuilder) flush() {
 		})
 		b.current.Extensions = ext
 	}
-	if b.current != nil && (b.current.UserText != "" || b.current.AssistantText != "" || len(b.current.ToolCalls) > 0 || hasUsage(b.current.TokenUsage) || len(b.current.Extensions) > 0) {
+	// DIR-050: a turn is retained whenever it carries ANY content at all —
+	// not just the legacy-projected UserText/AssistantText/ToolCalls/
+	// TokenUsage/Extensions fields. DIR-032 added lifecycle-only item kinds
+	// (ItemKindSessionEnd, ItemKindCompaction) and a status-only signal
+	// (TurnStatusAborted, set with no accompanying Item) that none of those
+	// five checks can see, so a turn whose ONLY content is e.g. a bare
+	// session_end or turn_aborted event was silently discarded. Checking
+	// len(b.current.Items) > 0 (rather than enumerating specific item
+	// kinds) also covers any future item kind added to the Items stream
+	// without another handler-specific carve-out here.
+	hasContent := b.current != nil && (b.current.UserText != "" || b.current.AssistantText != "" || len(b.current.ToolCalls) > 0 || hasUsage(b.current.TokenUsage) || len(b.current.Extensions) > 0 || len(b.current.Items) > 0 || b.current.Status != conversation.TurnStatusUnspecified)
+	if hasContent {
 		if b.truncated {
 			b.current.Completeness = conversation.HistoryCompletenessTruncated
 		} else {

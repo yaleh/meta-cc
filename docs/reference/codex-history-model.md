@@ -101,6 +101,29 @@ Both are typed in `internal/provider/codex/rollout.go`'s `applyLegacy`
 rather than left as raw `Extensions.codex_events` passthrough — see
 `TestLoadTurnsFromRollout0145TypedEventFamilies`.
 
+**A turn can be lifecycle-only (DIR-050):** `turnBuilder.flush()`'s
+retention condition originally only kept `b.current` when at least one of
+`UserText`/`AssistantText`/`ToolCalls`/`TokenUsage`/`Extensions` was
+populated. `ItemKindSessionEnd` and `ItemKindCompaction` items — and
+`TurnStatusAborted`, which is set with no accompanying `Item` at all — are
+invisible to all five of those checks, so a turn whose *only* content
+before EOF was one of these lifecycle signals (e.g. a rollout that opens a
+turn with `task_started` and then immediately hits `session_end` or
+`turn_aborted`, with no message/tool/usage activity in between) was
+silently dropped: `flush()` would produce zero turns instead of one. This
+means "a turn" is no longer necessarily a turn with visible
+message/tool/usage content — an otherwise-empty turn can be returned
+solely to carry a lifecycle signal (a session ending or a turn being
+aborted with nothing else having happened in it).
+
+`flush()` now also retains `b.current` whenever its `Items` slice is
+non-empty (covering `ItemKindSessionEnd`/`ItemKindCompaction`, and any
+future item kind, without a kind-by-kind carve-out) or its `Status` is set
+(covering `TurnStatusAborted`, which appends no `Item`). See
+`TestLoadTurnsFromRolloutLifecycleOnlySessionEnd`,
+`TestLoadTurnsFromRolloutLifecycleOnlyTurnAborted`, and
+`TestLoadTurnsFromRolloutLifecycleOnlyCompaction` in `rollout_test.go`.
+
 **Live/ongoing state:** there is no separate "session is live" field.
 A turn with `TurnStatusUnspecified` and no `ItemKindSessionEnd` item
 anywhere in its session is the existing, correct signal for "no terminal
