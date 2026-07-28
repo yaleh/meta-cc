@@ -104,16 +104,27 @@ else
     echo "    Built: meta-cc-skills-${TEST_VERSION}.tar.gz"
 
     # Build combined plugin package (reuse native binary)
+    #
+    # DIR-057: the file set copied here MUST stay in sync with the Makefile's
+    # bundle-release target (the canonical release packager). The Codex plugin
+    # files (skills/, .codex-plugin/, .codex-mcp.json) were previously omitted
+    # from this simplified assembly, which made the CI smoke test fail its
+    # plugin-structure checks (23/24). If bundle-release gains new payload
+    # files, mirror them here.
     echo "  Building combined plugin package..."
     PKG_DIR="$BUILD_DIR/packages/meta-cc-plugin-${NATIVE_PLATFORM}"
-    mkdir -p "$PKG_DIR/bin" "$PKG_DIR/.claude-plugin" "$PKG_DIR/commands" "$PKG_DIR/lib"
+    mkdir -p "$PKG_DIR/bin" "$PKG_DIR/.claude-plugin" "$PKG_DIR/commands" \
+        "$PKG_DIR/lib" "$PKG_DIR/skills" "$PKG_DIR/.codex-plugin"
 
     cp "$BUILD_DIR/mcp/meta-cc-mcp-${TEST_VERSION}-${NATIVE_PLATFORM}" "$PKG_DIR/bin/meta-cc-mcp"
     cp -r .claude-plugin/* "$PKG_DIR/.claude-plugin/"
     cp -r dist/commands/* "$PKG_DIR/commands/"
+    cp -r plugin-src/skills/* "$PKG_DIR/skills/"
     cp -r lib/* "$PKG_DIR/lib/"
     cp plugin-src/.claude-plugin/plugin.json "$PKG_DIR/.claude-plugin/"
     cp plugin-src/.mcp.json "$PKG_DIR/"
+    cp -r plugin-src/.codex-plugin/* "$PKG_DIR/.codex-plugin/"
+    cp plugin-src/.codex-mcp.json "$PKG_DIR/"
     jq '.commands |= map(gsub("\\./plugin-src/commands/"; "./commands/"))' \
         "$PKG_DIR/.claude-plugin/plugin.json" > "$PKG_DIR/.claude-plugin/plugin.json.tmp"
     mv "$PKG_DIR/.claude-plugin/plugin.json.tmp" "$PKG_DIR/.claude-plugin/plugin.json"
