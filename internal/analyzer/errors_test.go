@@ -1,6 +1,10 @@
 package analyzer
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -108,15 +112,143 @@ func TestClassifyErrorType_EmptyError(t *testing.T) {
 
 func TestClassifyErrorType_BashExitCode(t *testing.T) {
 	cases := []string{
+		// Go os/exec format (regression guard)
 		"exit status 1",
 		"exit status 127",
 		"exit status 0",
+		// Claude Code harness format: "Exit code N" as first line of failed Bash calls
+		"Exit code 1",
+		"Exit code 2\ncp: cannot create regular file 'plugin-src/bin/meta-cc-mcp': Text file busy\nmake: *** [Makefile:293: stage] Error 1",
+		"Exit code 1\n/usr/bin/python3: No module named pre_commit",
+		"Exit code 127\n# golangci-lint configuration\nversion: \"2\"",
 	}
 	for _, tc := range cases {
 		result := ClassifyErrorType("Bash", tc)
 		if result != "bash_exit_code" {
 			t.Errorf("Expected 'bash_exit_code' for %q, got %q", tc, result)
 		}
+	}
+}
+
+func TestClassifyErrorType_CommandTimeout(t *testing.T) {
+	cases := []string{
+		"Command timed out after 3m 0s",
+		"Exit code 143\nCommand timed out after 2m 0s",
+		"Exit code 143",
+		"exit status 143",
+		"context deadline exceeded",
+		"connect ETIMEDOUT 142.250.72.14:443",
+		"request timeout after 30s",
+		"read tcp 10.0.0.1:443: connection timed out",
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType("Bash", tc)
+		if result != "command_timeout" {
+			t.Errorf("Expected 'command_timeout' for %q, got %q", tc, result)
+		}
+	}
+}
+
+func TestClassifyErrorType_TimeoutPrecedence(t *testing.T) {
+	// Verbatim from a real Claude Code transcript: a pre-commit hook killed at
+	// its timeout. Must be command_timeout — NOT bash_exit_code (the generic
+	// exit-code rule would claim "Exit code 143") and NOT connection_error
+	// (the old loose timeout|network rule did).
+	input := "Exit code 143\nCommand timed out after 3m 0s\n[WARNING] Unstaged files detected.\n[INFO] Stashing unstaged files to /home/yale/.cache/pre-commit/patch1785082638-741257.\n[INFO] Installing environment for https://github.com/golangci/golangci-lint.\n[INFO] Once installed this environment will be reused."
+	result := ClassifyErrorType("Bash", input)
+	if result != "command_timeout" {
+		t.Errorf("Expected 'command_timeout' to win over exit-code and connection rules, got %q", result)
+	}
+}
+
+func TestClassifyErrorType_TimeoutMsBodyNegative(t *testing.T) {
+	// Verbatim shape from a real transcript: a failed config dump whose comment
+	// text mentions the timeoutMs config key. Incidental body text must NOT
+	// trigger command_timeout or connection_error.
+	configDump := "Exit code 1\n--- config.yml ---\n# .quay/config.yml — unified per-workspace config (DIR-050).\n# Each gate entry may carry optional per-gate timeoutMs overrides.\ntimeoutMs: 60000"
+	result := ClassifyErrorType("Bash", configDump)
+	if result == "command_timeout" || result == "connection_error" {
+		t.Errorf("timeoutMs body text must not classify as timeout/connection, got %q", result)
+	}
+	if result != "bash_exit_code" {
+		t.Errorf("Expected 'bash_exit_code' for config dump with Exit code 1 header, got %q", result)
+	}
+
+	// Body-only mention with no exit-code header: no rule should fire.
+	bodyOnly := "config file contains a timeoutMs setting for the acceptance gate"
+	result = ClassifyErrorType("Bash", bodyOnly)
+	if result == "command_timeout" || result == "connection_error" {
+		t.Errorf("timeoutMs body text must not classify as timeout/connection, got %q", result)
+	}
+	if result != "uncategorized" {
+		t.Errorf("Expected 'uncategorized' for body-only timeoutMs mention, got %q", result)
+	}
+}
+
+func TestClassifyErrorType_RealTranscriptFixtures(t *testing.T) {
+	// Fixtures captured verbatim from real Claude Code transcripts (2026-07-28).
+	cases := []struct {
+		tool     string
+		err      string
+		expected string
+	}{
+		{"Bash", "Exit code 143\nCommand timed out after 3m 0s\n[WARNING] Unstaged files detected.\n[INFO] Stashing unstaged files to /home/yale/.cache/pre-commit/patch1785082638-741257.", "command_timeout"},
+		{"Bash", "Exit code 2\nBuilding meta-cc-mcp v3.5.1-9-g2f93b73-dirty...\ngo build -o bin/meta-cc-mcp ./cmd/mcp-server\nStaging binary to plugin-src/...\ncp: cannot create regular file 'plugin-src/bin/meta-cc-mcp': Text file busy\nmake: *** [Makefile:293: stage] Error 1", "bash_exit_code"},
+		{"Bash", "Exit code 1\n/usr/bin/python3: No module named pre_commit", "bash_exit_code"},
+	}
+	for _, tc := range cases {
+		result := ClassifyErrorType(tc.tool, tc.err)
+		if result != tc.expected {
+			t.Errorf("Expected %q for real-transcript fixture %.60q..., got %q", tc.expected, tc.err, result)
+		}
+	}
+}
+
+// TestClassifyErrorType_GoldenCorpus is a standing gate: a committed corpus of
+// real-transcript errors (testdata/error_corpus.json) must classify to its
+// expected labels, and the uncategorized share must stay under 25% so the
+// taxonomy keeps pace with the harness's actual output formats.
+func TestClassifyErrorType_GoldenCorpus(t *testing.T) {
+	data, err := os.ReadFile("testdata/error_corpus.json")
+	if err != nil {
+		t.Fatalf("Failed to read golden corpus: %v", err)
+	}
+
+	var corpus []struct {
+		Tool     string `json:"tool"`
+		Error    string `json:"error"`
+		Expected string `json:"expected"`
+		Note     string `json:"note"`
+	}
+	if err := json.Unmarshal(data, &corpus); err != nil {
+		t.Fatalf("Failed to parse golden corpus: %v", err)
+	}
+	if len(corpus) == 0 {
+		t.Fatal("Golden corpus is empty")
+	}
+
+	var mismatches []string
+	var uncategorizedOffenders []string
+	uncategorized := 0
+	for i, entry := range corpus {
+		got := ClassifyErrorType(entry.Tool, entry.Error)
+		if got != entry.Expected {
+			mismatches = append(mismatches, fmt.Sprintf("  corpus[%d] (%s): expected %q, got %q — error: %.80q", i, entry.Note, entry.Expected, got, entry.Error))
+		}
+		if got == "uncategorized" {
+			uncategorized++
+			uncategorizedOffenders = append(uncategorizedOffenders, fmt.Sprintf("  corpus[%d] (%s): %.80q", i, entry.Note, entry.Error))
+		}
+	}
+
+	if len(mismatches) > 0 {
+		t.Errorf("Golden corpus classification mismatches (%d):\n%s", len(mismatches), strings.Join(mismatches, "\n"))
+	}
+
+	share := float64(uncategorized) / float64(len(corpus))
+	if share >= 0.25 {
+		t.Errorf("Golden corpus uncategorized share %.1f%% (%d/%d) exceeds the 25%% gate — taxonomy is falling behind the harness output formats; offending entries:\n%s",
+			share*100, uncategorized, len(corpus), strings.Join(uncategorizedOffenders, "\n"))
 	}
 }
 
@@ -163,12 +295,16 @@ func TestClassifyErrorType_FileNotFound(t *testing.T) {
 }
 
 func TestClassifyErrorType_ConnectionError(t *testing.T) {
+	// Narrowed to genuine network failure signals only: incidental body text
+	// like "timeoutMs" or a bare "network" word must NOT trigger this label.
 	cases := []string{
 		"connection refused",
 		"connection reset by peer",
-		"connection timeout",
-		"network is unreachable",
 		"ECONNREFUSED",
+		"ECONNRESET",
+		"network is unreachable",
+		"network unreachable",
+		"dial tcp 127.0.0.1:5432: connect: connection refused",
 	}
 	for _, tc := range cases {
 		result := ClassifyErrorType("Read", tc)

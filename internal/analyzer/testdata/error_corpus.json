@@ -1,0 +1,116 @@
+[
+  {
+    "tool": "Bash",
+    "error": "Exit code 143\nCommand timed out after 3m 0s\n[WARNING] Unstaged files detected.\n[INFO] Stashing unstaged files to /home/yale/.cache/pre-commit/patch1785082638-741257.\n[INFO] Installing environment for https://github.com/golangci/golangci-lint.\n[INFO] Once installed this environment will be reused.",
+    "expected": "command_timeout",
+    "note": "pre-commit hook killed at timeout, real transcript 2026-07-28"
+  },
+  {
+    "tool": "Bash",
+    "error": "Exit code 143\nCommand timed out after 2m 0s",
+    "expected": "command_timeout",
+    "note": "bare harness timeout, real transcript 2026-07-28"
+  },
+  {
+    "tool": "Bash",
+    "error": "Exit code 143",
+    "expected": "command_timeout",
+    "note": "SIGTERM exit code with no body text"
+  },
+  {
+    "tool": "Bash",
+    "error": "Exit code 2\nBuilding meta-cc-mcp v3.5.1-9-g2f93b73-dirty...\ngo build -o bin/meta-cc-mcp ./cmd/mcp-server\nStaging binary to plugin-src/...\ncp: cannot create regular file 'plugin-src/bin/meta-cc-mcp': Text file busy\nmake: *** [Makefile:293: stage] Error 1",
+    "expected": "bash_exit_code",
+    "note": "make stage failure, real transcript 2026-07-28"
+  },
+  {
+    "tool": "Bash",
+    "error": "Exit code 1\n/usr/bin/python3: No module named pre_commit",
+    "expected": "bash_exit_code",
+    "note": "missing python module, real transcript 2026-07-28"
+  },
+  {
+    "tool": "Bash",
+    "error": "Exit code 1\n/usr/bin/python3\n/usr/bin/python3: No module named pip",
+    "expected": "bash_exit_code",
+    "note": "missing pip module, real transcript 2026-07-28"
+  },
+  {
+    "tool": "Bash",
+    "error": "Exit code 1\n--- config.yml ---\n# .quay/config.yml — unified per-workspace config (DIR-050).\n# Each gate entry may carry optional per-gate timeoutMs overrides.\ntimeoutMs: 60000",
+    "expected": "bash_exit_code",
+    "note": "config dump mentioning timeoutMs — negative control, must NOT be timeout/connection_error"
+  },
+  {
+    "tool": "Bash",
+    "error": "Exit code 127\n# golangci-lint configuration\n# Only lints that are critical for production code\nversion: \"2\"",
+    "expected": "bash_exit_code",
+    "note": "exit 127 with config body, real transcript 2026-07-28"
+  },
+  {
+    "tool": "Bash",
+    "error": "Exit code 123",
+    "expected": "bash_exit_code",
+    "note": "bare harness exit code, real transcript 2026-07-28"
+  },
+  {
+    "tool": "Bash",
+    "error": "Exit code 3",
+    "expected": "bash_exit_code",
+    "note": "bare harness exit code, real transcript 2026-07-28"
+  },
+  {
+    "tool": "Bash",
+    "error": "exit status 1",
+    "expected": "bash_exit_code",
+    "note": "Go os/exec format — regression guard for pre-Claude-Code callers"
+  },
+  {
+    "tool": "Bash",
+    "error": "bash: npm: command not found",
+    "expected": "command_not_found",
+    "note": "shell command lookup failure"
+  },
+  {
+    "tool": "Bash",
+    "error": "permission denied: /etc/shadow",
+    "expected": "permission_denied",
+    "note": "POSIX permission failure"
+  },
+  {
+    "tool": "Read",
+    "error": "ENOENT: no such file or directory, open '/home/yale/work/meta-cc/docs/missing.md'",
+    "expected": "file_not_found",
+    "note": "Claude Code Read tool ENOENT format"
+  },
+  {
+    "tool": "Bash",
+    "error": "dial tcp 127.0.0.1:3000: connect: connection refused",
+    "expected": "connection_error",
+    "note": "genuine network failure (Go dial error)"
+  },
+  {
+    "tool": "Edit",
+    "error": "<tool_use_error>String to replace not found in file.</tool_use_error>",
+    "expected": "resource_not_found",
+    "note": "Edit tool mismatch, real transcript 2026-07-28"
+  },
+  {
+    "tool": "Bash",
+    "error": "<tool_use_error>Error: No such tool available: Glob. Glob is not available in this session — find files with `find` via the Bash tool instead.</tool_use_error>",
+    "expected": "resource_not_found",
+    "note": "unknown tool reference, real transcript 2026-07-28"
+  },
+  {
+    "tool": "MCP",
+    "error": "unknown gate: vitest",
+    "expected": "uncategorized",
+    "note": "quay gate lookup failure, real transcript 2026-07-28"
+  },
+  {
+    "tool": "Write",
+    "error": "<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_error>",
+    "expected": "uncategorized",
+    "note": "harness read-before-write guard, real transcript 2026-07-28"
+  }
+]
