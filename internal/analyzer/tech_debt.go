@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"bufio"
+	"bytes"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,10 +20,29 @@ type MarkerCount struct {
 	Count int    `json:"count"`
 }
 
-// FileDebt holds per-file marker count for hotspot ranking.
+// Provenance identifies which scan bucket a FileDebt entry came from, so
+// merged output is auditable (DIR-055).
+type Provenance string
+
+const (
+	// ProvenanceSession marks entries counted from session-transcript tool
+	// output text (GetTechDebt).
+	ProvenanceSession Provenance = "session"
+	// ProvenanceSource marks entries counted from a source-dir walk
+	// (ScanSourceDir).
+	ProvenanceSource Provenance = "source"
+	// ProvenanceBoth marks entries whose path appeared in both the session
+	// and source buckets (MergeTechDebtResults).
+	ProvenanceBoth Provenance = "both"
+)
+
+// FileDebt holds per-file marker count for hotspot ranking. Provenance
+// records which bucket produced the entry; it is omitted from JSON when
+// unset (e.g. hand-built fixtures).
 type FileDebt struct {
-	File        string `json:"file"`
-	MarkerCount int    `json:"marker_count"`
+	File        string     `json:"file"`
+	MarkerCount int        `json:"marker_count"`
+	Provenance  Provenance `json:"provenance,omitempty"`
 }
 
 // TechDebtResult is the output of GetTechDebt.
@@ -45,24 +65,197 @@ var scannerToolNames = map[string]bool{
 	"Bash":  true,
 }
 
-// knownCodeExtensions is the set of file extensions scanned during source-dir walk.
-var knownCodeExtensions = map[string]bool{
-	".go": true, ".py": true, ".ts": true, ".js": true, ".tsx": true, ".jsx": true,
-	".java": true, ".rs": true, ".c": true, ".h": true, ".cpp": true, ".hpp": true,
-	".sh": true, ".yaml": true, ".yml": true, ".md": true, ".json": true, ".toml": true,
+// langSyntax describes the cheap lexical cues markerScanner uses for one
+// file extension. It is NOT a language parser — just enough state to keep
+// markers inside string/regex literals out of the count while admitting
+// markers inside comments.
+type langSyntax struct {
+	lineComment  string // token that starts a comment running to end-of-line ("//" or "#"; "" = none)
+	blockComment bool   // supports /* ... */ block comments that may span lines
+	rawString    bool   // supports backtick raw strings that may span lines
+	singleQuote  bool   // treats ' as a string delimiter (false for Rust, where ' starts lifetimes)
 }
+
+// extSyntax maps scanned file extensions to their comment/lexical syntax.
+// All extensions are covered; an extension missing here would fall back to
+// counting markers anywhere on the line (legacy behavior).
+var extSyntax = map[string]langSyntax{
+	".go":   {lineComment: "//", blockComment: true, rawString: true, singleQuote: true},
+	".ts":   {lineComment: "//", blockComment: true, rawString: true, singleQuote: true},
+	".js":   {lineComment: "//", blockComment: true, rawString: true, singleQuote: true},
+	".tsx":  {lineComment: "//", blockComment: true, rawString: true, singleQuote: true},
+	".jsx":  {lineComment: "//", blockComment: true, rawString: true, singleQuote: true},
+	".java": {lineComment: "//", blockComment: true, singleQuote: true},
+	".rs":   {lineComment: "//", blockComment: true},
+	".c":    {lineComment: "//", blockComment: true, singleQuote: true},
+	".h":    {lineComment: "//", blockComment: true, singleQuote: true},
+	".cpp":  {lineComment: "//", blockComment: true, singleQuote: true},
+	".hpp":  {lineComment: "//", blockComment: true, singleQuote: true},
+	".py":   {lineComment: "#", singleQuote: true},
+	".sh":   {lineComment: "#", singleQuote: true},
+	".yaml": {lineComment: "#", singleQuote: true},
+	".yml":  {lineComment: "#", singleQuote: true},
+	".toml": {lineComment: "#", singleQuote: true},
+}
+
+// knownCodeExtensions is the set of file extensions scanned during a
+// source-dir walk, derived from extSyntax so every scanned extension has a
+// known comment syntax. NOTE (DIR-055): .md and .json were removed — prose
+// and data files are documentation, not code debt, and previously dominated
+// the hotspot ranking (e.g. tasks/*.md task prose, JSON fixtures).
+var knownCodeExtensions = func() map[string]bool {
+	m := make(map[string]bool, len(extSyntax))
+	for ext := range extSyntax {
+		m[ext] = true
+	}
+	return m
+}()
 
 // hiddenDirNames is the set of directory names skipped during source-dir walk.
 var hiddenDirNames = map[string]bool{
 	".git": true, "node_modules": true, "vendor": true, ".venv": true, "__pycache__": true,
 }
 
-// GetTechDebt scans toolCalls for TODO/FIXME/HACK/XXX markers in outputs and
-// detects unresolved errors (tool calls with status "error" that have no
-// subsequent success call with the same tool name).
+// markerScanner is a line-oriented heuristic that decides whether debt
+// markers on a source line appear in a comment context. It does NOT parse
+// the language; per extension it tracks // or # line comments, /* */ block
+// comments (spanning lines), backtick raw strings (spanning lines), and
+// "..." / '...' quoted spans (within a line, with backslash escapes).
+// Markers inside quoted spans — string literals, regex literals, tool
+// description strings, test fixtures — are excluded; markers inside
+// comments are counted. It does NOT model nested or exotic syntax (Java
+// text blocks, Python triple-quoted strings, shell heredocs); where such
+// constructs matter it conservatively under-counts rather than reporting
+// literal text as debt.
+type markerScanner struct {
+	syntax         langSyntax
+	inBlockComment bool // carried across lines
+	inRawString    bool // carried across lines
+}
+
+var (
+	blockCommentStart = []byte("/*")
+	blockCommentEnd   = []byte("*/")
+)
+
+// newMarkerScanner returns a scanner for the file extension ext. Unknown
+// extensions get a zero syntax, which counts markers anywhere (legacy
+// fallback); unreachable in practice since knownCodeExtensions is derived
+// from extSyntax.
+func newMarkerScanner(ext string) *markerScanner {
+	return &markerScanner{syntax: extSyntax[ext]}
+}
+
+// countLine returns the debt-marker labels found in comment context on line.
+// Scanner state (open block comment / raw string) carries across calls.
+func (m *markerScanner) countLine(line []byte) []string {
+	var found []string
+	s := m.syntax
+	for i := 0; i < len(line); {
+		switch {
+		case m.inBlockComment:
+			// Marker text inside a block comment counts; scan up to */.
+			if j := bytes.Index(line[i:], blockCommentEnd); j >= 0 {
+				found = appendMarkerLabels(found, line[i:i+j])
+				i += j + len(blockCommentEnd)
+				m.inBlockComment = false
+			} else {
+				return appendMarkerLabels(found, line[i:])
+			}
+		case m.inRawString:
+			// Marker text inside a raw string never counts; skip to closing `.
+			if j := bytes.IndexByte(line[i:], '`'); j >= 0 {
+				i += j + 1
+				m.inRawString = false
+			} else {
+				return found
+			}
+		case s.blockComment && bytes.HasPrefix(line[i:], blockCommentStart):
+			m.inBlockComment = true
+			i += len(blockCommentStart)
+		case s.rawString && line[i] == '`':
+			m.inRawString = true
+			i++
+		case s.lineComment != "" && bytes.HasPrefix(line[i:], []byte(s.lineComment)):
+			// Rest of line is a comment: count markers from here.
+			return appendMarkerLabels(found, line[i:])
+		case line[i] == '"':
+			i = skipQuotedSpan(line, i)
+		case s.singleQuote && line[i] == '\'':
+			i = skipQuotedSpan(line, i)
+		default:
+			i++
+		}
+	}
+	return found
+}
+
+// skipQuotedSpan consumes a quoted span starting at the opening quote at
+// line[i], honoring backslash escapes. Returns the index after the closing
+// quote, or len(line) if the span is unterminated on this line (quoted
+// spans are not carried across lines: terminating early is the
+// conservative direction for unterminated multi-line strings).
+func skipQuotedSpan(line []byte, i int) int {
+	quote := line[i]
+	for j := i + 1; j < len(line); j++ {
+		if line[j] == '\\' {
+			j++ // skip escaped char
+			continue
+		}
+		if line[j] == quote {
+			return j + 1
+		}
+	}
+	return len(line)
+}
+
+// appendMarkerLabels appends the debt-marker labels matched in segment.
+func appendMarkerLabels(found []string, segment []byte) []string {
+	for _, m := range markerPattern.FindAll(segment, -1) {
+		found = append(found, string(m))
+	}
+	return found
+}
+
+// buildTechDebtResult crystallizes the shared build+sort block previously
+// duplicated across GetTechDebt, ScanSourceDir, and MergeTechDebtResults
+// (DIR-055): markers sorted by count descending, hotspot files sorted by
+// marker count descending then path ascending.
+func buildTechDebtResult(labelCounts map[string]int, fileDebt map[string]FileDebt, openIssues int, source DataSource) *TechDebtResult {
+	var markers []MarkerCount
+	for label, count := range labelCounts {
+		markers = append(markers, MarkerCount{Label: label, Count: count})
+	}
+	sort.Slice(markers, func(i, j int) bool {
+		return markers[i].Count > markers[j].Count
+	})
+
+	var hotspots []FileDebt
+	for _, fd := range fileDebt {
+		hotspots = append(hotspots, fd)
+	}
+	sort.Slice(hotspots, func(i, j int) bool {
+		if hotspots[i].MarkerCount != hotspots[j].MarkerCount {
+			return hotspots[i].MarkerCount > hotspots[j].MarkerCount
+		}
+		return hotspots[i].File < hotspots[j].File
+	})
+
+	return &TechDebtResult{
+		Markers:      markers,
+		HotspotFiles: hotspots,
+		OpenIssues:   openIssues,
+		DataSource:   source,
+	}
+}
+
+// GetTechDebt scans toolCalls for debt markers (the four labels matched by
+// markerPattern) in outputs and detects unresolved errors (tool calls with
+// status "error" that have no subsequent success call with the same tool
+// name). Hotspot entries carry provenance "session".
 func GetTechDebt(entries []types.SessionEntry, toolCalls []types.ToolCall) (*TechDebtResult, error) {
 	labelCounts := make(map[string]int)
-	fileCounts := make(map[string]int)
+	fileDebt := make(map[string]FileDebt)
 
 	for _, tc := range toolCalls {
 		if !scannerToolNames[tc.ToolName] {
@@ -75,32 +268,14 @@ func GetTechDebt(entries []types.SessionEntry, toolCalls []types.ToolCall) (*Tec
 		for _, m := range matches {
 			labelCounts[m]++
 		}
-		fp := getFilePath(tc.Input)
-		if fp != "" {
-			fileCounts[fp] += len(matches)
+		if fp := getFilePath(tc.Input); fp != "" {
+			fd := fileDebt[fp]
+			fd.File = fp
+			fd.MarkerCount += len(matches)
+			fd.Provenance = ProvenanceSession
+			fileDebt[fp] = fd
 		}
 	}
-
-	// Build Markers slice
-	var markers []MarkerCount
-	for label, count := range labelCounts {
-		markers = append(markers, MarkerCount{Label: label, Count: count})
-	}
-	sort.Slice(markers, func(i, j int) bool {
-		return markers[i].Count > markers[j].Count
-	})
-
-	// Build HotspotFiles slice sorted descending by MarkerCount
-	var hotspots []FileDebt
-	for file, count := range fileCounts {
-		hotspots = append(hotspots, FileDebt{File: file, MarkerCount: count})
-	}
-	sort.Slice(hotspots, func(i, j int) bool {
-		if hotspots[i].MarkerCount != hotspots[j].MarkerCount {
-			return hotspots[i].MarkerCount > hotspots[j].MarkerCount
-		}
-		return hotspots[i].File < hotspots[j].File
-	})
 
 	// Detect open issues: error calls with no subsequent success for same tool
 	openIssues := 0
@@ -120,21 +295,18 @@ func GetTechDebt(entries []types.SessionEntry, toolCalls []types.ToolCall) (*Tec
 		}
 	}
 
-	return &TechDebtResult{
-		Markers:      markers,
-		HotspotFiles: hotspots,
-		OpenIssues:   openIssues,
-		DataSource:   DataSourceMeasured,
-	}, nil
+	return buildTechDebtResult(labelCounts, fileDebt, openIssues, DataSourceMeasured), nil
 }
 
 // ScanSourceDir walks sourceDir recursively, scanning known code files for
-// TODO/FIXME/HACK/XXX markers. Hidden directories (.git, node_modules, etc.)
-// are skipped. Scanning stops after maxFiles (safety cap).
-// The returned result has DataSourceMeasured provenance.
+// debt markers in comment context (see markerScanner). Hidden directories
+// (.git, node_modules, etc.) are skipped; documentation and data files
+// (.md, .json) are not scanned. Scanning stops after maxFiles (safety cap).
+// The returned result has DataSourceMeasured provenance and hotspot entries
+// carry provenance "source".
 func ScanSourceDir(sourceDir string) (*TechDebtResult, error) {
 	labelCounts := make(map[string]int)
-	fileCounts := make(map[string]int)
+	fileDebt := make(map[string]FileDebt)
 	filesScanned := 0
 	const maxFiles = 10000
 
@@ -170,8 +342,10 @@ func ScanSourceDir(sourceDir string) (*TechDebtResult, error) {
 		// done here, to keep this task's diff scoped to closing the
 		// check-no-scanner violation in
 		// internal/provider/codex/appserver/client.go.
+		scanner := newMarkerScanner(ext)
 		reader := bufio.NewReader(f)
 		lineCount := 0
+		fileTotal := 0
 		for {
 			line, readErr := reader.ReadBytes('\n')
 			if len(line) > 0 {
@@ -180,12 +354,11 @@ func ScanSourceDir(sourceDir string) (*TechDebtResult, error) {
 				if lineCount > 20000 {
 					break
 				}
-				matches := markerPattern.FindAll(line, -1)
-				if len(matches) > 0 {
+				if matches := scanner.countLine(line); len(matches) > 0 {
 					for _, m := range matches {
-						labelCounts[string(m)]++
+						labelCounts[m]++
 					}
-					fileCounts[p] += len(matches)
+					fileTotal += len(matches)
 				}
 			}
 			if readErr != nil {
@@ -193,48 +366,44 @@ func ScanSourceDir(sourceDir string) (*TechDebtResult, error) {
 			}
 		}
 		f.Close()
+		if fileTotal > 0 {
+			fileDebt[p] = FileDebt{File: p, MarkerCount: fileTotal, Provenance: ProvenanceSource}
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Build Markers slice
-	var markers []MarkerCount
-	for label, count := range labelCounts {
-		markers = append(markers, MarkerCount{Label: label, Count: count})
-	}
-	sort.Slice(markers, func(i, j int) bool {
-		return markers[i].Count > markers[j].Count
-	})
-
-	// Build HotspotFiles slice sorted descending by MarkerCount
-	var hotspots []FileDebt
-	for file, count := range fileCounts {
-		hotspots = append(hotspots, FileDebt{File: file, MarkerCount: count})
-	}
-	sort.Slice(hotspots, func(i, j int) bool {
-		if hotspots[i].MarkerCount != hotspots[j].MarkerCount {
-			return hotspots[i].MarkerCount > hotspots[j].MarkerCount
-		}
-		return hotspots[i].File < hotspots[j].File
-	})
-
-	return &TechDebtResult{
-		Markers:      markers,
-		HotspotFiles: hotspots,
-		OpenIssues:   0,
-		DataSource:   DataSourceMeasured,
-	}, nil
+	return buildTechDebtResult(labelCounts, fileDebt, 0, DataSourceMeasured), nil
 }
 
-// MergeTechDebtResults merges two TechDebtResults into one by adding
-// marker counts from both and deduplicating hotspot files by path
-// (summing their counts). OpenIssues uses the max of both inputs.
-// The DataSource is set to the provided combinedSource.
+// combineProvenance merges the provenance of two entries for the same path:
+// equal values stay, an empty side yields to the other, and two distinct
+// non-empty values combine into "both".
+func combineProvenance(a, b Provenance) Provenance {
+	switch {
+	case a == b:
+		return a
+	case a == "":
+		return b
+	case b == "":
+		return a
+	default:
+		return ProvenanceBoth
+	}
+}
+
+// MergeTechDebtResults merges two TechDebtResults into one. Label marker
+// counts sum (they are aggregate totals), but per-file hotspot counts take
+// the MAX per path, not the sum: a file both Read during a session and
+// source-scanned carries the same on-disk markers in both buckets, so
+// summing double-counts it (DIR-055). Each merged hotspot entry records
+// provenance ("session", "source", or "both"). OpenIssues uses the max of
+// both inputs. The DataSource is set to the provided combinedSource.
 func MergeTechDebtResults(a, b *TechDebtResult, combinedSource DataSource) *TechDebtResult {
 	labelCounts := make(map[string]int)
-	fileCounts := make(map[string]int)
+	fileDebt := make(map[string]FileDebt)
 
 	for _, m := range a.Markers {
 		labelCounts[m.Label] += m.Count
@@ -244,42 +413,27 @@ func MergeTechDebtResults(a, b *TechDebtResult, combinedSource DataSource) *Tech
 	}
 
 	for _, f := range a.HotspotFiles {
-		fileCounts[f.File] += f.MarkerCount
+		fileDebt[f.File] = f
 	}
 	for _, f := range b.HotspotFiles {
-		fileCounts[f.File] += f.MarkerCount
-	}
-
-	var markers []MarkerCount
-	for label, count := range labelCounts {
-		markers = append(markers, MarkerCount{Label: label, Count: count})
-	}
-	sort.Slice(markers, func(i, j int) bool {
-		return markers[i].Count > markers[j].Count
-	})
-
-	var hotspots []FileDebt
-	for file, count := range fileCounts {
-		hotspots = append(hotspots, FileDebt{File: file, MarkerCount: count})
-	}
-	sort.Slice(hotspots, func(i, j int) bool {
-		if hotspots[i].MarkerCount != hotspots[j].MarkerCount {
-			return hotspots[i].MarkerCount > hotspots[j].MarkerCount
+		existing, ok := fileDebt[f.File]
+		if !ok {
+			fileDebt[f.File] = f
+			continue
 		}
-		return hotspots[i].File < hotspots[j].File
-	})
+		if f.MarkerCount > existing.MarkerCount {
+			existing.MarkerCount = f.MarkerCount
+		}
+		existing.Provenance = combineProvenance(existing.Provenance, f.Provenance)
+		fileDebt[f.File] = existing
+	}
 
 	openIssues := a.OpenIssues
 	if b.OpenIssues > openIssues {
 		openIssues = b.OpenIssues
 	}
 
-	return &TechDebtResult{
-		Markers:      markers,
-		HotspotFiles: hotspots,
-		OpenIssues:   openIssues,
-		DataSource:   combinedSource,
-	}
+	return buildTechDebtResult(labelCounts, fileDebt, openIssues, combinedSource)
 }
 
 // TechDebtStats holds aggregate-only tech debt output: marker counts (bounded

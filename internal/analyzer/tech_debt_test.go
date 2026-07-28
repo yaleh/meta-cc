@@ -36,7 +36,7 @@ func TestGetTechDebt_DetectsMarkers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// Find TODO marker count
+	// find the marker count for the todo label
 	todoCount := 0
 	for _, m := range result.Markers {
 		if m.Label == "TODO" {
@@ -122,7 +122,7 @@ func TestScanSourceDir_DetectsMarkers(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	// Check marker counts: TODO=1, FIXME=1, HACK=1, XXX=1
+	// Check marker counts: one of each label (todo/fixme/hack/xxx)
 	labelMap := make(map[string]int)
 	for _, m := range result.Markers {
 		labelMap[m.Label] = m.Count
@@ -161,21 +161,27 @@ func TestScanSourceDir_SkipsNodeModules(t *testing.T) {
 
 func TestMergeTechDebtResults(t *testing.T) {
 	a := &TechDebtResult{
-		Markers:      []MarkerCount{{Label: "TODO", Count: 3}, {Label: "FIXME", Count: 1}},
-		HotspotFiles: []FileDebt{{File: "a.go", MarkerCount: 2}, {File: "b.go", MarkerCount: 1}},
-		OpenIssues:   2,
-		DataSource:   DataSourceMeasured,
+		Markers: []MarkerCount{{Label: "TODO", Count: 3}, {Label: "FIXME", Count: 1}},
+		HotspotFiles: []FileDebt{
+			{File: "a.go", MarkerCount: 2, Provenance: ProvenanceSession},
+			{File: "b.go", MarkerCount: 1, Provenance: ProvenanceSession},
+		},
+		OpenIssues: 2,
+		DataSource: DataSourceMeasured,
 	}
 	b := &TechDebtResult{
-		Markers:      []MarkerCount{{Label: "TODO", Count: 1}, {Label: "HACK", Count: 4}},
-		HotspotFiles: []FileDebt{{File: "a.go", MarkerCount: 3}, {File: "c.go", MarkerCount: 4}},
-		OpenIssues:   1,
-		DataSource:   DataSourceMeasured,
+		Markers: []MarkerCount{{Label: "TODO", Count: 1}, {Label: "HACK", Count: 4}},
+		HotspotFiles: []FileDebt{
+			{File: "a.go", MarkerCount: 3, Provenance: ProvenanceSource},
+			{File: "c.go", MarkerCount: 4, Provenance: ProvenanceSource},
+		},
+		OpenIssues: 1,
+		DataSource: DataSourceMeasured,
 	}
 
 	merged := MergeTechDebtResults(a, b, DataSourceMeasured)
 
-	// Check markers: TODO=4, FIXME=1, HACK=4
+	// Check markers: todo=4, fixme=1, hack=4 (label counts still sum)
 	labelMap := make(map[string]int)
 	for _, m := range merged.Markers {
 		labelMap[m.Label] = m.Count
@@ -184,16 +190,175 @@ func TestMergeTechDebtResults(t *testing.T) {
 	assert.Equal(t, 1, labelMap["FIXME"])
 	assert.Equal(t, 4, labelMap["HACK"])
 
-	// Check hotspot files: a.go=5, c.go=4, b.go=1 (sorted desc)
+	// Check hotspot files: per-path MAX (not sum) — c.go=4, a.go=max(2,3)=3,
+	// b.go=1 (sorted desc). A file observed by both buckets is counted once.
 	assert.Equal(t, 3, len(merged.HotspotFiles))
-	assert.Equal(t, "a.go", merged.HotspotFiles[0].File)
-	assert.Equal(t, 5, merged.HotspotFiles[0].MarkerCount)
+	assert.Equal(t, "c.go", merged.HotspotFiles[0].File)
+	assert.Equal(t, 4, merged.HotspotFiles[0].MarkerCount)
+	assert.Equal(t, "a.go", merged.HotspotFiles[1].File)
+	assert.Equal(t, 3, merged.HotspotFiles[1].MarkerCount)
+	assert.Equal(t, "b.go", merged.HotspotFiles[2].File)
+	assert.Equal(t, 1, merged.HotspotFiles[2].MarkerCount)
+
+	// Provenance: a.go in both inputs -> "both"; b.go session-only; c.go source-only
+	assert.Equal(t, ProvenanceBoth, merged.HotspotFiles[1].Provenance)
+	assert.Equal(t, ProvenanceSession, merged.HotspotFiles[2].Provenance)
+	assert.Equal(t, ProvenanceSource, merged.HotspotFiles[0].Provenance)
 
 	// OpenIssues uses max
 	assert.Equal(t, 2, merged.OpenIssues)
 
 	// DataSource passed through
 	assert.Equal(t, DataSourceMeasured, merged.DataSource)
+}
+
+// TestGetTechDebt_ProvenanceSession verifies session-transcript scan results
+// tag every hotspot file with provenance "session" (DIR-055).
+func TestGetTechDebt_ProvenanceSession(t *testing.T) {
+	toolCalls := []types.ToolCall{
+		makeToolCallWithOutput("Read", "a.go", "// TODO: x\n", "success"),
+	}
+	result, err := GetTechDebt(nil, toolCalls)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(result.HotspotFiles))
+	assert.Equal(t, ProvenanceSession, result.HotspotFiles[0].Provenance)
+}
+
+// TestScanSourceDir_ProvenanceSource verifies source-dir scan results tag
+// every hotspot file with provenance "source" (DIR-055).
+func TestScanSourceDir_ProvenanceSource(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeFile(t, filepath.Join(tmpDir, "a.go"), "// TODO: x\n")
+
+	result, err := ScanSourceDir(tmpDir)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(result.HotspotFiles))
+	assert.Equal(t, ProvenanceSource, result.HotspotFiles[0].Provenance)
+}
+
+// TestScanSourceDir_StringLiteralMarkersNotCounted is the AC fixture spec:
+// a marker inside a string literal counts 0; the same marker inside a //
+// comment counts 1 (DIR-055).
+func TestScanSourceDir_StringLiteralMarkersNotCounted(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeFile(t, filepath.Join(tmpDir, "str.go"), "package main\n\nfunc f() {\n\tx := \"TODO: fix\"\n\t_ = x\n}\n")
+	writeFile(t, filepath.Join(tmpDir, "comment.go"), "package main\n\n// TODO: fix\nfunc g() {}\n")
+
+	result, err := ScanSourceDir(tmpDir)
+	require.NoError(t, err)
+
+	labelMap := make(map[string]int)
+	for _, m := range result.Markers {
+		labelMap[m.Label] = m.Count
+	}
+	assert.Equal(t, 1, labelMap["TODO"], "only the comment marker should count")
+
+	for _, f := range result.HotspotFiles {
+		assert.NotEqual(t, filepath.Join(tmpDir, "str.go"), f.File,
+			"string-literal marker must not create a hotspot entry")
+	}
+	require.Equal(t, 1, len(result.HotspotFiles))
+	assert.Equal(t, filepath.Join(tmpDir, "comment.go"), result.HotspotFiles[0].File)
+	assert.Equal(t, 1, result.HotspotFiles[0].MarkerCount)
+}
+
+// TestScanSourceDir_RawStringRegexMarkersNotCounted covers the scanner's own
+// definition shape: markers inside a backtick raw string / regex literal must
+// not count (DIR-055 root cause 1 — self-match).
+func TestScanSourceDir_RawStringRegexMarkersNotCounted(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeFile(t, filepath.Join(tmpDir, "re.go"),
+		"package main\n\nimport \"regexp\"\n\nvar re = regexp.MustCompile(`\\b(TODO|FIXME|HACK|XXX)\\b`)\n")
+
+	result, err := ScanSourceDir(tmpDir)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(result.HotspotFiles), "markers inside a raw string literal must not count")
+	assert.Equal(t, 0, len(result.Markers))
+}
+
+// TestScanSourceDir_MultilineRawStringAndBlockComments verifies state that
+// spans lines: markers inside a multi-line backtick raw string do not count,
+// while markers inside /* */ block comments (single- and multi-line) do
+// (DIR-055).
+func TestScanSourceDir_MultilineRawStringAndBlockComments(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeFile(t, filepath.Join(tmpDir, "raw.go"),
+		"package main\n\nvar tmpl = `first line\nTODO FIXME inside raw string\nlast line`\n\n// HACK: after raw string\nvar x = 1\n")
+	writeFile(t, filepath.Join(tmpDir, "block.go"),
+		"package main\n\n/* XXX: single-line block */\n/*\nFIXME: multi-line block\n*/\nvar y = 2\n")
+
+	result, err := ScanSourceDir(tmpDir)
+	require.NoError(t, err)
+
+	labelMap := make(map[string]int)
+	for _, m := range result.Markers {
+		labelMap[m.Label] = m.Count
+	}
+	assert.Equal(t, 0, labelMap["TODO"], "raw string content must not count")
+	// fixme appears once inside the multi-line block comment in block.go (counted)
+	// and once inside the raw string in raw.go (must not count).
+	assert.Equal(t, 1, labelMap["FIXME"], "only the block-comment FIXME counts")
+	assert.Equal(t, 1, labelMap["XXX"], "single-line block comment marker counts")
+	assert.Equal(t, 1, labelMap["HACK"], "comment after closed raw string counts")
+}
+
+// TestScanSourceDir_SkipsDocsAndDataFiles verifies .md and .json files never
+// appear in the source-mode hotspot ranking (DIR-055 root cause 2), while
+// other scanned extensions (e.g. .yaml) still do.
+func TestScanSourceDir_SkipsDocsAndDataFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	writeFile(t, filepath.Join(tmpDir, "README.md"), "# TODO: document this\n\nFIXME prose\n")
+	writeFile(t, filepath.Join(tmpDir, "data.json"), "{\"note\": \"TODO: fix\"}\n")
+	writeFile(t, filepath.Join(tmpDir, "conf.yaml"), "# HACK: workaround\nkey: value\n")
+
+	result, err := ScanSourceDir(tmpDir)
+	require.NoError(t, err)
+
+	require.Equal(t, 1, len(result.HotspotFiles))
+	assert.Equal(t, filepath.Join(tmpDir, "conf.yaml"), result.HotspotFiles[0].File)
+	for _, f := range result.HotspotFiles {
+		assert.NotContains(t, f.File, ".md")
+		assert.NotContains(t, f.File, ".json")
+	}
+}
+
+// TestMergeTechDebtResults_BothBucketCountedOnce verifies the AC: a file with
+// N markers that is both Read in-session and source-scanned reports
+// marker_count N (not 2N) and provenance "both" (DIR-055 root cause 3).
+func TestMergeTechDebtResults_BothBucketCountedOnce(t *testing.T) {
+	toolCalls := []types.ToolCall{
+		makeToolCallWithOutput("Read", "/repo/x.go", "// TODO: a\n// TODO: b\n// TODO: c\n", "success"),
+	}
+	session, err := GetTechDebt(nil, toolCalls)
+	require.NoError(t, err)
+
+	srcDir := t.TempDir()
+	writeFile(t, filepath.Join(srcDir, "x.go"), "// TODO: a\n// TODO: b\n// TODO: c\n")
+	// ScanSourceDir reports absolute paths under srcDir; rename to match the
+	// session path so the merge sees the same path in both buckets.
+	source, err := ScanSourceDir(srcDir)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(source.HotspotFiles))
+	source.HotspotFiles[0].File = "/repo/x.go"
+
+	merged := MergeTechDebtResults(session, source, DataSourceMeasured)
+
+	require.Equal(t, 1, len(merged.HotspotFiles))
+	assert.Equal(t, "/repo/x.go", merged.HotspotFiles[0].File)
+	assert.Equal(t, 3, merged.HotspotFiles[0].MarkerCount, "max(N,N)=N, not sum 2N")
+	assert.Equal(t, ProvenanceBoth, merged.HotspotFiles[0].Provenance)
+}
+
+// TestFileDebt_ProvenanceJSON verifies the provenance field serializes for
+// populated entries and is omitted when empty (DIR-055).
+func TestFileDebt_ProvenanceJSON(t *testing.T) {
+	withProv, err := json.Marshal(FileDebt{File: "a.go", MarkerCount: 1, Provenance: ProvenanceBoth})
+	require.NoError(t, err)
+	assert.Contains(t, string(withProv), `"provenance":"both"`)
+
+	withoutProv, err := json.Marshal(FileDebt{File: "a.go", MarkerCount: 1})
+	require.NoError(t, err)
+	assert.NotContains(t, string(withoutProv), "provenance")
 }
 
 func TestGetTechDebt_EmptySession(t *testing.T) {

@@ -389,7 +389,7 @@ func GetToolDefinitions() []Tool {
 			},
 			"source_dir": {
 				Type:        "string",
-				Description: "Optional path to source code directory to scan for TODO/FIXME/HACK/XXX markers on disk. Results merged with session-transcript markers.",
+				Description: "Optional path to source code directory to scan for TODO/FIXME/HACK/XXX markers on disk. Only code files are scanned (docs/data like .md/.json are excluded) and markers count only in comment context, not inside string or regex literals. Results merged with session-transcript markers (per-file counts take the max across buckets; hotspot entries carry provenance session/source/both).",
 			},
 			"session_id": SessionIDProperty(),
 		}),
