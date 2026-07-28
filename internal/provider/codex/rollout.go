@@ -601,19 +601,35 @@ func (b *turnBuilder) applyNew(line []byte) {
 // as a capped ItemKindUnknown Item in the ordered item stream, so
 // unrecognized event families are round-trippable at the item level too
 // without embedding unbounded raw payloads.
+//
+// DIR-064: the turn this event opens is stamped with the EVENT's own
+// timestamp, parsed once and shared by both the Turn (via ensureTurn) and the
+// Item so the two always agree. time.Now() is used only as a documented last
+// resort when the event carries no parseable timestamp. Previously the turn
+// was stamped with the query-time wall clock and the event time was parsed
+// only for the Item; because ensureTurn is a no-op once a turn is open, every
+// later event in the turn inherited that now(), and Normalize emitted it as
+// the record timestamp — so historical sessions carried today's date, skewing
+// since/until filtering and recency sorting.
 func (b *turnBuilder) appendUnknown(line []byte) {
-	b.ensureTurn("", time.Now().UTC().Format(time.RFC3339))
-	b.unknown = append(b.unknown, append(json.RawMessage(nil), line...))
-
 	var stamped struct {
 		Timestamp string `json:"timestamp"`
 	}
 	_ = json.Unmarshal(line, &stamped)
 	ts := parseTimestamp(stamped.Timestamp)
-	if ts.IsZero() {
-		ts = b.current.Timestamp
+
+	turnTs := ts
+	if turnTs.IsZero() {
+		turnTs = time.Now().UTC() // last resort: event has no usable timestamp
 	}
-	b.current.Items = append(b.current.Items, conversation.NewRawItem(conversation.ItemKindUnknown, ts, line))
+	b.ensureTurn("", turnTs.Format(time.RFC3339))
+	b.unknown = append(b.unknown, append(json.RawMessage(nil), line...))
+
+	itemTs := ts
+	if itemTs.IsZero() {
+		itemTs = turnTs // inherit the turn time (event time, or now() if none)
+	}
+	b.current.Items = append(b.current.Items, conversation.NewRawItem(conversation.ItemKindUnknown, itemTs, line))
 }
 
 func parseTimestamp(timestamp string) time.Time {

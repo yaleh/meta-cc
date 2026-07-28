@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/conversation"
+	providerrecords "github.com/yaleh/meta-cc/internal/provider/records"
 )
 
 func TestDetectSchemaVersion(t *testing.T) {
@@ -623,5 +624,85 @@ func TestLoadTurnsFromRolloutDotSchemaToolResultAfterTurnCompleted(t *testing.T)
 	}
 	if results[0].ToolCallID != "call-9" || results[0].Output != "stray result" || !results[0].IsError {
 		t.Fatalf("unexpected stray tool-result item: %#v", results[0])
+	}
+}
+
+// TestLoadTurnsFromRolloutUnknownFirstEventUsesEventTimestamp is the DIR-064
+// regression test. When a rollout's FIRST event is an unrecognized dot-schema
+// event (the exact schema-drift case appendUnknown exists to tolerate), the
+// turn it opens must be stamped with the EVENT's own timestamp, not the
+// query-time wall clock. Before the fix, appendUnknown called
+// ensureTurn("", time.Now()...) so a 2025 session queried in any later year
+// carried today's date; because ensureTurn is a no-op once a turn is open,
+// every subsequent event in that turn inherited the bogus now(), and
+// Normalize emitted it verbatim as the record timestamp — skewing since/until
+// filtering and recency sorting.
+//
+// The assertion is run-time-independent: it pins the year to 2025 (the event's
+// year) rather than comparing against time.Now(), so it fails on the old code
+// regardless of when the suite runs and stays green after the fix.
+func TestLoadTurnsFromRolloutUnknownFirstEventUsesEventTimestamp(t *testing.T) {
+	const eventTS = "2025-03-01T00:00:00Z"
+	path := filepath.Join(t.TempDir(), "unknown-first-event.jsonl")
+	// First line is an unrecognized dot-schema event (contains "." so
+	// detectSchemaVersion routes to the new-schema dispatcher, whose default
+	// case calls appendUnknown). It carries a 2025 timestamp. The following
+	// item.message opens no new turn (ensureTurn is a no-op once one exists),
+	// so the whole turn is governed by the timestamp appendUnknown set.
+	content := `{"timestamp":"` + eventTS + `","type":"mystery.unknown_event","payload":{"note":"schema drift"}}
+{"timestamp":"2025-03-01T00:00:01Z","type":"item.message","payload":{"role":"user","content":"hello"}}
+{"timestamp":"2025-03-01T00:00:02Z","type":"turn.completed","payload":{"id":"t-unknown"}}
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	turns, _, err := loadTurnsFromRollout(path, 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d: %#v", len(turns), turns)
+	}
+	turn := turns[0]
+
+	// AC: the turn timestamp must be the event's 2025 timestamp, not the
+	// current date. Run-time-independent: pin the year to 2025.
+	wantTS := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
+	if !turn.Timestamp.Equal(wantTS) {
+		t.Fatalf("turn timestamp = %v (year %d), want event timestamp %v (year 2025); appendUnknown likely used time.Now()",
+			turn.Timestamp, turn.Timestamp.Year(), wantTS)
+	}
+	if turn.Timestamp.Year() != 2025 {
+		t.Fatalf("turn timestamp year = %d, want 2025 (run-time-independent)", turn.Timestamp.Year())
+	}
+
+	// AC: the unknown Item and its enclosing Turn carry the same event-derived
+	// timestamp when the event has one.
+	var unknownItems []conversation.Item
+	for _, item := range turn.Items {
+		if item.Kind == conversation.ItemKindUnknown {
+			unknownItems = append(unknownItems, item)
+		}
+	}
+	if len(unknownItems) != 1 {
+		t.Fatalf("expected exactly 1 unknown item, got %d: %#v", len(unknownItems), turn.Items)
+	}
+	if !unknownItems[0].Timestamp.Equal(turn.Timestamp) {
+		t.Fatalf("unknown item timestamp = %v, want equal to turn timestamp %v",
+			unknownItems[0].Timestamp, turn.Timestamp)
+	}
+
+	// AC: the emitted record timestamp equals the event timestamp. Normalize
+	// copies turn.Timestamp verbatim into each record's "timestamp" field,
+	// which is what since/until filtering and recency sorts consume.
+	records := providerrecords.Normalize(conversation.Session{ID: "sess-unknown", Provider: conversation.ProviderCodex}, turns)
+	if len(records) == 0 {
+		t.Fatalf("expected Normalize to emit at least one record for the turn")
+	}
+	for _, rec := range records {
+		if got, _ := rec["timestamp"].(string); got != eventTS {
+			t.Fatalf("record timestamp = %q, want event timestamp %q (run-time-independent)", got, eventTS)
+		}
 	}
 }
