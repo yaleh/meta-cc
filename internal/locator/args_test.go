@@ -177,6 +177,107 @@ func TestFromSessionID_MultipleProjects(t *testing.T) {
 	}
 }
 
+// TestFromSessionIDScoped_SameProject is the DIR-033 same-project
+// regression proof: a session_id that legitimately belongs to the caller's
+// working_dir must resolve exactly as FromSessionID would, unaffected by
+// the added boundary check.
+func TestFromSessionIDScoped_SameProject(t *testing.T) {
+	projectsRoot := setupProjectsRoot(t)
+
+	tempDir, err := os.MkdirTemp("", "testproject-scoped")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	sessionID := "scoped-same-project-session"
+	projectHash := PathToHash(tempDir)
+	sessionDir := filepath.Join(projectsRoot, projectHash)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
+	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	if err := os.WriteFile(sessionFile, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write session file: %v", err)
+	}
+
+	locator := NewSessionLocator()
+	path, err := locator.FromSessionIDScoped(sessionID, tempDir)
+	if err != nil {
+		t.Fatalf("expected no error for same-project session, got: %v", err)
+	}
+	if path != sessionFile {
+		t.Errorf("expected path %s, got %s", sessionFile, path)
+	}
+}
+
+// TestFromSessionIDScoped_CrossProjectRejected is the DIR-033 regression
+// proof for the bug class this task crystallizes a fix for: a session_id
+// that resolves to a *different* project's directory than the caller's
+// working_dir must be rejected, not silently returned. This is the shape
+// of defect independently found and fixed three times (DIR-030's
+// provider_query.go, the DIR-032 build's provider.go, and the DIR-032
+// audit's analysis/service.go) before this helper existed to prevent it
+// structurally.
+func TestFromSessionIDScoped_CrossProjectRejected(t *testing.T) {
+	projectsRoot := setupProjectsRoot(t)
+
+	otherProjectDir, err := os.MkdirTemp("", "testproject-other")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(otherProjectDir)
+
+	callerProjectDir, err := os.MkdirTemp("", "testproject-caller")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(callerProjectDir)
+
+	sessionID := "scoped-cross-project-session"
+	otherProjectHash := PathToHash(otherProjectDir)
+	sessionDir := filepath.Join(projectsRoot, otherProjectHash)
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
+	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
+	if err := os.WriteFile(sessionFile, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write session file: %v", err)
+	}
+
+	locator := NewSessionLocator()
+
+	// Sanity check: the unscoped primitive does find it (that's the leak).
+	if _, err := locator.FromSessionID(sessionID); err != nil {
+		t.Fatalf("expected unscoped FromSessionID to find the session, got: %v", err)
+	}
+
+	// The scoped helper, given a *different* project's working_dir, must
+	// reject the match instead of returning otherProjectDir's session file.
+	_, err = locator.FromSessionIDScoped(sessionID, callerProjectDir)
+	if err == nil {
+		t.Fatal("expected FromSessionIDScoped to reject a cross-project session_id, got no error")
+	}
+	if !strings.Contains(err.Error(), sessionID) {
+		t.Errorf("expected error to mention session_id %q, got: %v", sessionID, err)
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected error to say \"not found\", got: %v", err)
+	}
+}
+
+// TestFromSessionIDScoped_NotFound mirrors TestFromSessionID_NotFound: an
+// unresolvable session_id must still fail even before the boundary check
+// runs.
+func TestFromSessionIDScoped_NotFound(t *testing.T) {
+	setupProjectsRoot(t)
+	locator := NewSessionLocator()
+	_, err := locator.FromSessionIDScoped("nonexistent-session-id", "/some/project")
+	if err == nil {
+		t.Error("expected error for nonexistent session ID")
+	}
+}
+
 func TestFromProjectPath_Success(t *testing.T) {
 	// 准备测试环境
 	projectsRoot := setupProjectsRoot(t)

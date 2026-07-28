@@ -19,7 +19,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # Default target when running 'make' without arguments
 .DEFAULT_GOAL := all
 
-.PHONY: all build stage test test-all test-coverage clean install install-local install-user uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex
+.PHONY: all build stage test test-all test-coverage clean install install-local install-user uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope
 
 # ==============================================================================
 # Build Quality Gates (BAIME Experiment - Iteration 1)
@@ -30,7 +30,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # ==============================================================================
 
 # Group 1: Essential (P0) - Blocks commit
-check-essential: check-temp-files check-fixtures check-deps
+check-essential: check-temp-files check-fixtures check-deps check-session-locator-scope
 	@echo "✅ Essential validation passed"
 
 # Group 2: Code Quality (P1) - Blocks push
@@ -215,6 +215,13 @@ check-fixtures:
 
 check-deps:
 	@bash scripts/checks/check-deps.sh
+
+# DIR-033: fails if any code outside internal/locator/ calls the raw,
+# unscoped SessionLocator.FromSessionID directly instead of going through
+# FromSessionIDScoped's cwd-boundary check. See scripts/checks/check-session-
+# locator-scope.sh for the bug-class history this closes structurally.
+check-session-locator-scope:
+	@bash scripts/checks/check-session-locator-scope.sh
 
 check-imports:
 	@echo "Checking import formatting..."

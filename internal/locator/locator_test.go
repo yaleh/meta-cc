@@ -8,8 +8,16 @@ import (
 
 func TestLocate_WithSessionID(t *testing.T) {
 	// 准备测试环境
+	// DIR-033: Locate's --session path now goes through FromSessionIDScoped,
+	// which enforces the cwd boundary (Locate has no separate working_dir
+	// input, so it uses os.Getwd()). The session must therefore live under
+	// the *actual* test process cwd's project hash, not an arbitrary one.
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
 	projectsRoot := setupProjectsRoot(t)
-	projectHash := "-test-locate-session"
+	projectHash := PathToHash(cwd)
 	sessionID := "test-session-123"
 
 	sessionDir := filepath.Join(projectsRoot, projectHash)
@@ -221,9 +229,16 @@ func TestLocate_EnvVarsIgnoredInProjectMode(t *testing.T) {
 
 func TestLocate_SessionIDPriority(t *testing.T) {
 	// 准备多个选项，验证 SessionID 优先级最高
+	// DIR-033: as above, the session must live under the actual test
+	// process cwd's project hash for FromSessionIDScoped's boundary check
+	// to accept it.
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
 	projectsRoot := setupProjectsRoot(t)
 	sessionID := "priority-test-session"
-	projectHash := "-test-priority"
+	projectHash := PathToHash(cwd)
 
 	sessionDir := filepath.Join(projectsRoot, projectHash)
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {

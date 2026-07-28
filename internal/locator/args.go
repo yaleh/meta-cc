@@ -61,6 +61,54 @@ func (l *SessionLocator) FromSessionID(sessionID string) (string, error) {
 	return findNewestFile(candidates)
 }
 
+// FromSessionIDScoped resolves sessionID to a file path exactly like
+// FromSessionID, but additionally enforces the caller's working_dir/cwd
+// boundary before returning it.
+//
+// FromSessionID (above) is a GLOBAL search: it walks every project-hash
+// directory on disk looking for a matching {session_id}.jsonl and returns
+// whatever it finds, without ever comparing the result against the
+// caller's working directory. Used directly, that shape is a cross-project
+// leak: any caller who learns a session_id can read that session's content
+// regardless of which project it claims to be scoped to.
+//
+// This exact defect was independently introduced and independently caught
+// three separate times in this repo's history — internal/mcp/executor's
+// ExecuteQueryForSession (DIR-030), internal/provider/claude's
+// findSessionFile (found during the DIR-032 build), and
+// internal/analysis/service.go's loadData (found by a DIR-032 adversarial
+// audit AFTER the bug class was believed closed). Each fix hand-wrote the
+// same boundary comparison: resolve workingDir to the project-hash
+// directory name Claude Code itself uses (PathToHash) and reject the match
+// if the resolved session file does not live under it. DIR-033
+// crystallizes that one comparison here so no future caller has to
+// remember to reimplement it — FromSessionID itself stays unscoped and is
+// only ever called from within this package; every external caller must
+// go through FromSessionIDScoped instead.
+//
+// An empty workingDir is a no-op (matches the pre-existing per-callsite
+// behavior of skipping the boundary check when no project scope was
+// requested/available).
+func (l *SessionLocator) FromSessionIDScoped(sessionID, workingDir string) (string, error) {
+	file, err := l.FromSessionID(sessionID)
+	if err != nil {
+		return "", fmt.Errorf("session_id %q not found: %w", sessionID, err)
+	}
+
+	boundaryDir := workingDir
+	if abs, absErr := filepath.Abs(boundaryDir); absErr == nil {
+		boundaryDir = abs
+	}
+	if expectedHash := PathToHash(boundaryDir); expectedHash != "" {
+		actualHash := filepath.Base(filepath.Dir(file))
+		if actualHash != expectedHash {
+			return "", fmt.Errorf("session_id %q not found for project %q", sessionID, boundaryDir)
+		}
+	}
+
+	return file, nil
+}
+
 // FromProjectPath 通过项目路径查找最新会话
 // 1. 将项目路径转换为哈希（/ → -）
 // 2. 定位 ~/.claude/projects/{hash}/

@@ -125,23 +125,24 @@ func (p *Provider) LoadTurns(ctx context.Context, sessionID string) ([]conversat
 	return turns, nil
 }
 
-// findSessionFile resolves sessionID to its on-disk path. DIR-032:
-// p.locator.FromSessionID is a GLOBAL search across every project-hash
-// directory on disk, with no awareness of p.workingDir — used naively, it
-// would let a working_dir scoped to project A resolve a session_id that
-// actually belongs to project B (the same class of cross-project leak
-// DIR-030's adversarial audit found and fixed on the
-// provider_query.go/ExecuteQueryForSession path; this constructor-level
-// GetSession/LoadTurns path had the identical gap, just not yet exercised
-// by that audit — see query_sessions_handler.go and
-// provider_query.go for the sibling fix this mirrors). A match from
-// FromSessionID is only accepted when it falls under p.workingDir's own
-// project-hash directory (via the same locator.PathToHash comparison
-// ExecuteQueryForSession uses); otherwise this falls through to the
-// already-scoped AllSessionsFromProject search, which naturally reports
-// "not found" for a session belonging to a different project.
+// findSessionFile resolves sessionID to its on-disk path. DIR-032/DIR-033:
+// p.locator.FromSessionID (the raw, unscoped primitive) is a GLOBAL search
+// across every project-hash directory on disk, with no awareness of
+// p.workingDir — used naively, it would let a working_dir scoped to
+// project A resolve a session_id that actually belongs to project B (the
+// same class of cross-project leak DIR-030's adversarial audit found and
+// fixed on the provider_query.go/ExecuteQueryForSession path; this
+// constructor-level GetSession/LoadTurns path had the identical gap, just
+// not yet exercised by that audit). FromSessionIDScoped crystallizes the
+// p.workingDir boundary comparison this leak class needs (the same
+// PathToHash-based check ExecuteQueryForSession and analysis/service.go's
+// loadData also use) so it isn't reimplemented ad hoc here. A match is
+// only accepted when it passes that boundary; otherwise this falls
+// through to the already-scoped AllSessionsFromProject search, which
+// naturally reports "not found" for a session belonging to a different
+// project.
 func (p *Provider) findSessionFile(sessionID string) (string, error) {
-	if file, err := p.locator.FromSessionID(sessionID); err == nil && p.withinWorkingDirBoundary(file) {
+	if file, err := p.locator.FromSessionIDScoped(sessionID, p.workingDir); err == nil {
 		return file, nil
 	}
 
@@ -164,26 +165,6 @@ func (p *Provider) findSessionFile(sessionID string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("session %q not found", sessionID)
-}
-
-// withinWorkingDirBoundary reports whether file lives under the
-// project-hash directory p.workingDir resolves to. An unset p.workingDir
-// preserves the pre-DIR-032 unscoped-global-search behavior (no boundary
-// configured, nothing to enforce), matching every other cwd-boundary check
-// in this codebase (see ExecuteQueryForSession).
-func (p *Provider) withinWorkingDirBoundary(file string) bool {
-	if p.workingDir == "" {
-		return true
-	}
-	projectPath := p.workingDir
-	if abs, err := filepath.Abs(projectPath); err == nil {
-		projectPath = abs
-	}
-	expectedHash := locator.PathToHash(projectPath)
-	if expectedHash == "" {
-		return true
-	}
-	return filepath.Base(filepath.Dir(file)) == expectedHash
 }
 
 // FilePath extracts the on-disk JSONL path recorded for a Claude session

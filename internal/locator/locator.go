@@ -22,7 +22,19 @@ type LocateOptions struct {
 func (l *SessionLocator) Locate(opts LocateOptions) (string, error) {
 	// 策略1: --session 参数
 	if opts.SessionID != "" {
-		path, err := l.FromSessionID(opts.SessionID)
+		// DIR-033: route through FromSessionIDScoped rather than calling the
+		// raw, unscoped FromSessionID directly. This code path has zero
+		// production callers today (a repo-wide grep for `.Locate(` /
+		// `LocateOptions{` outside tests found none — it predates the
+		// current MCP-only surface), but keeping it live and unscoped would
+		// leave it as a landmine for any future CLI-flag reintroduction. The
+		// current working directory is used as the project boundary, since
+		// Locate has no separate working_dir input of its own.
+		cwd, cwdErr := os.Getwd()
+		if cwdErr != nil {
+			return "", fmt.Errorf("session ID %q not found: %w", opts.SessionID, cwdErr)
+		}
+		path, err := l.FromSessionIDScoped(opts.SessionID, cwd)
 		if err == nil {
 			return path, nil
 		}

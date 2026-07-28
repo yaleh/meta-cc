@@ -103,32 +103,22 @@ func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, [
 	var files []string
 	switch {
 	case sessionID != "":
-		sessionFile, err := loc.FromSessionID(sessionID)
-		if err != nil {
-			return nil, nil, fmt.Errorf("session_id %q not found: %w", sessionID, err)
-		}
-		// DIR-032 cwd-boundary fix (third instance of this bug class — see
+		// DIR-033: loc.FromSessionID (the raw, unscoped primitive) searches
+		// every project-hash directory on disk for a matching
+		// {session_id}.jsonl and returns whatever it finds, with no
+		// comparison against workingDir — a cross-project leak letting any
+		// caller who knows a session_id read that session's content
+		// regardless of the working_dir they claim to be scoped to. This was
+		// the third independent instance of this exact bug class (after
 		// ExecuteQueryForSession in internal/mcp/executor/provider_query.go
-		// and findSessionFile in internal/provider/claude/provider.go for
-		// the sibling fixes this mirrors): loc.FromSessionID searches every
-		// project-hash directory on disk for a matching {session_id}.jsonl
-		// and returns whatever it finds, with no comparison against
-		// workingDir — a cross-project leak letting any caller who knows a
-		// session_id read that session's content regardless of the
-		// working_dir they claim to be scoped to. Require the resolved file
-		// to actually live under workingDir's own project-hash directory
-		// (the same directory-naming scheme Claude Code itself uses, via
-		// locator.PathToHash), matching the boundary check the other two
-		// fixes apply.
-		boundaryDir := workingDir
-		if abs, err := filepath.Abs(boundaryDir); err == nil {
-			boundaryDir = abs
-		}
-		if expectedHash := locator.PathToHash(boundaryDir); expectedHash != "" {
-			actualHash := filepath.Base(filepath.Dir(sessionFile))
-			if actualHash != expectedHash {
-				return nil, nil, fmt.Errorf("session_id %q not found for project %q", sessionID, boundaryDir)
-			}
+		// and findSessionFile in internal/provider/claude/provider.go).
+		// FromSessionIDScoped crystallizes the boundary check (via
+		// locator.PathToHash, the same directory-naming scheme Claude Code
+		// itself uses) so it is enforced once, not re-derived at each call
+		// site.
+		sessionFile, err := loc.FromSessionIDScoped(sessionID, workingDir)
+		if err != nil {
+			return nil, nil, err
 		}
 		files = []string{sessionFile}
 	case scope == "session":

@@ -63,24 +63,18 @@ func (e *ToolExecutor) ExecuteQueryForSession(providerName, sessionID, jqFilter 
 	}
 
 	if providerName == "" || providerName == "claude" {
-		file, err := locator.NewSessionLocator().FromSessionID(sessionID)
-		if err != nil {
-			return mcquery.QueryResult{}, fmt.Errorf("session_id %q not found: %w", sessionID, err)
-		}
-
-		// DIR-030 cwd-boundary fix: locator.FromSessionID searches every
-		// project-hash directory on disk for a matching {session_id}.jsonl
-		// and returns whatever it finds, with no comparison against the
-		// caller's working_dir — a cross-project leak (an unrelated
-		// project's session content readable via any working_dir once its
-		// session_id is known). Mirror providerrecords.BuildForSession's
-		// cwd-boundary check (used by the codex/all path below) by
-		// resolving the caller's working_dir to the same project-hash
-		// directory name Claude Code itself uses (locator.PathToHash) and
-		// requiring the resolved session file to actually live under it.
-		// A workingDir of "" is a no-op here, matching
-		// FilterSessionsForScope/BuildForSession's existing behavior when
-		// no project scope was requested.
+		// DIR-033: locator.FromSessionID (the raw, unscoped primitive) searches
+		// every project-hash directory on disk for a matching
+		// {session_id}.jsonl and returns whatever it finds, with no comparison
+		// against the caller's working_dir — a cross-project leak (an
+		// unrelated project's session content readable via any working_dir
+		// once its session_id is known). FromSessionIDScoped crystallizes the
+		// cwd-boundary check this bug class needs (found and separately fixed
+		// here, in provider.go, and in analysis/service.go before being
+		// unified into this one helper) so every caller enforces it
+		// identically. A workingDir of "" is a no-op here, matching
+		// FilterSessionsForScope/BuildForSession's existing behavior when no
+		// project scope was requested.
 		projectPath := workingDir
 		if projectPath == "" {
 			cwd, err := os.Getwd()
@@ -92,11 +86,9 @@ func (e *ToolExecutor) ExecuteQueryForSession(providerName, sessionID, jqFilter 
 		if abs, err := filepath.Abs(projectPath); err == nil {
 			projectPath = abs
 		}
-		if expectedHash := locator.PathToHash(projectPath); expectedHash != "" {
-			actualHash := filepath.Base(filepath.Dir(file))
-			if actualHash != expectedHash {
-				return mcquery.QueryResult{}, fmt.Errorf("session %q not found for the requested provider(s) within project %q", sessionID, projectPath)
-			}
+		file, err := locator.NewSessionLocator().FromSessionIDScoped(sessionID, projectPath)
+		if err != nil {
+			return mcquery.QueryResult{}, fmt.Errorf("session %q not found for the requested provider(s) within project %q: %w", sessionID, projectPath, err)
 		}
 
 		executor := mcquery.NewQueryExecutor("")
