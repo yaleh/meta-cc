@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -247,5 +248,86 @@ func TestProviderAutoModeCircuitBreakerOpensAfterRepeatedFailures(t *testing.T) 
 	}
 	if attempts != circuitBreakerThreshold+1 {
 		t.Fatalf("expected app-server retry after cooldown, attempts = %d", attempts)
+	}
+}
+
+// buildManyPageThreadSource builds a fake threadSource with totalPages
+// non-archived pages of one thread each, chained by synthetic cursors, so
+// tests can prove a bounded fetch stops well short of the full corpus.
+func buildManyPageThreadSource(totalPages int) *fakeThreadSource {
+	pages := map[string]appserver.ThreadListResult{}
+	cursor := ""
+	for i := 0; i < totalPages; i++ {
+		result := appserver.ThreadListResult{
+			Data: []appserver.Thread{{ID: fmt.Sprintf("as-%d", i), CreatedAt: int64(i)}},
+		}
+		if i < totalPages-1 {
+			next := fmt.Sprintf("cursor-%d", i+1)
+			result.NextCursor = &next
+		}
+		pages["active:"+cursor] = result
+		cursor = fmt.Sprintf("cursor-%d", i+1)
+	}
+	return &fakeThreadSource{pages: pages}
+}
+
+// TestProviderFetchSessionsBoundedStopsEarly is DIR-034's "wire
+// ListSessionsPage to a real caller" proof: FetchSessionsBounded must
+// satisfy a small limit without paging through the whole corpus (25 pages
+// available here) — this is exactly the "hundreds of sessions" scaling
+// concern query_sessions(provider="codex", limit=N) needed fixed.
+func TestProviderFetchSessionsBoundedStopsEarly(t *testing.T) {
+	const totalPages = 25
+
+	src := buildManyPageThreadSource(totalPages)
+	fake := &appServerBackend{connect: connectFake(src, &noopCloser{}, nil)}
+	p := filesFixtureProvider(t, ModeAppServer, fake)
+
+	sessions, err := p.FetchSessionsBounded(context.Background(), conversation.SessionFilter{}, 1)
+	if err != nil {
+		t.Fatalf("FetchSessionsBounded: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected exactly 1 session, got %d", len(sessions))
+	}
+	if len(src.listCall) != 1 {
+		t.Fatalf("expected exactly 1 thread/list call bounded by limit=1, got %d (of %d available pages)", len(src.listCall), totalPages)
+	}
+
+	// A larger limit spanning multiple pages should issue exactly that many
+	// calls: bounded by the requested limit/page count, not by total corpus
+	// size (still far short of totalPages).
+	src2 := buildManyPageThreadSource(totalPages)
+	fake2 := &appServerBackend{connect: connectFake(src2, &noopCloser{}, nil)}
+	p2 := filesFixtureProvider(t, ModeAppServer, fake2)
+
+	sessions2, err := p2.FetchSessionsBounded(context.Background(), conversation.SessionFilter{}, 3)
+	if err != nil {
+		t.Fatalf("FetchSessionsBounded (limit=3): %v", err)
+	}
+	if len(sessions2) != 3 {
+		t.Fatalf("expected exactly 3 sessions, got %d", len(sessions2))
+	}
+	if len(src2.listCall) != 3 {
+		t.Fatalf("expected exactly 3 thread/list calls, got %d (of %d available pages)", len(src2.listCall), totalPages)
+	}
+}
+
+// TestProviderFetchSessionsBoundedFallsBackWhenLimitZero proves
+// FetchSessionsBounded delegates to the unbounded ListSessionsFiltered path
+// (paging to completion) when limit<=0 — "there's nothing to bound
+// against" — so it never silently truncates an unbounded caller's results.
+func TestProviderFetchSessionsBoundedFallsBackWhenLimitZero(t *testing.T) {
+	const totalPages = 4
+	src := buildManyPageThreadSource(totalPages)
+	fake := &appServerBackend{connect: connectFake(src, &noopCloser{}, nil)}
+	p := filesFixtureProvider(t, ModeAppServer, fake)
+
+	sessions, err := p.FetchSessionsBounded(context.Background(), conversation.SessionFilter{}, 0)
+	if err != nil {
+		t.Fatalf("FetchSessionsBounded: %v", err)
+	}
+	if len(sessions) != totalPages {
+		t.Fatalf("expected all %d sessions from the full crawl, got %d", totalPages, len(sessions))
 	}
 }

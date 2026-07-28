@@ -247,6 +247,58 @@ func (p *Provider) ListSessionsPage(ctx context.Context, filter conversation.Ses
 	}
 }
 
+// FetchSessionsBounded is DIR-034's bounded/cursor-based session-listing
+// entry point: it pages through ListSessionsPage (DIR-032) only until
+// enough sessions matching filter have been collected to satisfy limit, or
+// the corpus is exhausted (a page returns an empty NextCursor) — instead of
+// ListSessionsFiltered's full-corpus crawl. This is what actually gives
+// ListSessionsPage a caller (see docs/reference/codex-history-model.md).
+//
+// Callers must only use this when filter.Archived is already resolved to a
+// single boolean: ListSessionsPage fetches exactly one archived-state pass
+// per call (see its own doc comment and codex-history-model.md's "Known
+// limitations"), so a filter.Archived == nil request (meaning "both active
+// and archived") cannot be satisfied by one bounded page sequence — callers
+// in that situation should keep using ListSessionsFiltered instead.
+//
+// Each page's sessions are still passed through conversation.ApplyFilter
+// (the same correctness backstop ListSessionsFiltered applies), since only
+// cwd/archived/modelProvider/sourceKinds are pushed down server-side;
+// title/time-range/parent-thread-id filter dimensions are applied here per
+// page, and only filtered-in sessions count toward limit. The final
+// collected batch is re-sorted via conversation.SortSessionsDeterministic
+// and trimmed to limit, exactly like the unbounded path — but this local
+// sort/trim only orders sessions actually fetched: a bounded fetch trades
+// an exact whole-corpus "true most-recent N" guarantee for boundedness,
+// relying on thread/list already returning threads in a reasonable (and,
+// in practice, recency-oriented) order. limit <= 0 falls back to
+// ListSessionsFiltered unchanged, since there is nothing to bound against.
+func (p *Provider) FetchSessionsBounded(ctx context.Context, filter conversation.SessionFilter, limit int) ([]conversation.Session, error) {
+	if limit <= 0 {
+		return p.ListSessionsFiltered(ctx, filter)
+	}
+
+	var collected []conversation.Session
+	cursor := ""
+	for {
+		page, err := p.ListSessionsPage(ctx, filter, cursor)
+		if err != nil {
+			return nil, err
+		}
+		collected = append(collected, conversation.ApplyFilter(page.Sessions, filter)...)
+		if page.NextCursor == "" || len(collected) >= limit {
+			break
+		}
+		cursor = page.NextCursor
+	}
+
+	conversation.SortSessionsDeterministic(collected)
+	if len(collected) > limit {
+		collected = collected[:limit]
+	}
+	return collected, nil
+}
+
 // filesSessionPage is ListSessionsPage's files-backend fallback: no
 // server-side pagination surface exists here, so it returns the full
 // filtered result as a single page with an empty NextCursor.

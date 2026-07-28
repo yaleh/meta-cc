@@ -201,6 +201,30 @@ func TestQuerySessions_DefaultExcludesArchived(t *testing.T) {
 	require.Equal(t, "archived-session", result.Entries[0].(map[string]interface{})["session_id"])
 }
 
+// TestQuerySessions_Codex_LimitUsesBoundedFetchAndReturnsMostRecent is
+// DIR-034's handler-level wiring proof: query_sessions(provider="codex",
+// limit=1) now routes through Provider.FetchSessionsBounded (the DIR-032
+// ListSessionsPage cursor path) instead of the old full-corpus
+// ListSessionsFiltered crawl (see the bounded-call-count proof at the
+// codex-package level, TestProviderFetchSessionsBoundedStopsEarly, where
+// the fake threadSource lives). This test proves the wiring doesn't break
+// correctness: across 3 valid sessions plus 1 older "corrupt" one (whose
+// rollout is never opened by metadata-only listing), limit=1 must still
+// return exactly the single most-recently-created session.
+func TestQuerySessions_Codex_LimitUsesBoundedFetchAndReturnsMostRecent(t *testing.T) {
+	projectPath := setupCodexMultiSessionFixtureProject(t, 3)
+
+	result, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+		"provider":    "codex",
+		"working_dir": projectPath,
+		"limit":       1,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Entries, 1, "limit=1 must still return exactly one entry")
+	require.Equal(t, "good-session-c", result.Entries[0].(map[string]interface{})["session_id"],
+		"expected the most-recently-created session (highest created_at), not an arbitrary one")
+}
+
 // setupClaudeSessionFixtureProject wires a temporary Claude projects root
 // with one real session JSONL under the project's hashed directory, so the
 // Claude provider's ListSessions/GetSession can read real metadata. Returns

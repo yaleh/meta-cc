@@ -100,6 +100,8 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 		warnings []string
 	)
 
+	limit := GetIntParam(args, "limit", 0)
+
 	for _, pid := range providers {
 		switch pid {
 		case conversation.ProviderCodex:
@@ -108,7 +110,27 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 				warnings = append(warnings, "provider codex unavailable")
 				continue
 			}
-			sessions, err := p.ListSessionsFiltered(ctx, filter)
+			var sessions []conversation.Session
+			var err error
+			// DIR-034: use the DIR-032 cursor-based ListSessionsPage (via
+			// FetchSessionsBounded) instead of a full-corpus
+			// ListSessionsFiltered crawl, but only when it's actually safe
+			// to bound: providerName=="codex" alone (not merged with other
+			// providers' unbounded results), a real limit was requested, no
+			// exact session_id lookup is in play (already O(1) via
+			// ListSessionsFiltered), scope != "session" (that scope needs
+			// the true most-recently-modified session across the WHOLE
+			// corpus, which a partial fetch cannot guarantee), and
+			// filter.Archived is already resolved to a single boolean
+			// (ListSessionsPage fetches one archived-state pass per call —
+			// see FetchSessionsBounded's doc). Anything else keeps the
+			// existing unbounded behavior unchanged.
+			if providerName == "codex" && limit > 0 && scope != "session" &&
+				filter.SessionID == "" && filter.Archived != nil {
+				sessions, err = p.FetchSessionsBounded(ctx, filter, limit)
+			} else {
+				sessions, err = p.ListSessionsFiltered(ctx, filter)
+			}
 			if err != nil {
 				warnings = append(warnings, fmt.Sprintf("provider codex: %v", err))
 				continue
@@ -147,7 +169,7 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 
 	conversation.SortSessionsDeterministic(merged)
 
-	if limit := GetIntParam(args, "limit", 0); limit > 0 && len(merged) > limit {
+	if limit > 0 && len(merged) > limit {
 		merged = merged[:limit]
 	}
 

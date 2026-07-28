@@ -197,6 +197,37 @@ DIR-029 already follows to completion internally
    `TestProviderListSessionsPageCapabilityAbsentFallsBackSafely` for the
    capability-present/-absent proof.
 
+   **DIR-034: this now has a real caller.**
+   `codex.Provider.FetchSessionsBounded(ctx, filter, limit)`
+   (`internal/provider/codex/provider.go`) wraps `ListSessionsPage` in a
+   loop that stops once `limit` matching sessions have been collected or a
+   page returns an empty `NextCursor` — it is the thing that actually pages
+   `thread/list` incrementally instead of loading the whole corpus up
+   front. `query_sessions`'s `handleQuerySessions`
+   (`internal/mcp/executor/query_sessions_handler.go`) calls it instead of
+   the full-crawl `ListSessionsFiltered` whenever it is safe to bound:
+   `provider="codex"` alone (not merged with another provider's unbounded
+   results), a `limit > 0` was requested, no exact `session_id` lookup is
+   in play (already O(1) via `ListSessionsFiltered`), `scope != "session"`
+   (that scope needs the true most-recently-modified session across the
+   *whole* corpus, which a partial fetch cannot guarantee), and
+   `filter.Archived` is already resolved to a single boolean (see the
+   "Known limitations" entry below — a request that needs *both* archived
+   states still uses `ListSessionsFiltered`). Every other `query_sessions`
+   call (no `limit`, `provider="all"`, `scope="session"`, an exact
+   `session_id`, or an unresolved archived dimension) is unchanged. See
+   `TestProviderFetchSessionsBoundedStopsEarly` (bounded `thread/list` call
+   count, via a fake `threadSource`) and
+   `TestQuerySessions_Codex_LimitUsesBoundedFetchAndReturnsMostRecent`
+   (handler-level correctness proof) for the tests.
+
+   This bounded path trades an exact whole-corpus "true most-recent N"
+   guarantee for boundedness: results are re-sorted and trimmed to `limit`
+   only *within whatever was actually fetched*, relying on `thread/list`
+   already returning threads in a reasonable (recency-oriented) order
+   rather than re-scanning the entire corpus to prove the fetched set is
+   the global top N.
+
 ### Experimental turn/item pagination (capability-negotiated, currently unsupported)
 
 `appserver.Version.SupportsExperimentalTurnPagination()`
@@ -252,7 +283,20 @@ structured data, not a line-oriented log format.
   non-archived); a caller wanting both issues two independent page
   sequences. This keeps the cursor contract unambiguous (one cursor space
   per archived state, matching the underlying `thread/list` semantics)
-  rather than inventing a synthetic merged cursor.
+  rather than inventing a synthetic merged cursor. This is exactly why
+  `query_sessions`'s DIR-034 bounded path (`FetchSessionsBounded`, see
+  above) only engages when `filter.Archived` is already resolved to a
+  single boolean — a `status="archived"`-without-`archived`-set request
+  (which still needs both passes merged, then post-filtered by status)
+  keeps using the unbounded `ListSessionsFiltered` crawl.
+- The DIR-034 bounded fetch does not verify that `thread/list` returns
+  threads in `CreatedAt`-descending order — it re-sorts and trims only the
+  pages it actually fetched, not the whole corpus. A `query_sessions(
+  provider="codex", limit=N)` call is therefore "the top N of what a
+  bounded scan found", not a formally proven "the true most-recent N
+  across the entire corpus" if the server's enumeration order ever departs
+  from recency. `provider="all"`, `scope="session"`, and unbounded
+  (`limit` unset) queries are unaffected and keep the full-crawl guarantee.
 - `Turn.Completeness` is not yet surfaced through the flattened
   `UserText`/`AssistantText` MCP query output (`query_session_content`
   etc.) — those fields remain the DIR-028 compatibility projection. A
