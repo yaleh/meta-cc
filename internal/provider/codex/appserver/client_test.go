@@ -2,6 +2,7 @@ package appserver
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -230,6 +231,24 @@ func TestClientCallFailsAfterConnectionCloses(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("expected Call to fail after connection close")
+}
+
+// TestClientReadLoopEnforcesMaxLineBytes proves the readLoop's replacement
+// for bufio.Scanner (DIR-038) still enforces the maxLineBytes cap: a single
+// line at/above maxLineBytes (here, sent with no trailing newline, so it
+// only ever grows) must still cause the connection to be torn down, the
+// same as bufio.Scanner's configured Buffer(_, maxLineBytes) previously
+// rejected an over-long token — not silently accepted/buffered unbounded.
+func TestClientReadLoopEnforcesMaxLineBytes(t *testing.T) {
+	oversized := bytes.Repeat([]byte("a"), maxLineBytes+1)
+	client := NewClient(io.Discard, bytes.NewReader(oversized))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, err := client.ThreadList(ctx, ThreadListParams{})
+	if err == nil {
+		t.Fatalf("expected Call to fail once the oversized line trips the maxLineBytes cap")
+	}
 }
 
 func TestParseVersionAndDetect(t *testing.T) {

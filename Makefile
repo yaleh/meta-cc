@@ -618,12 +618,12 @@ deps:
 	$(GOMOD) tidy
 
 check-no-scanner:
-	@echo "Checking for raw bufio.NewScanner on JSONL paths..."
+	@echo "Checking for raw bufio.NewScanner on line-oriented parsing paths..."
 	@if grep -rn "bufio\.NewScanner" internal/ cmd/mcp-server/ --include="*.go" \
 		| grep -v "main\.go" \
 		| grep -v "_test\.go" \
 		| grep -v "^Binary"; then \
-		echo "ERROR: Found raw bufio.NewScanner usage. Use parser.ReadLineFiltered instead."; \
+		echo "ERROR: Found raw bufio.NewScanner usage. Use parser.ReadLineFiltered for JSONL session content, or parser.ReadLineBounded for other line-length-sensitive, non-JSONL reads (arbitrary text, subprocess framing, etc.)."; \
 		exit 1; \
 	fi
 	@echo "OK: No raw bufio.NewScanner found."

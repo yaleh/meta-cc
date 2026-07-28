@@ -163,6 +163,13 @@ func ScanSourceDir(sourceDir string) (*TechDebtResult, error) {
 			return nil
 		}
 
+		// NOTE(DIR-038): this hand-rolled bufio.NewReader + ReadBytes('\n')
+		// loop predates and duplicates the shape now crystallized in
+		// parser.ReadLineBounded (internal/parser/bounded_reader.go).
+		// Migrating it is tracked as optional/best-effort follow-up, not
+		// done here, to keep this task's diff scoped to closing the
+		// check-no-scanner violation in
+		// internal/provider/codex/appserver/client.go.
 		reader := bufio.NewReader(f)
 		lineCount := 0
 		for {

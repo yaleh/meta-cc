@@ -2,12 +2,15 @@ package appserver
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
+
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // maxLineBytes bounds a single JSON-RPC frame. `thread/read` responses can
@@ -87,33 +90,43 @@ func (c *Client) writeLoop() {
 }
 
 func (c *Client) readLoop(r io.Reader) {
-	scanner := bufio.NewScanner(r)
-	scanner.Buffer(make([]byte, 0, 64*1024), maxLineBytes)
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
+	reader := bufio.NewReader(r)
+	for {
+		line, err := parser.ReadLineBounded(reader, maxLineBytes)
+		if err != nil && err != io.EOF {
+			// A line at/beyond maxLineBytes (or a genuine underlying read
+			// error) is fatal to the connection, the same as
+			// bufio.Scanner's ErrTooLong previously was: the over-long
+			// frame is discarded entirely (not processed), and the
+			// connection is torn down rather than left to grow memory
+			// without bound.
+			c.shutdown(err)
+			return
 		}
-		var env Envelope
-		if err := json.Unmarshal(line, &env); err != nil {
+
+		trimmed := bytes.TrimRight(line, "\r\n")
+		if len(trimmed) > 0 {
+			var env Envelope
+			if jsonErr := json.Unmarshal(trimmed, &env); jsonErr == nil {
+				if env.IsNotification() {
+					// Notifications (thread/started, configWarning, etc.)
+					// are out of scope for the read-only surface this
+					// client implements; drain and discard rather than
+					// blocking the read loop.
+				} else {
+					c.dispatch(env)
+				}
+			}
 			// A malformed frame is a protocol violation from the peer, not
 			// a reason to tear down calls already correctly correlated;
 			// skip it and keep reading.
-			continue
 		}
-		if env.IsNotification() {
-			// Notifications (thread/started, configWarning, etc.) are out
-			// of scope for the read-only surface this client implements;
-			// drain and discard rather than blocking the read loop.
-			continue
+
+		if err == io.EOF {
+			c.shutdown(io.EOF)
+			return
 		}
-		c.dispatch(env)
 	}
-	err := scanner.Err()
-	if err == nil {
-		err = io.EOF
-	}
-	c.shutdown(err)
 }
 
 func (c *Client) dispatch(env Envelope) {
