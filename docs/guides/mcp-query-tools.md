@@ -255,7 +255,15 @@ Query structured session signals. The `type` parameter is required.
 
 Additional parameters when `type=tool_stats`:
 - `tool` — filter by tool name
-- `status` — filter by status (`error` or `success`)
+- `status` — filter by outcome: `"error"` or `"success"` (DIR-043). Each
+  returned record is a `tool_use` whose paired `tool_result` (correlated by
+  `tool_use_id`, since the outcome lives on a separate, later JSONL record)
+  had `is_error` matching the requested value. A `tool_use` with no observed
+  `tool_result` yet (e.g. a call still in flight) is excluded from both
+  `status: "error"` and `status: "success"` results — so `error` + `success`
+  counts can sum to less than, but never more than, the unfiltered
+  `tool_stats` total. Any value other than `error`/`success` is a validation
+  error, not a silently-ignored filter.
 
 All types support `since` / `until` RFC3339 time range filters.
 

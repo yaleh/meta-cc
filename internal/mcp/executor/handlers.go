@@ -74,9 +74,15 @@ func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]inte
 func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := GetStringParam(args, "provider", "claude")
 	toolName := GetStringParam(args, "tool", "")
+	status := GetStringParam(args, "status", "")
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
+	sessionID := GetStringParam(args, "session_id", "")
+
+	if status != "" && status != "error" && status != "success" {
+		return mcquery.QueryResult{}, fmt.Errorf("invalid status %q: must be 'error' or 'success' (or omit status to skip status filtering)", status)
+	}
 
 	jqFilter := `select(.type == "assistant") | select(.message.content[] | .type == "tool_use")`
 
@@ -85,8 +91,87 @@ func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}
 		jqFilter = fmt.Sprintf(`%s | select(.message.content[] | select(.type == "tool_use" and .name == "%s"))`, jqFilter, escapedTool)
 	}
 
-	sessionID := GetStringParam(args, "session_id", "")
-	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+	if status == "" {
+		return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+	}
+
+	// status filtering needs the outcome (.is_error) of each tool_use, but
+	// that field lives on a *separate* record: the tool_result block in the
+	// next user-role JSONL entry, correlated by tool_use_id (see
+	// handleQueryToolErrors above, which reads .is_error directly off
+	// tool_result blocks for a related but different query shape). The jq
+	// pipeline here runs one record at a time with no cross-record join, so
+	// fetch both tool_use and tool_result records in a single unbounded pass
+	// (limit=0) and correlate them here; the caller's limit is applied after
+	// filtering below, not before, so it isn't applied to the wrong (joined,
+	// unfiltered) record set.
+	joinFilter := fmt.Sprintf(
+		`(%s), (select(.type == "user" and (.message.content | type == "array")) | select(.message.content[] | .type == "tool_result"))`,
+		jqFilter,
+	)
+
+	joined, err := e.dispatchProviderQuery(providerName, scope, joinFilter, 0, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+	if err != nil {
+		return mcquery.QueryResult{}, err
+	}
+
+	isErrorByToolUseID := make(map[string]bool)
+	for _, entry := range joined.Entries {
+		rec, ok := entry.(map[string]interface{})
+		if !ok || rec["type"] != "user" {
+			continue
+		}
+		message, _ := rec["message"].(map[string]interface{})
+		content, _ := message["content"].([]interface{})
+		for _, block := range content {
+			bm, ok := block.(map[string]interface{})
+			if !ok || bm["type"] != "tool_result" {
+				continue
+			}
+			id, _ := bm["tool_use_id"].(string)
+			if id == "" {
+				continue
+			}
+			isErr, _ := bm["is_error"].(bool)
+			isErrorByToolUseID[id] = isErr
+		}
+	}
+
+	wantError := status == "error"
+	var filtered []interface{}
+	for _, entry := range joined.Entries {
+		rec, ok := entry.(map[string]interface{})
+		if !ok || rec["type"] != "assistant" {
+			continue
+		}
+		message, _ := rec["message"].(map[string]interface{})
+		content, _ := message["content"].([]interface{})
+		matched := false
+		for _, block := range content {
+			bm, ok := block.(map[string]interface{})
+			if !ok || bm["type"] != "tool_use" {
+				continue
+			}
+			id, _ := bm["id"].(string)
+			isErr, found := isErrorByToolUseID[id]
+			if !found {
+				continue // no matching tool_result observed yet: status unknown, exclude
+			}
+			if isErr == wantError {
+				matched = true
+				break
+			}
+		}
+		if matched {
+			filtered = append(filtered, entry)
+		}
+	}
+
+	if limit > 0 && len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+
+	return mcquery.QueryResult{Entries: filtered, Warnings: joined.Warnings}, nil
 }
 
 func handleQueryToolErrors(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
