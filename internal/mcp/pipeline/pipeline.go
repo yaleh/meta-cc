@@ -19,6 +19,7 @@ import (
 	responsepkg "github.com/yaleh/meta-cc/internal/mcp/response"
 	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
 	providerrecords "github.com/yaleh/meta-cc/internal/provider/records"
+	enginepkg "github.com/yaleh/meta-cc/internal/query/engine"
 	querypkg "github.com/yaleh/meta-cc/internal/query/stats"
 )
 
@@ -53,6 +54,22 @@ func (c PipelineConfig) requiresMessageFilters() bool {
 // This is the authoritative implementation; executor.go's BuildResponse was merged here.
 func BuildResponse(cfg *config.Config, result mcquerypkg.QueryResult, args map[string]interface{}, toolName string, pc PipelineConfig) (string, error) {
 	rawData := result.Entries
+
+	// DIR-041: apply the caller-supplied jq_filter as a post-filter over the
+	// tool's own already-produced result set. Each of the four consolidated
+	// tools (query_session_content, query_session_signals, query_sessions,
+	// query_file_activity) builds its own hard-coded, semantically-fixed jq
+	// expression (or, for query_sessions, a Go-native SessionFilter) to
+	// produce result.Entries in the first place; pc.JQFilter is a distinct,
+	// caller-controlled *second* filtering stage applied on top of that,
+	// mirroring the array-input/".[]"-default semantics already promised by
+	// the "jq_filter" tool schema description (see internal/mcp/tools/tools.go's
+	// StandardToolParameters and internal/query/engine.ApplyJQFilter).
+	jqFiltered, jqErr := applyJQPostFilter(rawData, pc.JQFilter)
+	if jqErr != nil {
+		return "", fmt.Errorf("jq_filter error: %w", jqErr)
+	}
+	rawData = jqFiltered
 
 	if pc.StatsLevel != "" && pc.StatsLevel != "turn" && pc.StatsLevel != "session" {
 		return "", fmt.Errorf("invalid stats_level: must be 'turn' or 'session'")
@@ -237,6 +254,52 @@ func InjectWarnings(output string, warnings []string) (string, error) {
 		return "", fmt.Errorf("failed to re-serialize response with warnings: %w", err)
 	}
 	return string(result), nil
+}
+
+// applyJQPostFilter applies a caller-supplied jq_filter expression to an
+// already-produced result set (entries). ".[]" (the documented default) and
+// "" are treated as a no-op identity pass so the zero-value/default
+// PipelineConfig behavior is completely unchanged (avoids an unnecessary
+// marshal/unmarshal round trip on the hot path where no custom filter was
+// requested). Any other expression is compiled and run via
+// internal/query/engine.ApplyJQFilter against the full entries array as a
+// single JSON value — matching the "Defaults to '.[]'" semantics already
+// documented on the jq_filter tool parameter (callers write expressions like
+// ".[] | select(...)" to iterate, exactly as with a plain `jq` invocation
+// over a JSON array).
+func applyJQPostFilter(entries []interface{}, jqExpr string) ([]interface{}, error) {
+	if jqExpr == "" || jqExpr == ".[]" {
+		return entries, nil
+	}
+
+	jsonlData, err := DataToJSONL(entries)
+	if err != nil {
+		return nil, err
+	}
+
+	filteredJSONL, err := enginepkg.ApplyJQFilter(jsonlData, jqExpr)
+	if err != nil {
+		return nil, err
+	}
+
+	filteredJSONL = strings.TrimSpace(filteredJSONL)
+	if filteredJSONL == "" {
+		return []interface{}{}, nil
+	}
+
+	lines := strings.Split(filteredJSONL, "\n")
+	out := make([]interface{}, 0, len(lines))
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		var v interface{}
+		if err := json.Unmarshal([]byte(line), &v); err != nil {
+			return nil, fmt.Errorf("jq_filter produced invalid JSON output: %w", err)
+		}
+		out = append(out, v)
+	}
+	return out, nil
 }
 
 // DataToJSONL converts array of interfaces to JSONL string.

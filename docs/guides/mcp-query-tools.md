@@ -29,6 +29,35 @@ query_session_content({
 })
 ```
 
+## `jq_filter` (custom post-filter, DIR-041)
+
+`query_session_content`, `query_session_signals`, `query_sessions`, and `query_file_activity`
+all accept an optional `jq_filter` parameter. It is applied as a **second, caller-controlled
+filtering stage on top of** each tool's own built-in semantics (e.g. `role`/`pattern` on
+`query_session_content`, `type` on `query_session_signals`/`query_file_activity`, or the
+Go-native session filters on `query_sessions`) — not instead of them. The tool's own
+parameters narrow the query first; `jq_filter` then narrows (or reshapes) whatever that
+query already produced.
+
+The expression runs against the **full result array as one JSON value** — exactly like
+piping that array into `jq` on the command line — so the default, `.[]`, unpacks it back
+into individual records (a no-op). Write filters accordingly, e.g. `.[] | select(.status ==
+"error")` or `.[] | {tool: .tool_name}`, not a bare `select(...)` intended to run per-record.
+Do not wrap the expression in quotes.
+
+```javascript
+// Only tool_stats records with status == "error"
+query_session_signals({
+  type: "tool_stats",
+  jq_filter: '.[] | select(.status == "error")'
+})
+```
+
+For arbitrary custom jq over the raw session JSONL files themselves (rather than one of
+these four tools' already-produced, semantically-filtered result), use
+`execute_stage2_query` instead — see the
+[Two-Stage Query Guide](two-stage-query-guide.md).
+
 ## Host Storage
 
 | Host | Session source | Notes |

@@ -25,8 +25,9 @@ func StandardToolParameters() map[string]Property {
 			Description: `Provider filter: "claude" (default), "codex", or "all". Use "all" only when your jq filter is compatible with both providers.`,
 		},
 		"jq_filter": {
-			Type:        "string",
-			Description: "jq expression for filtering. Defaults to '.[]' when omitted. IMPORTANT: Do NOT wrap in quotes - use raw jq expression like: .[] | {field: .field}",
+			Type: "string",
+			Description: "jq expression applied as a post-filter over this tool's own already-produced result set (i.e. AFTER its built-in role/type/pattern semantics, such as role=assistant or type=tool_stats, have already selected records). " +
+				"Defaults to '.[]' when omitted, which is a no-op (returns the result set unchanged). IMPORTANT: Do NOT wrap in quotes - use a raw jq expression that operates on the full result array, e.g.: .[] | select(.status == \"error\") or .[] | {field: .field}",
 		},
 		"stats_only": {
 			Type:        "boolean",

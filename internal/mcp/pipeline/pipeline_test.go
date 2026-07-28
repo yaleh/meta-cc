@@ -536,3 +536,165 @@ func TestPipelineConfig_PaginationDefaults(t *testing.T) {
 		t.Error("expected PageSize=0 by default")
 	}
 }
+
+// ─── DIR-041: jq_filter must be applied as a real post-filter ────────────────
+//
+// Regression coverage for DIR-041: query_session_content, query_session_signals,
+// query_sessions, and query_file_activity all declare a "jq_filter" tool
+// parameter, and it was read into PipelineConfig.JQFilter but never applied —
+// BuildResponse silently ignored it and returned the full unfiltered result.
+// These tests exercise BuildResponse directly (the shared implementation
+// underlying all four consolidated tools) and would fail against the old
+// no-op behavior.
+
+func jqFilterTestEntries() []interface{} {
+	return []interface{}{
+		map[string]interface{}{"tool_name": "Bash", "status": "success"},
+		map[string]interface{}{"tool_name": "Read", "status": "success"},
+		map[string]interface{}{"tool_name": "Edit", "status": "error"},
+	}
+}
+
+func countRecords(t *testing.T, out string) int {
+	t.Helper()
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("expected JSON object response, got: %s (err: %v)", out, err)
+	}
+	data, ok := parsed["data"].([]interface{})
+	if !ok {
+		t.Fatalf("expected 'data' array in response, got: %v", parsed["data"])
+	}
+	return len(data)
+}
+
+// TestBuildResponse_JQFilter_SelectFalseEmptiesResult is the core DIR-041
+// regression: a jq_filter that can never match anything must produce a
+// correspondingly empty result, not the full unfiltered set.
+func TestBuildResponse_JQFilter_SelectFalseEmptiesResult(t *testing.T) {
+	pc := pipeline.PipelineConfig{JQFilter: "select(false)"}
+	result := makeQueryResult(jqFilterTestEntries()...)
+
+	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := countRecords(t, out); got != 0 {
+		t.Fatalf("expected 0 records with jq_filter=select(false), got %d in: %s", got, out)
+	}
+
+	// Same call without jq_filter must return the full, unfiltered set —
+	// proving the difference is due to jq_filter, not some other change.
+	pcNoFilter := pipeline.PipelineConfig{}
+	outNoFilter, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pcNoFilter)
+	if err != nil {
+		t.Fatalf("unexpected error (no filter): %v", err)
+	}
+	if got := countRecords(t, outNoFilter); got != len(jqFilterTestEntries()) {
+		t.Fatalf("expected %d records without jq_filter, got %d in: %s", len(jqFilterTestEntries()), got, outNoFilter)
+	}
+}
+
+// TestBuildResponse_JQFilter_NarrowsResult verifies a targeted jq_filter
+// (not just an always-false one) actually narrows the result set as
+// promised by the tool schema, e.g. `.[] | select(.status == "error")`.
+func TestBuildResponse_JQFilter_NarrowsResult(t *testing.T) {
+	pc := pipeline.PipelineConfig{JQFilter: `.[] | select(.status == "error")`}
+	result := makeQueryResult(jqFilterTestEntries()...)
+
+	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := countRecords(t, out); got != 1 {
+		t.Fatalf("expected 1 record (status==error), got %d in: %s", got, out)
+	}
+	if !strings.Contains(out, `"tool_name":"Edit"`) {
+		t.Errorf("expected filtered record to be the Edit/error entry, got: %s", out)
+	}
+}
+
+// TestBuildResponse_JQFilter_StatsOnly verifies jq_filter narrows the input
+// to stats_only mode too (one of the three modes DIR-041 found affected).
+func TestBuildResponse_JQFilter_StatsOnly(t *testing.T) {
+	pc := pipeline.PipelineConfig{JQFilter: "select(false)", StatsOnly: true, StatsLevel: "turn"}
+	result := makeQueryResult(jqFilterTestEntries()...)
+
+	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	pcNoFilter := pipeline.PipelineConfig{StatsOnly: true, StatsLevel: "turn"}
+	outNoFilter, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pcNoFilter)
+	if err != nil {
+		t.Fatalf("unexpected error (no filter): %v", err)
+	}
+	if out == outNoFilter {
+		t.Fatalf("expected stats_only output to differ when jq_filter empties the input; both were: %s", out)
+	}
+}
+
+// TestBuildResponse_JQFilter_StatsFirst verifies jq_filter narrows the input
+// to stats_first mode too.
+func TestBuildResponse_JQFilter_StatsFirst(t *testing.T) {
+	pc := pipeline.PipelineConfig{JQFilter: "select(false)", StatsFirst: true, StatsLevel: "turn"}
+	result := makeQueryResult(jqFilterTestEntries()...)
+
+	out, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	pcNoFilter := pipeline.PipelineConfig{StatsFirst: true, StatsLevel: "turn"}
+	outNoFilter, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pcNoFilter)
+	if err != nil {
+		t.Fatalf("unexpected error (no filter): %v", err)
+	}
+	if out == outNoFilter {
+		t.Fatalf("expected stats_first output to differ when jq_filter empties the input; both were: %s", out)
+	}
+}
+
+// TestBuildResponse_JQFilter_DefaultIsNoOp verifies the documented default
+// ('.[]', and an omitted/empty JQFilter) leaves results completely
+// unchanged — the fix must not alter default (no custom filter) behavior.
+func TestBuildResponse_JQFilter_DefaultIsNoOp(t *testing.T) {
+	entries := jqFilterTestEntries()
+
+	pcOmitted := pipeline.PipelineConfig{}
+	outOmitted, err := pipeline.BuildResponse(testConfig(), makeQueryResult(entries...), map[string]interface{}{}, "query_session_signals", pcOmitted)
+	if err != nil {
+		t.Fatalf("unexpected error (omitted): %v", err)
+	}
+
+	pcDefault := pipeline.PipelineConfig{JQFilter: ".[]"}
+	outDefault, err := pipeline.BuildResponse(testConfig(), makeQueryResult(entries...), map[string]interface{}{}, "query_session_signals", pcDefault)
+	if err != nil {
+		t.Fatalf("unexpected error (explicit '.[]'): %v", err)
+	}
+
+	if outOmitted != outDefault {
+		t.Fatalf("expected omitted jq_filter and explicit '.[]' to behave identically:\nomitted: %s\ndefault: %s", outOmitted, outDefault)
+	}
+	if got := countRecords(t, outDefault); got != len(entries) {
+		t.Fatalf("expected default jq_filter to return all %d records, got %d", len(entries), got)
+	}
+}
+
+// TestBuildResponse_JQFilter_InvalidExpressionFailsClosed verifies an
+// unparseable jq_filter surfaces an actionable error rather than being
+// silently ignored (which would look identical to the DIR-041 no-op bug).
+func TestBuildResponse_JQFilter_InvalidExpressionFailsClosed(t *testing.T) {
+	pc := pipeline.PipelineConfig{JQFilter: "!!not valid jq!!"}
+	result := makeQueryResult(jqFilterTestEntries()...)
+
+	_, err := pipeline.BuildResponse(testConfig(), result, map[string]interface{}{}, "query_session_signals", pc)
+	if err == nil {
+		t.Fatal("expected error for invalid jq_filter expression, got nil")
+	}
+	if !strings.Contains(err.Error(), "jq_filter") {
+		t.Errorf("expected error to mention 'jq_filter', got: %v", err)
+	}
+}
