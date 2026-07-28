@@ -25,6 +25,64 @@ Complete guide for developing and testing Claude Code plugins in meta-cc.
    make all
    ```
 
+## Installing the Plugin
+
+`make install-local` and `make install-user` both depend on `make stage`,
+which builds the MCP server and copies it to `plugin-src/bin/meta-cc-mcp`.
+`stage` writes the new binary to a temp file in the same directory and
+renames it into place, rather than overwriting the target in place -- this
+means it succeeds even if a running MCP server process (e.g. a live Claude
+Code or Codex session) currently has the previous `plugin-src/bin/meta-cc-mcp`
+open; the running process keeps using its own (now-unlinked) copy until it
+exits, and a fresh session picks up the new binary. You never need to
+manually find and kill an MCP server process before running `make stage`,
+`make install-local`, or `make install-user`.
+
+### Local scope (this project only)
+
+```bash
+make install-local     # stage + generate .claude/settings.local.json + purge cache
+```
+
+### User scope (all projects, this machine)
+
+```bash
+make install-user      # stage + copy to ~/.local/share/meta-cc + register with Claude Code
+```
+
+`make install-user` only updates Claude Code's own registration
+(`~/.claude/settings.json`). If you also use Codex against this same
+machine, Codex has its own separate registration
+(`~/.codex/config.toml`'s `[marketplaces.meta-cc-marketplace]` `source`),
+which `make install-user` does **not** touch -- otherwise Codex would keep
+running whatever binary its `source`/`source_type` already point at (often
+a dev-mode path straight into this repo), silently drifting from the
+user-scope binary Claude Code just switched to.
+
+To keep Codex in sync, run the sibling target once after `make install-user`:
+
+```bash
+make install-user-codex
+```
+
+This updates only the `source` (and `source_type`, defaulting to `"local"`)
+keys inside `~/.codex/config.toml`'s `[marketplaces.meta-cc-marketplace]`
+table to point at `~/.local/share/meta-cc`, via
+`scripts/install/update-codex-marketplace-toml.py`. Everything else in
+`~/.codex/config.toml` -- other `[marketplaces.*]`, `[model_providers.*]`,
+`[projects.*]`, `[plugins.*]` entries, comments, formatting -- is left
+byte-for-byte unchanged; the update is a targeted line-level edit, not a
+full TOML rewrite. It prints what changed (old source → new source), and is
+a safe no-op if `~/.codex/config.toml` doesn't exist yet or has no
+`[marketplaces.meta-cc-marketplace]` table (e.g. you've never registered
+meta-cc with Codex). Re-running it when Codex already points at the
+user-scope path is also a no-op.
+
+Both behaviors -- `stage`'s locked-binary safety and the Codex TOML update
+-- are covered by `tests/scripts/stage-locked-binary.bats` and
+`tests/scripts/codex-registration.bats`, run via `make test-bats` (wired
+into `make push`).
+
 ## Plugin Structure
 
 ### Files and Directories

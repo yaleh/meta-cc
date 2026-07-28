@@ -29,7 +29,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # Default target when running 'make' without arguments
 .DEFAULT_GOAL := all
 
-.PHONY: all build stage test test-all test-coverage clean install install-local install-user uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-path-independence _path-independence-probe
+.PHONY: all build stage test test-all test-coverage clean install install-local install-user install-user-codex uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-path-independence _path-independence-probe
 
 # ==============================================================================
 # Build Quality Gates (BAIME Experiment - Iteration 1)
@@ -308,7 +308,7 @@ commit: check-essential test
 	@echo "  make push"
 
 # Tier 3: PUSH - Full validation before push (<120s)
-push: check-code-quality check-build-quality check-comprehensive test-all lint build
+push: check-code-quality check-build-quality check-comprehensive test-all test-bats lint build
 	@echo ""
 	@echo "✅ Ready to push"
 	@echo ""
@@ -318,6 +318,7 @@ push: check-code-quality check-build-quality check-comprehensive test-all lint b
 	@echo "  ✓ Build quality checks"
 	@echo "  ✓ Comprehensive checks"
 	@echo "  ✓ All tests passed (including E2E)"
+	@echo "  ✓ Bats pipeline tests passed (incl. DIR-037 stage/Codex-registration regressions)"
 	@echo "  ✓ Lint checks passed"
 	@echo "  ✓ Build successful"
 
@@ -339,7 +340,10 @@ build:
 stage: build
 	@echo "Staging binary to plugin-src/bin/..."
 	@mkdir -p plugin-src/bin
-	@cp bin/$(MCP_BINARY_NAME) plugin-src/bin/$(MCP_BINARY_NAME)
+	@TMP=$$(mktemp plugin-src/bin/.$(MCP_BINARY_NAME).XXXXXX) && \
+	 cp bin/$(MCP_BINARY_NAME) "$$TMP" && \
+	 chmod +x "$$TMP" && \
+	 mv -f "$$TMP" plugin-src/bin/$(MCP_BINARY_NAME)
 	@echo "✓ Staged plugin-src/bin/$(MCP_BINARY_NAME)"
 
 install-local: stage
@@ -406,6 +410,23 @@ install-user: stage
 	@echo "✓ Purged plugin cache"
 	@echo ""
 	@echo "✅ User install complete. Restart Claude Code to load the plugin."
+	@echo ""
+	@echo "Note: this only registers the plugin for Claude Code. If you also use"
+	@echo "Codex and want it pointed at this same user-scope install instead of a"
+	@echo "dev-mode repo path, run 'make install-user-codex' once as well."
+
+install-user-codex:
+	@echo "Registering Codex's [marketplaces.meta-cc-marketplace] against the user-scope install..."
+	@CODEX_CONFIG="$(HOME)/.codex/config.toml"; \
+	if [ ! -d "$(HOME)/.local/share/meta-cc" ]; then \
+		echo "⚠️  $(HOME)/.local/share/meta-cc does not exist yet."; \
+		echo "   Run 'make install-user' first, then re-run 'make install-user-codex'."; \
+	fi; \
+	python3 scripts/install/update-codex-marketplace-toml.py \
+		"$$CODEX_CONFIG" "$(HOME)/.local/share/meta-cc" local
+	@echo ""
+	@echo "✅ Codex registration step complete (no-op if ~/.codex/config.toml has no"
+	@echo "   [marketplaces.meta-cc-marketplace] entry -- see docs/guides/plugin-development.md)."
 
 uninstall-local:
 	@echo "Removing local scope plugin install..."
@@ -748,6 +769,7 @@ help:
 	@echo "Plugin Install/Uninstall:"
 	@echo "  make install-local           - Install plugin at local scope (this project only)"
 	@echo "  make install-user            - Install plugin at user scope (all projects, this machine)"
+	@echo "  make install-user-codex      - Point Codex's ~/.codex/config.toml at the user-scope install (run once after install-user)"
 	@echo "  make uninstall-local         - Remove local scope plugin install"
 	@echo "  make uninstall-user          - Remove user scope plugin install"
 	@echo "  make uninstall-legacy        - Remove old-style legacy artifacts (mcp.json, ~/.local/bin, ~/.claude/commands)"
