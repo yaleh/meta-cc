@@ -1,4 +1,14 @@
 # Makefile for meta-cc
+
+# DIR-035: harden PATH so every recipe's shell can find `go`/`gofmt`/`goimports`
+# regardless of the invoking process's inherited PATH. This recurring infra
+# failure ("go: command not found", exit 127) was previously worked around
+# ad hoc in individual tasks' `extra.acceptance` strings instead of being
+# fixed once, centrally, here. Do NOT strip this line as dead code — see
+# tasks/DIR-035.md and the `check-path-independence` regression check below,
+# which fails if this hardening is removed.
+export PATH := $(PATH):/usr/local/go/bin:$(HOME)/go/bin
+
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
@@ -19,7 +29,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # Default target when running 'make' without arguments
 .DEFAULT_GOAL := all
 
-.PHONY: all build stage test test-all test-coverage clean install install-local install-user uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope
+.PHONY: all build stage test test-all test-coverage clean install install-local install-user uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-path-independence _path-independence-probe
 
 # ==============================================================================
 # Build Quality Gates (BAIME Experiment - Iteration 1)
@@ -30,7 +40,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # ==============================================================================
 
 # Group 1: Essential (P0) - Blocks commit
-check-essential: check-temp-files check-fixtures check-deps check-session-locator-scope
+check-essential: check-temp-files check-fixtures check-deps check-session-locator-scope check-path-independence
 	@echo "✅ Essential validation passed"
 
 # Group 2: Code Quality (P1) - Blocks push
@@ -222,6 +232,38 @@ check-deps:
 # locator-scope.sh for the bug-class history this closes structurally.
 check-session-locator-scope:
 	@bash scripts/checks/check-session-locator-scope.sh
+
+# DIR-035: regression check for the Makefile PATH hardening (see the
+# `export PATH` line near the top of this file). Spawns a nested `make`
+# invocation whose inherited PATH is stripped down to /usr/bin:/bin (the
+# exact minimal-PATH failure mode documented in tasks/DIR-035.md, which
+# recurred at least six times as "go: command not found", exit 127). If the
+# PATH hardening line is ever removed, `go version` inside the nested make
+# invocation will fail and this check will fail, catching the regression
+# automatically instead of requiring another manual audit note.
+check-path-independence:
+	@echo "=== PATH Independence Regression Check (DIR-035) ==="
+	@PROBE_LOG=$$(mktemp /tmp/meta-cc-path-independence.XXXXXX); \
+	if env -i HOME="$$HOME" PATH=/usr/bin:/bin $(MAKE) --no-print-directory -C $(CURDIR) _path-independence-probe >"$$PROBE_LOG" 2>&1; then \
+		echo "✓ go/gofmt reachable via Makefile PATH hardening even with a minimal inherited PATH"; \
+		rm -f "$$PROBE_LOG"; \
+	else \
+		echo "❌ ERROR: PATH hardening regression detected"; \
+		echo "   'env -i PATH=/usr/bin:/bin make _path-independence-probe' failed to find 'go'."; \
+		echo "   This means the 'export PATH := \$$(PATH):/usr/local/go/bin:\$$(HOME)/go/bin'"; \
+		echo "   line near the top of the Makefile was removed or broken. See tasks/DIR-035.md."; \
+		echo "--- probe output ---"; \
+		cat "$$PROBE_LOG" 2>/dev/null || true; \
+		rm -f "$$PROBE_LOG"; \
+		exit 1; \
+	fi
+
+# Internal helper target for check-path-independence. Not intended to be
+# invoked directly; it is what proves the PATH hardening actually works,
+# by requiring `go` to be resolvable purely via the Makefile's exported PATH.
+_path-independence-probe:
+	@go version >/dev/null
+	@echo "✓ 'go version' succeeded inside PATH-stripped subprocess"
 
 check-imports:
 	@echo "Checking import formatting..."
@@ -688,7 +730,8 @@ help:
 	@echo "  make check-release-ready              - Verify latest tag matches marketplace.json"
 	@echo ""
 	@echo "Quality Gates (Grouped):"
-	@echo "  make check-essential         - P0: Essential validation (temp files, fixtures, deps)"
+	@echo "  make check-essential         - P0: Essential validation (temp files, fixtures, deps, PATH independence)"
+	@echo "  make check-path-independence - Verify Makefile finds go/gofmt even with a minimal PATH (DIR-035)"
 	@echo "  make check-code-quality      - P1: Code quality (formatting, mod tidy)"
 	@echo "  make check-build-quality     - P1: Build quality (plugin sync, go quality)"
 	@echo "  make check-comprehensive     - P2: Comprehensive (scripts, debug, test quality)"
