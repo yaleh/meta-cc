@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -43,6 +44,19 @@ func init() {
 }
 
 func handleRequest(req JSONRPCRequest) {
+	// Top-level request guard (DIR-060): any request-scoped panic — e.g. a
+	// slice-bounds overflow from a hostile pagination parameter — must degrade
+	// to a JSON-RPC error response instead of crashing the whole server
+	// process (a denial of service triggerable by any client). Registered
+	// first so it runs last (LIFO), after the span/metrics defers below have
+	// unwound. handleRequest is invoked synchronously per request from main's
+	// read loop, so recovering here keeps the loop serving subsequent requests.
+	defer func() {
+		if r := recover(); r != nil {
+			writePanicError(req.ID, req.Method, r)
+		}
+	}()
+
 	// Create root span for the request
 	ctx := context.Background()
 	var span trace.Span
@@ -291,4 +305,19 @@ func writeError(id interface{}, code int, message string) {
 		},
 	}
 	_ = json.NewEncoder(outputWriter).Encode(resp)
+}
+
+// writePanicError converts a recovered panic into a JSON-RPC internal-error
+// response and records the failure, so a request-scoped panic degrades
+// gracefully rather than killing the server (DIR-060).
+func writePanicError(id interface{}, method string, recovered interface{}) {
+	slog.Error("recovered from panic while handling request",
+		"method", method,
+		"id", id,
+		"panic", fmt.Sprintf("%v", recovered),
+		"error_type", "internal_panic",
+	)
+	metrics.RecordRequest(method, "request", "error")
+	metrics.RecordError("server", "internal_panic", "error")
+	writeError(id, -32603, fmt.Sprintf("internal error: recovered from panic: %v", recovered))
 }

@@ -17,29 +17,46 @@ type PaginationMetadata struct {
 	HasMore         bool `json:"has_more"`
 }
 
+// clampPage computes overflow-safe half-open [start, end) slice bounds for
+// paginating a collection of total records. It is the single sanitization
+// point shared by ApplyPagination, ApplyPaginationToInterfaces, and
+// CalculateMetadata so their bounds logic cannot diverge (DIR-060).
+//
+// offset is clamped to [0, total]; a non-positive pageSize means "no limit"
+// (end == total). The page length is derived as min(pageSize, total-start) —
+// never as start+pageSize — so computing end can never overflow a signed int:
+// both start and the clamped length are ≤ total, so end = start+length ≤ total.
+// This eliminates the `start + pageSize` overflow that previously produced a
+// negative end and a "slice bounds out of range" panic (a server-crashing DoS
+// triggerable by any client via a large page_size/offset).
+func clampPage(total, offset, pageSize int) (start, end int) {
+	if total <= 0 {
+		return 0, 0
+	}
+
+	// Clamp offset into [0, total].
+	start = offset
+	if start < 0 {
+		start = 0
+	}
+	if start > total {
+		start = total
+	}
+
+	// remaining is the number of records from start to the end of the
+	// collection; it is always ≥ 0 because start ≤ total by construction.
+	remaining := total - start
+	if pageSize <= 0 || pageSize > remaining {
+		end = total
+	} else {
+		end = start + pageSize // safe: pageSize ≤ remaining == total-start
+	}
+	return start, end
+}
+
 // ApplyPagination applies pagination to ToolCall slice
 func ApplyPagination(tools []types.ToolCall, config PaginationConfig) []types.ToolCall {
-	// Handle negative offset
-	if config.Offset < 0 {
-		config.Offset = 0
-	}
-
-	// Handle offset beyond length
-	if config.Offset >= len(tools) {
-		return []types.ToolCall{}
-	}
-
-	start := config.Offset
-	end := len(tools)
-
-	// Apply limit if specified and positive
-	if config.Limit > 0 {
-		end = start + config.Limit
-		if end > len(tools) {
-			end = len(tools)
-		}
-	}
-
+	start, end := clampPage(len(tools), config.Offset, config.Limit)
 	return tools[start:end]
 }
 
@@ -57,50 +74,29 @@ func ApplyPaginationToInterfaces(data []interface{}, offset, pageSize int) ([]in
 	meta := CalculateMetadata(totalRecords, config)
 	meta.Offset = offset
 
-	if normalizedOffset >= totalRecords {
-		return []interface{}{}, meta
-	}
-
-	start := normalizedOffset
-	end := totalRecords
-
-	if pageSize > 0 {
-		end = start + pageSize
-		if end > totalRecords {
-			end = totalRecords
-		}
-	}
-
+	start, end := clampPage(totalRecords, normalizedOffset, pageSize)
 	return data[start:end], meta
 }
 
 // CalculateMetadata calculates pagination metadata
 func CalculateMetadata(totalRecords int, config PaginationConfig) PaginationMetadata {
-	// Handle negative offset
-	if config.Offset < 0 {
-		config.Offset = 0
+	offset := config.Offset
+	if offset < 0 {
+		offset = 0
 	}
 
-	// Calculate returned records
-	returned := totalRecords - config.Offset
-	if config.Limit > 0 && returned > config.Limit {
-		returned = config.Limit
-	}
-	if returned < 0 {
-		returned = 0
-	}
-
-	// Calculate hasMore
-	hasMore := false
-	if config.Limit > 0 {
-		hasMore = config.Offset+config.Limit < totalRecords
-	}
+	// Derive returned/hasMore from the same overflow-safe bounds used for
+	// slicing. ReturnedRecords is end-start and HasMore is end<total — both
+	// trivially overflow-safe since 0 ≤ start ≤ end ≤ totalRecords. This
+	// replaces the old `Offset+Limit` has_more computation, which overflowed
+	// a signed int and corrupted the flag for large limits (DIR-060).
+	start, end := clampPage(totalRecords, offset, config.Limit)
 
 	return PaginationMetadata{
 		TotalRecords:    totalRecords,
-		ReturnedRecords: returned,
-		Offset:          config.Offset,
+		ReturnedRecords: end - start,
+		Offset:          offset,
 		Limit:           config.Limit,
-		HasMore:         hasMore,
+		HasMore:         end < totalRecords,
 	}
 }

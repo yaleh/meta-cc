@@ -342,6 +342,84 @@ func TestHandleRequest_AllMethods(t *testing.T) {
 	}
 }
 
+// TestHandleRequest_RecoversFromPanic verifies the DIR-060 dispatch-level
+// guard: a panic raised anywhere inside request handling must be recovered and
+// turned into a JSON-RPC internal-error response, not crash the process. A nil
+// executor forces a deterministic nil-pointer dereference inside
+// handleToolsCall (executor.ExecuteTool reads the embedded *execpkg.ToolExecutor
+// field on a nil receiver), exercising the real dispatch → recover path.
+func TestHandleRequest_RecoversFromPanic(t *testing.T) {
+	var buf bytes.Buffer
+	origWriter := outputWriter
+	outputWriter = &buf
+	defer func() { outputWriter = origWriter }()
+
+	origExecutor := executor
+	executor = nil // force a panic inside handleToolsCall
+	defer func() { executor = origExecutor }()
+
+	req := JSONRPCRequest{
+		JSONRPC: "2.0",
+		ID:      99,
+		Method:  "tools/call",
+		Params: map[string]interface{}{
+			"name":      "query_session_signals",
+			"arguments": map[string]interface{}{},
+		},
+	}
+
+	// Must not let the panic escape.
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("handleRequest let a panic escape the dispatch guard: %v", r)
+		}
+	}()
+	handleRequest(req)
+
+	var resp JSONRPCResponse
+	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
+		t.Fatalf("expected a JSON-RPC error response after recovered panic, got parse error: %v (raw=%q)", err, buf.String())
+	}
+	if resp.Error == nil {
+		t.Fatal("expected an error response from the recovered panic, got none")
+	}
+	if resp.Error.Code != -32603 {
+		t.Errorf("expected JSON-RPC internal error code -32603, got %d", resp.Error.Code)
+	}
+	if id, ok := resp.ID.(float64); !ok || int(id) != 99 {
+		t.Errorf("expected id=99 preserved on the error response, got %v (%T)", resp.ID, resp.ID)
+	}
+}
+
+// TestWritePanicError unit-tests the panic-to-error-response helper in
+// isolation: it must emit a well-formed JSON-RPC -32603 error carrying the
+// request id and a message describing the recovered value.
+func TestWritePanicError(t *testing.T) {
+	var buf bytes.Buffer
+	origWriter := outputWriter
+	outputWriter = &buf
+	defer func() { outputWriter = origWriter }()
+
+	writePanicError(7, "tools/call", "runtime error: slice bounds out of range")
+
+	var resp JSONRPCResponse
+	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse panic error response: %v", err)
+	}
+	if resp.Error == nil {
+		t.Fatal("expected error to be present")
+	}
+	if resp.Error.Code != -32603 {
+		t.Errorf("expected code -32603, got %d", resp.Error.Code)
+	}
+	if id, ok := resp.ID.(float64); !ok || int(id) != 7 {
+		t.Errorf("expected id=7, got %v (%T)", resp.ID, resp.ID)
+	}
+	if resp.Error.Message == "" {
+		t.Error("expected a non-empty panic error message")
+	}
+}
+
 func TestQuerySessionContentHasOutputWarning(t *testing.T) {
 	tools := getToolDefinitions()
 

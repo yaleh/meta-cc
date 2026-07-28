@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"math"
 	"testing"
 
 	"github.com/yaleh/meta-cc/internal/types"
@@ -269,4 +270,196 @@ func TestPaginationEdgeCases(t *testing.T) {
 			t.Errorf("expected 50 records, got %d", len(result))
 		}
 	})
+}
+
+// interfaceData builds an n-element []interface{} for pagination tests.
+func interfaceData(n int) []interface{} {
+	s := make([]interface{}, n)
+	for i := 0; i < n; i++ {
+		s[i] = map[string]interface{}{"idx": i}
+	}
+	return s
+}
+
+// TestApplyPaginationToInterfaces_OverflowNoPanic is the DIR-060 regression
+// test for the exact reported trigger: offset=2000 with a page_size of
+// 2^63-1024 (exactly representable as a JSON float64, so it survives the
+// client→server round trip). Before the fix, `start + pageSize` overflowed a
+// signed int negative and `data[start:end]` panicked with "slice bounds out
+// of range", crashing the MCP server. The page must instead clamp to the
+// records actually available beyond the offset.
+func TestApplyPaginationToInterfaces_OverflowNoPanic(t *testing.T) {
+	const total = 3000
+	data := interfaceData(total)
+
+	const offset = 2000
+	const pageSize = int64(9223372036854774784) // 2^63 - 1024 (math.MaxInt64 - 1023)
+
+	var result []interface{}
+	var meta PaginationMetadata
+	assertNoPanic(t, func() {
+		result, meta = ApplyPaginationToInterfaces(data, offset, int(pageSize))
+	})
+
+	// The page is clamped to the records available beyond the offset.
+	if want := total - offset; len(result) != want {
+		t.Errorf("result length: expected %d (clamped to available records), got %d", want, len(result))
+	}
+	if meta.TotalRecords != total {
+		t.Errorf("TotalRecords: expected %d, got %d", total, meta.TotalRecords)
+	}
+	if want := total - offset; meta.ReturnedRecords != want {
+		t.Errorf("ReturnedRecords: expected %d, got %d", want, meta.ReturnedRecords)
+	}
+	if meta.HasMore {
+		t.Errorf("HasMore: expected false (page reaches the end), got true")
+	}
+}
+
+// TestApplyPagination_OverflowNoPanic is the DIR-060 regression test for the
+// ToolCall variant: an overflow-inducing Limit must not panic and must clamp
+// to the records available beyond the offset.
+func TestApplyPagination_OverflowNoPanic(t *testing.T) {
+	const total = 3000
+	tools := generateTestToolCalls(total)
+
+	var result []types.ToolCall
+	assertNoPanic(t, func() {
+		result = ApplyPagination(tools, PaginationConfig{Offset: 2000, Limit: math.MaxInt64})
+	})
+
+	if want := total - 2000; len(result) != want {
+		t.Errorf("result length: expected %d (clamped), got %d", want, len(result))
+	}
+}
+
+// TestPaginationOverflow_Clamping exercises every overflow site
+// (ApplyPagination, ApplyPaginationToInterfaces, CalculateMetadata) with
+// pageSize/offset values at and above math.MaxInt64/2 and with negative
+// values, asserting no panic and a well-defined clamp in each case.
+func TestPaginationOverflow_Clamping(t *testing.T) {
+	const total = 100
+	data := interfaceData(total)
+	tools := generateTestToolCalls(total)
+
+	huge := []int{
+		math.MaxInt64 / 2,
+		math.MaxInt64 - 1023, // the reported float64-representable trigger
+		math.MaxInt64,
+	}
+	negative := []int{-1, -1024, math.MinInt64}
+
+	// Huge pageSize with a modest offset: page clamps to [offset, total).
+	for _, ps := range huge {
+		t.Run("huge page size", func(t *testing.T) {
+			assertNoPanic(t, func() {
+				result, meta := ApplyPaginationToInterfaces(data, 20, ps)
+				if want := total - 20; len(result) != want {
+					t.Errorf("pageSize=%d: len expected %d, got %d", ps, want, len(result))
+				}
+				if meta.HasMore {
+					t.Errorf("pageSize=%d: HasMore expected false, got true", ps)
+				}
+			})
+			assertNoPanic(t, func() {
+				result := ApplyPagination(tools, PaginationConfig{Offset: 20, Limit: ps})
+				if want := total - 20; len(result) != want {
+					t.Errorf("Limit=%d: len expected %d, got %d", ps, want, len(result))
+				}
+			})
+		})
+	}
+
+	// Huge offset (beyond total): clamps to an empty page, never panics.
+	for _, off := range huge {
+		t.Run("huge offset", func(t *testing.T) {
+			assertNoPanic(t, func() {
+				result, meta := ApplyPaginationToInterfaces(data, off, 10)
+				if len(result) != 0 {
+					t.Errorf("offset=%d: expected empty page, got %d records", off, len(result))
+				}
+				if meta.ReturnedRecords != 0 {
+					t.Errorf("offset=%d: ReturnedRecords expected 0, got %d", off, meta.ReturnedRecords)
+				}
+				if meta.HasMore {
+					t.Errorf("offset=%d: HasMore expected false, got true", off)
+				}
+			})
+			assertNoPanic(t, func() {
+				result := ApplyPagination(tools, PaginationConfig{Offset: off, Limit: 10})
+				if len(result) != 0 {
+					t.Errorf("offset=%d: expected empty page, got %d records", off, len(result))
+				}
+			})
+		})
+	}
+
+	// Huge offset AND huge pageSize simultaneously (worst-case overflow).
+	t.Run("huge offset and huge page size", func(t *testing.T) {
+		assertNoPanic(t, func() {
+			result, _ := ApplyPaginationToInterfaces(data, math.MaxInt64, math.MaxInt64)
+			if len(result) != 0 {
+				t.Errorf("expected empty page, got %d records", len(result))
+			}
+		})
+	})
+
+	// Negative values: offset clamps to 0, negative pageSize means "no limit".
+	for _, off := range negative {
+		t.Run("negative offset", func(t *testing.T) {
+			assertNoPanic(t, func() {
+				result, _ := ApplyPaginationToInterfaces(data, off, 10)
+				if len(result) != 10 {
+					t.Errorf("offset=%d: expected 10 records (offset clamped to 0), got %d", off, len(result))
+				}
+			})
+		})
+	}
+	for _, ps := range negative {
+		t.Run("negative page size", func(t *testing.T) {
+			assertNoPanic(t, func() {
+				result, _ := ApplyPaginationToInterfaces(data, 0, ps)
+				if len(result) != total {
+					t.Errorf("pageSize=%d: expected all %d records (no limit), got %d", ps, total, len(result))
+				}
+			})
+		})
+	}
+}
+
+// TestCalculateMetadata_OverflowNoPanic guards the has_more computation, which
+// previously computed `Offset+Limit` and overflowed (corrupting has_more).
+func TestCalculateMetadata_OverflowNoPanic(t *testing.T) {
+	const total = 3000
+
+	assertNoPanic(t, func() {
+		meta := CalculateMetadata(total, PaginationConfig{Offset: 2000, Limit: math.MaxInt64})
+		// A page that reaches the end has no more records, regardless of how
+		// large the requested limit is.
+		if meta.HasMore {
+			t.Errorf("HasMore: expected false for clamped-to-end page, got true")
+		}
+		if want := total - 2000; meta.ReturnedRecords != want {
+			t.Errorf("ReturnedRecords: expected %d, got %d", want, meta.ReturnedRecords)
+		}
+	})
+
+	// A genuinely-paged request still reports has_more correctly.
+	assertNoPanic(t, func() {
+		meta := CalculateMetadata(total, PaginationConfig{Offset: 0, Limit: 100})
+		if !meta.HasMore {
+			t.Errorf("HasMore: expected true for a first page of 100/%d, got false", total)
+		}
+	})
+}
+
+// assertNoPanic runs fn and fails the test if it panics.
+func assertNoPanic(t *testing.T, fn func()) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("unexpected panic: %v", r)
+		}
+	}()
+	fn()
 }
