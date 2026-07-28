@@ -334,7 +334,7 @@ func GetToolDefinitions() []Tool {
 				},
 				"contains": {
 					Type:        "string",
-					Description: "Optional substring filter applied to message content (case-insensitive). When role=assistant, use '## Summary' to retrieve summaries.",
+					Description: "Optional literal substring filter applied to message content (case-insensitive). Matched as an exact substring, not a regex — characters like '.' are NOT wildcards (e.g. \"main.go\" will not match \"mainXgo\"). When role=assistant, use '## Summary' to retrieve summaries.",
 				},
 				"pattern": {
 					Type:        "string",
