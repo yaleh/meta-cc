@@ -432,8 +432,30 @@ Most query tools accept:
 | `session_id` | string | Exact session/thread ID (content/signal/file-activity/analysis tools, and `query_sessions`). Reads only that one session; distinct from `scope="session"`. |
 | `limit` | number | Maximum results; default is no limit |
 | `stats_only` | boolean | Return aggregate statistics only — no per-item `examples`/detail arrays. Honored consistently by all six `analysis.Service` tools (`analyze_errors`, `analyze_bugs`, `quality_scan`, `get_work_patterns`, `get_tech_debt`, `get_timeline`); `analyze_errors`/`analyze_bugs` return per-tool/per-pattern *counts* with no `examples` text, and `get_tech_debt` returns a `hotspot_file_count` in place of the full per-file `hotspot_files` list. `quality_scan` and `get_work_patterns` are already aggregate-only, so `stats_only` returns their normal (unchanged) shape. |
-| `stats_first` | boolean | Return stats followed by details |
+| `stats_first` | boolean | Return stats followed by details. **Not available on the six `analysis.Service` tools** — see [scoping notes](#jq_filter-stats_first-offset-page_size-dir-048-scoped-to-pipeline-routed-tools) below. |
 | `inline_threshold_bytes` | number | Threshold for inline vs file reference output |
+
+### jq_filter, stats_first, offset, page_size (DIR-048: scoped to pipeline-routed tools)
+
+`jq_filter` (see [above](#jq_filter-custom-post-filter-dir-041)), `stats_first`, `offset`, and
+`page_size` are only meaningful against a flat record array produced by
+`internal/mcp/pipeline.BuildResponse` — `jq_filter` post-filters that array, `stats_first`
+returns a stats header followed by the record details, and `offset`/`page_size` paginate over
+it. They are declared only on tools routed through that pipeline: `query_sessions`,
+`query_session_content`, `query_session_signals`, `query_file_activity`.
+
+The six `analysis.Service` tools (`analyze_errors`, `analyze_bugs`, `quality_scan`,
+`get_work_patterns`, `get_timeline`, `get_tech_debt`) do not declare any of these four
+parameters. Each dispatches through `executor.ExecuteSpecialTool` straight to
+`analysis.Service`, a path that returns before `pipeline.BuildResponse` is ever reached, and
+each returns its own typed, non-flat-record result struct (e.g. bug patterns, timeline
+events) rather than a flat record array these four parameters could operate on. Previously
+they were declared (via `StandardToolParameters()`) with fully-specified descriptions but were
+silently ignored regardless of value — passing `jq_filter: "select(false)"` to `analyze_bugs`,
+for instance, had no effect on the response. `stats_only` (a different, single-value toggle
+between an aggregate-only shape and the full detail shape — not a "stats-then-details" mode)
+remains genuinely wired for all six, per DIR-042. `include_subagents` (which JSONL files are
+read at all, not a response-formatting concern) also remains available on all six.
 
 ### `output_format` (DIR-044: scoped to 4 tools, not universal)
 

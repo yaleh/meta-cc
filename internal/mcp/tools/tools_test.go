@@ -68,6 +68,108 @@ func TestOutputFormat_ScopedToSupportedTools(t *testing.T) {
 	}
 }
 
+// analysisServiceTools is the set of six MCP tools backed by
+// internal/analysis.Service, dispatched through
+// internal/mcp/executor.ExecuteSpecialTool via registerHandler
+// (analysis_handlers.go). That dispatch path returns before
+// internal/mcp/executor.NewToolPipelineConfig / internal/mcp/pipeline.BuildResponse
+// is ever reached, so jq_filter/stats_first/offset/page_size (only consulted
+// there) are always inert for these six tools (DIR-048).
+var analysisServiceTools = []string{
+	"analyze_bugs",
+	"analyze_errors",
+	"quality_scan",
+	"get_work_patterns",
+	"get_timeline",
+	"get_tech_debt",
+}
+
+// postProcessingParams are the four StandardToolParameters() entries that
+// only have meaning against a flat record array produced by
+// internal/mcp/pipeline.BuildResponse: jq_filter (post-filter), stats_first
+// (stats-then-details mode), offset/page_size (record-array pagination).
+var postProcessingParams = []string{"jq_filter", "stats_first", "offset", "page_size"}
+
+// TestAnalysisToolParameters_ExcludesPostProcessingParams is the DIR-048
+// regression: AnalysisStandardToolParameters() (the base parameter set used
+// for the six analysis.Service-backed tools) must not declare jq_filter,
+// stats_first, offset, or page_size, since none of them are ever consulted
+// on that dispatch path. scope/provider/stats_only/inline_threshold_bytes/
+// include_subagents are unaffected -- stats_only is genuinely wired
+// per-tool (DIR-042), and include_subagents is a data-scope parameter
+// (which JSONL files get read at all) rather than a response-formatting
+// parameter, so it stays out of this task's scope.
+func TestAnalysisToolParameters_ExcludesPostProcessingParams(t *testing.T) {
+	params := tools.AnalysisStandardToolParameters()
+
+	for _, p := range postProcessingParams {
+		if _, ok := params[p]; ok {
+			t.Errorf("AnalysisStandardToolParameters() must not declare %q: it is never consulted "+
+				"for analysis.Service tools (see DIR-048)", p)
+		}
+	}
+
+	for _, p := range []string{"scope", "provider", "stats_only", "inline_threshold_bytes", "include_subagents"} {
+		if _, ok := params[p]; !ok {
+			t.Errorf("AnalysisStandardToolParameters() must still declare %q", p)
+		}
+	}
+}
+
+// TestAnalysisTools_SchemaExcludesPostProcessingParams is the DIR-048
+// regression proving the fix at the live schema level: analyze_bugs,
+// analyze_errors, quality_scan, get_work_patterns, get_timeline, and
+// get_tech_debt must not advertise jq_filter/stats_first/offset/page_size in
+// their MCP tool schema. Before this fix, all four were merged in via
+// StandardToolParameters() with fully-specified, convincing descriptions even
+// though internal/analysis/*.go never reads any of them (confirmed by
+// `grep -rn '"jq_filter"\|"stats_first"\|"offset"\|"page_size"' internal/analysis/*.go`
+// returning zero hits) and the ExecuteSpecialTool dispatch path for these six
+// tools never reaches the pipeline code that would have consulted them.
+func TestAnalysisTools_SchemaExcludesPostProcessingParams(t *testing.T) {
+	index := tools.BuildToolSchemaIndex()
+
+	for _, name := range analysisServiceTools {
+		s, err := tools.GetToolSchemaByName(index, name)
+		if err != nil {
+			t.Fatalf("unexpected error for %s: %v", name, err)
+		}
+		for _, p := range postProcessingParams {
+			if _, ok := s.Properties[p]; ok {
+				t.Errorf("tool %q must not declare %q (DIR-048: inert for analysis.Service tools)", name, p)
+			}
+		}
+	}
+}
+
+// TestPostProcessingParams_StillPresentOnPipelineRoutedTools guards against
+// an overly broad fix: jq_filter/stats_first/offset/page_size must remain on
+// the four tools that actually route through internal/mcp/pipeline.BuildResponse
+// (and, for jq_filter/stats_first/offset/page_size specifically, on any other
+// non-analysis tool that already correctly consumes them via
+// executor.NewToolPipelineConfig).
+func TestPostProcessingParams_StillPresentOnPipelineRoutedTools(t *testing.T) {
+	pipelineRoutedTools := []string{
+		"query_sessions",
+		"query_session_content",
+		"query_session_signals",
+		"query_file_activity",
+	}
+
+	index := tools.BuildToolSchemaIndex()
+	for _, name := range pipelineRoutedTools {
+		s, err := tools.GetToolSchemaByName(index, name)
+		if err != nil {
+			t.Fatalf("unexpected error for %s: %v", name, err)
+		}
+		for _, p := range postProcessingParams {
+			if _, ok := s.Properties[p]; !ok {
+				t.Errorf("tool %q must still declare %q (it is routed through pipeline.BuildResponse)", name, p)
+			}
+		}
+	}
+}
+
 func TestMergeParameters(t *testing.T) {
 	specific := map[string]tools.Property{
 		"limit": {

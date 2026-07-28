@@ -121,6 +121,25 @@ func TestAllToolsHaveStandardParameters(t *testing.T) {
 		"scope", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes",
 	}
 
+	// DIR-048: the six analysis.Service-backed tools dispatch through
+	// executor.ExecuteSpecialTool and never reach pipeline.BuildResponse, the
+	// only place jq_filter/stats_first/offset/page_size are consulted, so
+	// they no longer declare those four params (see
+	// tools.AnalysisStandardToolParameters). scope/stats_only/
+	// inline_threshold_bytes are still required for them.
+	postProcessingOnlyParams := map[string]bool{
+		"jq_filter":   true,
+		"stats_first": true,
+	}
+	analysisServiceTools := map[string]bool{
+		"analyze_errors":    true,
+		"analyze_bugs":      true,
+		"quality_scan":      true,
+		"get_work_patterns": true,
+		"get_timeline":      true,
+		"get_tech_debt":     true,
+	}
+
 	// Tools that should have message truncation parameters (Stage 15.1)
 	// TASK-7: query_session_content replaces query_user_messages
 	messageTruncationTools := map[string]bool{
@@ -149,6 +168,13 @@ func TestAllToolsHaveStandardParameters(t *testing.T) {
 
 			// Check all standard parameters exist
 			for _, param := range requiredParams {
+				if analysisServiceTools[tool.Name] && postProcessingOnlyParams[param] {
+					if _, ok := tool.InputSchema.Properties[param]; ok {
+						t.Errorf("tool %s (analysis.Service-backed, DIR-048) must not declare %s: "+
+							"it never reaches pipeline.BuildResponse, so the param is always inert", tool.Name, param)
+					}
+					continue
+				}
 				if _, ok := tool.InputSchema.Properties[param]; !ok {
 					t.Errorf("tool %s missing standard parameter: %s", tool.Name, param)
 				}

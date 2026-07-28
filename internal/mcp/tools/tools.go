@@ -56,6 +56,76 @@ func StandardToolParameters() map[string]Property {
 	}
 }
 
+// AnalysisStandardToolParameters is the base parameter set for the six
+// internal/analysis.Service-backed tools (analyze_bugs, analyze_errors,
+// quality_scan, get_work_patterns, get_timeline, get_tech_debt). DIR-048:
+// these tools are registered via registerHandler
+// (internal/mcp/executor/analysis_handlers.go) and dispatch through
+// ExecuteSpecialTool, a path that internal/mcp/executor.ExecuteTool
+// short-circuits and returns from *before* ever reaching
+// NewToolPipelineConfig/pipeline.BuildResponse -- the only place jq_filter
+// (a post-filter over a flat record array), stats_first (a stats-then-
+// details mode over a flat record array), and offset/page_size (record-array
+// pagination) are ever consulted. These six tools return typed, non-flat-
+// record analyzer results (e.g. AnalyzeBugsResult, TimelineResult), so those
+// four parameters don't have an obvious, clean meaning against them, and
+// `grep -rn '"jq_filter"\|"stats_first"\|"offset"\|"page_size"' internal/analysis/*.go`
+// returns zero hits confirming they were never consulted. This is
+// StandardToolParameters() with those four keys removed -- scope, provider,
+// stats_only (genuinely wired per-tool since DIR-042),
+// inline_threshold_bytes, and include_subagents (a data-scope parameter
+// about which JSONL files get read at all, not response formatting, and out
+// of this task's scope) are unaffected. See BuildAnalysisTool, the
+// DIR-044 OutputFormatProperty precedent for scoping a schema parameter to
+// only the tools that can actually honor it.
+func AnalysisStandardToolParameters() map[string]Property {
+	params := StandardToolParameters()
+	for _, k := range []string{"jq_filter", "stats_first", "offset", "page_size"} {
+		delete(params, k)
+	}
+	return params
+}
+
+// mergeParametersWithBase merges tool-specific params over a given base
+// parameter set (specific params win on key collision).
+func mergeParametersWithBase(base, specific map[string]Property) map[string]Property {
+	result := make(map[string]Property, len(base)+len(specific))
+	for k, v := range base {
+		result[k] = v
+	}
+	for k, v := range specific {
+		result[k] = v
+	}
+	return result
+}
+
+// BuildAnalysisToolSchema creates a ToolSchema for an analysis.Service-backed
+// tool, merged over AnalysisStandardToolParameters() rather than the full
+// StandardToolParameters() (see AnalysisStandardToolParameters for why).
+func BuildAnalysisToolSchema(properties map[string]Property, required ...string) ToolSchema {
+	s := ToolSchema{
+		Type:       "object",
+		Properties: mergeParametersWithBase(AnalysisStandardToolParameters(), properties),
+	}
+	if len(required) > 0 {
+		s.Required = required
+	}
+	return s
+}
+
+// BuildAnalysisTool creates a Tool for one of the six analysis.Service-backed
+// tools (analyze_bugs, analyze_errors, quality_scan, get_work_patterns,
+// get_timeline, get_tech_debt), scoping its schema to
+// AnalysisStandardToolParameters() instead of the universal
+// StandardToolParameters() (DIR-048).
+func BuildAnalysisTool(name, description string, properties map[string]Property, required ...string) Tool {
+	return Tool{
+		Name:        name,
+		Description: description,
+		InputSchema: BuildAnalysisToolSchema(properties, required...),
+	}
+}
+
 // SessionIDProperty is the "session_id" property shared by tools that
 // support an exact-thread fast path (DIR-030): unlike scope="session"
 // (which means "the most recently modified session"), session_id selects
@@ -239,7 +309,7 @@ func GetToolDefinitions() []Tool {
 				Required: []string{"files", "filter"},
 			},
 		},
-		BuildTool("analyze_errors", "Aggregate tool errors by tool name and error type. Default scope: project.", map[string]Property{
+		BuildAnalysisTool("analyze_errors", "Aggregate tool errors by tool name and error type. Default scope: project.", map[string]Property{
 			"limit": {
 				Type:        "number",
 				Description: "Max examples per group (0 = unlimited)",
@@ -250,7 +320,7 @@ func GetToolDefinitions() []Tool {
 			},
 			"session_id": SessionIDProperty(),
 		}),
-		BuildTool("analyze_bugs", "Detect error-fix pairs and recurring bug patterns. Default scope: project.", map[string]Property{
+		BuildAnalysisTool("analyze_bugs", "Detect error-fix pairs and recurring bug patterns. Default scope: project.", map[string]Property{
 			"limit": {
 				Type:        "number",
 				Description: "Max examples per pattern (0 = unlimited)",
@@ -261,14 +331,14 @@ func GetToolDefinitions() []Tool {
 			},
 			"session_id": SessionIDProperty(),
 		}),
-		BuildTool("quality_scan", "Compute quality dimensions: error rate, retry rate, diversity, completion. Default scope: project.", map[string]Property{
+		BuildAnalysisTool("quality_scan", "Compute quality dimensions: error rate, retry rate, diversity, completion. Default scope: project.", map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 			"session_id": SessionIDProperty(),
 		}),
-		BuildTool("get_work_patterns", "Get tool frequency, hourly activity, and context switches. Default scope: project.", map[string]Property{
+		BuildAnalysisTool("get_work_patterns", "Get tool frequency, hourly activity, and context switches. Default scope: project.", map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
@@ -289,7 +359,7 @@ func GetToolDefinitions() []Tool {
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 		}),
-		BuildTool("get_timeline", "Get chronological session events as JSON. Claude renders visualization. Default scope: project.", map[string]Property{
+		BuildAnalysisTool("get_timeline", "Get chronological session events as JSON. Claude renders visualization. Default scope: project.", map[string]Property{
 			"limit": {
 				Type:        "number",
 				Description: "Max events to return (0 = unlimited)",
@@ -312,7 +382,7 @@ func GetToolDefinitions() []Tool {
 			},
 			"session_id": SessionIDProperty(),
 		}),
-		BuildTool("get_tech_debt", "Detect TODO/FIXME/HACK/XXX markers and unresolved errors as tech debt. Default scope: project.", map[string]Property{
+		BuildAnalysisTool("get_tech_debt", "Detect TODO/FIXME/HACK/XXX markers and unresolved errors as tech debt. Default scope: project.", map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",

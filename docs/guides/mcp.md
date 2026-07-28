@@ -171,10 +171,26 @@ Most query and analysis tools accept:
 | `session_id` | string | Exact session ID (query/analysis tools and `query_sessions`). Distinct from `scope="session"` — see [MCP Query Tools Reference](mcp-query-tools.md#scope-vs-exact-session_id-dir-030). |
 | `limit` | number | Maximum results; default is no limit |
 | `stats_only` | boolean | Return aggregate statistics only |
-| `stats_first` | boolean | Return stats followed by details |
+| `stats_first` | boolean | Return stats followed by details. Only declared on the 4 tools routed through the response pipeline (see below) — not on the six analysis tools. |
 | `inline_threshold_bytes` | number | Threshold for inline vs file reference output |
 
 Time-aware tools also accept RFC3339 `since` and `until`.
+
+### `jq_filter`, `stats_first`, `offset`, `page_size` (DIR-048: scoped to pipeline-routed tools)
+
+Like `output_format` below, `jq_filter`, `stats_first`, `offset`, and `page_size` are only
+meaningful against the flat record array produced by the shared response pipeline
+(`internal/mcp/pipeline.BuildResponse`): `jq_filter` post-filters that array, `stats_first`
+returns a stats header followed by the record details, and `offset`/`page_size` paginate over
+it. They are declared only on `query_sessions`, `query_session_content`,
+`query_session_signals`, and `query_file_activity`.
+
+The six analysis tools (`analyze_errors`, `analyze_bugs`, `quality_scan`,
+`get_work_patterns`, `get_timeline`, `get_tech_debt`) do not declare these four parameters:
+they dispatch straight to `internal/analysis.Service` and return before the response pipeline
+is ever reached, and each returns its own typed, non-flat-record analyzer result rather than a
+record array these parameters could operate on. `stats_only` (genuinely wired per-tool since
+DIR-042) and `include_subagents` are unaffected and remain available on all six.
 
 ### `output_format` (DIR-044: scoped to 4 tools, not universal)
 
@@ -227,7 +243,7 @@ Use this as a **scout step** before deciding how to query:
 2a. entries are small  → get_timeline(scope=project, limit=50)
 2b. entries are large  → get_timeline(scope=session)           # current session only
                        → get_timeline(scope=project, limit=N)  # explicit cap
-                       → get_timeline(jq_filter='select .timestamp > "..."')
+                       → get_timeline(since="2026-06-01T00:00:00Z")  # focused time range (native since/until, not jq_filter)
 ```
 
 When `limit` truncates the result, the response includes `truncated: true` and
