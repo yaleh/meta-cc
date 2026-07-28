@@ -159,9 +159,12 @@ Query session messages by role. The `role` parameter is required.
 | Role | Purpose | Claude Code | Codex |
 |------|---------|-------------|-------|
 | `user` | Search user messages by regex pattern | Yes | Yes |
-| `assistant` | Query assistant messages (optionally filter by `contains`) | Yes | Yes |
+| `assistant` | Query assistant messages | Yes | Yes |
 | `tool` | Query `tool_use` or `tool_result` blocks | Yes | Yes |
 | `all` | Query user/assistant conversation flow | Yes | Yes |
+
+Additional parameters for ALL roles:
+- `contains` — literal substring filter (case-insensitive, not a regex — `"main.go"` does not match `"mainXgo"`). For `role=user/assistant/all` it matches the message content (array content is matched via its JSON text); for `role=tool` it matches the block's `name` and `input` (`block_type=tool_use`) or its `content` (`block_type=tool_result`). Use `"## Summary"` with `role=assistant` to retrieve summaries.
 
 Additional parameters when `role=user`:
 - `pattern` — regex filter applied to message content
@@ -173,9 +176,6 @@ Additional parameters when `role=user`:
 - `group_by_session` — group results by session
 - `context_turns` — include up to N adjacent records before/after each match (see "Context window semantics (`context_turns`)" below); supported for every provider (`claude`, `codex`, `all`)
 - `since` / `until` — RFC3339 time range filter
-
-Additional parameters when `role=assistant`:
-- `contains` — substring filter (case-insensitive); use `"## Summary"` to retrieve summaries
 
 Additional parameters when `role=tool`:
 - `block_type` — `tool_use` (default) or `tool_result`

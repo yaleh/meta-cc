@@ -2,6 +2,7 @@ package executor
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	mcquery "github.com/yaleh/meta-cc/internal/mcp/query"
@@ -20,6 +21,7 @@ import (
 func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := GetStringParam(args, "provider", "claude")
 	pattern := GetStringParam(args, "pattern", "")
+	contains := GetStringParam(args, "contains", "")
 	contentType := GetStringParam(args, "content_type", "string")
 	limit := GetIntParam(args, "limit", 0)
 	minContentLength := GetIntParam(args, "min_content_length", 0)
@@ -50,6 +52,13 @@ func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]inte
 	if pattern != "" {
 		escapedPattern := EscapeJQ(pattern)
 		jqFilter = fmt.Sprintf(`%s | select(.message.content | test("%s"))`, jqFilter, escapedPattern)
+	}
+
+	// DIR-062: honor the documented cross-role `contains` literal-substring
+	// filter for role=user too (previously silently dropped). `| tostring`
+	// lets it also match array (tool-result) content when content_type=array.
+	if contains != "" {
+		jqFilter = jqFilter + " | " + containsClause(contains, ".message.content // empty")
 	}
 
 	if minContentLength > 0 {
@@ -207,6 +216,7 @@ func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]
 	untilStr := GetStringParam(args, "until", "")
 	excludeCompact := GetBoolParam(args, "exclude_compact_summaries", true)
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
+	contains := GetStringParam(args, "contains", "")
 
 	tr, err := mcquery.ParseTimeRange(sinceStr, untilStr)
 	if err != nil {
@@ -214,6 +224,12 @@ func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]
 	}
 
 	jqFilter := `select(.type == "user" or .type == "assistant")`
+
+	// DIR-062: honor the documented cross-role `contains` literal-substring
+	// filter for role=all too (previously silently dropped).
+	if contains != "" {
+		jqFilter += " | " + containsClause(contains, ".message.content // empty")
+	}
 
 	if excludeCompact {
 		jqFilter += ` | select(.isCompactSummary != true)`
@@ -270,6 +286,7 @@ func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interf
 	providerName := GetStringParam(args, "provider", "claude")
 	blockType := GetStringParam(args, "block_type", "tool_use")
 	toolName := GetStringParam(args, "tool_name", "")
+	contains := GetStringParam(args, "contains", "")
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
@@ -284,9 +301,22 @@ func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interf
 		if toolName != "" {
 			jqFilter = fmt.Sprintf(`%s | select(.name | test("%s"))`, jqFilter, EscapeJQ(toolName))
 		}
+		// DIR-062: honor the documented cross-role `contains` filter on the
+		// block's own text — its name plus its input (an object, matched via
+		// its JSON text). Applied BEFORE the outer-context merge so the field
+		// refs address the raw block, not the merged record.
+		if contains != "" {
+			jqFilter += " | " + containsClause(contains, `(.name // "") + " " + ((.input // {}) | tostring)`)
+		}
 		jqFilter += ` | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
 	} else {
-		jqFilter = `select(.type == "user" and (.message.content | type == "array")) | . as $rec | .message.content[] | select(.type == "tool_result") | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
+		jqFilter = `select(.type == "user" and (.message.content | type == "array")) | . as $rec | .message.content[] | select(.type == "tool_result")`
+		// DIR-062: honor `contains` on the tool_result block's content (a
+		// string or an array of content blocks, matched via its JSON text).
+		if contains != "" {
+			jqFilter += " | " + containsClause(contains, `.content // ""`)
+		}
+		jqFilter += ` | {timestamp: $rec.timestamp, sessionId: $rec.sessionId, turn: $rec.turn} + .`
 	}
 
 	sessionID := GetStringParam(args, "session_id", "")
@@ -298,4 +328,30 @@ func EscapeJQ(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`)
 	s = strings.ReplaceAll(s, `"`, `\"`)
 	return s
+}
+
+// containsClause builds a jq select() clause that keeps only records whose
+// text selected by jqExpr contains `contains` as a case-insensitive LITERAL
+// substring.
+//
+// `contains` is documented as a literal substring filter, not a regex, but
+// jq's test() is a regex-match function — so the raw substring must first be
+// regex-escaped via regexp.QuoteMeta (e.g. "." -> "\."), THEN jq-string-
+// escaped via EscapeJQ (which only escapes `\`/`"` for jq string-literal
+// safety and knows nothing about regex metacharacters). Skipping QuoteMeta
+// lets unescaped metacharacters like "." match any character, so a search
+// for "main.go" would also match unrelated content such as "mainXgo"
+// (DIR-047).
+//
+// All roles of query_session_content (user/assistant/tool/all) build their
+// `contains` filter through this ONE helper (DIR-062) so the escaping path
+// is identical everywhere and cannot diverge per branch the way it did
+// before, when only role=assistant honored `contains` at all. jqExpr selects
+// the text to match per role (e.g. ".message.content // empty" for message
+// records); `| tostring` lets it operate on array content too, and `// empty`
+// / `// ""` guards in jqExpr skip records without a text field rather than
+// erroring.
+func containsClause(contains, jqExpr string) string {
+	escaped := EscapeJQ(regexp.QuoteMeta(contains))
+	return fmt.Sprintf(`select((%s | tostring) | test("%s"; "i"))`, jqExpr, escaped)
 }

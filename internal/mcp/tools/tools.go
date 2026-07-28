@@ -404,7 +404,7 @@ func GetToolDefinitions() []Tool {
 				},
 				"contains": {
 					Type:        "string",
-					Description: "Optional literal substring filter applied to message content (case-insensitive). Matched as an exact substring, not a regex — characters like '.' are NOT wildcards (e.g. \"main.go\" will not match \"mainXgo\"). When role=assistant, use '## Summary' to retrieve summaries.",
+					Description: "Optional literal substring filter applied to message content (case-insensitive). Applies to ALL roles: role=user/assistant/all match against the message content (array content is matched via its JSON text); role=tool matches against the block's name and input (block_type=tool_use) or its content (block_type=tool_result). Matched as an exact substring, not a regex — characters like '.' are NOT wildcards (e.g. \"main.go\" will not match \"mainXgo\"). When role=assistant, use '## Summary' to retrieve summaries.",
 				},
 				"pattern": {
 					Type:        "string",

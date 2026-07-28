@@ -2,7 +2,6 @@ package executor
 
 import (
 	"fmt"
-	"regexp"
 
 	mcquery "github.com/yaleh/meta-cc/internal/mcp/query"
 )
@@ -28,6 +27,11 @@ func init() {
 }
 
 // handleQuerySessionContent routes by 'role' to existing handlers.
+//
+// The 'contains' literal-substring filter (DIR-047 escaping: QuoteMeta +
+// EscapeJQ via the shared containsClause helper) is honored by EVERY role —
+// user, assistant, tool, and all (DIR-062; before that fix it was silently
+// dropped for all roles except assistant).
 //
 //	role=user       → handleQueryUserMessages (requires 'pattern' or defaults to ".*")
 //	role=assistant  → query assistant messages, optionally filtered by 'contains'
@@ -58,21 +62,14 @@ func handleQuerySessionContent(e *ToolExecutor, scope string, args map[string]in
 
 		jqFilter := `select(.type == "assistant")`
 		if contains != "" {
-			// `contains` is documented as a literal substring filter, not a
-			// regex. jq's test() is a regex-match function, so the raw
-			// substring must first be regex-escaped via regexp.QuoteMeta
-			// (e.g. "." -> "\."), THEN jq-string-escaped via EscapeJQ (which
-			// only escapes `\`/`"` for jq string-literal safety and knows
-			// nothing about regex metacharacters). Skipping QuoteMeta lets
-			// unescaped metacharacters like "." match any character, so a
-			// search for "main.go" would also match unrelated content such
-			// as "mainXgo" (DIR-047; originally found and fixed by DIR-005,
-			// whose fix never landed on main before the task was marked done).
-			escaped := EscapeJQ(regexp.QuoteMeta(contains))
-			// Guard against null/missing content: use `// empty` so records without
-			// a content field are skipped rather than producing a jq error.
-			// This fixes query_summaries null return when content is null or absent.
-			jqFilter = fmt.Sprintf(`%s | select((.message.content // empty | tostring) | test("%s"; "i"))`, jqFilter, escaped)
+			// Route through the shared containsClause helper (handlers.go),
+			// which applies the DIR-047 regexp.QuoteMeta + EscapeJQ + jq
+			// test(...; "i") escaping path — the same path every other role
+			// uses since DIR-062, so the escaping cannot diverge per branch.
+			// The `// empty` guard skips records without a content field
+			// rather than producing a jq error (this fixed the query_summaries
+			// null return when content is null or absent).
+			jqFilter = jqFilter + " | " + containsClause(contains, ".message.content // empty")
 		}
 		return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
 
