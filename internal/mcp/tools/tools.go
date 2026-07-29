@@ -221,12 +221,37 @@ func BuildToolSchema(properties map[string]Property, required ...string) ToolSch
 	return s
 }
 
-// BuildTool creates a Tool with the given name, description, and schema
+// standardParamsForTool limits shared parameters to execution paths that
+// actually consume them. BuildTool must not advertise every shared parameter:
+// special analysis handlers do not pass through the query response pipeline.
+func standardParamsForTool(name string) map[string]Property {
+	all := StandardToolParameters()
+	var names []string
+	switch name {
+	case "query_session_content", "query_session_signals", "query_file_activity", "query_sessions":
+		names = []string{"scope", "provider", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes", "include_subagents", "offset", "page_size"}
+	case "analyze_errors", "analyze_bugs", "quality_scan", "get_work_patterns", "get_timeline", "get_tech_debt":
+		names = []string{"scope", "provider", "stats_only"}
+	case "get_session_directory", "get_session_metadata", "query_edit_sequences":
+		names = []string{"scope", "provider"}
+	}
+	selected := make(map[string]Property, len(names))
+	for _, param := range names {
+		selected[param] = all[param]
+	}
+	return selected
+}
+
+// BuildTool creates a Tool with parameters scoped to its execution path.
 func BuildTool(name, description string, properties map[string]Property, required ...string) Tool {
+	merged := standardParamsForTool(name)
+	for key, property := range properties {
+		merged[key] = property
+	}
 	return Tool{
 		Name:        name,
 		Description: description,
-		InputSchema: BuildToolSchema(properties, required...),
+		InputSchema: ToolSchema{Type: "object", Properties: merged, Required: required},
 	}
 }
 

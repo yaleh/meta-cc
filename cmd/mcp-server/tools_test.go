@@ -114,8 +114,14 @@ func TestMergeParameters(t *testing.T) {
 	}
 }
 
-func TestAllToolsHaveStandardParameters(t *testing.T) {
-	tools := getToolDefinitions()
+func TestQueryPipelineToolsHaveSharedParameters(t *testing.T) {
+	definitions := getToolDefinitions()
+	queryPipelineTools := map[string]bool{
+		"query_session_content": true,
+		"query_session_signals": true,
+		"query_file_activity":   true,
+		"query_sessions":        true,
+	}
 
 	requiredParams := []string{
 		"scope", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes",
@@ -151,7 +157,10 @@ func TestAllToolsHaveStandardParameters(t *testing.T) {
 		"content_summary",
 	}
 
-	for _, tool := range tools {
+	for _, tool := range definitions {
+		if !queryPipelineTools[tool.Name] {
+			continue
+		}
 		t.Run(tool.Name, func(t *testing.T) {
 			// Skip deprecated tools (they still need standard params but we're phasing them out)
 			if strings.Contains(tool.Description, "DEPRECATED") {

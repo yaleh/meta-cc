@@ -155,6 +155,22 @@ fi
 echo ""
 
 # ==============================================================================
+# Check: DIR-045 MCP schema/handler parameter-wiring gate
+# ==============================================================================
+echo -e "${BLUE}[+] Checking MCP tool schema/handler parameter wiring (DIR-045)...${NC}"
+
+if ! go test ./internal/mcp/tools/... -run '^TestSchemaParamsAreWired$' -v >/tmp/dir045_schema_wiring.log 2>&1; then
+    echo -e "${RED}❌ A tool's schema (internal/mcp/tools/tools.go) declares a parameter that no${NC}"
+    echo -e "${RED}   reachable handler code actually reads (internal/mcp/tools/schema_param_wiring_test.go):${NC}"
+    sed 's/^/  /' /tmp/dir045_schema_wiring.log
+    ERRORS=$((ERRORS + 1))
+else
+    echo "  ✓ Every BuildTool(...) schema parameter is wired to a reachable handler read"
+fi
+rm -f /tmp/dir045_schema_wiring.log
+echo ""
+
+# ==============================================================================
 # Summary
 # ==============================================================================
 echo -e "${BLUE}=== Summary ===${NC}"
@@ -169,6 +185,7 @@ if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
     echo "  ✓ Static analysis (go vet)"
     echo "  ✓ Dependencies (go mod)"
     echo "  ✓ Build verification"
+    echo "  ✓ MCP schema/handler parameter wiring (DIR-045)"
     exit 0
 elif [ $ERRORS -eq 0 ]; then
     echo -e "${YELLOW}⚠️  All checks passed with $WARNINGS warning(s)${NC}"

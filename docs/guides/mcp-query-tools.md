@@ -483,6 +483,23 @@ change. Previously `output_format` was declared (via `StandardToolParameters()`)
 tools uniformly, but `pipeline.BuildResponse` never branched on it, so every tool silently
 ignored the parameter regardless of what was passed.
 
+### Schema/handler parameter-wiring gate (DIR-045)
+
+`internal/mcp/tools/schema_param_wiring_test.go` (`TestSchemaParamsAreWired`) checks
+each `BuildTool(...)` tool's **effective schema** against reads reachable from that
+tool's registered handler. Shared parameters are selected by the concrete execution
+path in `standardParamsForTool`; they are not injected onto every tool globally.
+Query handlers include the common executor, pipeline, and response path, while
+analysis/special handlers include only code they actually execute. This means an
+unread parameter on an analysis tool fails even if a query tool reads the same
+parameter name.
+
+Any exceptional allowance must be keyed by both tool and parameter in
+`handlerScopedExemptions`, with a justification; there is no parameter-name-wide
+allowlist. The test runs with normal `go test` (`make test` / `make commit`) and is
+also invoked by `scripts/checks/check-go-quality.sh` (`make check-go-quality`, reached
+by `make push`).
+
 ## Hybrid Output Mode
 
 meta-cc uses hybrid output:

@@ -195,6 +195,31 @@ func TestMergeParameters(t *testing.T) {
 	}
 }
 
+func TestBuildToolScopesSharedParametersToExecutionPath(t *testing.T) {
+	defs := tools.GetToolDefinitions()
+	byName := make(map[string]tools.Tool, len(defs))
+	for _, def := range defs {
+		byName[def.Name] = def
+	}
+
+	analysis := byName["analyze_errors"].InputSchema.Properties
+	if _, ok := analysis["stats_only"]; !ok {
+		t.Fatal("analysis tools must retain stats_only, which their handlers read")
+	}
+	for _, unread := range []string{"jq_filter", "stats_first", "offset", "page_size", "inline_threshold_bytes"} {
+		if _, ok := analysis[unread]; ok {
+			t.Errorf("analysis tool must not advertise unread query-pipeline parameter %q", unread)
+		}
+	}
+
+	query := byName["query_session_signals"].InputSchema.Properties
+	for _, wired := range []string{"jq_filter", "stats_first", "offset", "page_size", "inline_threshold_bytes"} {
+		if _, ok := query[wired]; !ok {
+			t.Errorf("query-pipeline tool must retain wired shared parameter %q", wired)
+		}
+	}
+}
+
 func TestGetToolDefinitions(t *testing.T) {
 	defs := tools.GetToolDefinitions()
 	if len(defs) == 0 {
