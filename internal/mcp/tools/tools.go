@@ -68,19 +68,18 @@ func StandardToolParameters() map[string]Property {
 // details mode over a flat record array), and offset/page_size (record-array
 // pagination) are ever consulted. These six tools return typed, non-flat-
 // record analyzer results (e.g. AnalyzeBugsResult, TimelineResult), so those
-// four parameters don't have an obvious, clean meaning against them, and
-// `grep -rn '"jq_filter"\|"stats_first"\|"offset"\|"page_size"' internal/analysis/*.go`
+// five parameters don't have an obvious, clean meaning against them, and
+// `grep -rn '"jq_filter"\|"stats_first"\|"offset"\|"page_size"\|"inline_threshold_bytes"' internal/analysis/*.go`
 // returns zero hits confirming they were never consulted. This is
-// StandardToolParameters() with those four keys removed -- scope, provider,
-// stats_only (genuinely wired per-tool since DIR-042),
-// inline_threshold_bytes, and include_subagents (a data-scope parameter
-// about which JSONL files get read at all, not response formatting, and out
-// of this task's scope) are unaffected. See BuildAnalysisTool, the
+// StandardToolParameters() with those five keys removed -- scope, provider,
+// stats_only (genuinely wired per-tool since DIR-042), and include_subagents
+// (a data-scope parameter about which JSONL files get read at all) are
+// unaffected. See BuildAnalysisTool, the
 // DIR-044 OutputFormatProperty precedent for scoping a schema parameter to
 // only the tools that can actually honor it.
 func AnalysisStandardToolParameters() map[string]Property {
 	params := StandardToolParameters()
-	for _, k := range []string{"jq_filter", "stats_first", "offset", "page_size"} {
+	for _, k := range []string{"jq_filter", "stats_first", "inline_threshold_bytes", "offset", "page_size"} {
 		delete(params, k)
 	}
 	return params

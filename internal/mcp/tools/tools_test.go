@@ -73,8 +73,8 @@ func TestOutputFormat_ScopedToSupportedTools(t *testing.T) {
 // internal/mcp/executor.ExecuteSpecialTool via registerHandler
 // (analysis_handlers.go). That dispatch path returns before
 // internal/mcp/executor.NewToolPipelineConfig / internal/mcp/pipeline.BuildResponse
-// is ever reached, so jq_filter/stats_first/offset/page_size (only consulted
-// there) are always inert for these six tools (DIR-048).
+// is ever reached, so jq_filter/stats_first/inline_threshold_bytes/offset/page_size
+// (only consulted there) are always inert for these six tools (DIR-048/DIR-045).
 var analysisServiceTools = []string{
 	"analyze_bugs",
 	"analyze_errors",
@@ -84,17 +84,18 @@ var analysisServiceTools = []string{
 	"get_tech_debt",
 }
 
-// postProcessingParams are the four StandardToolParameters() entries that
-// only have meaning against a flat record array produced by
-// internal/mcp/pipeline.BuildResponse: jq_filter (post-filter), stats_first
-// (stats-then-details mode), offset/page_size (record-array pagination).
-var postProcessingParams = []string{"jq_filter", "stats_first", "offset", "page_size"}
+// postProcessingParams are the five StandardToolParameters() entries that
+// only have meaning on the internal/mcp/query response path: jq_filter
+// (post-filter), stats_first (stats-then-details mode),
+// inline_threshold_bytes (pipeline hybrid response threshold), and
+// offset/page_size (record-array pagination).
+var postProcessingParams = []string{"jq_filter", "stats_first", "inline_threshold_bytes", "offset", "page_size"}
 
 // TestAnalysisToolParameters_ExcludesPostProcessingParams is the DIR-048
 // regression: AnalysisStandardToolParameters() (the base parameter set used
 // for the six analysis.Service-backed tools) must not declare jq_filter,
-// stats_first, offset, or page_size, since none of them are ever consulted
-// on that dispatch path. scope/provider/stats_only/inline_threshold_bytes/
+// stats_first, inline_threshold_bytes, offset, or page_size, since none is
+// ever consulted on that dispatch path. scope/provider/stats_only/
 // include_subagents are unaffected -- stats_only is genuinely wired
 // per-tool (DIR-042), and include_subagents is a data-scope parameter
 // (which JSONL files get read at all) rather than a response-formatting
@@ -109,7 +110,7 @@ func TestAnalysisToolParameters_ExcludesPostProcessingParams(t *testing.T) {
 		}
 	}
 
-	for _, p := range []string{"scope", "provider", "stats_only", "inline_threshold_bytes", "include_subagents"} {
+	for _, p := range []string{"scope", "provider", "stats_only", "include_subagents"} {
 		if _, ok := params[p]; !ok {
 			t.Errorf("AnalysisStandardToolParameters() must still declare %q", p)
 		}
@@ -119,8 +120,9 @@ func TestAnalysisToolParameters_ExcludesPostProcessingParams(t *testing.T) {
 // TestAnalysisTools_SchemaExcludesPostProcessingParams is the DIR-048
 // regression proving the fix at the live schema level: analyze_bugs,
 // analyze_errors, quality_scan, get_work_patterns, get_timeline, and
-// get_tech_debt must not advertise jq_filter/stats_first/offset/page_size in
-// their MCP tool schema. Before this fix, all four were merged in via
+// get_tech_debt must not advertise jq_filter/stats_first/
+// inline_threshold_bytes/offset/page_size in their MCP tool schema. Before
+// this fix, all five were merged in via
 // StandardToolParameters() with fully-specified, convincing descriptions even
 // though internal/analysis/*.go never reads any of them (confirmed by
 // `grep -rn '"jq_filter"\|"stats_first"\|"offset"\|"page_size"' internal/analysis/*.go`
@@ -143,11 +145,9 @@ func TestAnalysisTools_SchemaExcludesPostProcessingParams(t *testing.T) {
 }
 
 // TestPostProcessingParams_StillPresentOnPipelineRoutedTools guards against
-// an overly broad fix: jq_filter/stats_first/offset/page_size must remain on
-// the four tools that actually route through internal/mcp/pipeline.BuildResponse
-// (and, for jq_filter/stats_first/offset/page_size specifically, on any other
-// non-analysis tool that already correctly consumes them via
-// executor.NewToolPipelineConfig).
+// an overly broad fix: jq_filter/stats_first/inline_threshold_bytes/offset/
+// page_size must remain on the four tools that actually route through
+// internal/mcp/pipeline.BuildResponse.
 func TestPostProcessingParams_StillPresentOnPipelineRoutedTools(t *testing.T) {
 	pipelineRoutedTools := []string{
 		"query_sessions",
