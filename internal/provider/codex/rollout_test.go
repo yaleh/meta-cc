@@ -99,6 +99,99 @@ func TestLoadTurnsFromRolloutAccumulatesTokenUsageAcrossCalls(t *testing.T) {
 	}
 }
 
+// TestLoadTurnsFromRolloutRetainsReasoningOutputTokens is the DIR-071
+// regression test for reasoning tokens being dropped. Codex reports
+// reasoning_output_tokens on every token_count event, but applyTokenUsage
+// previously read it ONLY as part of the non-zero guard and then discarded it,
+// so a turn's reasoning cost vanished from every query and reasoning-inclusive
+// totals could not be reconciled. The fixture's single turn carries two
+// token_count events reporting reasoning 10 then 5; the per-turn usage must
+// accumulate them to 15 (DIR-065 accumulation still holding for every
+// category), and the cumulative session total must retain reasoning too.
+func TestLoadTurnsFromRolloutRetainsReasoningOutputTokens(t *testing.T) {
+	turns, total, err := loadTurnsFromRollout(filepath.Join("..", "..", "..", "tests", "fixtures", "codex", "rollout-legacy-reasoning-tokens-sample.jsonl"), 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected one turn, got %#v", turns)
+	}
+	turn := turns[0]
+
+	// Per-turn usage accumulates BOTH calls across every category, reasoning
+	// included: input 100+80, cache 20+10, output 50+40, reasoning 10+5.
+	if turn.TokenUsage.InputTokens != 180 || turn.TokenUsage.CacheTokens != 30 || turn.TokenUsage.OutputTokens != 90 {
+		t.Fatalf("per-turn in/cache/out not accumulated: %#v", turn.TokenUsage)
+	}
+	if turn.TokenUsage.ReasoningOutputTokens != 15 {
+		t.Fatalf("per-turn reasoning not accumulated across calls: got %d, want 15 (%#v)", turn.TokenUsage.ReasoningOutputTokens, turn.TokenUsage)
+	}
+
+	// The cumulative session total (last total_token_usage) retains reasoning.
+	if total.InputTokens != 180 || total.CacheTokens != 30 || total.OutputTokens != 90 || total.ReasoningOutputTokens != 15 {
+		t.Fatalf("session total dropped reasoning: %#v", total)
+	}
+
+	// Single-turn reconciliation: sum(per-turn) must equal the cumulative
+	// total, reasoning included — the difference a caller would otherwise be
+	// unable to explain is zero here by construction.
+	if turn.TokenUsage != total {
+		t.Fatalf("per-turn %#v does not reconcile with session total %#v (reasoning must be on both sides)", turn.TokenUsage, total)
+	}
+}
+
+// TestLoadTurnsFromRolloutMultiTurnReconcilesWithSessionTotal is the DIR-071
+// turn-vs-session reconciliation proof for a MULTI-turn session: the cumulative
+// total_token_usage (session total) must equal the sum of every turn's
+// per-turn usage across ALL categories, reasoning included. Because reasoning
+// tokens are now retained on both sides (not dropped on the per-turn side),
+// the two reconcile exactly — the reasoning component that previously made
+// them disagree is present on both. This is the invariant a caller relies on
+// to explain any session-total-vs-sum-of-turns difference: when it is non-zero,
+// the cause is a real signal (compaction / missing events), not dropped
+// reasoning.
+func TestLoadTurnsFromRolloutMultiTurnReconcilesWithSessionTotal(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multi-turn-reconcile.jsonl")
+	content := `{"timestamp":"2026-06-14T09:00:00Z","type":"session_meta","payload":{"id":"sess-mt","cwd":"/tmp/project","model":"gpt-5"}}
+{"timestamp":"2026-06-14T09:00:01Z","type":"turn_context","payload":{"turn_id":"turn-1"}}
+{"timestamp":"2026-06-14T09:00:02Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"first"}]}}
+{"timestamp":"2026-06-14T09:00:03Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":100,"output_tokens":50,"reasoning_output_tokens":10},"total_token_usage":{"input_tokens":100,"output_tokens":50,"reasoning_output_tokens":10}}}}
+{"timestamp":"2026-06-14T09:00:04Z","type":"turn_context","payload":{"turn_id":"turn-2"}}
+{"timestamp":"2026-06-14T09:00:05Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"second"}]}}
+{"timestamp":"2026-06-14T09:00:06Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":60,"output_tokens":30,"reasoning_output_tokens":5},"total_token_usage":{"input_tokens":160,"output_tokens":80,"reasoning_output_tokens":15}}}}
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	turns, total, err := loadTurnsFromRollout(path, 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 2 {
+		t.Fatalf("expected 2 turns, got %d: %#v", len(turns), turns)
+	}
+
+	// Sum every turn's per-turn usage across all categories.
+	var sumIn, sumOut, sumCache, sumReasoning int
+	for _, turn := range turns {
+		sumIn += turn.TokenUsage.InputTokens
+		sumOut += turn.TokenUsage.OutputTokens
+		sumCache += turn.TokenUsage.CacheTokens
+		sumReasoning += turn.TokenUsage.ReasoningOutputTokens
+	}
+
+	// Reconciliation: sum(per-turn) == cumulative session total, reasoning
+	// included on both sides.
+	if sumIn != total.InputTokens || sumOut != total.OutputTokens || sumCache != total.CacheTokens || sumReasoning != total.ReasoningOutputTokens {
+		t.Fatalf("per-turn sums {in:%d out:%d cache:%d reasoning:%d} do not reconcile with session total %#v",
+			sumIn, sumOut, sumCache, sumReasoning, total)
+	}
+	if total.ReasoningOutputTokens != 15 || sumReasoning != 15 {
+		t.Fatalf("reasoning must reconcile to 15 on both sides: sum=%d total=%#v", sumReasoning, total)
+	}
+}
+
 // TestLoadTurnsFromRolloutDedupesAssistantSegments is a regression test for
 // the duplicate-assistant-text defect (DIR-027): live Codex CLI 0.145
 // rollouts record the same assistant utterance through BOTH the legacy

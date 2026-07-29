@@ -180,10 +180,10 @@ func Normalize(session conversation.Session, turns []conversation.Turn) []map[st
 					"model":   session.Model,
 					"content": projected.Value,
 				}
-				if hasUsage(turn.TokenUsage) {
-					message["usage"] = map[string]interface{}{"input_tokens": turn.TokenUsage.InputTokens, "output_tokens": turn.TokenUsage.OutputTokens, "cache_tokens": turn.TokenUsage.CacheTokens}
-				} else if session.Provider != conversation.ProviderCodex && hasUsage(session.TokenUsage) {
-					message["usage"] = map[string]interface{}{"input_tokens": session.TokenUsage.InputTokens, "output_tokens": session.TokenUsage.OutputTokens, "cache_tokens": session.TokenUsage.CacheTokens}
+				if turn.TokenUsage.HasAny() {
+					message["usage"] = usageMap(turn.TokenUsage)
+				} else if session.Provider != conversation.ProviderCodex && session.TokenUsage.HasAny() {
+					message["usage"] = usageMap(session.TokenUsage)
 				}
 				emit(map[string]interface{}{
 					"type":       "assistant",
@@ -312,6 +312,21 @@ func lifecycleTypeForStatus(status conversation.TurnStatus) (string, bool) {
 	}
 }
 
-func hasUsage(usage conversation.TokenUsage) bool {
-	return usage.InputTokens != 0 || usage.OutputTokens != 0 || usage.CacheTokens != 0
+// usageMap renders a canonical TokenUsage as the normalized message.usage
+// object. input_tokens / output_tokens / cache_tokens are always present
+// (unchanged legacy contract); reasoning_output_tokens is added only when the
+// source reported it (DIR-071), so existing records without reasoning gain no
+// new zero-valued field. An opaque AggregateTokens is deliberately NOT mapped
+// here: it is session-level metadata with its own provenance and must never
+// be re-emitted as a per-turn input/output count.
+func usageMap(usage conversation.TokenUsage) map[string]interface{} {
+	m := map[string]interface{}{
+		"input_tokens":  usage.InputTokens,
+		"output_tokens": usage.OutputTokens,
+		"cache_tokens":  usage.CacheTokens,
+	}
+	if usage.ReasoningOutputTokens != 0 {
+		m["reasoning_output_tokens"] = usage.ReasoningOutputTokens
+	}
+	return m
 }

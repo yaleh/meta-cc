@@ -330,6 +330,17 @@ func sessionToEntry(s conversation.Session) map[string]interface{} {
 	if !s.UpdatedAt.IsZero() {
 		entry["updated_at"] = s.UpdatedAt.Format(time.RFC3339)
 	}
+	// DIR-071: surface an opaque provider aggregate (e.g. Codex SQLite
+	// threads.tokens_used) as explicitly-labeled fields with provenance, never
+	// as input_tokens — so a session-level total is attributable and can be
+	// reconciled against per-turn counts instead of being mistaken for input
+	// usage. Absent when the source reports no aggregate.
+	if s.TokenUsage.AggregateTokens != 0 {
+		entry["aggregate_tokens"] = s.TokenUsage.AggregateTokens
+		if s.TokenUsage.AggregateSource != "" {
+			entry["aggregate_source"] = s.TokenUsage.AggregateSource
+		}
+	}
 	return entry
 }
 

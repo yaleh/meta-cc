@@ -82,8 +82,58 @@ type ToolCall struct {
 	Timestamp time.Time       `json:"timestamp"`
 }
 
+// TokenUsage is the canonical, provider-neutral token accounting for a Turn
+// or a Session (DIR-071). It distinguishes the five categories a source may
+// report — input, cached input, output, reasoning output, and an opaque
+// provider aggregate — instead of collapsing them into a single bucket.
+//
+// Field semantics (see docs/reference/jsonl-schema.md "Token Usage Model"):
+//
+//   - InputTokens / OutputTokens / CacheTokens: the precise per-category
+//     counts. For a Turn these are accumulated across the turn's model calls
+//     (DIR-065); for a Session they are a cumulative total.
+//   - ReasoningOutputTokens: output tokens the model spent on reasoning
+//     (chain-of-thought), reported separately by Codex as
+//     reasoning_output_tokens. Preserved so reasoning-inclusive totals can be
+//     reconciled; zero when the source does not report it.
+//   - AggregateTokens / AggregateSource: an OPAQUE provider-reported total
+//     whose composition (input+cached+output+reasoning) is defined by the
+//     source, NOT by meta-cc. It is never an input-token count. Populated from
+//     the Codex SQLite threads.tokens_used column; AggregateSource names that
+//     provenance so the value is explicitly attributable rather than silently
+//     reinterpreted as InputTokens. Zero/"" when no such aggregate exists.
 type TokenUsage struct {
 	InputTokens  int `json:"input_tokens"`
 	OutputTokens int `json:"output_tokens"`
 	CacheTokens  int `json:"cache_tokens,omitempty"`
+
+	ReasoningOutputTokens int `json:"reasoning_output_tokens,omitempty"`
+
+	AggregateTokens int    `json:"aggregate_tokens,omitempty"`
+	AggregateSource string `json:"aggregate_source,omitempty"`
+}
+
+// Aggregate provenance values for TokenUsage.AggregateSource (DIR-071). Each
+// names the exact backend + field an opaque AggregateTokens total came from,
+// so callers can reconcile it against the precise per-category counts instead
+// of mistaking it for input usage.
+const (
+	// AggregateSourceCodexSQLite marks an aggregate read from the Codex
+	// threads.tokens_used SQLite column — a provider-maintained running
+	// total, not a per-category input count.
+	AggregateSourceCodexSQLite = "codex_sqlite:threads.tokens_used"
+)
+
+// HasAny reports whether any token category (including reasoning output and
+// an opaque aggregate) carries a non-zero value. It is the single, shared
+// "does this usage carry anything?" predicate (DIR-071): every caller that
+// decides whether to emit or retain token usage must use it so a turn that
+// reports ONLY reasoning tokens, or a session that reports ONLY an opaque
+// aggregate, is never mistaken for an empty usage.
+func (u TokenUsage) HasAny() bool {
+	return u.InputTokens != 0 ||
+		u.OutputTokens != 0 ||
+		u.CacheTokens != 0 ||
+		u.ReasoningOutputTokens != 0 ||
+		u.AggregateTokens != 0
 }

@@ -1,0 +1,8 @@
+{"timestamp":"2026-06-14T08:00:00Z","type":"session_meta","payload":{"id":"sess-reasoning","cwd":"/tmp/project","model":"gpt-5"}}
+{"timestamp":"2026-06-14T08:00:01Z","type":"turn_context","payload":{"turn_id":"turn-reasoning"}}
+{"timestamp":"2026-06-14T08:00:02Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"solve and explain"}]}}
+{"timestamp":"2026-06-14T08:00:03Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"call-1","arguments":"{\"cmd\":\"echo one\"}"}}
+{"timestamp":"2026-06-14T08:00:04Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call-1","output":"one"}}
+{"timestamp":"2026-06-14T08:00:05Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":50,"reasoning_output_tokens":10},"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":50,"reasoning_output_tokens":10}}}}
+{"timestamp":"2026-06-14T08:00:06Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"done"}]}}
+{"timestamp":"2026-06-14T08:00:07Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":80,"cached_input_tokens":10,"output_tokens":40,"reasoning_output_tokens":5},"total_token_usage":{"input_tokens":180,"cached_input_tokens":30,"output_tokens":90,"reasoning_output_tokens":15}}}}

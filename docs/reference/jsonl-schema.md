@@ -500,6 +500,42 @@ Assistant entries include detailed token usage:
 - `ephemeral_5m_input_tokens` - 5-minute cache
 - `ephemeral_1h_input_tokens` - 1-hour cache
 
+## Token Usage Model
+
+meta-cc normalizes every provider's token accounting into one canonical model
+(`conversation.TokenUsage`) that keeps the categories a source reports
+**distinct** rather than collapsing them. The same field names appear on a
+normalized record's `message.usage` and (for session-level metadata) on
+`query_sessions` output.
+
+| Field | Meaning | Emitted when |
+| --- | --- | --- |
+| `input_tokens` | Input tokens for the model call(s). Per-turn this is accumulated across every call in the turn (DIR-065); per-session it is cumulative. | always (may be `0`) |
+| `output_tokens` | Output tokens generated. | always (may be `0`) |
+| `cache_tokens` | Cached-input tokens (Codex `cached_input_tokens`; Claude `cache_creation_input_tokens` + `cache_read_input_tokens`). | always (may be `0`) |
+| `reasoning_output_tokens` | Output tokens spent on model reasoning (chain-of-thought). Preserved from Codex `reasoning_output_tokens` so reasoning-inclusive totals reconcile. | only when the source reports it (non-zero) |
+| `aggregate_tokens` | An **opaque provider total** whose composition (input+cached+output+reasoning) is defined by the source, not meta-cc. **Never an input count.** | only when a source reports one |
+| `aggregate_source` | Provenance of `aggregate_tokens`, e.g. `codex_sqlite:threads.tokens_used`. | alongside `aggregate_tokens` |
+
+Provenance and reconciliation rules (DIR-071):
+
+- **Codex rollout (per-turn / cumulative).** Each `token_count` event carries
+  `last_token_usage` (one model call) and `total_token_usage` (running session
+  total). A turn's `message.usage` accumulates every call's `last_token_usage`
+  — including `reasoning_output_tokens` — so for a complete session
+  `sum(per-turn usage) == final total_token_usage` across all categories. When
+  that equality does not hold, the difference is a real signal (compaction,
+  missing/truncated events), not dropped reasoning.
+- **Codex SQLite `threads.tokens_used`.** This column is a provider-maintained
+  running total, not a per-category count. It is surfaced on `query_sessions`
+  as `aggregate_tokens` with `aggregate_source: codex_sqlite:threads.tokens_used`
+  and is **never** relabeled as `input_tokens`. It may legitimately differ from
+  the rollout's summed total (different accounting), which is exactly why it is
+  kept separate and labeled.
+- **Claude.** `input_tokens` / `output_tokens` / `cache_tokens` map directly
+  from the Claude `usage` object; Claude does not report a separate reasoning
+  field or an opaque aggregate, so those fields are simply absent.
+
 ## Codex Native Records
 
 Codex stores most data under a top-level `payload` object. meta-cc currently normalizes the common analysis events listed below.
@@ -775,7 +811,7 @@ Codex token usage is emitted as an `event_msg`:
 }
 ```
 
-Normalization creates an assistant entry with `message.usage`, so `query_token_usage` works for Codex as well as Claude Code.
+Normalization creates an assistant entry with `message.usage`, so `query_token_usage` works for Codex as well as Claude Code. `input_tokens`, `cached_input_tokens` (as `cache_tokens`), and `output_tokens` are accumulated across every `token_count` event in a turn, and `reasoning_output_tokens` is retained as `message.usage.reasoning_output_tokens` (DIR-071) — see the "Token Usage Model" section above for field semantics and reconciliation.
 
 ### Host-Specific Gaps
 

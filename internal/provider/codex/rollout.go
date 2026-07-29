@@ -300,7 +300,7 @@ func (b *turnBuilder) flush() {
 	// len(b.current.Items) > 0 (rather than enumerating specific item
 	// kinds) also covers any future item kind added to the Items stream
 	// without another handler-specific carve-out here.
-	hasContent := b.current != nil && (b.current.UserText != "" || b.current.AssistantText != "" || len(b.current.ToolCalls) > 0 || hasUsage(b.current.TokenUsage) || len(b.current.Extensions) > 0 || len(b.current.Items) > 0 || b.current.Status != conversation.TurnStatusUnspecified)
+	hasContent := b.current != nil && (b.current.UserText != "" || b.current.AssistantText != "" || len(b.current.ToolCalls) > 0 || b.current.TokenUsage.HasAny() || len(b.current.Extensions) > 0 || len(b.current.Items) > 0 || b.current.Status != conversation.TurnStatusUnspecified)
 	if hasContent {
 		if b.truncated {
 			b.current.Completeness = conversation.HistoryCompletenessTruncated
@@ -518,12 +518,18 @@ func (b *turnBuilder) applyTokenUsage(timestamp string, last, total codexTokenUs
 		b.current.TokenUsage.InputTokens += last.InputTokens
 		b.current.TokenUsage.OutputTokens += last.OutputTokens
 		b.current.TokenUsage.CacheTokens += last.CachedInputTokens
+		// DIR-071: reasoning_output_tokens was previously read only as part of
+		// the non-zero guard above and then discarded, so a turn's reasoning
+		// cost vanished from every query. Accumulate it alongside the other
+		// per-call categories so reasoning-inclusive turn totals reconcile.
+		b.current.TokenUsage.ReasoningOutputTokens += last.ReasoningOutputTokens
 	}
 	if total.InputTokens != 0 || total.OutputTokens != 0 || total.CachedInputTokens != 0 || total.ReasoningOutputTokens != 0 {
 		b.totalTokenUsage = conversation.TokenUsage{
-			InputTokens:  total.InputTokens,
-			OutputTokens: total.OutputTokens,
-			CacheTokens:  total.CachedInputTokens,
+			InputTokens:           total.InputTokens,
+			OutputTokens:          total.OutputTokens,
+			CacheTokens:           total.CachedInputTokens,
+			ReasoningOutputTokens: total.ReasoningOutputTokens,
 		}
 	}
 }
@@ -668,10 +674,6 @@ func isErrorStatus(status string) bool {
 	default:
 		return true
 	}
-}
-
-func hasUsage(usage conversation.TokenUsage) bool {
-	return usage.InputTokens != 0 || usage.OutputTokens != 0 || usage.CacheTokens != 0
 }
 
 func extractResponseItemText(content json.RawMessage) string {

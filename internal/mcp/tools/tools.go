@@ -513,7 +513,7 @@ func GetToolDefinitions() []Tool {
 			map[string]Property{
 				"type": {
 					Type:        "string",
-					Description: "Signal type: 'errors' (tool execution errors), 'tokens' (assistant token usage), 'system_errors' (API errors), 'timestamps' (all timestamped entries), or 'tool_stats' (assistant tool calls)",
+					Description: "Signal type: 'errors' (tool execution errors), 'tokens' (assistant token usage: message.usage carries input_tokens, output_tokens, cache_tokens, and reasoning_output_tokens when the source reports it — Codex reasoning tokens; see docs/reference/jsonl-schema.md 'Token Usage Model'), 'system_errors' (API errors), 'timestamps' (all timestamped entries), or 'tool_stats' (assistant tool calls)",
 				},
 				"tool": {
 					Type:        "string",

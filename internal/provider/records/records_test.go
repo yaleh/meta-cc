@@ -83,6 +83,97 @@ func TestNormalizeCodexSessionTokenUsageDoesNotCreateUsageRecord(t *testing.T) {
 	}
 }
 
+// TestNormalizeEmitsReasoningOutputTokens is the DIR-071 acceptance test that
+// reasoning_output_tokens survives all the way into the normalized token-query
+// output. A turn whose usage carries reasoning must surface it on
+// message.usage.reasoning_output_tokens alongside the existing categories.
+func TestNormalizeEmitsReasoningOutputTokens(t *testing.T) {
+	session := conversation.Session{ID: "s", Provider: conversation.ProviderCodex, CWD: "/tmp/project"}
+	turns := []conversation.Turn{{
+		ID:            "turn-1",
+		AssistantText: "ack",
+		TokenUsage: conversation.TokenUsage{
+			InputTokens:           10,
+			OutputTokens:          3,
+			CacheTokens:           2,
+			ReasoningOutputTokens: 4,
+		},
+		Timestamp: time.Unix(1700000000, 0).UTC(),
+	}}
+
+	got := Normalize(session, turns)
+	usage, ok := got[0]["message"].(map[string]interface{})["usage"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("assistant usage missing: %#v", got[0])
+	}
+	if usage["input_tokens"] != 10 || usage["output_tokens"] != 3 || usage["cache_tokens"] != 2 {
+		t.Fatalf("legacy categories changed: %#v", usage)
+	}
+	if usage["reasoning_output_tokens"] != 4 {
+		t.Fatalf("reasoning_output_tokens not emitted: %#v", usage)
+	}
+}
+
+// TestNormalizeOmitsReasoningWhenZero guards backward compatibility: records
+// whose source reported no reasoning must not gain a new zero-valued
+// reasoning_output_tokens field, so existing consumers/jq filters are
+// unaffected.
+func TestNormalizeOmitsReasoningWhenZero(t *testing.T) {
+	session := conversation.Session{ID: "s", Provider: conversation.ProviderCodex, CWD: "/tmp/project"}
+	turns := []conversation.Turn{{
+		ID:            "turn-1",
+		AssistantText: "ack",
+		TokenUsage:    conversation.TokenUsage{InputTokens: 10, OutputTokens: 3, CacheTokens: 2},
+		Timestamp:     time.Unix(1700000000, 0).UTC(),
+	}}
+
+	got := Normalize(session, turns)
+	usage := got[0]["message"].(map[string]interface{})["usage"].(map[string]interface{})
+	if _, ok := usage["reasoning_output_tokens"]; ok {
+		t.Fatalf("reasoning_output_tokens must be omitted when zero: %#v", usage)
+	}
+}
+
+// TestNormalizeCodexAggregateNeverBecomesInputTokens is the DIR-071
+// compatibility test at the record layer: a Codex session whose only token
+// metadata is the opaque SQLite aggregate must NEVER emit it as a per-turn
+// input_tokens (nor as any per-turn usage field). The aggregate is
+// session-level provenance metadata, not turn usage.
+func TestNormalizeCodexAggregateNeverBecomesInputTokens(t *testing.T) {
+	session := conversation.Session{
+		ID:       "codex-session",
+		Provider: conversation.ProviderCodex,
+		CWD:      "/tmp/project",
+		TokenUsage: conversation.TokenUsage{
+			AggregateTokens: 12345,
+			AggregateSource: conversation.AggregateSourceCodexSQLite,
+		},
+	}
+	turns := []conversation.Turn{{
+		ID:            "turn-1",
+		AssistantText: "ack",
+		Timestamp:     time.Unix(1700000000, 0).UTC(),
+	}}
+
+	got := Normalize(session, turns)
+	for _, rec := range got {
+		message, _ := rec["message"].(map[string]interface{})
+		if message == nil {
+			continue
+		}
+		usage, _ := message["usage"].(map[string]interface{})
+		if usage == nil {
+			continue
+		}
+		if usage["input_tokens"] == 12345 {
+			t.Fatalf("sqlite aggregate leaked as per-turn input_tokens: %#v", usage)
+		}
+		if _, ok := usage["aggregate_tokens"]; ok {
+			t.Fatalf("opaque aggregate must not appear in per-turn usage: %#v", usage)
+		}
+	}
+}
+
 func TestNormalizeToolInputNullBecomesEmptyMap(t *testing.T) {
 	session := conversation.Session{
 		ID:       "codex-session",

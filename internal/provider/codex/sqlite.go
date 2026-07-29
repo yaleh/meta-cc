@@ -255,11 +255,30 @@ func scanSession(rows *sql.Rows) (conversation.Session, error) {
 		IsSubagent:     isSubagent,
 		CreatedAt:      createdAt.UTC(),
 		UpdatedAt:      updatedAt.UTC(),
-		TokenUsage: conversation.TokenUsage{
-			InputTokens: intValue(colMap["tokens_used"]),
-		},
+		// DIR-071: the threads.tokens_used column is an OPAQUE provider
+		// aggregate — a running total maintained by Codex, not a per-category
+		// input count. It is stored in AggregateTokens with explicit
+		// provenance (AggregateSource) rather than InputTokens, so callers can
+		// never mistake it for input usage and can reconcile it against the
+		// per-turn counts parsed from the rollout. A zero value is left as the
+		// zero TokenUsage (no aggregate reported).
+		TokenUsage: sqliteAggregateUsage(intValue(colMap["tokens_used"])),
 		Extensions: ext,
 	}, nil
+}
+
+// sqliteAggregateUsage wraps a non-zero threads.tokens_used value into a
+// TokenUsage carrying the opaque aggregate and its provenance; a zero value
+// yields the zero TokenUsage so absent metadata is not presented as a real
+// (zero-token) aggregate (DIR-071).
+func sqliteAggregateUsage(tokensUsed int) conversation.TokenUsage {
+	if tokensUsed == 0 {
+		return conversation.TokenUsage{}
+	}
+	return conversation.TokenUsage{
+		AggregateTokens: tokensUsed,
+		AggregateSource: conversation.AggregateSourceCodexSQLite,
+	}
 }
 
 // extractTime converts a threads-table timestamp column into a time.Time,

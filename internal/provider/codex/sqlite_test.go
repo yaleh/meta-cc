@@ -56,6 +56,68 @@ func TestSQLiteListAndGetSession(t *testing.T) {
 	}
 }
 
+// seedTokensUsedThread creates a threads table with one row carrying the given
+// tokens_used value and returns a session loaded from it. It isolates the
+// DIR-071 aggregate-mapping assertions from the rest of the scan.
+func seedTokensUsedThread(t *testing.T, dsn string, tokensUsed int) conversation.Session {
+	t.Helper()
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE threads (
+		id TEXT PRIMARY KEY, rollout_path TEXT, cwd TEXT, title TEXT, model TEXT,
+		model_provider TEXT, tokens_used INTEGER, source TEXT, created_at INTEGER)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`INSERT INTO threads(id, rollout_path, cwd, title, model, model_provider, tokens_used, source, created_at)
+		VALUES ('s1', '/tmp/rollout.jsonl', '/tmp', 'hello', 'gpt-5', 'openai', ?, 'cli', 1700000000)`, tokensUsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := getSessionFromDB(context.Background(), dsn, "s1")
+	if err != nil {
+		t.Fatalf("getSessionFromDB: %v", err)
+	}
+	return session
+}
+
+// TestSQLiteTokensUsedBecomesAggregateNotInput is the DIR-071 compatibility
+// test that prevents the Codex threads.tokens_used column from reappearing as
+// input_tokens. tokens_used is an OPAQUE provider aggregate, not a per-category
+// input count; it must be preserved in AggregateTokens with explicit
+// provenance (AggregateSource) and NEVER in InputTokens, so callers cannot
+// mistake it for input usage.
+func TestSQLiteTokensUsedBecomesAggregateNotInput(t *testing.T) {
+	session := seedTokensUsedThread(t, "file:test-tokens-aggregate?mode=memory&cache=shared", 4242)
+
+	if session.TokenUsage.InputTokens != 0 {
+		t.Fatalf("tokens_used must NOT be labeled input_tokens, got InputTokens=%d (%#v)", session.TokenUsage.InputTokens, session.TokenUsage)
+	}
+	if session.TokenUsage.AggregateTokens != 4242 {
+		t.Fatalf("tokens_used must be preserved as the opaque aggregate, got %#v", session.TokenUsage)
+	}
+	if session.TokenUsage.AggregateSource != conversation.AggregateSourceCodexSQLite {
+		t.Fatalf("aggregate must carry explicit provenance, got %q (%#v)", session.TokenUsage.AggregateSource, session.TokenUsage)
+	}
+}
+
+// TestSQLiteZeroTokensUsedLeavesUsageEmpty documents that an absent/zero
+// tokens_used is reported as the zero TokenUsage rather than a real (zero-token)
+// aggregate with provenance — "unknown metadata", not "measured zero".
+func TestSQLiteZeroTokensUsedLeavesUsageEmpty(t *testing.T) {
+	session := seedTokensUsedThread(t, "file:test-tokens-zero?mode=memory&cache=shared", 0)
+
+	if session.TokenUsage.HasAny() {
+		t.Fatalf("zero tokens_used must leave TokenUsage empty, got %#v", session.TokenUsage)
+	}
+	if session.TokenUsage.AggregateSource != "" {
+		t.Fatalf("zero tokens_used must not claim aggregate provenance, got %q", session.TokenUsage.AggregateSource)
+	}
+}
+
 func TestSQLiteMissingTableAndUnknownSession(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:test-missing?mode=memory&cache=shared")
 	if err != nil {

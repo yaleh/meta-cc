@@ -27,7 +27,7 @@ func Contents(turn conversation.Turn) []Content {
 	if turn.UserText != "" {
 		out = append(out, Content{Kind: UserMessage, Value: turn.UserText})
 	}
-	if turn.AssistantText != "" || len(turn.ToolCalls) > 0 || hasUsage(turn.TokenUsage) {
+	if turn.AssistantText != "" || len(turn.ToolCalls) > 0 || turn.TokenUsage.HasAny() {
 		content := make([]interface{}, 0, len(turn.ToolCalls)+1)
 		if turn.AssistantText != "" {
 			content = append(content, map[string]interface{}{"type": "text", "text": turn.AssistantText})
@@ -100,8 +100,4 @@ func toolInput(raw json.RawMessage) map[string]interface{} {
 		return map[string]interface{}{}
 	}
 	return input
-}
-
-func hasUsage(usage conversation.TokenUsage) bool {
-	return usage.InputTokens != 0 || usage.OutputTokens != 0 || usage.CacheTokens != 0
 }
