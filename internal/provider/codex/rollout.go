@@ -503,14 +503,21 @@ type codexTokenUsage struct {
 	ReasoningOutputTokens int `json:"reasoning_output_tokens"`
 }
 
+// applyTokenUsage records one token_count event's usage against the current
+// turn. Codex emits one token_count event per model API call, and a
+// tool-using turn makes multiple calls in sequence — last_token_usage is
+// per-call, not cumulative-within-turn (unlike total_token_usage, which is
+// cumulative for the whole session). So the turn's TokenUsage accumulates
+// each event's last_token_usage rather than being overwritten by it
+// (DIR-065); otherwise only the final call's usage survives and every
+// earlier call in the turn is silently discarded, undercounting the turn's
+// real consumption and disagreeing with the (correct) cumulative total.
 func (b *turnBuilder) applyTokenUsage(timestamp string, last, total codexTokenUsage) {
 	b.ensureTurn("", timestamp)
 	if last.InputTokens != 0 || last.OutputTokens != 0 || last.CachedInputTokens != 0 || last.ReasoningOutputTokens != 0 {
-		b.current.TokenUsage = conversation.TokenUsage{
-			InputTokens:  last.InputTokens,
-			OutputTokens: last.OutputTokens,
-			CacheTokens:  last.CachedInputTokens,
-		}
+		b.current.TokenUsage.InputTokens += last.InputTokens
+		b.current.TokenUsage.OutputTokens += last.OutputTokens
+		b.current.TokenUsage.CacheTokens += last.CachedInputTokens
 	}
 	if total.InputTokens != 0 || total.OutputTokens != 0 || total.CachedInputTokens != 0 || total.ReasoningOutputTokens != 0 {
 		b.totalTokenUsage = conversation.TokenUsage{

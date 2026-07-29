@@ -1,0 +1,9 @@
+{"timestamp":"2026-06-14T07:00:00Z","type":"session_meta","payload":{"id":"sess-multi-tc","cwd":"/tmp/project","model":"gpt-5"}}
+{"timestamp":"2026-06-14T07:00:01Z","type":"turn_context","payload":{"turn_id":"turn-multi-tc"}}
+{"timestamp":"2026-06-14T07:00:02Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"run two tool calls"}]}}
+{"timestamp":"2026-06-14T07:00:03Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"call-1","arguments":"{\"cmd\":\"echo one\"}"}}
+{"timestamp":"2026-06-14T07:00:04Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call-1","output":"one"}}
+{"timestamp":"2026-06-14T07:00:05Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":100,"cached_input_tokens":0,"output_tokens":50},"total_token_usage":{"input_tokens":100,"cached_input_tokens":0,"output_tokens":50}}}}
+{"timestamp":"2026-06-14T07:00:06Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"call-2","arguments":"{\"cmd\":\"echo two\"}"}}
+{"timestamp":"2026-06-14T07:00:07Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call-2","output":"two"}}
+{"timestamp":"2026-06-14T07:00:08Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":80,"cached_input_tokens":0,"output_tokens":40},"total_token_usage":{"input_tokens":180,"cached_input_tokens":0,"output_tokens":90}}}}

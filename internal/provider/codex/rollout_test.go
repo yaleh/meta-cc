@@ -65,6 +65,40 @@ func TestLoadTurnsFromRolloutLegacyCustomToolsAndTokenCount(t *testing.T) {
 	}
 }
 
+// TestLoadTurnsFromRolloutAccumulatesTokenUsageAcrossCalls is a regression
+// test for DIR-065: a tool-using turn makes multiple model API calls, and
+// Codex emits one token_count event per call. applyTokenUsage previously
+// overwrote b.current.TokenUsage on every event instead of accumulating, so
+// only the final call's per-call usage survived — undercounting the turn's
+// real consumption by every earlier call. The fixture's single turn carries
+// two token_count events reporting last_token_usage {in:100,out:50} then
+// {in:80,out:40}; the per-turn usage must be their sum {in:180,out:90}, not
+// the last event's {in:80,out:40}. The fixture's total_token_usage on the
+// final event already is the cumulative {in:180,out:90}, so this also
+// verifies internal consistency: for this single-turn session, sum(per-turn
+// usage) must equal the session total.
+func TestLoadTurnsFromRolloutAccumulatesTokenUsageAcrossCalls(t *testing.T) {
+	turns, total, err := loadTurnsFromRollout(filepath.Join("..", "..", "..", "tests", "fixtures", "codex", "rollout-legacy-multi-tokencount-sample.jsonl"), 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected one turn, got %#v", turns)
+	}
+	turn := turns[0]
+	if turn.TokenUsage.InputTokens != 180 || turn.TokenUsage.OutputTokens != 90 {
+		t.Fatalf("per-turn usage not accumulated across token_count events: got %#v, want {in:180,out:90}", turn.TokenUsage)
+	}
+	if total.InputTokens != 180 || total.OutputTokens != 90 {
+		t.Fatalf("unexpected session total: %#v", total)
+	}
+	// Single-turn session: sum(per-turn usage) must reconcile with the
+	// session total.
+	if turn.TokenUsage.InputTokens != total.InputTokens || turn.TokenUsage.OutputTokens != total.OutputTokens {
+		t.Fatalf("per-turn usage %#v does not reconcile with session total %#v", turn.TokenUsage, total)
+	}
+}
+
 // TestLoadTurnsFromRolloutDedupesAssistantSegments is a regression test for
 // the duplicate-assistant-text defect (DIR-027): live Codex CLI 0.145
 // rollouts record the same assistant utterance through BOTH the legacy
