@@ -56,8 +56,11 @@ fi
 # ============================================================================
 echo "  [3/4] Checking if go.sum is up to date..."
 
-# Create a backup
-cp go.sum go.sum.bak 2>/dev/null || true
+# Use a per-process backup: acceptance gates may overlap, and a shared
+# go.sum.bak lets one invocation delete another invocation's baseline.
+GO_SUM_BACKUP=$(mktemp "${TMPDIR:-/tmp}/meta-cc-go.sum.XXXXXX")
+cp go.sum "$GO_SUM_BACKUP"
+trap 'rm -f "$GO_SUM_BACKUP"' EXIT
 
 # Run go mod tidy (in check mode)
 if ! go mod tidy -v >/dev/null 2>&1; then
@@ -65,12 +68,11 @@ if ! go mod tidy -v >/dev/null 2>&1; then
     echo ""
     echo "There may be issues with dependencies"
     echo "Run: go mod tidy"
-    rm -f go.sum.bak
     exit 1
 fi
 
 # Check if go.sum changed
-if ! diff -q go.sum go.sum.bak >/dev/null 2>&1; then
+if ! diff -q go.sum "$GO_SUM_BACKUP" >/dev/null 2>&1; then
     echo -e "${RED}❌ ERROR: go.sum is out of sync${NC}"
     echo ""
     echo "The go.sum file needs to be updated"
@@ -81,11 +83,10 @@ if ! diff -q go.sum go.sum.bak >/dev/null 2>&1; then
     echo "  3. Commit updated go.sum"
     echo ""
     # Restore original
-    mv go.sum.bak go.sum
+    cp "$GO_SUM_BACKUP" go.sum
     ((ERRORS++)) || true
 else
     echo -e "${GREEN}  ✓ go.sum is in sync${NC}"
-    rm -f go.sum.bak
 fi
 
 # ============================================================================

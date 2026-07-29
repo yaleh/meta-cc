@@ -1,11 +1,10 @@
 package ftsindex
 
 import (
+	"encoding/json"
 	"os"
 
 	"github.com/yaleh/meta-cc/internal/conversation"
-	claudeprovider "github.com/yaleh/meta-cc/internal/provider/claude"
-	codexprovider "github.com/yaleh/meta-cc/internal/provider/codex"
 )
 
 // DefaultSourceMeta resolves SourceMeta for a session using the same
@@ -16,12 +15,14 @@ import (
 // it falls back to session.UpdatedAt as the invalidation fingerprint
 // instead — see SourceMeta.unchanged.
 func DefaultSourceMeta(session conversation.Session) SourceMeta {
-	var path string
-	switch session.Provider {
-	case conversation.ProviderClaude:
-		path, _ = claudeprovider.FilePath(session)
-	case conversation.ProviderCodex:
-		path, _ = codexprovider.RolloutPath(session)
+	var ext struct {
+		Path        string `json:"path"`
+		RolloutPath string `json:"rollout_path"`
+	}
+	_ = json.Unmarshal(session.Extensions, &ext)
+	path := ext.Path
+	if session.Provider == conversation.ProviderCodex {
+		path = ext.RolloutPath
 	}
 
 	if path != "" {

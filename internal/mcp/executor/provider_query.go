@@ -125,6 +125,48 @@ func (e *ToolExecutor) ExecuteQueryForSession(providerName, sessionID, jqFilter 
 	return mcquery.QueryResult{Entries: results, Warnings: warnings}, nil
 }
 
+func (e *ToolExecutor) executeIndexedContent(providerName, scope, literal, jqFilter string, limit int, workingDir string, tr mcquery.ParsedTimeRange) (mcquery.QueryResult, bool, error) {
+	if providerName == "" || providerName == "claude" || literal == "" {
+		return mcquery.QueryResult{}, false, nil
+	}
+	projectPath := workingDir
+	if projectPath == "" {
+		var err error
+		projectPath, err = os.Getwd()
+		if err != nil {
+			return mcquery.QueryResult{}, false, err
+		}
+	}
+	projectPath, _ = filepath.Abs(projectPath)
+	filters, err := rawfiles.ParseProviderFilter(providerName)
+	if err != nil {
+		return mcquery.QueryResult{}, false, err
+	}
+	records, warnings, used := providerrecords.BuildIndexedContent(context.Background(), rawfiles.NewRegistry(projectPath), filters, scope, projectPath, literal)
+	if !used {
+		return mcquery.QueryResult{Warnings: warnings}, false, nil
+	}
+	results, err := runProviderJQ(records, jqFilter, limit, tr)
+	return mcquery.QueryResult{Entries: results, Warnings: warnings}, true, err
+}
+
+// dispatchIndexedContent is the query_session_content-only opt-in. The
+// handler supplies a literal that is only a candidate selector; the original
+// jq and pipeline filters still run over freshly hydrated canonical records.
+func (e *ToolExecutor) dispatchIndexedContent(providerName, scope, literal, jqFilter string, limit int, workingDir, sessionID string, tr mcquery.ParsedTimeRange, includeSubagents bool) (mcquery.QueryResult, error) {
+	var indexWarnings []string
+	if sessionID == "" {
+		result, used, err := e.executeIndexedContent(providerName, scope, literal, jqFilter, limit, workingDir, tr)
+		if err != nil || used {
+			return result, err
+		}
+		indexWarnings = result.Warnings
+	}
+	result, err := e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
+	result.Warnings = append(indexWarnings, result.Warnings...)
+	return result, err
+}
+
 // dispatchProviderQuery is the single opt-in point every consolidated
 // query handler uses for the DIR-030 session_id fast path: a non-empty
 // sessionID routes to ExecuteQueryForSession (exact thread, no listing);

@@ -2,13 +2,13 @@ package records
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/conversation"
 	providerpkg "github.com/yaleh/meta-cc/internal/provider"
+	"github.com/yaleh/meta-cc/internal/provider/projection"
 )
 
 func Build(ctx context.Context, registry *providerpkg.Registry, filters []conversation.ProviderID, scope, projectPath string) ([]map[string]interface{}, []string, error) {
@@ -156,90 +156,58 @@ func Normalize(session conversation.Session, turns []conversation.Turn) []map[st
 	for turnIndex, turn := range turns {
 		ts := turn.Timestamp.Format(time.RFC3339)
 		// turnStartSeq snapshots the output position before this turn emits
-		// anything, so after the user/assistant/tool_result blocks we can tell
-		// whether the turn produced ANY record. DIR-053 uses this to widen
-		// emission to lifecycle-only turns (see lifecycleRecords).
+		// anything, so lifecycle-only turns can still produce a record below.
 		turnStartSeq := seq
-		if turn.UserText != "" {
-			emit(map[string]interface{}{
-				"type":       "user",
-				"provider":   session.Provider,
-				"session_id": session.ID,
-				"sessionId":  session.ID,
-				"cwd":        session.CWD,
-				"timestamp":  ts,
-				"message": map[string]interface{}{
-					"role":    "user",
-					"content": turn.UserText,
-				},
-			}, turnIndex, turn.ID)
-		}
-		if turn.AssistantText != "" || len(turn.ToolCalls) > 0 || hasUsage(turn.TokenUsage) {
-			content := make([]interface{}, 0, len(turn.ToolCalls)+1)
-			if turn.AssistantText != "" {
-				content = append(content, map[string]interface{}{"type": "text", "text": turn.AssistantText})
+		contents := projection.Contents(turn)
+		for _, projected := range contents {
+			switch projected.Kind {
+			case projection.UserMessage:
+				emit(map[string]interface{}{
+					"type":       "user",
+					"provider":   session.Provider,
+					"session_id": session.ID,
+					"sessionId":  session.ID,
+					"cwd":        session.CWD,
+					"timestamp":  ts,
+					"message": map[string]interface{}{
+						"role":    "user",
+						"content": projected.Value,
+					},
+				}, turnIndex, turn.ID)
+			case projection.AssistantMessage:
+				message := map[string]interface{}{
+					"role":    "assistant",
+					"model":   session.Model,
+					"content": projected.Value,
+				}
+				if hasUsage(turn.TokenUsage) {
+					message["usage"] = map[string]interface{}{"input_tokens": turn.TokenUsage.InputTokens, "output_tokens": turn.TokenUsage.OutputTokens, "cache_tokens": turn.TokenUsage.CacheTokens}
+				} else if session.Provider != conversation.ProviderCodex && hasUsage(session.TokenUsage) {
+					message["usage"] = map[string]interface{}{"input_tokens": session.TokenUsage.InputTokens, "output_tokens": session.TokenUsage.OutputTokens, "cache_tokens": session.TokenUsage.CacheTokens}
+				}
+				emit(map[string]interface{}{
+					"type":       "assistant",
+					"provider":   session.Provider,
+					"session_id": session.ID,
+					"sessionId":  session.ID,
+					"cwd":        session.CWD,
+					"timestamp":  ts,
+					"message":    message,
+				}, turnIndex, turn.ID)
+			case projection.ToolResults:
+				emit(map[string]interface{}{
+					"type":       "user",
+					"provider":   session.Provider,
+					"session_id": session.ID,
+					"sessionId":  session.ID,
+					"cwd":        session.CWD,
+					"timestamp":  ts,
+					"message": map[string]interface{}{
+						"role":    "user",
+						"content": projected.Value,
+					},
+				}, turnIndex, turn.ID)
 			}
-			for _, call := range turn.ToolCalls {
-				content = append(content, map[string]interface{}{
-					"type":  "tool_use",
-					"id":    call.ID,
-					"name":  call.Name,
-					"input": toolInput(call.Input),
-				})
-			}
-			message := map[string]interface{}{
-				"role":    "assistant",
-				"model":   session.Model,
-				"content": content,
-			}
-			if hasUsage(turn.TokenUsage) {
-				message["usage"] = map[string]interface{}{"input_tokens": turn.TokenUsage.InputTokens, "output_tokens": turn.TokenUsage.OutputTokens, "cache_tokens": turn.TokenUsage.CacheTokens}
-			} else if session.Provider != conversation.ProviderCodex && hasUsage(session.TokenUsage) {
-				message["usage"] = map[string]interface{}{"input_tokens": session.TokenUsage.InputTokens, "output_tokens": session.TokenUsage.OutputTokens, "cache_tokens": session.TokenUsage.CacheTokens}
-			}
-			emit(map[string]interface{}{
-				"type":       "assistant",
-				"provider":   session.Provider,
-				"session_id": session.ID,
-				"sessionId":  session.ID,
-				"cwd":        session.CWD,
-				"timestamp":  ts,
-				"message":    message,
-			}, turnIndex, turn.ID)
-		}
-		var toolResults []interface{}
-		for _, call := range turn.ToolCalls {
-			if call.Output == "" && !call.IsError {
-				continue
-			}
-			entry := map[string]interface{}{
-				"type":        "tool_result",
-				"tool_use_id": call.ID,
-				"content":     call.Output,
-			}
-			if call.IsError {
-				entry["is_error"] = true
-				entry["status"] = "error"
-				entry["error"] = call.Output
-			} else {
-				entry["is_error"] = false
-				entry["status"] = "success"
-			}
-			toolResults = append(toolResults, entry)
-		}
-		if len(toolResults) > 0 {
-			emit(map[string]interface{}{
-				"type":       "user",
-				"provider":   session.Provider,
-				"session_id": session.ID,
-				"sessionId":  session.ID,
-				"cwd":        session.CWD,
-				"timestamp":  ts,
-				"message": map[string]interface{}{
-					"role":    "user",
-					"content": toolResults,
-				},
-			}, turnIndex, turn.ID)
 		}
 		// DIR-053: a turn whose only content is a typed lifecycle signal
 		// (ItemKindSessionEnd / ItemKindCompaction) or a non-default Status
@@ -346,15 +314,4 @@ func lifecycleTypeForStatus(status conversation.TurnStatus) (string, bool) {
 
 func hasUsage(usage conversation.TokenUsage) bool {
 	return usage.InputTokens != 0 || usage.OutputTokens != 0 || usage.CacheTokens != 0
-}
-
-func toolInput(raw json.RawMessage) map[string]interface{} {
-	input := map[string]interface{}{}
-	if len(raw) == 0 {
-		return input
-	}
-	if err := json.Unmarshal(raw, &input); err != nil || input == nil {
-		return map[string]interface{}{}
-	}
-	return input
 }

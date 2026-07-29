@@ -63,6 +63,99 @@ func canonicalScan(sessions []conversation.Session, turnsByKey map[string][]conv
 	return got
 }
 
+func TestLiteralSessionCandidates_UsesGoJQUnicodeCaseFolding(t *testing.T) {
+	db, _ := openTestDB(t)
+	ctx := context.Background()
+	now := time.Now()
+	sessions := []conversation.Session{
+		session(conversation.ProviderCodex, "kelvin", "/proj", "", now),
+		session(conversation.ProviderCodex, "accent", "/proj", "", now),
+		session(conversation.ProviderCodex, "miss", "/proj", "", now),
+	}
+	turns := map[string][]conversation.Turn{
+		sessionKey("codex", "kelvin"): {{ID: "t1", UserText: "KELVIN", Items: []conversation.Item{textItem("i1", conversation.ItemKindUserMessage, "user", "KELVIN", now)}}},
+		sessionKey("codex", "accent"): {{ID: "t2", UserText: "ÉCOLE ÅNGSTRÖM", Items: []conversation.Item{textItem("i2", conversation.ItemKindUserMessage, "user", "ÉCOLE ÅNGSTRÖM", now)}}},
+		sessionKey("codex", "miss"):   {{ID: "t3", UserText: "unrelated", Items: []conversation.Item{textItem("i3", conversation.ItemKindUserMessage, "user", "unrelated", now)}}},
+	}
+	meta := map[string]SourceMeta{}
+	for _, s := range sessions {
+		meta[sessionKey("codex", s.ID)] = SourceMeta{UpdatedAt: now}
+	}
+	if _, _, err := Refresh(ctx, db, sessions, staticSourceMeta(meta), newCountingLoader(turns).Load, DefaultBodyLimitBytes); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		query, want string
+	}{{"kelvin", "kelvin"}, {"école", "accent"}, {"ångström", "accent"}} {
+		got, err := LiteralSessionCandidates(ctx, db, tc.query, "/proj", []conversation.ProviderID{conversation.ProviderCodex})
+		if err != nil {
+			t.Fatalf("query %q: %v", tc.query, err)
+		}
+		if len(got) != 1 || got[0].ThreadID != tc.want {
+			t.Fatalf("query %q got %+v, want session %s", tc.query, got, tc.want)
+		}
+	}
+}
+
+func TestLiteralSessionCandidates_CanonicalStructuralAndCrossBlockMatches(t *testing.T) {
+	db, _ := openTestDB(t)
+	ctx := context.Background()
+	now := time.Now()
+	s := session(conversation.ProviderCodex, "tools", "/proj", "", now)
+	toolCall := conversation.ToolCall{ID: "call-1", Name: "lookup", Input: []byte(`{"city":"Zürich"}`), Output: "boom", IsError: true}
+	turns := map[string][]conversation.Turn{
+		sessionKey("codex", "tools"): {{
+			ID: "t1", AssistantText: "intro", ToolCalls: []conversation.ToolCall{toolCall},
+			Items: []conversation.Item{{ID: "i1", Kind: conversation.ItemKindAgentMessage, Role: "assistant", Text: "intro"}},
+		}},
+	}
+	meta := map[string]SourceMeta{sessionKey("codex", "tools"): {UpdatedAt: now}}
+	if _, _, err := Refresh(ctx, db, []conversation.Session{s}, staticSourceMeta(meta), newCountingLoader(turns).Load, DefaultBodyLimitBytes); err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{`"type":"tool_use"`, `"id":"call-1"`, `"type":"text"},{"id":"call-1"`, `"tool_use_id":"call-1"`, `"status":"error"`, `"is_error":true`, "zürich"} {
+		got, err := LiteralSessionCandidates(ctx, db, query, "/proj", []conversation.ProviderID{conversation.ProviderCodex})
+		if err != nil || len(got) != 1 || got[0].ThreadID != "tools" {
+			t.Fatalf("query %q got %+v, err=%v", query, got, err)
+		}
+	}
+}
+
+func TestLiteralSessionCandidates_PrivacyCappedProjectionFailsOpen(t *testing.T) {
+	db, _ := openTestDB(t)
+	ctx := context.Background()
+	now := time.Now()
+	s := session(conversation.ProviderCodex, "capped", "/proj", "", now)
+	large := strings.Repeat("private ", 100)
+	turns := map[string][]conversation.Turn{sessionKey("codex", "capped"): {{
+		ID: "t1", UserText: large, Items: []conversation.Item{{ID: "i1", Kind: conversation.ItemKindUserMessage, Role: "user", Text: large}},
+	}}}
+	meta := map[string]SourceMeta{sessionKey("codex", "capped"): {UpdatedAt: now}}
+	if _, _, err := Refresh(ctx, db, []conversation.Session{s}, staticSourceMeta(meta), newCountingLoader(turns).Load, 32); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LiteralSessionCandidates(ctx, db, "private", "/proj", []conversation.ProviderID{conversation.ProviderCodex}); err == nil {
+		t.Fatal("privacy-capped canonical projection must force authoritative direct scan")
+	}
+}
+
+func TestLiteralSessionCandidates_IncompleteSessionFailsOpen(t *testing.T) {
+	db, _ := openTestDB(t)
+	ctx := context.Background()
+	now := time.Now()
+	s := session(conversation.ProviderCodex, "partial", "/proj", "", now)
+	partial := turn("t1", now, textItem("i1", conversation.ItemKindUserMessage, "user", "cached prefix", now))
+	partial.Completeness = conversation.HistoryCompletenessTruncated
+	meta := map[string]SourceMeta{sessionKey("codex", "partial"): {UpdatedAt: now}}
+	if _, _, err := Refresh(ctx, db, []conversation.Session{s}, staticSourceMeta(meta), newCountingLoader(map[string][]conversation.Turn{sessionKey("codex", "partial"): {partial}}).Load, DefaultBodyLimitBytes); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LiteralSessionCandidates(ctx, db, "missing suffix", "/proj", []conversation.ProviderID{conversation.ProviderCodex}); err == nil {
+		t.Fatal("incomplete session must force authoritative direct scan")
+	}
+}
+
 func TestSearch_MatchesCanonicalScan(t *testing.T) {
 	db, _ := openTestDB(t)
 	ctx := context.Background()

@@ -77,7 +77,11 @@ func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]inte
 	}
 
 	sessionID := GetStringParam(args, "session_id", "")
-	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
+	literal := contains
+	if literal == "" {
+		literal = plainLiteralPattern(pattern)
+	}
+	return e.dispatchIndexedContent(providerName, scope, literal, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
 }
 
 func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
@@ -247,7 +251,7 @@ func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]
 	}
 
 	sessionID := GetStringParam(args, "session_id", "")
-	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
+	return e.dispatchIndexedContent(providerName, scope, contains, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
 }
 
 func handleQuerySystemErrors(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
@@ -331,7 +335,14 @@ func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interf
 	}
 
 	sessionID := GetStringParam(args, "session_id", "")
-	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+	return e.dispatchIndexedContent(providerName, scope, contains, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+}
+
+func plainLiteralPattern(pattern string) string {
+	if pattern == "" || regexp.QuoteMeta(pattern) != pattern {
+		return ""
+	}
+	return pattern
 }
 
 // EscapeJQ escapes special characters in strings for jq expressions.

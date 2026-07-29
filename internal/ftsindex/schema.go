@@ -22,7 +22,7 @@ import (
 // never partially migrated in place. This keeps the invalidation logic
 // simple at the cost of a full reindex on schema changes, which is
 // acceptable for a derived, rebuildable cache.
-const SchemaVersion = 1
+const SchemaVersion = 3
 
 // DefaultBodyLimitBytes bounds how much text from a single Item is written
 // into the index (both the metadata "body" column and the FTS index),
@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 	source_mtime   INTEGER NOT NULL DEFAULT 0,
 	updated_at     INTEGER NOT NULL DEFAULT 0,
 	indexed_at     INTEGER NOT NULL DEFAULT 0,
-	item_count     INTEGER NOT NULL DEFAULT 0
+	item_count     INTEGER NOT NULL DEFAULT 0,
+	complete       INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_provider_cwd ON sessions(provider, cwd);
@@ -66,8 +67,10 @@ CREATE TABLE IF NOT EXISTS items (
 	title          TEXT NOT NULL DEFAULT '',
 	tool_name      TEXT NOT NULL DEFAULT '',
 	ts_unix        INTEGER NOT NULL DEFAULT 0,
-	body           TEXT NOT NULL DEFAULT '',
-	truncated      INTEGER NOT NULL DEFAULT 0
+	body             TEXT NOT NULL DEFAULT '',
+	truncated        INTEGER NOT NULL DEFAULT 0,
+	search_body      TEXT NOT NULL DEFAULT '',
+	search_truncated INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_items_session_key ON items(session_key);

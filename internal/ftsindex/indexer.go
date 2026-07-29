@@ -118,6 +118,7 @@ func reindexSessionTx(ctx context.Context, db *sql.DB, key string, session conve
 	}
 
 	count := 0
+	complete := true
 	for _, turn := range turns {
 		// DIR-032: a placeholder turn (HistoryCompletenessSummary/
 		// Unloaded/Unavailable) must never enter the full-content index as
@@ -129,20 +130,39 @@ func reindexSessionTx(ctx context.Context, db *sql.DB, key string, session conve
 		// "this specific turn's content was never really fetched" are
 		// skipped here.
 		if !turnCompletenessIndexable(turn.Completeness) {
+			complete = false
 			continue
+		}
+		if !turn.Completeness.IsFull() {
+			complete = false
+		}
+		projectionBody, projectionTruncated, err := canonicalSearchProjection(turn, bodyLimit)
+		if err != nil {
+			return count, fmt.Errorf("canonical search projection: %w", err)
+		}
+		if projectionBody != "" && len(turn.Items) == 0 {
+			// There is canonical normalized content but no row on which to cache
+			// its projection. Mark the session incomplete so candidate selection
+			// fails open rather than losing the record.
+			complete = false
 		}
 		for idx, item := range turn.Items {
 			body, truncated := itemBody(item, bodyLimit)
+			searchBody, searchTruncated := "", false
+			if idx == 0 {
+				searchBody = projectionBody
+				searchTruncated = projectionTruncated
+			}
 			ts := item.Timestamp
 			if ts.IsZero() {
 				ts = turn.Timestamp
 			}
 			res, err := tx.ExecContext(ctx, `
-				INSERT INTO items (session_key, provider, thread_id, turn_id, item_id, role, kind, cwd, title, tool_name, ts_unix, body, truncated)
-				VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+				INSERT INTO items (session_key, provider, thread_id, turn_id, item_id, role, kind, cwd, title, tool_name, ts_unix, body, truncated, search_body, search_truncated)
+				VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 				key, string(session.Provider), session.ID, turn.ID, itemID(turn.ID, idx, item),
 				item.Role, string(item.Kind), session.CWD, session.Title, item.ToolName,
-				ts.Unix(), body, boolToInt(truncated))
+				ts.Unix(), body, boolToInt(truncated), searchBody, boolToInt(searchTruncated))
 			if err != nil {
 				return count, err
 			}
@@ -162,10 +182,10 @@ func reindexSessionTx(ctx context.Context, db *sql.DB, key string, session conve
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO sessions (session_key, provider, session_id, cwd, title, source_path, source_size, source_mtime, updated_at, indexed_at, item_count)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+		INSERT INTO sessions (session_key, provider, session_id, cwd, title, source_path, source_size, source_mtime, updated_at, indexed_at, item_count, complete)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
 		key, string(session.Provider), session.ID, session.CWD, session.Title,
-		meta.Path, meta.Size, meta.ModTime.Unix(), meta.UpdatedAt.Unix(), time.Now().Unix(), count,
+		meta.Path, meta.Size, meta.ModTime.Unix(), meta.UpdatedAt.Unix(), time.Now().Unix(), count, boolToInt(complete),
 	); err != nil {
 		return count, err
 	}

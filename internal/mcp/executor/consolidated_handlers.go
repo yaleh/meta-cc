@@ -71,7 +71,7 @@ func handleQuerySessionContent(e *ToolExecutor, scope string, args map[string]in
 			// null return when content is null or absent).
 			jqFilter = jqFilter + " | " + containsClause(contains, ".message.content // empty")
 		}
-		return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+		return e.dispatchIndexedContent(providerName, scope, contains, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
 
 	case "tool":
 		// Delegate to handleQueryToolBlocks; block_type may be passed through

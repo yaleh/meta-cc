@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/yaleh/meta-cc/internal/conversation"
+	"github.com/yaleh/meta-cc/internal/provider/projection"
 )
 
 // rawSearchableText extracts the pre-privacy-cap text to index for an Item,
@@ -52,7 +53,15 @@ func itemBody(item conversation.Item, limit int) (string, bool) {
 	return truncateBody(rawSearchableText(item), limit)
 }
 
-// itemID returns a stable identity for an Item within a Turn: the
+func canonicalSearchProjection(turn conversation.Turn, limit int) (string, bool, error) {
+	values, err := projection.SearchStrings(turn)
+	if err != nil {
+		return "", false, err
+	}
+	body, truncated := truncateBody(strings.Join(values, "\n"), limit)
+	return body, truncated, nil
+}
+
 // provider-native ID when present, otherwise a synthetic
 // "<turn_id>#<index>" fallback so every indexed row still has a unique,
 // reconstructable (turn_id, item_id) key for hydration even when the

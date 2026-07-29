@@ -4,11 +4,77 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/conversation"
 )
+
+type SessionCandidate struct {
+	Provider conversation.ProviderID
+	ThreadID string
+}
+
+// LiteralSessionCandidates reads the bounded cached bodies selected by SQLite
+// metadata and performs literal matching in Go. The regexp is deliberately the
+// same shape gojq's test(...; "i") compiles: (?i) plus regexp.QuoteMeta. This
+// preserves Unicode simple-fold behavior (including kelvin K/K and accented
+// case pairs) without relying on SQLite lower()/instr semantics. If any row in
+// scope was truncated, safe candidate narrowing is impossible and the caller
+// must direct-scan instead.
+func LiteralSessionCandidates(ctx context.Context, db *sql.DB, literal string, cwd string, providers []conversation.ProviderID) ([]SessionCandidate, error) {
+	if cwd == "" || literal == "" {
+		return nil, fmt.Errorf("ftsindex: literal candidate search requires cwd and literal")
+	}
+	matcher, err := regexp.Compile("(?i)" + regexp.QuoteMeta(literal))
+	if err != nil {
+		return nil, fmt.Errorf("ftsindex: compile literal candidate matcher: %w", err)
+	}
+	args := []interface{}{cwd}
+	providerClause := ""
+	if len(providers) > 0 {
+		marks := make([]string, len(providers))
+		for i, provider := range providers {
+			marks[i] = "?"
+			args = append(args, string(provider))
+		}
+		providerClause = " AND provider IN (" + strings.Join(marks, ",") + ")"
+	}
+	var incomplete int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM sessions WHERE cwd = ?`+providerClause+` AND complete = 0`, args...).Scan(&incomplete); err != nil {
+		return nil, fmt.Errorf("ftsindex: inspect session completeness: %w", err)
+	}
+	if incomplete != 0 {
+		return nil, fmt.Errorf("ftsindex: candidate scope contains incomplete sessions")
+	}
+	var truncated int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM items WHERE cwd = ?`+providerClause+` AND search_truncated != 0`, args...).Scan(&truncated); err != nil {
+		return nil, fmt.Errorf("ftsindex: inspect candidate completeness: %w", err)
+	}
+	if truncated != 0 {
+		return nil, fmt.Errorf("ftsindex: candidate scope contains privacy-truncated rows")
+	}
+	rows, err := db.QueryContext(ctx, `SELECT provider, thread_id, search_body FROM items WHERE cwd = ?`+providerClause, args...)
+	if err != nil {
+		return nil, fmt.Errorf("ftsindex: read candidate bodies: %w", err)
+	}
+	defer rows.Close()
+	seen := make(map[SessionCandidate]struct{})
+	var out []SessionCandidate
+	for rows.Next() {
+		var provider, threadID, body string
+		if err := rows.Scan(&provider, &threadID, &body); err != nil {
+			return nil, err
+		}
+		candidate := SessionCandidate{Provider: conversation.ProviderID(provider), ThreadID: threadID}
+		if _, ok := seen[candidate]; !ok && matcher.MatchString(body) {
+			seen[candidate] = struct{}{}
+			out = append(out, candidate)
+		}
+	}
+	return out, rows.Err()
+}
 
 // SearchFilter narrows a Search call. CWD is intentionally mandatory (see
 // Search): every search is scoped to one project boundary by construction,

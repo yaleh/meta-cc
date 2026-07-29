@@ -153,14 +153,34 @@ it is excluded from the searchable text.
   recreates an empty, healthy index from the still-fully-intact raw session
   stores.
 
+## MCP content-query integration
+
+Project-scoped `query_session_content` calls use the index as a candidate
+selector when the provider includes Codex, the query contains a literal of at
+least three characters (`contains`, or a regex-free `pattern`), and no exact
+`session_id` is requested. SQLite handles incremental cache maintenance and
+metadata scoping; Go reads the privacy-bounded cached bodies and applies the
+same `(?i)` + quoted-literal regexp semantics as canonical gojq, including
+Unicode simple-fold pairs such as `k`/`K`. Candidate sessions are then loaded
+again through the provider and normalized from canonical turns before role,
+time, context, grouping, pagination, and `jq_filter` processing. The index
+therefore avoids loading every unchanged session without becoming an authority
+for response records.
+
+Queries fall back to the direct canonical scan when the shape cannot be narrowed
+without false negatives, the index is disabled or unavailable, any indexed body
+in scope was privacy-truncated, a session has incomplete/truncated history,
+refresh/reconciliation is incomplete, or the database was rebuilt after
+corruption. Recovery warnings are bounded summaries rather than per-row
+diagnostics. Claude-only and exact `session_id` queries retain their existing
+direct paths.
+
 ## Known limitations / explicitly out of scope (DIR-031, first release)
 
-- Not wired into an MCP tool or CLI flag yet — this release ships the
-  `internal/ftsindex` package with a full test suite (incremental
-  indexing, transactional upsert, reconciliation, search/hydration,
-  privacy cap, corruption recovery, benchmarks) but no `query_search`-style
-  MCP tool or `meta-cc index rebuild`-style CLI command. Wiring is a small,
-  mechanical follow-up once the underlying package is validated in use.
+- The derived index is wired into the existing MCP content-query path, but no
+  standalone `query_search` tool or `meta-cc index rebuild` CLI command is
+  exposed yet. Maintenance remains available through the `internal/ftsindex`
+  package.
 - Metadata filter pushdown covers `provider`/`thread_id`/`role`/`kind`/`tool_name`;
   it does not yet reuse the full `conversation.SessionFilter` shape
   (e.g. `archived`, `source_kind`, time ranges) — those can be added as
