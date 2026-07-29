@@ -1,5 +1,14 @@
 # Local Full-Text Index (DIR-031)
 
+> **Status: implemented — internal foundation (wiring landed).** The index is
+> built and used today: project-scoped `query_session_content` calls use it as
+> a candidate selector (see
+> [MCP content-query integration](#mcp-content-query-integration) below). It is
+> not exposed as a standalone MCP tool — there is no `query_search` tool or
+> `meta-cc index rebuild` CLI command. See the
+> [MCP Query Tools Reference](../guides/mcp-query-tools.md) for the public
+> query surface.
+
 meta-cc can maintain an optional, local, incremental SQLite FTS5 index
 (`internal/ftsindex`) over the DIR-028 canonical conversation model
 (`Session` → `Turn` → `Item`), so content search over hundreds of sessions

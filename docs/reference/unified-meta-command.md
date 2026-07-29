@@ -1,5 +1,15 @@
 # Unified Meta Command
 
+> ⚠️ **SUPERSEDED — historical design record.** The `/meta` slash command and
+> its capability pack were removed in Phase 26 (CLI code removal; see
+> [docs/core/phase-26-cli-removal-plan.md](../core/phase-26-cli-removal-plan.md)).
+> The current public surface is the MCP server: see the
+> [MCP Server Guide](../guides/mcp.md) and the
+> [MCP Query Tools Reference](../guides/mcp-query-tools.md). Prompt-library
+> workflows live in the
+> [Prompt Learning System](../guides/prompt-learning-system.md) guide. This
+> page is retained only as a historical record.
+
 Complete guide to the `/meta` command - a unified entry point for all meta-cognition capabilities with natural language intent matching.
 
 ## Overview

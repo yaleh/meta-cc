@@ -2,49 +2,89 @@
 
 This document provides a visual overview of documentation dependencies and navigation guide.
 
-## New Directory Structure (Phase 1+2 Completed)
+## Documentation Status Legend
 
-The documentation has been reorganized into a clearer, more intuitive structure:
+Every page in the current navigation falls into one of these lifecycle classes:
+
+| Status | Meaning |
+|--------|---------|
+| **Implemented — public** | Shipped behavior reachable through the MCP server or host plugins today |
+| **Internal foundation** | Shipped code that supports public behavior but is not a standalone MCP feature (no dedicated tool or flag) |
+| **Historical design record** | Superseded or retired material kept for context; labeled in-page and pointing at the authoritative replacement |
+| **Pending** | Planned but not delivered; described in roadmap/proposal pages, not in user guides |
+
+## Directory Structure
 
 ```
 docs/
+├── QUICK_ACCESS.md          # Fast lookup navigation
+├── DOCUMENTATION_MAP.md     # This map
+│
 ├── core/                    # Core documents (most accessed)
-│   ├── plan.md             # Project roadmap
-│   └── principles.md       # Design constraints
+│   ├── plan.md             # Project roadmap (living)
+│   ├── principles.md       # Design constraints
+│   └── phase-26-cli-removal-plan.md  # Historical: CLI removal plan
 │
 ├── guides/                  # Task-oriented guides
-│   ├── capabilities.md     # Capability development (renamed from capabilities-guide.md)
-│   ├── git-hooks.md        # Git hooks usage
-│   ├── integration.md      # Integration patterns (renamed from integration-guide.md)
-│   ├── mcp.md              # MCP complete reference (renamed from mcp-guide.md)
+│   ├── integration.md      # Choosing Claude Code vs Codex integration
+│   ├── mcp.md              # MCP server guide (both hosts)
+│   ├── mcp-query-tools.md  # Consolidated MCP query tools reference (authoritative)
+│   ├── two-stage-query-guide.md     # Two-stage jq workflow
+│   ├── mcp-jq-quick-reference.md    # jq expression quick reference
+│   ├── prompt-learning-system.md    # Prompt library workflow
+│   ├── troubleshooting.md
 │   ├── plugin-development.md
+│   ├── capabilities.md     # Capability development
+│   ├── git-hooks.md
 │   ├── release-process.md
-│   └── troubleshooting.md
+│   ├── pre-release-automation.md
+│   ├── build-quality-gates.md
+│   ├── api-consistency-hooks.md
+│   ├── markdown-linting.md
+│   ├── gcl-annotation.md   # Gate Criterion Ledger annotation format
+│   ├── mcp-e2e-testing.md
+│   ├── mcp-testing-quickstart.md
+│   ├── mcp-v2-migration.md          # SUPERSEDED (banner inside)
+│   ├── migration-to-unified-query.md # SUPERSEDED (banner inside)
+│   └── unified-query-api.md         # SUPERSEDED (banner inside)
 │
 ├── reference/               # Complete specifications
-│   ├── features.md         # Advanced features
-│   ├── jsonl.md            # Output format (renamed from jsonl-reference.md)
-│   ├── jsonl-schema.md     # JSONL session file schema
-│   ├── repository-structure.md
+│   ├── features.md         # Feature overview (current tool surface)
+│   ├── jsonl.md            # Output format and jq patterns
+│   ├── jsonl-schema.md     # Canonical Claude Code and Codex session schema
+│   ├── codex-app-server.md # Codex app-server backend (DIR-029)
+│   ├── codex-history-model.md # Codex completeness/lineage/pagination (DIR-032)
+│   ├── fts-index.md        # Local FTS index — internal foundation (DIR-031)
+│   ├── unified-meta-command.md # SUPERSEDED: historical /meta command
+│   └── repository-structure.md
 │
 ├── tutorials/               # Step-by-step learning
+│   ├── installation.md     # Install: Claude Code + Codex
+│   ├── examples.md         # Quick start examples
 │   ├── cookbook.md
-│   ├── examples.md         # Basic examples (renamed from examples-usage.md)
 │   ├── github-setup.md
-│   └── installation.md
+│   └── baime-usage.md      # BAIME methodology usage
 │
 ├── examples/                # Query examples and patterns
-│   ├── frequent-jsonl-queries.md  # Most frequently used JSONL queries
-│   ├── jq-query-examples.md       # Single-file query patterns (19 examples)
-│   ├── multi-file-jsonl-queries.md # Multi-file queries with results (100 records)
-│   └── query-cookbook.md          # Practical query cookbook
+│   ├── two-stage-query-examples.md  # Two-stage architecture examples
+│   ├── frequent-jsonl-queries.md
+│   ├── jq-query-examples.md
+│   ├── multi-file-jsonl-queries.md
+│   ├── query-cookbook.md
+│   └── mcp-query-cookbook.md        # SUPERSEDED (banner inside)
 │
 ├── architecture/            # Architecture & design
-│   ├── adr/                # Architecture Decision Records
-│   └── proposals/          # Technical proposals
+│   ├── adr/                # Architecture Decision Records (ADR-001..007)
+│   ├── proposals/          # Technical proposals
+│   └── metadata-driven-query-architecture.md
 │
-├── methodology/             # Universal methodologies
-│   └── documentation-management.md
+├── contributing/            # Contributor conventions
+│   └── commit-conventions.md
+│
+├── methodology/             # Universal methodologies (project-independent)
+│
+├── historical records and fixtures (not part of current navigation):
+│   analysis/  phases/  plans/  proposals/  experiments/  tasks/  testing/
 │
 └── archive/                 # Archived documents
 ```
@@ -71,8 +111,15 @@ graph TD
   docs_plugin_development_md["plugin-development.md<br/>(Plugin Workflow)"]:::guide
   docs_repository_structure_md["repository-structure.md<br/>(Directory Guide)"]:::guide
   docs_integration_guide_md["integration.md"]:::guide
-  docs_mcp_guide_md["mcp.md<br/>(MCP Complete)"]:::guide
+  docs_mcp_guide_md["mcp.md<br/>(MCP Server Guide)"]:::guide
+  docs_mcp_query_tools_md["mcp-query-tools.md<br/>(Authoritative Query Ref)"]:::guide
+  docs_two_stage_guide_md["two-stage-query-guide.md"]:::guide
   docs_capabilities_guide_md["capabilities.md"]:::guide
+
+  %% Codex + Provider References
+  docs_codex_appserver_md["codex-app-server.md<br/>(Backend Config)"]:::reference
+  docs_codex_history_md["codex-history-model.md<br/>(Lineage/Pagination)"]:::reference
+  docs_fts_index_md["fts-index.md<br/>(Internal Foundation)"]:::reference
 
   %% Maintenance Guides
   docs_git_hooks_md["git-hooks.md<br/>(Git Hooks)"]:::maintenance
@@ -99,6 +146,8 @@ graph TD
 
   README_md --> docs_mcp_guide_md
   README_md --> docs_integration_guide_md
+  README_md --> docs_mcp_query_tools_md
+  README_md --> docs_codex_history_md
   README_md --> docs_examples_usage_md
   README_md --> docs_features_md
 
@@ -110,12 +159,22 @@ graph TD
   docs_plugin_development_md --> docs_release_process_md
   docs_plugin_development_md --> docs_repository_structure_md
   docs_integration_guide_md --> docs_examples_usage_md
+  docs_integration_guide_md --> docs_codex_appserver_md
   docs_mcp_guide_md --> docs_integration_guide_md
+  docs_mcp_guide_md --> docs_mcp_query_tools_md
+  docs_mcp_guide_md --> docs_two_stage_guide_md
+  docs_mcp_guide_md --> docs_jsonl_schema_md
   docs_examples_usage_md --> docs_cookbook_md
 
   %% Dependencies - Reference
   docs_features_md --> docs_mcp_guide_md
+  docs_features_md --> docs_codex_history_md
   docs_cookbook_md --> docs_features_md
+  docs_mcp_query_tools_md --> docs_fts_index_md
+  docs_mcp_query_tools_md --> docs_two_stage_guide_md
+  docs_codex_history_md --> docs_codex_appserver_md
+  docs_codex_history_md --> docs_jsonl_schema_md
+  docs_fts_index_md --> docs_jsonl_schema_md
 
   %% Styles
   classDef entry fill:#e8f5e9,stroke:#4caf50,stroke-width:3px
@@ -127,47 +186,64 @@ graph TD
 
 ## Quick Navigation Guide
 
-### For New Users
+### Using meta-cc from Claude Code (install → query)
 
-1. **Start**: [README.md](../README.md) - Quick install and overview
-2. **Setup MCP**: [docs/guides/mcp.md](guides/mcp.md) - Complete MCP setup and usage
-3. **Examples**: [docs/tutorials/examples.md](tutorials/examples.md) - Step-by-step tutorials
-4. **Troubleshooting**: [docs/guides/troubleshooting.md](guides/troubleshooting.md) - Common issues
+1. **Overview**: [README.md](../README.md) - Quick start and tool surface
+2. **Install**: [docs/tutorials/installation.md](tutorials/installation.md#method-1-claude-code-plugin-marketplace) - Claude Code plugin marketplace
+3. **Configure + query**: [docs/guides/mcp.md](guides/mcp.md) - MCP server guide (provider defaults to `claude` under Claude Code)
+4. **Query reference**: [docs/guides/mcp-query-tools.md](guides/mcp-query-tools.md) - Consolidated query tools (authoritative)
+5. **Examples**: [docs/tutorials/examples.md](tutorials/examples.md) - Quick checks and recipes
+6. **Troubleshooting**: [docs/guides/troubleshooting.md](guides/troubleshooting.md) - Common issues
 
-### For Advanced Users
+### Using meta-cc from Codex (install → query)
 
-1. **MCP Tools Reference**: [docs/guides/mcp.md](guides/mcp.md) - Complete MCP tool reference (16 tools)
-2. **JSONL Reference**: [docs/reference/jsonl.md](reference/jsonl.md) - Output format and jq patterns
-3. **JSONL Schema**: [docs/reference/jsonl-schema.md](reference/jsonl-schema.md) - Session file structure specification
-4. **Query Examples**:
-   - [docs/examples/jq-query-examples.md](examples/jq-query-examples.md) - Single-file query patterns (19 examples)
+1. **Overview**: [README.md](../README.md) - Quick start (Codex supported)
+2. **Install**: [docs/tutorials/installation.md](tutorials/installation.md#method-1b-codex-plugin-marketplace-preferred-for-codex-cli-0145) - Codex plugin marketplace (CLI 0.145+)
+3. **Integration choices**: [docs/guides/integration.md](guides/integration.md) - MCP server plus `prompt-find`/`prompt-list`/`prompt-show` skills
+4. **Configure + query**: [docs/guides/mcp.md](guides/mcp.md) - Provider support, `META_CC_HOST`, `META_CC_CODEX_ROOT`
+5. **Query reference**: [docs/guides/mcp-query-tools.md](guides/mcp-query-tools.md#provider-support) - `provider: "codex"` / `"all"` semantics
+6. **Provider examples**: [docs/tutorials/examples.md](tutorials/examples.md#provider-examples) - Codex and cross-provider recipes
+7. **Codex references**: [docs/reference/codex-history-model.md](reference/codex-history-model.md) - Lineage, archives, pagination; [docs/reference/codex-app-server.md](reference/codex-app-server.md) - `app_server`/`files` backend modes
+8. **Troubleshooting**: [docs/guides/troubleshooting.md](guides/troubleshooting.md)
+
+### Advanced Querying (both hosts)
+
+1. **Query reference**: [docs/guides/mcp-query-tools.md](guides/mcp-query-tools.md) - Consolidated tools, `jq_filter`, hybrid output
+2. **Two-stage jq**: [docs/guides/two-stage-query-guide.md](guides/two-stage-query-guide.md) + [docs/guides/mcp-jq-quick-reference.md](guides/mcp-jq-quick-reference.md)
+3. **Query examples**:
+   - [docs/examples/two-stage-query-examples.md](examples/two-stage-query-examples.md) - Two-stage walkthroughs
+   - [docs/examples/jq-query-examples.md](examples/jq-query-examples.md) - Single-file query patterns
    - [docs/examples/multi-file-jsonl-queries.md](examples/multi-file-jsonl-queries.md) - Multi-file queries with results
    - [docs/examples/frequent-jsonl-queries.md](examples/frequent-jsonl-queries.md) - Most frequently used queries
-5. **Features**: [docs/reference/features.md](reference/features.md) - Advanced capabilities
-6. **MCP Query Cookbook**: [docs/examples/mcp-query-cookbook.md](examples/mcp-query-cookbook.md) - 25+ practical query examples
+4. **Schema + format**: [docs/reference/jsonl-schema.md](reference/jsonl-schema.md) (canonical model) and [docs/reference/jsonl.md](reference/jsonl.md) (output format)
+5. **Features**: [docs/reference/features.md](reference/features.md) - Current tool surface overview
 
-### For Claude Code Development
+### Contributing: Architecture and Provider Internals
 
-1. **Entry Point**: [CLAUDE.md](../CLAUDE.md) - Development workflow
-2. **Design Rules**: [docs/core/principles.md](core/principles.md) - Core constraints
-3. **Roadmap**: [docs/core/plan.md](core/plan.md) - Phase-by-phase plan
-4. **Plugin Development**: [docs/guides/plugin-development.md](guides/plugin-development.md) - Complete workflow
-5. **Repository Structure**: [docs/reference/repository-structure.md](reference/repository-structure.md) - Directory guide
-6. **Architecture**: [docs/architecture/adr/README.md](architecture/adr/README.md) - ADR index
+1. **Entry point**: [CLAUDE.md](../CLAUDE.md) - Development workflow, TDD, line ceilings
+2. **Design rules**: [docs/core/principles.md](core/principles.md) - Core constraints
+3. **Roadmap + status**: [docs/core/plan.md](core/plan.md) - Phases; pending work stays marked 🟡 there
+4. **Architecture**: [docs/architecture/adr/README.md](architecture/adr/README.md) - ADR index (ADR-001..007)
+5. **Provider internals** (internal foundations and backend references):
+   - [docs/reference/jsonl-schema.md](reference/jsonl-schema.md) - Canonical `Session` → `Turn` → `Item` model
+   - [docs/reference/codex-app-server.md](reference/codex-app-server.md) - Codex app-server backend (DIR-029)
+   - [docs/reference/codex-history-model.md](reference/codex-history-model.md) - Completeness, compaction, lineage, pagination (DIR-032)
+   - [docs/reference/fts-index.md](reference/fts-index.md) - Local FTS index (DIR-031; accelerates `query_session_content`, no standalone tool)
+6. **Plugin + release**: [docs/guides/plugin-development.md](guides/plugin-development.md), [docs/guides/release-process.md](guides/release-process.md), [docs/guides/git-hooks.md](guides/git-hooks.md)
+7. **Conventions**: [docs/contributing/commit-conventions.md](contributing/commit-conventions.md) and [docs/reference/repository-structure.md](reference/repository-structure.md)
 
-### For Plugin & Integration Development
+### Implementation Status Index
 
-1. **Plugin Workflow**: [docs/guides/plugin-development.md](guides/plugin-development.md) - Complete development guide
-2. **Integration Guide**: [docs/guides/integration.md](guides/integration.md) - Claude Code and Codex integration
-3. **Git Hooks**: [docs/guides/git-hooks.md](guides/git-hooks.md) - Automatic version bumping
-4. **Release Process**: [docs/guides/release-process.md](guides/release-process.md) - Release workflow
-5. **Repository Structure**: [docs/reference/repository-structure.md](reference/repository-structure.md) - Directory organization
-
-### For Integration Work
-
-1. **Integration Guide**: [docs/guides/integration.md](guides/integration.md) - Choosing MCP, Claude commands, and Codex skills
-2. **MCP Complete Guide**: [docs/guides/mcp.md](guides/mcp.md) - All MCP topics in one place
-3. **Examples**: [docs/tutorials/examples.md](tutorials/examples.md) - Provider-aware usage examples
+| Capability | Status | Where documented |
+|------------|--------|------------------|
+| 16 MCP tools (discovery, consolidated query, two-stage, analysis, cleanup) | Implemented — public | [mcp.md](guides/mcp.md), [mcp-query-tools.md](guides/mcp-query-tools.md), [features.md](reference/features.md) |
+| Claude Code and Codex host plugins, prompt library commands/skills | Implemented — public | [integration.md](guides/integration.md), [installation.md](tutorials/installation.md), [prompt-learning-system.md](guides/prompt-learning-system.md) |
+| Codex `app_server`/`files` backends with auto fallback | Implemented — public (backend config) | [codex-app-server.md](reference/codex-app-server.md) |
+| FTS5 index accelerating project-scoped `query_session_content` | Implemented — internal foundation (no standalone `query_search` tool or rebuild CLI yet) | [fts-index.md](reference/fts-index.md) |
+| Unified `query` tool (v2.0 API) | Historical design record — removed, superseded by consolidated tools | [unified-query-api.md](guides/unified-query-api.md), [mcp-v2-migration.md](guides/mcp-v2-migration.md), [migration-to-unified-query.md](guides/migration-to-unified-query.md) |
+| `/meta` unified slash command | Historical design record — removed (Phase 26 CLI removal) | [unified-meta-command.md](reference/unified-meta-command.md) |
+| v2.0 query cookbook examples | Historical design record — superseded | [examples/mcp-query-cookbook.md](examples/mcp-query-cookbook.md) |
+| Remaining architecture cleanup (Phase 85-86) | Pending | [core/plan.md](core/plan.md) |
 
 ### For Documentation Maintenance
 
@@ -198,21 +274,27 @@ See [Role-Based Documentation Architecture](methodology/role-based-documentation
 | **docs/core/principles.md** | Design constraints | Developers | Rarely (stable) |
 | **docs/guides/plugin-development.md** | Plugin development workflow | Plugin developers | When workflow changes |
 | **docs/reference/repository-structure.md** | Directory organization guide | Developers | Rarely (stable) |
-| **docs/guides/mcp.md** | MCP complete reference | Users & Developers | As MCP evolves |
+| **docs/guides/mcp.md** | MCP server guide (both hosts) | Users & Developers | As MCP evolves |
+| **docs/guides/mcp-query-tools.md** | Authoritative consolidated query tool reference | All users | When tools/params change |
+| **docs/guides/two-stage-query-guide.md** | Two-stage jq workflow | Advanced users | When stage2 tools change |
+| **docs/guides/mcp-jq-quick-reference.md** | jq expression quick reference | Advanced users | Rarely (stable) |
 | **docs/guides/integration.md** | Integration decisions | Advanced users | Stable |
 | **docs/guides/release-process.md** | Release workflow | Maintainers | Rarely (stable) |
 | **docs/guides/git-hooks.md** | Git hooks usage | Developers | Rarely (stable) |
 | **docs/tutorials/examples.md** | Step-by-step tutorials | New users | When features added |
-| **docs/guides/mcp.md** | Complete MCP tool reference | All users | When tools added/changed |
 | **docs/reference/jsonl.md** | Output format and jq patterns | Advanced users | Rarely (stable) |
 | **docs/reference/jsonl-schema.md** | JSONL session file schema specification | Developers & Analysts | When schema changes |
 | **docs/reference/features.md** | Advanced features overview | Advanced users | When features added |
+| **docs/reference/codex-app-server.md** | Codex app-server backend reference (implemented — public) | Codex users & Developers | When backend changes |
+| **docs/reference/codex-history-model.md** | Codex completeness/lineage/pagination reference (implemented — public) | Codex users & Developers | When provider model changes |
+| **docs/reference/fts-index.md** | Local FTS index (internal foundation — accelerates content queries, no standalone tool) | Developers | When indexing changes |
+| **docs/reference/unified-meta-command.md** | Historical design record — retired `/meta` command | Developers | Never (historical) |
 | **docs/examples/jq-query-examples.md** | Single-file JSONL query patterns | Advanced users & Analysts | Rarely (stable patterns) |
 | **docs/examples/multi-file-jsonl-queries.md** | Multi-file JSONL query results | Advanced users & Analysts | Rarely (reference examples) |
 | **docs/examples/frequent-jsonl-queries.md** | Most frequently used JSONL queries | Advanced users & Analysts | Rarely (usage patterns) |
 | **docs/architecture/adr/** | Architecture decisions | Architects | Per decision |
 
-## Most Accessed Documents (from meta-cc analysis)
+## Most Accessed Documents (historical snapshot from meta-cc analysis)
 
 | Rank | Document | Access Count | Primary Use Case |
 |------|----------|--------------|------------------|
@@ -244,6 +326,8 @@ Each phase directory contains:
 - **plan.md** - Detailed implementation plan with TDD stages
 - **README.md** - Quick reference and navigation (12 phases)
 - **Additional files** - Stage summaries, execution reports (as needed)
+
+More recent phase plans (24 onward) live in `docs/plans/` with matching proposals in `docs/proposals/`.
 
 See [Documentation Management Methodology](methodology/documentation-management.md) for plans directory workflow.
 
@@ -332,4 +416,4 @@ For universal, project-independent software development methodologies, see:
 
 ---
 
-**Last Updated**: 2025-10-25
+**Last Updated**: 2026-07-29

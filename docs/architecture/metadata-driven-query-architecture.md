@@ -1,5 +1,12 @@
 # Metadata-Driven Query Architecture
 
+> **Status: implemented (foundation).** The metadata-first design described
+> here ships today as the `get_session_metadata` and `query_sessions` MCP
+> tools. For the current, authoritative tool surface and parameters, see the
+> [MCP Query Tools Reference](../guides/mcp-query-tools.md) and
+> [MCP Server Guide](../guides/mcp.md); this page is retained as the design
+> rationale.
+
 ## Overview
 
 The Metadata-Driven Query Architecture is a new approach to querying session data that provides lightweight metadata access with minimal data transfer overhead. Instead of returning large result sets, this architecture returns compact metadata that enables Claude to construct efficient queries.

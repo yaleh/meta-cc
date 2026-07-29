@@ -162,9 +162,10 @@ get_session_metadata({})    // JSONL schema, file info, and query templates
 
 **Resources**:
 - [MCP Query Tools Reference](docs/guides/mcp-query-tools.md) - Complete tool documentation (authoritative query reference)
+- [Two-Stage Query Guide](docs/guides/two-stage-query-guide.md) - Custom jq workflows over selected session files
 - [Codex History Model](docs/reference/codex-history-model.md) - Codex provider reference (lineage, archiving, pagination)
-- [MCP Query Cookbook](docs/examples/mcp-query-cookbook.md) - 25+ practical examples
-- [MCP v2.0 Migration Guide](docs/guides/mcp-v2-migration.md) - Upgrade from v1.x
+- [Codex App-Server Backend](docs/reference/codex-app-server.md) - Codex history backend modes (`auto`/`app_server`/`files`)
+- [Local FTS Index](docs/reference/fts-index.md) - Internal index that accelerates project content queries (no standalone tool)
 
 ### Prompt Library (Slash Commands / Codex Skills)
 
@@ -191,11 +192,15 @@ Save and reuse your best prompts with 3 built-in Claude Code slash commands or C
 - **[MCP Guide](docs/guides/mcp.md)** - Complete MCP tool reference (16 tools)
 - **[Integration Guide](docs/guides/integration.md)** - MCP and Slash Commands
 - **[MCP Query Tools Reference](docs/guides/mcp-query-tools.md)** - Consolidated query tools, two-stage jq, hybrid output
+- **[Two-Stage Query Guide](docs/guides/two-stage-query-guide.md)** - File selection plus custom jq
 
 ### Advanced
 
 - **[JSONL Reference](docs/reference/jsonl.md)** - Output format and jq patterns
 - **[Feature Overview](docs/reference/features.md)** - Advanced features and capabilities
+- **[Codex History Model](docs/reference/codex-history-model.md)** - Codex lineage, archives, pagination
+- **[Codex App-Server Backend](docs/reference/codex-app-server.md)** - Codex backend modes and fallback
+- **[Local FTS Index](docs/reference/fts-index.md)** - Internal query-acceleration index (DIR-031)
 
 ### Development
 
