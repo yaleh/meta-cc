@@ -622,19 +622,46 @@ Besides the record types documented above, Codex 0.145 rollouts also emit:
 - `event_msg.payload.type` values: `thread_settings_applied`,
   `context_compacted`
 
-meta-cc does not yet give these dedicated semantic handling. They fall
-through to the existing "unknown event" fallback: each unrecognized record
-is archived verbatim into the enclosing turn's
-`Extensions` (`{"codex_events": [...]}`), so they are observable and never
-silently dropped, but they don't yet produce typed fields (e.g.
-`tool_search_call` does not currently become a `ToolCall`). Parsing must
-not error or panic on any of them.
+All eight families now receive dedicated typed handling — `compacted`,
+`context_compacted`, `turn_aborted`, and `session_end` since DIR-032 (see
+`codex-history-model.md`'s turn/session-lifecycle sections), and
+`world_state`, `tool_search_call`, `tool_search_output`, and
+`thread_settings_applied` since DIR-072:
+
+| Event | Canonical item | Structured fields |
+|---|---|---|
+| `world_state` | `world_state` | `world_state`: bounded `cwd` / `approval_policy` / `sandbox_policy` (each capped at 512 bytes); any other/larger payload field is omitted and available only through explicit raw access to the rollout |
+| `tool_search_call` | `tool_search_call` | `id` + `tool_call_id` (equal, the correlation key), `tool_name`, `input` |
+| `tool_search_output` | `tool_search_output` | `tool_call_id` (joins to its call), `output` (error text when no output), `is_error`, `status` |
+| `thread_settings_applied` | `settings_applied` | `settings.keys` (sorted, capped at 32, overflow sets `settings.truncated`) — setting VALUES are never embedded (they may carry credentials); full values only via explicit raw access |
+
+Tool searches are deliberately **distinct** from `tool_call`/`tool_result`:
+they never enter the legacy `ToolCalls` projection (nor the normalized
+`tool_use` records / tool stats derived from it), so search activity is
+never conflated with shell/function tool executions — and never duplicated
+by those projections. The app-server backend's own `webSearch` item type
+similarly maps to a distinct `web_search` kind, never a `ToolCall`.
+
+Searches ARE first-class for full-text indexing: a `tool_search_call`
+indexes `"<tool_name> <input>"` and a `tool_search_output` indexes its
+output (same semantics as tool call/result), while `world_state` /
+`settings_applied` index nothing (bounded metadata, not content — and
+settings values must never reach the index).
+
+Genuinely unrecognized events (future families) still fall through to the
+"unknown event" fallback: archived verbatim into the enclosing turn's
+`Extensions` (`{"codex_events": [...]}`) AND preserved in-stream as a
+capped `unknown` item (see `conversation.NewRawItem`), so nothing is ever
+silently dropped. Parsing must not error or panic on any event shape.
 
 See `tests/fixtures/codex/rollout-legacy-0145-families-sample.jsonl` for a
-sanitized fixture covering all of the above, and
+sanitized fixture covering all eight typed families, and
 `internal/provider/codex/rollout_test.go`'s
-`TestLoadTurnsFromRollout0145EventFamilies` for the corresponding
-assertions.
+`TestLoadTurnsFromRollout0145EventFamilies`,
+`TestLoadTurnsFromRollout0145TypedSearchFamilies`, and
+`TestLoadTurnsFromRolloutUnknownFutureEventsRoundTripAsRaw` for the
+corresponding assertions (typed coverage, correlation/failure surfacing,
+and unknown-event forward compatibility).
 
 **Fixture-refresh procedure:** when a newer Codex CLI version changes or
 introduces event shapes, capture a sanitized (no secrets, no repository
@@ -665,21 +692,25 @@ events when present — never guessed when absent), `tool_call` /
 `tool_result` (linked via `ToolCallID`, preserving item and turn identity
 even though the compatibility projection merges them back into one
 `ToolCall` entry), `command_execution`, `file_change`, `web_search`,
-`plan_update`, `reasoning`, `compaction`, and `unknown` (a capped,
-round-trippable catch-all — see `conversation.NewRawItem`, which truncates
-any payload over 4KB rather than embedding it unbounded, and sets
-`RawTruncated` when it does).
+`plan_update`, `reasoning`, `compaction`, `session_end`, `world_state`,
+`tool_search_call` / `tool_search_output` (linked via `ToolCallID` like
+tool call/result, but a distinct family that never enters the legacy
+`ToolCalls` projection — see "Newer Event Families (Codex 0.145+)"),
+`settings_applied` (value-free: carries only the applied setting keys),
+and `unknown` (a capped, round-trippable catch-all — see
+`conversation.NewRawItem`, which truncates any payload over 4KB rather
+than embedding it unbounded, and sets `RawTruncated` when it does).
 
 **Current adapter coverage** (intentionally scoped, DIR-028):
 
 - **Codex** (`internal/provider/codex/rollout.go`): emits
-  `user_message`/`agent_message`, `tool_call`/`tool_result`, and
-  `reasoning` items with real parsing; the 0.145+ event families documented
-  above (`tool_search_call`, `compacted`, `world_state`, etc.) are not yet
-  given dedicated Item kinds and continue to fall through to `unknown`
-  (mirroring their existing `Extensions.codex_events` fallback) — a future
-  change can promote them to `command_execution`/`web_search`/`compaction`
-  once their real-world payload shapes are confirmed.
+  `user_message`/`agent_message`, `tool_call`/`tool_result`, `reasoning`,
+  and — for every 0.145+ event family documented above — dedicated typed
+  kinds: `compaction` (DIR-032), `session_end` + `TurnStatusAborted`
+  (DIR-032), and `world_state` / `tool_search_call` / `tool_search_output`
+  / `settings_applied` (DIR-072, with bounded/privacy-safe payloads — see
+  "Newer Event Families (Codex 0.145+)"). Only genuinely unrecognized
+  (future) events fall through to `unknown` with raw provenance.
 - **Claude** (`internal/provider/claude/turns.go`'s `itemsFromPair`): a thin
   adapter over the existing `buildTurns`/`joinToolCalls` pipeline — it maps
   the already-computed flattened fields into `user_message`,

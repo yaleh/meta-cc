@@ -2,7 +2,9 @@ package conversation
 
 import (
 	"encoding/json"
+	"sort"
 	"time"
+	"unicode/utf8"
 )
 
 // ItemKind identifies the semantic shape of an ordered Item within a Turn.
@@ -46,6 +48,29 @@ const (
 	// from TurnStatus because a session can end independent of any single
 	// turn's own completion state (DIR-032).
 	ItemKindSessionEnd ItemKind = "session_end"
+	// ItemKindWorldState is a session-environment snapshot (Codex's
+	// top-level "world_state" event): where and under which policies the
+	// session ran. Carries bounded WorldState metadata only — the full
+	// source payload is never embedded and remains available through
+	// explicit raw access to the source rollout (DIR-072).
+	ItemKindWorldState ItemKind = "world_state"
+	// ItemKindToolSearchCall is a request to a search-class tool (Codex's
+	// "tool_search_call" response item). Deliberately distinct from
+	// ItemKindToolCall so repo/web searches are never conflated with
+	// shell/function tool executions in tool stats or the legacy ToolCalls
+	// projection. Correlates with a later ItemKindToolSearchOutput via
+	// ToolCallID (DIR-072).
+	ItemKindToolSearchCall ItemKind = "tool_search_call"
+	// ItemKindToolSearchOutput is the result of a previously issued tool
+	// search call (Codex's "tool_search_output"), linked to its
+	// ItemKindToolSearchCall via ToolCallID and carrying status/error
+	// information (IsError/Status/Output) (DIR-072).
+	ItemKindToolSearchOutput ItemKind = "tool_search_output"
+	// ItemKindSettingsApplied records a thread-settings change (Codex's
+	// event_msg "thread_settings_applied"). Carries bounded, value-free
+	// SettingsApplied metadata: setting values are never embedded because
+	// they may carry credentials or unbounded configuration (DIR-072).
+	ItemKindSettingsApplied ItemKind = "settings_applied"
 	// ItemKindUnknown is a catch-all for events not yet modeled by a typed
 	// kind above. It round-trips via the capped Raw field (see NewRawItem)
 	// so nothing is silently dropped while still bounding memory use.
@@ -159,6 +184,81 @@ type CompactionBoundary struct {
 	Summary string `json:"summary,omitempty"`
 }
 
+// WorldState is the typed, bounded metadata an ItemKindWorldState item
+// exposes from a Codex "world_state" snapshot (DIR-072). Only known short
+// scalar fields are retained; anything larger or unrecognized in the source
+// payload is omitted by construction and remains available only through
+// explicit raw access to the source rollout (a Stage-2 query), never
+// through the typed item.
+type WorldState struct {
+	CWD            string `json:"cwd,omitempty"`
+	ApprovalPolicy string `json:"approval_policy,omitempty"`
+	SandboxPolicy  string `json:"sandbox_policy,omitempty"`
+}
+
+// maxWorldStateValueLen bounds each retained world-state string so a
+// malformed or hostile snapshot (e.g. a multi-megabyte "cwd") can never
+// balloon the typed item — mirroring maxRawBytes's role for raw payloads.
+const maxWorldStateValueLen = 512
+
+// NewWorldState builds an ItemKindWorldState item's typed metadata, capping
+// each field at maxWorldStateValueLen (on a rune boundary, so results stay
+// valid UTF-8).
+func NewWorldState(cwd, approvalPolicy, sandboxPolicy string) *WorldState {
+	return &WorldState{
+		CWD:            capString(cwd, maxWorldStateValueLen),
+		ApprovalPolicy: capString(approvalPolicy, maxWorldStateValueLen),
+		SandboxPolicy:  capString(sandboxPolicy, maxWorldStateValueLen),
+	}
+}
+
+// SettingsApplied is the typed, privacy-safe metadata an
+// ItemKindSettingsApplied item exposes from a Codex "thread_settings_applied"
+// event (DIR-072). Setting VALUES are deliberately never embedded: they can
+// carry credentials (env keys, tokens) or unbounded configuration, so the
+// item retains only the applied setting NAMES, sorted for deterministic
+// output and capped at maxSettingsKeys (overflow sets Truncated). Full
+// values remain available only through explicit raw access to the source
+// rollout.
+type SettingsApplied struct {
+	Keys      []string `json:"keys,omitempty"`
+	Truncated bool     `json:"truncated,omitempty"`
+}
+
+// maxSettingsKeys bounds how many setting keys a SettingsApplied item
+// enumerates before truncating (and flagging Truncated).
+const maxSettingsKeys = 32
+
+// NewSettingsApplied builds an ItemKindSettingsApplied item's typed metadata
+// from a decoded settings object: keys only, sorted, capped at
+// maxSettingsKeys. Values are discarded by construction.
+func NewSettingsApplied(settings map[string]json.RawMessage) *SettingsApplied {
+	keys := make([]string, 0, len(settings))
+	for key := range settings {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	out := &SettingsApplied{}
+	if len(keys) > maxSettingsKeys {
+		keys = keys[:maxSettingsKeys]
+		out.Truncated = true
+	}
+	out.Keys = keys
+	return out
+}
+
+// capString truncates s to at most max bytes, backing off to a rune
+// boundary so the result is always valid UTF-8.
+func capString(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	for max > 0 && !utf8.RuneStart(s[max]) {
+		max--
+	}
+	return s[:max]
+}
+
 // LineageStatus describes what is known about a session/thread's
 // parent/child spawn relationship (see Session.ParentThreadID). Unlike a
 // bare empty ParentThreadID (which is ambiguous between "confirmed no
@@ -236,6 +336,14 @@ type Item struct {
 	// Compaction carries typed boundary metadata for ItemKindCompaction
 	// items (DIR-032). Nil for every other Kind.
 	Compaction *CompactionBoundary `json:"compaction,omitempty"`
+
+	// WorldState carries typed, bounded environment metadata for
+	// ItemKindWorldState items (DIR-072). Nil for every other Kind.
+	WorldState *WorldState `json:"world_state,omitempty"`
+
+	// Settings carries typed, value-free metadata for
+	// ItemKindSettingsApplied items (DIR-072). Nil for every other Kind.
+	Settings *SettingsApplied `json:"settings,omitempty"`
 
 	Timestamp time.Time `json:"timestamp"`
 

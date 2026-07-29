@@ -25,6 +25,20 @@ func rawSearchableText(item conversation.Item) string {
 		return item.ToolName
 	case conversation.ItemKindToolResult:
 		return item.Output
+	case conversation.ItemKindToolSearchCall:
+		// DIR-072: same searchable shape as ItemKindToolCall — a search
+		// query is first-class content. (Indexing here does NOT imply
+		// tool-stats inclusion: these kinds never enter the legacy
+		// ToolCalls projection tool stats consume.)
+		if len(item.Input) > 0 {
+			return item.ToolName + " " + string(item.Input)
+		}
+		return item.ToolName
+	case conversation.ItemKindToolSearchOutput:
+		return item.Output
+	// DIR-072: ItemKindWorldState and ItemKindSettingsApplied deliberately
+	// fall through to the default ("") — they are bounded metadata, not
+	// conversation content, and settings values must never reach the index.
 	case conversation.ItemKindCommandExecution:
 		parts := make([]string, 0, 2)
 		if item.Command != "" {

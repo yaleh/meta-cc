@@ -187,14 +187,45 @@ stream simply ended without a terminal marker" (e.g. a crashed CLI). This
 matches DIR-027's existing precedent: a status is set when the source event
 positively confirms it, never guessed.
 
-**Deliberately left raw** (DIR-027 "typed OR explicit raw preservation is
-fine" precedent, scoped for this task's line budget): `world_state`,
-`tool_search_call`/`tool_search_output`, and `thread_settings_applied`
-continue to fall through to `Extensions.codex_events` /
-`ItemKindUnknown` — see `TestLoadTurnsFromRollout0145EventFamilies`. These
-were judged lower-value than compaction/abort/session-end for a first pass;
-promoting them is a natural, isolated follow-up (see the DIR-028 "Extension
-rule — adding a new Item kind" checklist in `jsonl-schema.md`).
+**Remaining 0.145 families promoted (DIR-072):** `world_state`,
+`tool_search_call`/`tool_search_output`, and `thread_settings_applied` are
+no longer raw passthrough — each maps to a dedicated typed Item kind
+(`world_state`, `tool_search_call`, `tool_search_output`,
+`settings_applied`) in `applyLegacy`, following the DIR-028 "Extension
+rule — adding a new Item kind" checklist:
+
+- **Tool search call/output** correlate via `ToolCallID` (the call sets
+  `ID` == `ToolCallID`, the output joins on the same key) and retain
+  status/error information (`IsError`, `Status` — a failure status/error
+  string maps to `StatusFailed` and the error text surfaces as `Output`
+  when no regular output is present). They are a *distinct* family from
+  `tool_call`/`tool_result`: `projectLegacyFields` (both the rollout and
+  app-server copies) ignores them, so they never enter `Turn.ToolCalls`,
+  normalized `tool_use` records, or tool stats — search activity is never
+  conflated with shell/function tools, and never duplicated by those
+  projections. They DO participate in full-text indexing (call:
+  `"<name> <input>"`, output: its output) like tool call/result.
+- **World-state** exposes only bounded metadata (`conversation.WorldState`:
+  `cwd`, `approval_policy`, `sandbox_policy`, each capped at 512 bytes via
+  `NewWorldState`); any other/larger source field is omitted by
+  construction.
+- **Settings** expose only the applied setting KEYS
+  (`conversation.SettingsApplied`: sorted, capped at 32 keys with overflow
+  flagged via `Truncated`). Setting VALUES are never embedded — they can
+  carry credentials (env keys, tokens) — and are likewise never indexed by
+  ftsindex. Full world-state/settings payloads remain available only
+  through explicit raw access to the source rollout (Stage-2 query).
+
+Like the DIR-032 kinds, these items ride in the turn's `Items` stream in
+encounter order but add nothing to the legacy record projection, so turns
+that already surface content keep identical normalized records (see
+`TestNormalizeDoesNotDuplicateTypedSearchAndMetadataItems`). A turn whose
+ONLY content is one of these metadata items currently produces no
+normalized record — consistent with the existing `reasoning`-only
+precedent; the typed Item remains available to future item-level query
+surfaces. Genuinely unrecognized future events still round-trip as capped
+`unknown` items plus `Extensions.codex_events` entries — see
+`TestLoadTurnsFromRolloutUnknownFutureEventsRoundTripAsRaw`.
 
 ## Archive filtering defaults
 
@@ -348,10 +379,11 @@ structured data, not a line-oriented log format.
 
 ## Known limitations / explicitly out of scope (DIR-032, first pass)
 
-- `world_state`, `tool_search_call`/`tool_search_output`, and
-  `thread_settings_applied` remain raw passthrough (see "Turn/session
-  lifecycle status" above) — promoting them is a scoped, isolated
-  follow-up, not required by this task's Acceptance Criteria.
+- ~~`world_state`, `tool_search_call`/`tool_search_output`, and
+  `thread_settings_applied` remain raw passthrough~~ — RESOLVED by DIR-072:
+  all four families now map to typed canonical items (see "Turn/session
+  lifecycle status" above and `jsonl-schema.md`'s "Newer Event Families
+  (Codex 0.145+)").
 - Experimental turn/item-level pagination is capability-gated but has no
   real implementation behind it yet (no confirmed method/wire-shape exists
   to implement against) — see "Experimental turn/item pagination" above.

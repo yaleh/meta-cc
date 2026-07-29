@@ -71,6 +71,38 @@ func TestMapThreadLineage(t *testing.T) {
 	}
 }
 
+// TestProjectLegacyFieldsExcludesSearchAndMetadataItems is the DIR-072
+// no-duplication proof for the app-server projection half: the legacy
+// UserText/AssistantText/ToolCalls derivation must ignore the DIR-072 item
+// kinds (tool search call/output, world_state, settings_applied) exactly
+// like the rollout adapter's projection does, so a turn that ever carries
+// those items through this backend can never duplicate them as legacy
+// tool_use content or message text. webSearch — the app-server's own
+// search-shaped item type — likewise stays a distinct ItemKindWebSearch
+// item, never a ToolCall.
+func TestProjectLegacyFieldsExcludesSearchAndMetadataItems(t *testing.T) {
+	now := unixPtrOrZero(nil, nil)
+	turn := conversation.Turn{
+		ID:        "turn-1",
+		UserText:  "",
+		Timestamp: now,
+		Items: []conversation.Item{
+			{Kind: conversation.ItemKindWorldState, WorldState: &conversation.WorldState{CWD: "/tmp"}, Timestamp: now},
+			{Kind: conversation.ItemKindToolSearchCall, ID: "s1", ToolCallID: "s1", ToolName: "repo_search", Input: json.RawMessage(`{"query":"x"}`), Timestamp: now},
+			{Kind: conversation.ItemKindToolSearchOutput, ToolCallID: "s1", Output: "1 match", Timestamp: now},
+			{Kind: conversation.ItemKindSettingsApplied, Settings: &conversation.SettingsApplied{Keys: []string{"model"}}, Timestamp: now},
+			{Kind: conversation.ItemKindWebSearch, Query: "golang generics", Timestamp: now},
+		},
+	}
+	projectLegacyFields(&turn)
+	if len(turn.ToolCalls) != 0 {
+		t.Fatalf("search/web-search/metadata items must not duplicate into ToolCalls: %#v", turn.ToolCalls)
+	}
+	if turn.UserText != "" || turn.AssistantText != "" {
+		t.Fatalf("metadata items must not leak into message projections: user=%q assistant=%q", turn.UserText, turn.AssistantText)
+	}
+}
+
 // TestMapItemsContextCompactionBoundary proves the "contextCompaction" item
 // type maps to a typed CompactionBoundary (reason/summary), best-effort
 // decoded from whatever fields the payload carries, rather than an

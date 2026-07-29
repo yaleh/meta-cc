@@ -8,6 +8,36 @@ import (
 	"github.com/yaleh/meta-cc/internal/conversation"
 )
 
+// TestNormalizeDoesNotDuplicateTypedSearchAndMetadataItems is the DIR-072
+// no-duplication proof at the normalized-record layer: a turn carrying typed
+// tool-search, world-state, and settings items emits exactly the records its
+// legacy projection alone would — the typed items never add extra records,
+// so a search can never surface as a duplicated tool_use block and metadata
+// items never leak into the content stream MCP tools query.
+func TestNormalizeDoesNotDuplicateTypedSearchAndMetadataItems(t *testing.T) {
+	now := time.Unix(1700000000, 0).UTC()
+	session := conversation.Session{ID: "s1", Provider: conversation.ProviderCodex, CWD: "/tmp/project"}
+	turn := conversation.Turn{
+		ID:        "turn-1",
+		UserText:  "search the repo",
+		Timestamp: now,
+		Items: []conversation.Item{
+			{Kind: conversation.ItemKindWorldState, WorldState: &conversation.WorldState{CWD: "/tmp/project"}, Timestamp: now},
+			{Kind: conversation.ItemKindUserMessage, Role: "user", Text: "search the repo", Timestamp: now},
+			{Kind: conversation.ItemKindToolSearchCall, ID: "c1", ToolCallID: "c1", ToolName: "repo_search", Input: json.RawMessage(`{"query":"x"}`), Timestamp: now},
+			{Kind: conversation.ItemKindToolSearchOutput, ToolCallID: "c1", Output: "1 match", Timestamp: now},
+			{Kind: conversation.ItemKindSettingsApplied, Settings: &conversation.SettingsApplied{Keys: []string{"model"}}, Timestamp: now},
+		},
+	}
+	got := Normalize(session, []conversation.Turn{turn})
+	if len(got) != 1 {
+		t.Fatalf("expected exactly 1 (user) record, got %d: %#v", len(got), got)
+	}
+	if got[0]["type"] != "user" {
+		t.Fatalf("unexpected record type: %#v", got[0])
+	}
+}
+
 func TestNormalizeCodexTurnRecords(t *testing.T) {
 	now := time.Unix(1700000000, 0).UTC()
 	session := conversation.Session{

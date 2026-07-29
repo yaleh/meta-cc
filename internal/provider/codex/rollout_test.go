@@ -235,15 +235,16 @@ func TestLoadTurnsFromRolloutDedupesAssistantSegments(t *testing.T) {
 // TestLoadTurnsFromRollout0145EventFamilies exercises the Codex 0.145 event
 // families absent from earlier fixtures: world_state, compacted,
 // tool_search_call, tool_search_output, thread_settings_applied,
-// context_compacted, turn_aborted, and session_end. DIR-032 promotes four of
+// context_compacted, turn_aborted, and session_end. DIR-032 promoted four of
 // these (compacted, context_compacted, turn_aborted, session_end) to typed
-// handling (see TestLoadTurnsFromRollout0145TypedEventFamilies below);
-// world_state, tool_search_call, tool_search_output, and
-// thread_settings_applied remain raw passthrough (the highest-value
-// upgrades were prioritized per DIR-032's scoping note — see
-// docs/reference/codex-history-model.md). All eight must still never crash
-// parsing, never silently disappear, and never interfere with the
-// user/assistant text or tool calls that share their turn.
+// handling (see TestLoadTurnsFromRollout0145TypedEventFamilies below), and
+// DIR-072 promoted the remaining four (world_state, tool_search_call,
+// tool_search_output, thread_settings_applied — see
+// TestLoadTurnsFromRollout0145TypedSearchFamilies), so the fixture now
+// produces typed items for ALL eight families with no raw passthrough left.
+// All eight must never crash parsing, never silently disappear, and never
+// interfere with the user/assistant text or tool calls that share their
+// turn.
 //
 // Fixture-refresh procedure: when a newer Codex CLI version changes or
 // adds event families, capture a sanitized (no secrets/repo content),
@@ -269,18 +270,13 @@ func TestLoadTurnsFromRollout0145EventFamilies(t *testing.T) {
 		t.Fatalf("expected deduped assistant text even with new event families interleaved, got %q", turn.AssistantText)
 	}
 
-	var ext struct {
-		CodexEvents []json.RawMessage `json:"codex_events"`
-	}
-	if err := json.Unmarshal(turn.Extensions, &ext); err != nil {
-		t.Fatalf("failed to unmarshal turn extensions: %v", err)
-	}
-	// world_state, tool_search_call, tool_search_output,
-	// thread_settings_applied: 4 unrecognized events remain raw passthrough
-	// (compacted, context_compacted, turn_aborted, session_end are now
-	// typed — see TestLoadTurnsFromRollout0145TypedEventFamilies).
-	if len(ext.CodexEvents) != 4 {
-		t.Fatalf("expected 4 preserved raw events for the still-unrecognized 0145 families, got %d: %#v", len(ext.CodexEvents), ext.CodexEvents)
+	// DIR-072: every 0.145 family in the fixture is now typed, so no raw
+	// passthrough may remain in Extensions.codex_events (DIR-032 typed
+	// compacted/context_compacted/turn_aborted/session_end; DIR-072 typed
+	// world_state/tool_search_call/tool_search_output/
+	// thread_settings_applied).
+	if len(turn.Extensions) != 0 {
+		t.Fatalf("expected no raw passthrough events to remain, got extensions: %s", turn.Extensions)
 	}
 }
 
@@ -498,14 +494,16 @@ func TestLoadTurnsFromRolloutPreservesItemOrderAndPhase(t *testing.T) {
 	}
 }
 
-// TestLoadTurnsFromRollout0145EventFamiliesProducesUnknownItems extends the
+// TestLoadTurnsFromRollout0145EventFamiliesProducesTypedItems extends the
 // 0145-event-families coverage (see TestLoadTurnsFromRollout0145EventFamilies
-// above) to the item level: every event that still falls through to the
-// legacy Extensions.codex_events bag must also be representable as a
-// capped, round-trippable ItemKindUnknown Item, so the ordered item stream
-// never silently drops events even when it doesn't yet give them dedicated
-// semantic handling.
-func TestLoadTurnsFromRollout0145EventFamiliesProducesUnknownItems(t *testing.T) {
+// above) to the item level: DIR-072's four promoted families must each
+// produce exactly one typed canonical Item (never a generic ItemKindUnknown),
+// and NO event in the fixture may remain as an unknown raw passthrough —
+// the item stream classifies every 0.145 family the fixture carries.
+// (Unknown items themselves remain fully supported for genuinely
+// unrecognized events — see
+// TestLoadTurnsFromRolloutUnknownFutureEventsRoundTripAsRaw.)
+func TestLoadTurnsFromRollout0145EventFamiliesProducesTypedItems(t *testing.T) {
 	turns, _, err := loadTurnsFromRollout(filepath.Join("..", "..", "..", "tests", "fixtures", "codex", "rollout-legacy-0145-families-sample.jsonl"), 100)
 	if err != nil {
 		t.Fatalf("0145 families load: %v", err)
@@ -514,21 +512,301 @@ func TestLoadTurnsFromRollout0145EventFamiliesProducesUnknownItems(t *testing.T)
 		t.Fatalf("expected 1 turn, got %d", len(turns))
 	}
 
-	var unknown int
+	kinds := map[conversation.ItemKind]int{}
 	for _, item := range turns[0].Items {
-		if item.Kind != conversation.ItemKindUnknown {
-			continue
+		kinds[item.Kind]++
+		if item.Kind == conversation.ItemKindUnknown {
+			t.Fatalf("no 0145 fixture event may remain an unknown raw passthrough: %#v", item)
 		}
-		unknown++
-		if len(item.Raw) == 0 {
-			t.Fatalf("unknown item missing raw provenance: %#v", item)
-		}
-		if item.RawTruncated {
-			t.Fatalf("small fixture events should not be truncated: %#v", item)
+		if len(item.Raw) != 0 {
+			t.Fatalf("typed items must not embed raw provenance: %#v", item)
 		}
 	}
-	if unknown != 4 {
-		t.Fatalf("expected 4 unknown items (matching the 4 remaining codex_events entries; compacted/context_compacted/turn_aborted/session_end are now typed), got %d", unknown)
+	for _, kind := range []conversation.ItemKind{
+		conversation.ItemKindWorldState,
+		conversation.ItemKindToolSearchCall,
+		conversation.ItemKindToolSearchOutput,
+		conversation.ItemKindSettingsApplied,
+	} {
+		if kinds[kind] != 1 {
+			t.Fatalf("expected exactly one typed %s item, got %d (kinds: %#v)", kind, kinds[kind], kinds)
+		}
+	}
+}
+
+// TestLoadTurnsFromRollout0145TypedSearchFamilies is the DIR-072 typed-item
+// proof for the four promoted families, asserting each item's stable kind,
+// source, timestamp, identity, and structured fields: world_state carries
+// bounded WorldState metadata; tool_search_call/output correlate via
+// ToolCallID; thread_settings_applied exposes setting KEYS only (never
+// values). The search pair must never leak into the legacy ToolCalls
+// projection (searches are not shell/function tools), and stream order is
+// preserved (call before output).
+func TestLoadTurnsFromRollout0145TypedSearchFamilies(t *testing.T) {
+	turns, _, err := loadTurnsFromRollout(filepath.Join("..", "..", "..", "tests", "fixtures", "codex", "rollout-legacy-0145-families-sample.jsonl"), 100)
+	if err != nil {
+		t.Fatalf("0145 families load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d", len(turns))
+	}
+	turn := turns[0]
+
+	byKind := map[conversation.ItemKind][]int{}
+	for i, item := range turn.Items {
+		byKind[item.Kind] = append(byKind[item.Kind], i)
+	}
+
+	wsIdx := byKind[conversation.ItemKindWorldState]
+	if len(wsIdx) != 1 {
+		t.Fatalf("expected 1 world_state item, got %d", len(wsIdx))
+	}
+	ws := turn.Items[wsIdx[0]]
+	if ws.WorldState == nil || ws.WorldState.CWD != "/tmp/project" || ws.WorldState.ApprovalPolicy != "on-request" {
+		t.Fatalf("world_state metadata not typed/bounded: %#v", ws)
+	}
+	if ws.Source != "world_state" {
+		t.Fatalf("world_state item must record its provenance source: %#v", ws)
+	}
+	if want := time.Date(2026, 7, 20, 10, 0, 2, 0, time.UTC); !ws.Timestamp.Equal(want) {
+		t.Fatalf("world_state timestamp = %v, want %v", ws.Timestamp, want)
+	}
+
+	callIdx := byKind[conversation.ItemKindToolSearchCall]
+	outIdx := byKind[conversation.ItemKindToolSearchOutput]
+	if len(callIdx) != 1 || len(outIdx) != 1 {
+		t.Fatalf("expected 1 tool_search_call and 1 tool_search_output item, got %#v", byKind)
+	}
+	call, output := turn.Items[callIdx[0]], turn.Items[outIdx[0]]
+	if call.ID != "call-search-1" || call.ToolCallID != "call-search-1" || call.ToolName != "repo_search" {
+		t.Fatalf("tool_search_call identity not typed: %#v", call)
+	}
+	if string(call.Input) != `{"query":"TODO"}` {
+		t.Fatalf("tool_search_call input not retained: %s", call.Input)
+	}
+	if output.ToolCallID != call.ToolCallID {
+		t.Fatalf("tool_search_output must correlate with its call via ToolCallID: call=%#v output=%#v", call, output)
+	}
+	if output.Output != "3 matches found" || output.IsError {
+		t.Fatalf("tool_search_output fields wrong: %#v", output)
+	}
+	if callIdx[0] >= outIdx[0] {
+		t.Fatalf("stream order not preserved: call at %d, output at %d", callIdx[0], outIdx[0])
+	}
+	// The search pair must never be confused with shell/function tools: the
+	// legacy ToolCalls projection (what tool stats and normalized tool_use
+	// records consume) must stay empty for this turn.
+	if len(turn.ToolCalls) != 0 {
+		t.Fatalf("tool searches must not leak into the legacy ToolCalls projection: %#v", turn.ToolCalls)
+	}
+
+	setIdx := byKind[conversation.ItemKindSettingsApplied]
+	if len(setIdx) != 1 {
+		t.Fatalf("expected 1 settings_applied item, got %d", len(setIdx))
+	}
+	settings := turn.Items[setIdx[0]]
+	if settings.Settings == nil || settings.Source != "event_msg" {
+		t.Fatalf("settings item not typed with provenance: %#v", settings)
+	}
+	wantKeys := []string{"approval_policy", "model"}
+	if len(settings.Settings.Keys) != 2 || settings.Settings.Keys[0] != wantKeys[0] || settings.Settings.Keys[1] != wantKeys[1] {
+		t.Fatalf("settings keys must be sorted and value-free: %#v", settings.Settings)
+	}
+}
+
+// TestLoadTurnsFromRolloutToolSearchSurfacesFailures is the DIR-072
+// correlation/failure proof: two search calls, one succeeding (status
+// completed) and one failing (status failed + error string), must each pair
+// with their output via ToolCallID, the failure must surface through
+// IsError/Status/Output (error text standing in for absent output), and the
+// search pair must never be confused with the shell/function tool call that
+// shares the turn — the legacy ToolCalls projection contains ONLY the
+// function call.
+func TestLoadTurnsFromRolloutToolSearchSurfacesFailures(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tool-search-failures.jsonl")
+	content := `{"timestamp":"2026-07-21T08:00:00Z","type":"session_meta","payload":{"id":"sess-sf","cwd":"/tmp/project"}}
+{"timestamp":"2026-07-21T08:00:01Z","type":"turn_context","payload":{"turn_id":"turn-sf"}}
+{"timestamp":"2026-07-21T08:00:02Z","type":"response_item","payload":{"type":"tool_search_call","call_id":"call-ok","name":"repo_search","arguments":"{\"query\":\"a\"}"}}
+{"timestamp":"2026-07-21T08:00:03Z","type":"response_item","payload":{"type":"tool_search_output","call_id":"call-ok","output":"1 match","status":"completed"}}
+{"timestamp":"2026-07-21T08:00:04Z","type":"response_item","payload":{"type":"tool_search_call","call_id":"call-bad","name":"web_search","arguments":"{\"query\":\"b\"}"}}
+{"timestamp":"2026-07-21T08:00:05Z","type":"response_item","payload":{"type":"tool_search_output","call_id":"call-bad","status":"failed","error":"search backend unavailable"}}
+{"timestamp":"2026-07-21T08:00:06Z","type":"response_item","payload":{"type":"function_call","name":"shell","call_id":"call-sh","arguments":"{\"cmd\":\"ls\"}"}}
+{"timestamp":"2026-07-21T08:00:07Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call-sh","output":"file.txt"}}
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	turns, _, err := loadTurnsFromRollout(path, 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d", len(turns))
+	}
+	turn := turns[0]
+
+	var calls, outputs []conversation.Item
+	for _, item := range turn.Items {
+		switch item.Kind {
+		case conversation.ItemKindToolSearchCall:
+			calls = append(calls, item)
+		case conversation.ItemKindToolSearchOutput:
+			outputs = append(outputs, item)
+		}
+	}
+	if len(calls) != 2 || len(outputs) != 2 {
+		t.Fatalf("expected 2 search calls and 2 search outputs, got %d/%d", len(calls), len(outputs))
+	}
+	byID := map[string]conversation.Item{}
+	for _, output := range outputs {
+		byID[output.ToolCallID] = output
+	}
+	ok := byID["call-ok"]
+	if ok.Output != "1 match" || ok.IsError || ok.Status != conversation.StatusCompleted {
+		t.Fatalf("successful search output wrong: %#v", ok)
+	}
+	bad := byID["call-bad"]
+	if !bad.IsError || bad.Status != conversation.StatusFailed || bad.Output != "search backend unavailable" {
+		t.Fatalf("failed search output must surface error via IsError/Status/Output: %#v", bad)
+	}
+
+	// Searches are not shell/function tools: the legacy projection must
+	// carry ONLY the function call (no duplication, no conflation).
+	if len(turn.ToolCalls) != 1 || turn.ToolCalls[0].Name != "shell" || turn.ToolCalls[0].Output != "file.txt" {
+		t.Fatalf("legacy ToolCalls must contain only the function call: %#v", turn.ToolCalls)
+	}
+}
+
+// TestLoadTurnsFromRolloutWorldStateAndSettingsBounded is the DIR-072
+// size/privacy proof: an oversized world_state value is capped (never
+// embedded in full), unknown/huge world_state fields and sensitive settings
+// VALUES never appear anywhere in the marshaled turn, while settings KEYS
+// remain available for filtering. The full payloads survive only through
+// explicit raw access to the source rollout file.
+func TestLoadTurnsFromRolloutWorldStateAndSettingsBounded(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bounded-payloads.jsonl")
+	bigCWD := strings.Repeat("x", 5000)
+	content := `{"timestamp":"2026-07-22T09:00:00Z","type":"session_meta","payload":{"id":"sess-bd","cwd":"/tmp/project"}}
+{"timestamp":"2026-07-22T09:00:01Z","type":"turn_context","payload":{"turn_id":"turn-bd"}}
+{"timestamp":"2026-07-22T09:00:02Z","type":"world_state","payload":{"cwd":"` + bigCWD + `","approval_policy":"never","env":{"TOKEN":"huge-environment-secret"}}}
+{"timestamp":"2026-07-22T09:00:03Z","type":"event_msg","payload":{"type":"thread_settings_applied","settings":{"model":"\"gpt-5\"","api_key":"\"sk-live-abc123secret\""}}}
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	turns, _, err := loadTurnsFromRollout(path, 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d", len(turns))
+	}
+	turn := turns[0]
+
+	var ws, settings *conversation.Item
+	for i := range turn.Items {
+		switch turn.Items[i].Kind {
+		case conversation.ItemKindWorldState:
+			ws = &turn.Items[i]
+		case conversation.ItemKindSettingsApplied:
+			settings = &turn.Items[i]
+		}
+	}
+	if ws == nil || ws.WorldState == nil {
+		t.Fatalf("missing typed world_state item: %#v", turn.Items)
+	}
+	// conversation.maxWorldStateValueLen == 512: the oversized cwd is
+	// capped, the short approval_policy survives.
+	if len(ws.WorldState.CWD) != 512 {
+		t.Fatalf("world_state cwd must be capped at 512 bytes, got %d", len(ws.WorldState.CWD))
+	}
+	if ws.WorldState.ApprovalPolicy != "never" {
+		t.Fatalf("ordinary world_state field lost: %#v", ws.WorldState)
+	}
+	if settings == nil || settings.Settings == nil {
+		t.Fatalf("missing typed settings item: %#v", turn.Items)
+	}
+	if len(settings.Settings.Keys) != 2 || settings.Settings.Keys[0] != "api_key" || settings.Settings.Keys[1] != "model" {
+		t.Fatalf("settings keys must be retained (sorted): %#v", settings.Settings)
+	}
+
+	// Nothing sensitive or oversized may leak into the canonical turn:
+	// marshal it the way downstream consumers see it and assert the secret
+	// values, the unbounded cwd bytes, and the unknown env payload are all
+	// absent.
+	data, err := json.Marshal(turn)
+	if err != nil {
+		t.Fatalf("marshal turn: %v", err)
+	}
+	for _, leaked := range []string{"sk-live-abc123secret", "huge-environment-secret", bigCWD} {
+		if strings.Contains(string(data), leaked) {
+			t.Fatalf("sensitive/oversized payload leaked into the typed turn: %q", leaked)
+		}
+	}
+}
+
+// TestLoadTurnsFromRolloutUnknownFutureEventsRoundTripAsRaw is the DIR-072
+// forward-compatibility proof: events from families the parser does NOT
+// recognize (simulated future top-level, event_msg, and response_item
+// shapes) must still survive as capped ItemKindUnknown items with raw
+// provenance AND in the legacy Extensions.codex_events bag — promoting the
+// four known families must not regress the unknown passthrough. A known
+// typed family interleaved with them still classifies correctly.
+func TestLoadTurnsFromRolloutUnknownFutureEventsRoundTripAsRaw(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "future-events.jsonl")
+	content := `{"timestamp":"2027-01-01T00:00:00Z","type":"session_meta","payload":{"id":"sess-fut","cwd":"/tmp/project"}}
+{"timestamp":"2027-01-01T00:00:01Z","type":"turn_context","payload":{"turn_id":"turn-fut"}}
+{"timestamp":"2027-01-01T00:00:02Z","type":"quantum_state","payload":{"superposition":true}}
+{"timestamp":"2027-01-01T00:00:03Z","type":"event_msg","payload":{"type":"future_notification","note":"not yet modeled"}}
+{"timestamp":"2027-01-01T00:00:04Z","type":"response_item","payload":{"type":"hologram_call","call_id":"call-h"}}
+{"timestamp":"2027-01-01T00:00:05Z","type":"world_state","payload":{"cwd":"/tmp/project","approval_policy":"never"}}
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	turns, _, err := loadTurnsFromRollout(path, 100)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected 1 turn, got %d", len(turns))
+	}
+	turn := turns[0]
+
+	var unknown, typed int
+	for _, item := range turn.Items {
+		if item.Kind == conversation.ItemKindUnknown {
+			unknown++
+			if len(item.Raw) == 0 {
+				t.Fatalf("unknown item must retain raw provenance: %#v", item)
+			}
+			if item.RawTruncated {
+				t.Fatalf("small future events must not be truncated: %#v", item)
+			}
+			continue
+		}
+		if item.Kind == conversation.ItemKindWorldState {
+			typed++
+		}
+	}
+	if unknown != 3 {
+		t.Fatalf("expected 3 unknown passthrough items for the future families, got %d", unknown)
+	}
+	if typed != 1 {
+		t.Fatalf("known family interleaved with unknown events must still classify, got %d typed world_state items", typed)
+	}
+
+	var ext struct {
+		CodexEvents []json.RawMessage `json:"codex_events"`
+	}
+	if err := json.Unmarshal(turn.Extensions, &ext); err != nil {
+		t.Fatalf("unmarshal extensions: %v", err)
+	}
+	if len(ext.CodexEvents) != 3 {
+		t.Fatalf("future events must also round-trip via Extensions.codex_events, got %d", len(ext.CodexEvents))
 	}
 }
 

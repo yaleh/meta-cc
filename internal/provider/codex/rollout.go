@@ -375,6 +375,16 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 			// (see CompactionBoundary's doc comment) — the summary is
 			// boundary metadata, never folded into UserText/AssistantText.
 			b.appendCompactionItem("", payload.Summary, event.Timestamp)
+		case "thread_settings_applied":
+			// DIR-072: typed, value-free settings record — only the applied
+			// setting keys are retained (sorted/capped); values are never
+			// embedded because they may carry credentials or unbounded
+			// configuration (see conversation.SettingsApplied).
+			var settingsPayload struct {
+				Settings map[string]json.RawMessage `json:"settings"`
+			}
+			_ = json.Unmarshal(event.Payload, &settingsPayload)
+			b.appendSettingsAppliedItem(settingsPayload.Settings, event.Timestamp)
 		default:
 			b.appendUnknown(line)
 		}
@@ -416,6 +426,24 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 				output = envelope.Error
 			}
 			b.appendToolResultItem(callID, output, isError, event.Timestamp)
+		case "tool_search_call":
+			// DIR-072: typed search-tool call, deliberately a distinct kind
+			// from function/custom tool calls so searches never pollute the
+			// legacy ToolCalls projection or tool stats. Correlates with its
+			// tool_search_output via ToolCallID.
+			callID := firstNonEmpty(envelope.CallID, envelope.ID)
+			b.appendToolSearchCallItem(callID, envelope.Name, json.RawMessage(envelope.Arguments), event.Timestamp)
+		case "tool_search_output":
+			// DIR-072: typed search-tool result linked to its call via
+			// ToolCallID, retaining status/error information (error text
+			// surfaces as Output when no regular output is present).
+			callID := firstNonEmpty(envelope.CallID, envelope.ID)
+			isError := envelope.IsError || isErrorStatus(envelope.Status) || envelope.Error != ""
+			output := envelope.Output
+			if output == "" {
+				output = envelope.Error
+			}
+			b.appendToolSearchOutputItem(callID, output, isError, searchOutputStatus(envelope.Status, isError), event.Timestamp)
 		case "message":
 			text := extractResponseItemText(envelope.Content)
 			switch envelope.Role {
@@ -450,6 +478,25 @@ func (b *turnBuilder) applyLegacy(line []byte) {
 		_ = json.Unmarshal(event.Payload, &payload)
 		b.ensureTurn("", event.Timestamp)
 		b.appendCompactionItem(payload.Reason, "", event.Timestamp)
+	case "world_state":
+		// DIR-072: typed, bounded environment snapshot rather than raw
+		// passthrough — only known short scalar fields are retained (each
+		// capped by conversation.NewWorldState); anything larger or
+		// unrecognized in the payload is omitted and remains available only
+		// through explicit raw access to the source rollout.
+		var payload struct {
+			CWD            string `json:"cwd"`
+			ApprovalPolicy string `json:"approval_policy"`
+			SandboxPolicy  string `json:"sandbox_policy"`
+		}
+		_ = json.Unmarshal(event.Payload, &payload)
+		b.ensureTurn("", event.Timestamp)
+		b.current.Items = append(b.current.Items, conversation.Item{
+			Kind:       conversation.ItemKindWorldState,
+			WorldState: conversation.NewWorldState(payload.CWD, payload.ApprovalPolicy, payload.SandboxPolicy),
+			Timestamp:  parseTimestamp(event.Timestamp),
+			Source:     "world_state",
+		})
 	case "turn_aborted":
 		// DIR-032: typed turn lifecycle status rather than raw passthrough —
 		// see docs/reference/codex-history-model.md's turn-status coverage.
@@ -494,6 +541,67 @@ func (b *turnBuilder) appendCompactionItem(reason, summary, timestamp string) {
 			Summary: summary,
 		},
 	})
+}
+
+// appendToolSearchCallItem appends a typed ItemKindToolSearchCall (DIR-072).
+// It mirrors appendToolCallItem's identity convention (ID == ToolCallID so
+// call and output join on one key) but emits a distinct kind: searches are
+// never folded into the legacy ToolCalls projection, so tool stats and
+// tool_use records only ever see shell/function tools.
+func (b *turnBuilder) appendToolSearchCallItem(callID, name string, input json.RawMessage, timestamp string) {
+	b.ensureTurn("", timestamp) // DIR-061 defensive guard, see appendTextItem
+	ts, _ := time.Parse(time.RFC3339, timestamp)
+	b.current.Items = append(b.current.Items, conversation.Item{
+		ID:         callID,
+		Kind:       conversation.ItemKindToolSearchCall,
+		ToolCallID: callID,
+		ToolName:   name,
+		Input:      input,
+		Timestamp:  ts.UTC(),
+		Source:     "response_item",
+	})
+}
+
+func (b *turnBuilder) appendToolSearchOutputItem(callID, output string, isError bool, status conversation.ItemStatus, timestamp string) {
+	b.ensureTurn("", timestamp) // DIR-061 defensive guard, see appendTextItem
+	ts, _ := time.Parse(time.RFC3339, timestamp)
+	b.current.Items = append(b.current.Items, conversation.Item{
+		Kind:       conversation.ItemKindToolSearchOutput,
+		ToolCallID: callID,
+		Output:     output,
+		IsError:    isError,
+		Status:     status,
+		Timestamp:  ts.UTC(),
+		Source:     "response_item",
+	})
+}
+
+func (b *turnBuilder) appendSettingsAppliedItem(settings map[string]json.RawMessage, timestamp string) {
+	b.ensureTurn("", timestamp) // DIR-061 defensive guard, see appendTextItem
+	ts, _ := time.Parse(time.RFC3339, timestamp)
+	b.current.Items = append(b.current.Items, conversation.Item{
+		Kind:      conversation.ItemKindSettingsApplied,
+		Settings:  conversation.NewSettingsApplied(settings),
+		Timestamp: ts.UTC(),
+		Source:    "event_msg",
+	})
+}
+
+// searchOutputStatus retains a tool_search_output's reported status as a
+// stable, filterable ItemStatus: a failure (from is_error, an error string,
+// or a failure status) maps to StatusFailed, an affirmative terminal status
+// to StatusCompleted, and anything unreported/unrecognized stays
+// unspecified rather than guessed (DIR-027 status precedent).
+func searchOutputStatus(status string, isError bool) conversation.ItemStatus {
+	if isError {
+		return conversation.StatusFailed
+	}
+	switch status {
+	case "completed", "success", "ok":
+		return conversation.StatusCompleted
+	default:
+		return conversation.StatusUnspecified
+	}
 }
 
 type codexTokenUsage struct {
