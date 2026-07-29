@@ -1391,7 +1391,7 @@ Adaptation guide:
 Before:
 ```markdown
 # CI/CD Pattern
-- Install Go 1.21
+- Install Go 1.24
 - Run go test ./...
 - Build with go build -o bin/app
 - Check coverage is >80%
@@ -1408,7 +1408,7 @@ Universal steps:
 4. Verify quality threshold (configurable threshold)
 
 Domain-specific implementations:
-- Go: {runtime}=Go 1.21+, {test}=go test, {build}=go build
+- Go: {runtime}=Go 1.24+, {test}=go test, {build}=go build
 - Node: {runtime}=Node 18+, {test}=npm test, {build}=npm run build
 - Python: {runtime}=Python 3.10+, {test}=pytest, {build}=python setup.py
 ```

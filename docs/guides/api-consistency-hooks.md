@@ -438,7 +438,7 @@ fi
 
 ## See Also
 
-- [validate-api CLI Reference](../reference/cli.md#validate-api) - Complete command documentation
+- [validate-api CLI Reference](../../validate-api/) - Complete command documentation
 - [Git Hooks (Plugin Version Management)](git-hooks.md) - Plugin version bump hooks
-- [API Parameter Convention](../../experiments/bootstrap-006-api-design/data/api-parameter-convention.md) - Convention specification
+- [API Parameter Convention](../../_experiments/bootstrap-006-api-design/data/api-parameter-convention.md) - Convention specification
 - [MCP Guide](mcp.md) - MCP tool reference

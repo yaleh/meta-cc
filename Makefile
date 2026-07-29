@@ -44,7 +44,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # Default target when running 'make' without arguments
 .DEFAULT_GOAL := all
 
-.PHONY: all build stage test test-all test-coverage clean install install-local install-user install-user-codex uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-path-independence _path-independence-probe print-ldflags-value
+.PHONY: all build stage test test-all test-coverage clean install install-local install-user install-user-codex uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-docs check-path-independence _path-independence-probe print-ldflags-value
 
 # ==============================================================================
 # Build Quality Gates (BAIME Experiment - Iteration 1)
@@ -55,7 +55,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # ==============================================================================
 
 # Group 1: Essential (P0) - Blocks commit
-check-essential: check-temp-files check-fixtures check-deps check-session-locator-scope check-path-independence
+check-essential: check-temp-files check-fixtures check-deps check-session-locator-scope check-path-independence check-docs
 	@echo "✅ Essential validation passed"
 
 # Group 2: Code Quality (P1) - Blocks push
@@ -247,6 +247,15 @@ check-deps:
 # locator-scope.sh for the bug-class history this closes structurally.
 check-session-locator-scope:
 	@bash scripts/checks/check-session-locator-scope.sh
+
+# DIR-078: offline documentation-contract gate. Fails if a current doc invokes a
+# removed MCP tool, documents a Go prerequisite below the go.mod baseline, or a
+# curated index/guide page carries a broken relative link. Historical/migration
+# docs are allowlisted in internal/release/doc_contract_test.go. CI runs the
+# same internal/release package via `make test`.
+check-docs:
+	@echo "=== Documentation Contract Check (DIR-078) ==="
+	@$(GOTEST) ./internal/release/...
 
 # DIR-035: regression check for the Makefile PATH hardening (see the
 # `export PATH` line near the top of this file). Spawns a nested `make`
@@ -768,6 +777,7 @@ help:
 	@echo ""
 	@echo "Quality Gates (Grouped):"
 	@echo "  make check-essential         - P0: Essential validation (temp files, fixtures, deps, PATH independence)"
+	@echo "  make check-docs              - P0: Documentation contract gate (removed tools, Go baseline, nav links; DIR-078)"
 	@echo "  make check-path-independence - Verify Makefile finds go/gofmt even with a minimal PATH (DIR-035)"
 	@echo "  make check-code-quality      - P1: Code quality (formatting, mod tidy)"
 	@echo "  make check-build-quality     - P1: Build quality (plugin sync, go quality)"

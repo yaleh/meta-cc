@@ -377,8 +377,6 @@ git clean -fdx  # 删除所有未跟踪文件 (谨慎)
 ## 📚 相关文档
 
 - [BAIME 实验文档](../experiments/build-quality-gates/)
-- [Testing Strategy Skill](../../.claude/skills/testing-strategy/)
-- [CI/CD Optimization Skill](../../.claude/skills/ci-cd-optimization/)
 
 ## 🤝 贡献
 

@@ -384,5 +384,5 @@ When contributing capabilities to the community:
 
 - [MCP Guide](mcp.md) - Complete MCP server documentation
 - [Integration Guide](integration.md) - Choosing MCP/Slash/Subagent
-- [Official Slash Commands](.claude/commands/) - Examples of existing capabilities
+- [Official Slash Commands](../../plugin-src/commands/) - Examples of existing capabilities
 - [Phase 22 Plan](../../plans/22-unified-meta-command/plan.md) - Technical details of multi-source system

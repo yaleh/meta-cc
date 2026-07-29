@@ -246,5 +246,5 @@ git commit --no-verify -m "wip: testing"
 ## See Also
 
 - [Release Process](release-process.md) - Full release workflow
-- [Bump Plugin Version Script](../scripts/bump-plugin-version.sh) - Manual version bumping
-- [Install Hooks Script](../scripts/install-hooks.sh) - Hook installation
+- [Bump Plugin Version Script](../../scripts/release/bump-plugin-version.sh) - Manual version bumping
+- [Install Hooks Script](../../scripts/install/install-hooks.sh) - Hook installation

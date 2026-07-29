@@ -1211,7 +1211,7 @@ Example: Document "MCP Hybrid Output Mode" (knowledge silo)
 
    Set `inline_threshold_bytes` parameter:
    ```python
-   query_files(inline_threshold_bytes=16384)  # 16KB instead of 8KB
+   query_file_activity(type="snapshots", inline_threshold_bytes=16384)  # 16KB instead of 8KB
    ```
    ```
 
