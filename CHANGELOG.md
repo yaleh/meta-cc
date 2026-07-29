@@ -5,6 +5,60 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - 2026-07-29
+
+
+### Added
+
+- honor contains filter across all query_session_content roles
+- implement real TSV output_format, scope it to pipeline-routed tools
+- wire stats_only into analyze_bugs/errors/quality_scan/work_patterns/tech_debt
+- wire query_sessions to bounded ListSessionsPage fetch
+- add history completeness, compaction, lineage, pagination
+- add incremental local FTS5 index over conversation history
+- add query_sessions and precise session_id/filter selectors
+- add app-server history backend with offline fallback
+- add canonical Thread->Turn->Item model
+
+### Changed
+
+- wire test-coverage-check into make push, reconcile threshold to 80%
+- harden make stage for live-process safety, add Codex user-scope registration
+- harden Makefile PATH against missing /usr/local/go/bin infra failure
+- Documentation: add Codex history query roadmap
+
+### Fixed
+
+- accumulate per-turn token usage across token_count events
+- derive appendUnknown turn timestamp from event, not query time
+- make extractTime return zero for non-numeric/zero timestamps
+- guard item.tool_result against nil turn to prevent parser panic
+- overflow-safe pagination + dispatch-level panic recovery
+- replace degenerate quality_scan dimensions with distinct measures
+- make ExtractToolCalls emit in deterministic entry order
+- copy Codex plugin files in validate-artifacts Phase-4
+- count tech-debt markers in comment context only; add provenance
+- match Claude Code's "Exit code N" format; add command_timeout label
+- derive release-pipeline LDFLAGS from the Makefile source of truth
+- set lineage_truncated flag when ancestor traversal hits depth limit
+- retain rollout turns whose only content is a lifecycle signal
+- point LDFLAGS commit/build-time injection at a real package, log at startup
+- scope jq_filter/stats_first/offset/page_size off the 6 analysis-service tools
+- apply regexp.QuoteMeta to contains before EscapeJQ; reconcile stale DIR-005/006/007 records
+- correlate tool_use with its own tool_result, not the trigger turn's
+- wire status filter into query_session_signals tool_stats
+- wire jq_filter into BuildResponse as a real post-filter
+- FetchSessionsBounded preserves partial progress on mid-pagination failure
+- replace raw bufio.Scanner in appserver client.go readLoop
+- make context_turns provider-neutral, close silent Codex false negative
+- crystallize FromSessionIDScoped to close recurring cross-project session leak
+- dedupe assistant/user text across event_msg and response_item
+- bump golangci-lint-action to v9 (v6 hard-refuses golangci-lint v2)
+
+### Other
+
+- task: fix Codex context-turn query parity
+
 ## [3.5.1] - 2026-07-27
 
 
