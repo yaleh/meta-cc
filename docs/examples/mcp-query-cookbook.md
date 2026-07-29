@@ -1,5 +1,14 @@
 # MCP Query Cookbook
 
+> ⚠️ **SUPERSEDED — historical examples.** This cookbook targets the meta-cc
+> v2.0 query surface: the legacy convenience tools (`query_tool_errors`,
+> `query_tools`, `query_token_usage`, …) and the unified `query` tool, all of
+> which have been removed. The examples are retained only as a historical
+> record. For current, ready-to-use examples with the consolidated query tools
+> (`query_session_content`, `query_session_signals`, `query_file_activity`,
+> `query_sessions`), see [MCP Query Tools Reference](../guides/mcp-query-tools.md)
+> and [Frequent JSONL Queries](frequent-jsonl-queries.md).
+
 Practical, ready-to-use MCP query examples for common analysis scenarios using meta-cc v2.0 query tools.
 
 ## Table of Contents

@@ -20,7 +20,7 @@ This guide provides quick reference for using jq expressions with meta-cc MCP qu
 
 ### Resource-Specific Fields
 
-#### UserMessage (from query_user_messages)
+#### UserMessage (from query_session_content with role=user)
 ```json
 {
   "turn_sequence": 1,
@@ -30,7 +30,7 @@ This guide provides quick reference for using jq expressions with meta-cc MCP qu
 }
 ```
 
-#### MessageView (from unified query)
+#### MessageView (from query_session_content)
 ```json
 {
   "uuid": "...",
@@ -178,14 +178,11 @@ length
 
 ✓ **Recommended approach** (use MCP filter):
 ```javascript
-query_user_messages({
+query_session_content({
+  role: "user",
   pattern: "error|fail",
-  filter: {
-    time_range: {
-      start: "2025-10-25T00:00:00Z",
-      end: "2025-10-25T23:59:59Z"
-    }
-  }
+  since: "2025-10-25T00:00:00Z",
+  until: "2025-10-26T00:00:00Z"
 })
 ```
 

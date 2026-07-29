@@ -1,5 +1,12 @@
 # Migration to Unified Query API
 
+> ⚠️ **SUPERSEDED — historical migration material.** The unified `query` tool
+> described here was an intermediate API that has been removed. The current
+> surface is the consolidated query tools (`query_session_content`,
+> `query_session_signals`, `query_file_activity`, `query_sessions`). Tool names
+> below are retained only as a historical record; for current examples and the
+> legacy-to-current mapping, see [MCP Query Tools Reference](mcp-query-tools.md).
+
 ## Overview
 
 This guide helps you migrate from the current **16 specialized MCP tools** to the new **unified `query` tool**. The migration is designed to be gradual, with full backward compatibility during the transition period.

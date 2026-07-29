@@ -127,7 +127,8 @@ get_work_patterns({
 ```
 
 ```javascript
-query_tools({
+query_session_signals({
+  type: "tool_stats",
   provider: "codex",
   tool: "exec_command",
   limit: 20
@@ -135,7 +136,8 @@ query_tools({
 ```
 
 ```javascript
-query_user_messages({
+query_session_content({
+  role: "user",
   provider: "claude",
   pattern: "test|refactor",
   limit: 20

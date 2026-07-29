@@ -45,7 +45,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./meta-cc-mcp | jq .
   "result": {
     "tools": [
       {
-        "name": "query_user_messages",
+        "name": "query_session_content",
         "description": "...",
         "inputSchema": {...}
       },
@@ -55,7 +55,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | ./meta-cc-mcp | jq .
 }
 ```
 
-#### 1.2 调用工具（示例：query_user_messages）
+#### 1.2 调用工具（示例：query_session_content）
 
 ```bash
 echo '{
@@ -63,8 +63,9 @@ echo '{
   "id": 2,
   "method": "tools/call",
   "params": {
-    "name": "query_user_messages",
+    "name": "query_session_content",
     "arguments": {
+      "role": "user",
       "pattern": "test",
       "limit": 5
     }
@@ -212,11 +213,11 @@ TOOL_COUNT=$(echo "$TOOLS_LIST" | jq '.result.tools | length')
 echo "Available tools: $TOOL_COUNT"
 echo ""
 
-# Test 2: Legacy tools (backward compatibility)
-echo "=== Phase 2: Legacy Tools ==="
-test_tool_call "query_user_messages" "query_user_messages" '{"pattern":".*","limit":5}' "result"
-test_tool_call "query_tools" "query_tools" '{"limit":5}' "result"
-test_tool_call "query_tool_errors" "query_tool_errors" '{"limit":5}' "result"
+# Test 2: Consolidated query tools
+echo "=== Phase 2: Consolidated Query Tools ==="
+test_tool_call "query_session_content" "query_session_content" '{"role":"user","limit":5}' "result"
+test_tool_call "query_session_signals" "query_session_signals" '{"type":"tool_stats","limit":5}' "result"
+test_tool_call "query_session_signals(errors)" "query_session_signals" '{"type":"errors","limit":5}' "result"
 echo ""
 
 # Test 3: New tools (Phase 27)
@@ -446,12 +447,12 @@ async function main() {
   }
   console.log('');
 
-  // Test 3: Call query_user_messages
-  console.log('=== Test 3: Query User Messages ===');
+  // Test 3: Call query_session_content
+  console.log('=== Test 3: Query Session Content ===');
   try {
     const result = await client.callTool({
-      name: 'query_user_messages',
-      arguments: { pattern: '.*', limit: 5 }
+      name: 'query_session_content',
+      arguments: { role: 'user', limit: 5 }
     });
     const data = JSON.parse(result.content[0].text);
     console.log(`Found ${data.length} messages`);
@@ -602,7 +603,7 @@ export META_CC_CWD="/home/yale/work/meta-cc"
 
 ```bash
 export META_CC_SESSION_FILE="$HOME/.claude/projects/-home-yale-work-meta-cc/latest.jsonl"
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_session_stats","arguments":{}}}' | ./meta-cc-mcp
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query_session_signals","arguments":{"type":"errors","scope":"session"}}}' | ./meta-cc-mcp
 ```
 
 ### Q3: 如何调试 MCP 服务器的日志？

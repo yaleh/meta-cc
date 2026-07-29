@@ -46,11 +46,8 @@ Legacy `query` tool processed **all 660 files** every time:
 
 ```javascript
 // Old approach (SLOW - 2-5 seconds)
-query({
-  resource: "tools",
-  filter: {tool_status: "error"},
-  scope: "project"
-})
+// Legacy "query" tool (removed): one fixed tool-error query over
+// scope=project read and processed ALL 660 session files.
 // Processes all 660 files → 2-5 seconds
 ```
 
@@ -523,11 +520,11 @@ execute_stage2_query({
 
 ### 5. Leverage Convenience Tools for Simple Queries
 
-For common queries, use convenience tools instead:
+For common queries, use the consolidated query tools instead:
 
 ```javascript
 // Simple error lookup
-query_tool_errors({limit: 10})  // Easier than two-stage
+query_session_signals({type: "errors", limit: 10})  // Easier than two-stage
 
 // Complex analysis requiring file selection
 get_session_directory(...)      // Use two-stage
@@ -610,11 +607,8 @@ The following tools have been removed in v2.1.0:
 
 **Before (Legacy)**:
 ```javascript
-query({
-  resource: "tools",
-  filter: {tool_status: "error"},
-  scope: "project"
-})
+// Legacy "query" tool (removed in v2.1.0):
+// resource: "tools", filter: {tool_status: "error"}, scope: "project"
 ```
 
 **After (Two-Stage)**:
@@ -636,12 +630,12 @@ execute_stage2_query({
 })
 ```
 
-**Or Use Convenience Tools** (simpler for common queries):
+**Or Use Consolidated Query Tools** (simpler for common queries):
 ```javascript
-query_tool_errors({limit: 10})
+query_session_signals({type: "errors", limit: 10})
 ```
 
-### When to Use Two-Stage vs. Convenience Tools
+### When to Use Two-Stage vs. Consolidated Query Tools
 
 **Use Two-Stage When**:
 - Need file selection control

@@ -8,7 +8,7 @@ Based on analysis of capability requirements in `capabilities/commands/`, this d
 
 Each query in this document now includes a **MCP Tool Equivalent** showing how to achieve the same result using meta-cc's v2.0 MCP query interface. The MCP tools provide:
 
-- **Unified interface**: Single `query` tool replaces multiple CLI commands
+- **Consolidated interface**: `query_session_content`, `query_session_signals`, `query_file_activity`, and `query_sessions` replace multiple CLI commands
 - **Hybrid output mode**: Auto-switches between inline and file_ref based on result size
 - **jq filtering**: Native jq support for complex queries
 - **No limits by default**: Returns all results, relies on hybrid mode
@@ -31,10 +31,10 @@ All MCP query tools support a `scope` parameter:
 **Examples:**
 ```javascript
 // Current session only
-query_tool_errors({scope: "session", limit: 5})
+query_session_signals({type: "errors", scope: "session", limit: 5})
 
 // All sessions (default)
-query_tool_errors({limit: 5})  // same as scope: "project"
+query_session_signals({type: "errors", limit: 5})  // same as scope: "project"
 ```
 
 ### IMPORTANT: CLI vs MCP jq Differences
@@ -45,22 +45,22 @@ cat *.jsonl | jq '.[] | select(.type == "user")'
 # Processes entire array/stream → needs .[] to iterate
 ```
 
-**MCP Mode** (executes jq on each JSONL line):
+**MCP Mode** (jq_filter runs over the tool's result array):
 ```javascript
-query_raw({jq_expression: 'select(.type == "user")'})
-// Processes individual objects → DO NOT use .[]
+query_session_content({role: "user", jq_filter: '.[] | {timestamp, content: .message.content}'})
+// jq_filter receives the result array → iterate with .[] like CLI jq
 ```
 
 **Key Differences**:
-- ❌ **DO NOT use** `.[]` in MCP queries (each line is already an object)
+- ✅ **DO use** `.[]` inside `jq_filter` (it receives the tool's result array)
 - ❌ **DO NOT use** array slicing `.[0:5]` (use `limit` parameter instead)
-- ✅ **DO use** `select()`, filters, transforms directly on the object
+- ✅ **DO use** built-in filters (`role`, `type`, `contains`, `pattern`, `tool`) before jq_filter
 - ✅ **DO use** `limit` parameter for result limiting
 
 **Quick Reference**:
-- CLI jq query → Remove `.[]` prefix, use `query_raw({jq_expression: "..."})`
-- Common patterns → Use convenience tools (`query_tool_errors`, `query_token_usage`, etc.)
-- Complex filtering → Use jq_filter parameter with object-level expressions
+- Raw jq over selected files → `execute_stage2_query({files: [...], filter: "..."})`
+- Common patterns → Use consolidated tools (`query_session_signals(type="errors")`, `query_session_signals(type="tokens")`, etc.)
+- Complex filtering → Use jq_filter parameter over the tool's result set
 
 See [MCP Query Tools Reference](../guides/mcp-query-tools.md) for complete documentation.
 
@@ -87,15 +87,16 @@ cat $DIR/*.jsonl | jq -c 'select(.type == "user" and (.message.content | type ==
 
 **MCP Tool Equivalent:**
 ```javascript
-// Option 1: Using convenience tool (simplest)
-query_user_messages({
-  pattern: ".*",
+// Option 1: Using the consolidated content tool (simplest)
+query_session_content({
+  role: "user",
   limit: 5
 })
 
-// Option 2: Using raw jq (most flexible)
-query_raw({
-  jq_expression: 'select(.type == "user" and (.message.content | type == "string"))',
+// Option 2: Using raw jq over selected files (most flexible)
+execute_stage2_query({
+  files: ["/path/to/session.jsonl"],
+  filter: 'select(.type == "user" and (.message.content | type == "string"))',
   limit: 5
 })
 ```
@@ -114,7 +115,8 @@ cat $DIR/*.jsonl | jq -c 'select(.type == "user") | select(.message.content | te
 
 **MCP Equivalent:**
 ```javascript
-query_user_messages({
+query_session_content({
+  role: "user",
   pattern: "@[a-zA-Z0-9_/.-]+"
 })
 ```
@@ -133,20 +135,23 @@ cat $DIR/*.jsonl | jq -c 'select(.type == "assistant") | select(.message.content
 
 **MCP Tool Equivalent:**
 ```javascript
-// Option 1: Using convenience tool (for tool_use blocks)
-query_tool_blocks({
+// Option 1: Using the consolidated content tool (for tool_use blocks)
+query_session_content({
+  role: "tool",
   block_type: "tool_use",
   limit: 5
 })
 
-// Option 2: Using tools query (for full tool execution data)
-query_tools({
+// Option 2: Using tool stats (for aggregated tool execution data)
+query_session_signals({
+  type: "tool_stats",
   limit: 5
 })
 
-// Option 3: Using raw jq
-query_raw({
-  jq_expression: 'select(.type == "assistant") | select(.message.content[]? | .type == "tool_use")',
+// Option 3: Using raw jq over selected files
+execute_stage2_query({
+  files: ["/path/to/session.jsonl"],
+  filter: 'select(.type == "assistant") | select(.message.content[]? | .type == "tool_use")',
   limit: 5
 })
 ```
@@ -166,13 +171,14 @@ jq -c 'select(.type == "assistant") | select(.message.content[] | select(.type =
 **MCP Equivalent:**
 ```javascript
 // Option 1: Filter tool_use blocks
-query_tool_blocks({
-  block_type: "tool_use",
-  jq_filter: 'select(.name == "Task")'
+query_session_content({
+  role: "tool",
+  tool_name: "Task"
 })
 
-// Option 2: Filter full tool execution data
-query_tools({
+// Option 2: Filter aggregated tool execution data
+query_session_signals({
+  type: "tool_stats",
   tool: "Task"
 })
 ```
@@ -191,21 +197,24 @@ cat $DIR/*.jsonl | jq -c 'select(.type == "user" and (.message.content | type ==
 
 **MCP Tool Equivalent:**
 ```javascript
-// Option 1: Using convenience tool (simplest)
-query_tool_errors({
+// Option 1: Using the consolidated signals tool (simplest)
+query_session_signals({
+  type: "errors",
   limit: 5
 })
 
 // Option 2: For tool_result blocks specifically
-query_tool_blocks({
+query_session_content({
+  role: "tool",
   block_type: "tool_result",
-  jq_filter: 'select(.is_error == true)',
+  jq_filter: '.[] | select(.is_error == true)',
   limit: 5
 })
 
-// Option 3: Using raw jq
-query_raw({
-  jq_expression: 'select(.type == "user" and (.message.content | type == "array")) | select(.message.content[]? | select(.type == "tool_result" and .is_error == true))',
+// Option 3: Using raw jq over selected files
+execute_stage2_query({
+  files: ["/path/to/session.jsonl"],
+  filter: 'select(.type == "user" and (.message.content | type == "array")) | select(.message.content[]? | select(.type == "tool_result" and .is_error == true))',
   limit: 5
 })
 ```
@@ -225,8 +234,9 @@ jq -r 'select(.type == "user") | .message.content[]? | select(.type == "tool_res
 **MCP Equivalent:**
 ```javascript
 // Get error messages with structured output
-query_tool_errors({
-  jq_filter: '{timestamp, tool_name, error}',
+query_session_signals({
+  type: "errors",
+  jq_filter: '.[] | {timestamp, tool_name, error}',
   limit: 20
 })
 ```
@@ -566,17 +576,17 @@ For frequently used queries, create a query library:
 # File: ~/.meta-cc-queries.sh
 
 # Query 1: Recent user prompts
-query_user_prompts() {
+user_prompts() {
   cat "$1"/*.jsonl | jq -c 'select(.type == "user" and (.message.content | type == "string"))' | head -20
 }
 
 # Query 2: Tool errors
-query_tool_errors() {
+tool_errors() {
   cat "$1"/*.jsonl | jq -c 'select(.type == "user") | select(.message.content[]? | .type == "tool_result" and .is_error == true)'
 }
 
 # Query 3: Token usage summary
-query_token_usage() {
+token_usage_summary() {
   cat "$1"/*.jsonl | jq -s '[.[] | select(.type == "assistant" and .message.usage)] |
     {input: (map(.message.usage.input_tokens) | add),
      output: (map(.message.usage.output_tokens) | add)}'
@@ -584,7 +594,7 @@ query_token_usage() {
 
 # Usage:
 # source ~/.meta-cc-queries.sh
-# query_user_prompts /path/to/sessions
+# user_prompts /path/to/sessions
 ```
 
 ---
@@ -622,12 +632,11 @@ All queries in this document have been validated against real JSONL session data
 - ✅ Use `jq_filter` with object-level expressions (not array operations)
 - ✅ Use `limit` parameter instead of jq array slicing
 
-**MCP Query Interface Verification (2025-10-25)**:
-All query patterns tested and working:
-- **Convenience tools**: `query_user_messages`, `query_tools`, `query_tool_errors`, `query_tool_blocks`
-- **Raw jq interface**: `query_raw` with direct `select()` expressions (no `.[]` prefix)
+**MCP Query Interface Verification (updated DIR-075)**:
+These patterns map to the current consolidated tools:
+- **Content and signals**: `query_session_content`, `query_session_signals`, `query_file_activity`, `query_sessions`
+- **Raw jq interface**: `execute_stage2_query` with direct `select()` filters over selected files
 - **Hybrid output**: Small results inline, large results as file references (8KB threshold)
-- **Unified query**: Works but may generate large results for complex filters
 
 ---
 

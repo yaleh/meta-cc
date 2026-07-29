@@ -413,8 +413,8 @@ Execute :: scope → error_analysis
 
 discover_errors :: scope → ErrorList
 discover_errors(S) = {
-  stats: mcp_meta_cc.get_session_stats(scope=S),
-  errors: mcp_meta_cc.query_tools(status="error", scope=S),
+  stats: mcp_meta_cc.get_timeline(scope=S, stats_only=True),
+  errors: mcp_meta_cc.query_session_signals(type="tool_stats", status="error", scope=S),
 
   # Error detection logic...
 }

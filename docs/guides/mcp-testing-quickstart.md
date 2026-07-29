@@ -59,36 +59,36 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | \
 ### 调用特定工具
 
 ```bash
-# query_tool_errors
+# query_session_signals (tool errors)
 echo '{
   "jsonrpc":"2.0",
   "id":2,
   "method":"tools/call",
   "params":{
-    "name":"query_tool_errors",
-    "arguments":{"limit":5}
+    "name":"query_session_signals",
+    "arguments":{"type":"errors","limit":5}
   }
 }' | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | jq .
 
-# query_tools
+# query_session_signals (tool stats)
 echo '{
   "jsonrpc":"2.0",
   "id":3,
   "method":"tools/call",
   "params":{
-    "name":"query_tools",
-    "arguments":{"provider":"codex","limit":10}
+    "name":"query_session_signals",
+    "arguments":{"type":"tool_stats","provider":"codex","limit":10}
   }
 }' | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | jq .
 
-# query_user_messages
+# query_session_content
 echo '{
   "jsonrpc":"2.0",
   "id":4,
   "method":"tools/call",
   "params":{
-    "name":"query_user_messages",
-    "arguments":{"provider":"all","pattern":".*","limit":5}
+    "name":"query_session_content",
+    "arguments":{"role":"user","provider":"all","limit":5}
   }
 }' | ./meta-cc-mcp 2>&1 | grep '"jsonrpc"' | jq .
 ```

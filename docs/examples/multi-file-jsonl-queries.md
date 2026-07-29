@@ -1,5 +1,8 @@
 # Multi-File JSONL Query Results
 
+<!-- DIR-075: legacy tool names below appear only inside historical session-record fixtures
+     (sample JSONL output quoting old source paths), never as executable guidance. -->
+
 This document contains comprehensive query results from all Claude Code session JSONL files in `/home/yale/.claude/projects/-home-yale-work-meta-cc/`.
 
 **Query Methodology:**

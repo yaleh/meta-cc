@@ -1,5 +1,13 @@
 # Query Cookbook
 
+> ⚠️ **SUPERSEDED — historical examples.** Every example in this cookbook calls
+> the unified `query` tool, an intermediate API that has been removed. The
+> examples are retained only as a historical record. For current, ready-to-use
+> examples with the consolidated query tools (`query_session_content`,
+> `query_session_signals`, `query_file_activity`, `query_sessions`), see
+> [MCP Query Tools Reference](../guides/mcp-query-tools.md) and
+> [Frequent JSONL Queries](frequent-jsonl-queries.md).
+
 ## Overview
 
 This cookbook provides practical, ready-to-use query examples for common analysis scenarios. Each example includes:

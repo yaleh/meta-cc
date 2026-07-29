@@ -48,7 +48,8 @@ get_work_patterns({
 ```
 
 ```javascript
-query_tools({
+query_session_signals({
+  type: "tool_stats",
   provider: "all",
   tool: "exec_command",
   working_dir: "/path/to/project",
@@ -57,7 +58,8 @@ query_tools({
 ```
 
 ```javascript
-query_user_messages({
+query_session_content({
+  role: "user",
   provider: "claude",
   pattern: "test|refactor",
   limit: 20
@@ -123,7 +125,8 @@ analyze_errors({
 ```
 
 ```javascript
-query_tool_errors({
+query_session_signals({
+  type: "errors",
   provider: "codex",
   stats_first: true,
   limit: 20
@@ -141,7 +144,8 @@ Show token usage for recent assistant turns
 Likely MCP tool:
 
 ```javascript
-query_token_usage({
+query_session_signals({
+  type: "tokens",
   provider: "codex",
   stats_first: true,
   limit: 20
@@ -161,7 +165,8 @@ Find user messages mentioning "release" or "deploy"
 Likely MCP tool:
 
 ```javascript
-query_user_messages({
+query_session_content({
+  role: "user",
   provider: "all",
   pattern: "release|deploy",
   limit: 20

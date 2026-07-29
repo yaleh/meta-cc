@@ -1,5 +1,12 @@
 # Unified Query API Guide
 
+> ⚠️ **SUPERSEDED — historical API reference.** The unified `query` tool
+> documented here was an intermediate API that has been removed. The current
+> surface is the consolidated query tools (`query_session_content`,
+> `query_session_signals`, `query_file_activity`, `query_sessions`). Examples
+> below are retained only as a historical record; for current parameters and
+> examples, see [MCP Query Tools Reference](mcp-query-tools.md).
+
 ## Overview
 
 The unified query interface simplifies meta-cc's query capabilities by consolidating **16 specialized MCP tools** into **1 composable `query` tool**. This design provides:

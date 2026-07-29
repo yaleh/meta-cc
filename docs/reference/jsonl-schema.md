@@ -809,7 +809,7 @@ Both normalize to assistant `tool_use` content blocks. `arguments` is parsed as 
 }
 ```
 
-`function_call_output` and `custom_tool_call_output` normalize to user `tool_result` content blocks. Non-success statuses and explicit error fields set `is_error: true`, which powers `query_tool_errors`, `analyze_errors`, and related analysis tools.
+`function_call_output` and `custom_tool_call_output` normalize to user `tool_result` content blocks. Non-success statuses and explicit error fields set `is_error: true`, which powers `query_session_signals(type="errors")`, `analyze_errors`, and related analysis tools.
 
 ### Token Counts
 
@@ -842,15 +842,15 @@ Codex token usage is emitted as an `event_msg`:
 }
 ```
 
-Normalization creates an assistant entry with `message.usage`, so `query_token_usage` works for Codex as well as Claude Code. `input_tokens`, `cached_input_tokens` (as `cache_tokens`), and `output_tokens` are accumulated across every `token_count` event in a turn, and `reasoning_output_tokens` is retained as `message.usage.reasoning_output_tokens` (DIR-071) — see the "Token Usage Model" section above for field semantics and reconciliation.
+Normalization creates an assistant entry with `message.usage`, so `query_session_signals(type="tokens")` works for Codex as well as Claude Code. `input_tokens`, `cached_input_tokens` (as `cache_tokens`), and `output_tokens` are accumulated across every `token_count` event in a turn, and `reasoning_output_tokens` is retained as `message.usage.reasoning_output_tokens` (DIR-071) — see the "Token Usage Model" section above for field semantics and reconciliation.
 
 ### Host-Specific Gaps
 
 Some Claude Code records do not have Codex equivalents and therefore remain empty for Codex sessions:
 
-- `file-history-snapshot` records used by `query_file_snapshots`
-- top-level `summary` records used by `query_summaries`
-- Claude Code `system` records with `subtype: "api_error"` used by `query_system_errors`
+- `file-history-snapshot` records used by `query_file_activity(type="snapshots")`
+- top-level `summary` records used by `query_session_content(role="assistant", contains="## Summary")`
+- Claude Code `system` records with `subtype: "api_error"` used by `query_session_signals(type="system_errors")`
 
 ## Common Field Patterns
 

@@ -1,5 +1,13 @@
 # MCP v2.0 Migration Guide
 
+> ⚠️ **SUPERSEDED — historical migration material.** This guide migrates to the
+> intermediate unified `query`/`query_raw` API, which was itself removed by the
+> consolidated query tools (`query_session_content`, `query_session_signals`,
+> `query_file_activity`, `query_sessions`). Tool names below are retained only
+> as a historical record. For the current tool surface and legacy-to-current
+> mapping, see [MCP Query Tools Reference](mcp-query-tools.md); see also
+> [docs/archive/phase-23-25-query-refactoring.md](../archive/phase-23-25-query-refactoring.md).
+
 This guide helps you migrate from MCP v1.x specialized tools to the unified v2.0 query interface.
 
 ## Table of Contents

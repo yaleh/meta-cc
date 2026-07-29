@@ -246,7 +246,8 @@ This capability analyzes project dependencies for:
 
 2. **Analyze dependencies**:
    ```
-   Call mcp_meta_cc.query_tools(tool="Bash", pattern="npm|go|pip")
+   Call mcp_meta_cc.query_session_content(role="tool", tool_name="Bash",
+     jq_filter='.[] | select((.input.command // "") | test("npm|go|pip"))')
    ```
 
 3. **Security scan**:
@@ -343,28 +344,29 @@ category: assessment
 
 Use existing MCP tools in your capabilities:
 
-**Available Tools**:
-- `get_session_stats()` - Session statistics
-- `query_tools(tool, status, limit)` - Tool call analysis
-- `query_user_messages(pattern, limit)` - Search user messages
-- `query_assistant_messages(pattern, limit)` - Search assistant messages
-- `query_conversation(pattern, limit)` - Search conversation
-- `query_files(threshold)` - File operation stats
-- `query_context(error_signature, window)` - Error context
-- `query_tool_sequences(pattern, min_occurrences)` - Workflow patterns
-- `query_file_access(file)` - File history
-- `query_project_state()` - Project evolution
-- `query_successful_prompts(min_quality_score, limit)` - High-quality prompts
-- `query_tools_advanced(where, limit)` - SQL-like filtering
-- `query_time_series(metric, interval, where)` - Time-based metrics
+**Available Tools** (current surface — see [MCP Query Tools Reference](mcp-query-tools.md) for the legacy-to-current mapping):
+- `query_session_content(role, contains, pattern, limit)` - Search messages and tool blocks
+- `query_session_signals(type, tool, status, limit)` - errors / tokens / system_errors / timestamps / tool_stats
+- `query_file_activity(type)` - File history snapshots
+- `query_sessions(...)` - Session/thread metadata listing
+- `query_edit_sequences(files)` - File edit/read patterns
+- `analyze_errors(limit)` - Tool errors grouped by tool and error type
+- `analyze_bugs(limit)` - Error-fix pairs and recurring bug patterns
+- `quality_scan()` - Error rate, retry rate, diversity, completion
+- `get_work_patterns()` - Tool frequency, hourly activity, context switches
+- `get_timeline(limit)` - Chronological session events
+- `get_timeline(stats_only=true)` - Session summary statistics (entry counts, time range, event types)
+- `get_tech_debt()` - TODO/FIXME markers and unresolved errors
+- `get_session_directory(scope)` / `get_session_metadata(scope)` - Session location and schema
+- `inspect_session_files(files)` / `execute_stage2_query(files, filter)` - Two-stage custom jq
 - `cleanup_temp_files(max_age_days)` - File cleanup
 
 **Example**:
 ```markdown
 # Error Analysis Capability
 
-Call mcp_meta_cc.query_tools(status="error", limit=10) to get recent errors.
-Call mcp_meta_cc.query_context(error_signature="<pattern>", window=3) for context.
+Call mcp_meta_cc.query_session_signals(type="tool_stats", status="error", limit=10) to get recent errors.
+Call mcp_meta_cc.query_session_content(role="all", contains="<pattern>", context_turns=3) for context.
 ```
 
 ## Community Guidelines

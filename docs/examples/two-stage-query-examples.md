@@ -375,11 +375,7 @@ Demonstrate the performance difference between legacy `query` and two-stage arch
 
 ```javascript
 // OLD: query tool (REMOVED)
-query({
-  resource: "tools",
-  filter: {tool_status: "error"},
-  scope: "project"
-})
+// resource: "tools", filter: {tool_status: "error"}, scope: "project"
 
 // Performance:
 // - Processes: All 660 files (450MB)
@@ -731,9 +727,9 @@ execute_stage2_query({
 - ✅ Complex multi-file analysis
 
 **Not Needed For**:
-- ❌ Simple error lookups → Use `query_tool_errors`
-- ❌ Token tracking → Use `query_token_usage`
-- ❌ Quick conversation flow → Use `query_conversation_flow`
+- ❌ Simple error lookups → Use `query_session_signals(type="errors")`
+- ❌ Token tracking → Use `query_session_signals(type="tokens")`
+- ❌ Quick conversation flow → Use `query_session_content(role="all")`
 
 ### Performance Summary
 
