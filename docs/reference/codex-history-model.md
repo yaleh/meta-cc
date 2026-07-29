@@ -9,6 +9,22 @@ paginated/projected app-server responses, context-compaction boundaries,
 archived/subagent threads, and spawn lineage. It does not replace either of
 those documents — read them first.
 
+## Discovery roots and database compatibility (DIR-069)
+
+All Codex backends use one canonical home: `META_CC_CODEX_ROOT` takes
+precedence over `CODEX_HOME`, then `~/.codex`. This root drives app-server's
+`CODEX_HOME`, SQLite discovery, transcript roots, and rollout lookup.
+
+The files backend enumerates `state_N.sqlite` files by numeric version,
+newest first, and selects the first database whose `threads` table contains
+the required metadata columns. An incompatible newer database is reported in
+`Provider.Warnings()` and the next compatible version is tried. If no usable
+database exists, active `sessions/` and `archived_sessions/` rollouts remain
+queryable from their `session_meta` records. This fallback requires an
+explicit recorded `cwd` for project filtering; files without enforceable
+`id` and `cwd` metadata are skipped with a warning rather than being allowed
+to leak across project boundaries.
+
 ## History completeness
 
 `conversation.Turn.Completeness` (`conversation.HistoryCompleteness`, in

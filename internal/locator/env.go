@@ -62,10 +62,7 @@ func DefaultSessionRoots() []SessionRoot {
 		}
 	}
 
-	codexHome := os.Getenv(codexHomeEnv)
-	if codexHome == "" {
-		codexHome = filepath.Join(homeDir, ".codex")
-	}
+	codexHome := resolveCodexRoot()
 
 	return []SessionRoot{
 		{

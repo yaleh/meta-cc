@@ -119,6 +119,39 @@ func getSessionFromDB(ctx context.Context, dsn, sessionID string) (conversation.
 	return scanSession(rows)
 }
 
+func compatibleThreadsSchema(ctx context.Context, dsn string) error {
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if err := ensureThreadsTable(ctx, db); err != nil {
+		return err
+	}
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info(threads)")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	columns := map[string]bool{}
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull, pk int
+		var defaultValue interface{}
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); err != nil {
+			return err
+		}
+		columns[name] = true
+	}
+	for _, required := range []string{"id", "cwd", "title", "source"} {
+		if !columns[required] {
+			return &SQLiteSchemaError{Message: "missing column: " + required}
+		}
+	}
+	return rows.Err()
+}
+
 func ensureThreadsTable(ctx context.Context, db *sql.DB) error {
 	var name string
 	err := db.QueryRowContext(ctx, "SELECT name FROM sqlite_master WHERE type='table' AND name='threads'").Scan(&name)

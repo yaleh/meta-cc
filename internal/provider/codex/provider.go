@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -86,8 +88,22 @@ func (p *Provider) IsAvailable(context.Context) bool {
 	if p.locator == nil {
 		return false
 	}
-	_, err := os.Stat(p.locator.SQLiteDB())
-	return err == nil
+	if len(p.locator.SQLiteDBCandidates()) > 0 {
+		return true
+	}
+	return hasRollouts(p.locator.SessionsRoot()) || hasRollouts(p.locator.ArchivedSessionsRoot())
+}
+
+func hasRollouts(root string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() && filepath.Ext(path) == ".jsonl" {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
 }
 
 // Backend reports which backend last supplied a ListSessions/GetSession/
@@ -355,7 +371,7 @@ func (p *Provider) LoadTurns(ctx context.Context, sessionID string) ([]conversat
 }
 
 func (p *Provider) filesListSessions(ctx context.Context) ([]conversation.Session, error) {
-	return listSessionsFromDB(ctx, p.locator.SQLiteDB())
+	return p.filesListSessionsFiltered(ctx, conversation.SessionFilter{})
 }
 
 // filesListSessionsFiltered pushes filter.CWD into the SQLite WHERE clause
@@ -365,17 +381,89 @@ func (p *Provider) filesListSessions(ctx context.Context) ([]conversation.Sessio
 // so warnings from a successful-but-imperfect listing are threaded through
 // p.warnings instead of the return value.
 func (p *Provider) filesListSessionsFiltered(ctx context.Context, filter conversation.SessionFilter) ([]conversation.Session, error) {
-	sessions, warnings, err := listSessionsFromDBFiltered(ctx, p.locator.SQLiteDB(), filter)
-	if len(warnings) > 0 {
-		p.mu.Lock()
-		p.warnings = append(p.warnings, warnings...)
-		p.mu.Unlock()
+	var skipped []string
+	for _, dbPath := range p.locator.SQLiteDBCandidates() {
+		if err := compatibleThreadsSchema(ctx, dbPath); err != nil {
+			skipped = append(skipped, fmt.Sprintf("%s: %v", dbPath, err))
+			continue
+		}
+		sessions, warnings, err := listSessionsFromDBFiltered(ctx, dbPath, filter)
+		if err != nil {
+			skipped = append(skipped, fmt.Sprintf("%s: %v", dbPath, err))
+			continue
+		}
+		if len(skipped) > 0 {
+			warnings = append(warnings, stateDBWarning(skipped, "trying an older candidate; selected "+dbPath))
+		}
+		p.addWarnings(warnings)
+		return sessions, nil
 	}
+
+	sessions, warnings, err := discoverRolloutSessions([]rolloutRoot{
+		{path: p.locator.SessionsRoot()},
+		{path: p.locator.ArchivedSessionsRoot(), archived: true},
+	}, filter)
+	if len(skipped) > 0 {
+		warnings = append(warnings, stateDBWarning(skipped, "no usable candidate remains; using cwd-enforced rollout fallback"))
+	}
+	p.addWarnings(warnings)
 	return sessions, err
 }
 
+const maxStateDBWarningCandidates = 3
+
+func stateDBWarning(skipped []string, action string) string {
+	shown := skipped
+	suffix := ""
+	if len(shown) > maxStateDBWarningCandidates {
+		shown = shown[:maxStateDBWarningCandidates]
+		suffix = fmt.Sprintf("; and %d more", len(skipped)-len(shown))
+	}
+	return "codex files backend: unusable state database candidate(s): " + strings.Join(shown, "; ") + suffix + "; " + action
+}
+
+func (p *Provider) addWarnings(warnings []string) {
+	if len(warnings) == 0 {
+		return
+	}
+	p.mu.Lock()
+	p.warnings = append(p.warnings, warnings...)
+	p.mu.Unlock()
+}
+
 func (p *Provider) filesGetSession(ctx context.Context, sessionID string) (conversation.Session, error) {
-	return getSessionFromDB(ctx, p.locator.SQLiteDB(), sessionID)
+	var skipped []string
+	for _, dbPath := range p.locator.SQLiteDBCandidates() {
+		if err := compatibleThreadsSchema(ctx, dbPath); err != nil {
+			skipped = append(skipped, fmt.Sprintf("%s: %v", dbPath, err))
+			continue
+		}
+		session, err := getSessionFromDB(ctx, dbPath, sessionID)
+		if err == nil || err == ErrSessionNotFound {
+			if len(skipped) > 0 {
+				p.addWarnings([]string{stateDBWarning(skipped, "trying an older candidate; selected "+dbPath)})
+			}
+			return session, err
+		}
+		skipped = append(skipped, fmt.Sprintf("%s: %v", dbPath, err))
+	}
+	sessions, warnings, err := discoverRolloutSessions([]rolloutRoot{
+		{path: p.locator.SessionsRoot()},
+		{path: p.locator.ArchivedSessionsRoot(), archived: true},
+	}, conversation.SessionFilter{SessionID: sessionID})
+	if len(skipped) > 0 {
+		warnings = append(warnings, stateDBWarning(skipped, "no usable candidate remains; using cwd-enforced rollout fallback"))
+	}
+	p.addWarnings(warnings)
+	if err != nil {
+		return conversation.Session{}, err
+	}
+	for _, session := range sessions {
+		if session.ID == sessionID {
+			return session, nil
+		}
+	}
+	return conversation.Session{}, ErrSessionNotFound
 }
 
 func (p *Provider) filesLoadTurns(ctx context.Context, sessionID string) ([]conversation.Turn, error) {

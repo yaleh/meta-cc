@@ -56,6 +56,20 @@ func TestDefaultSessionRootsWithCodexHome(t *testing.T) {
 	}
 }
 
+func TestDefaultSessionRootsWithMetaCCCodexRootPrecedence(t *testing.T) {
+	home := t.TempDir()
+	codexHome := filepath.Join(t.TempDir(), "codex-home")
+	override := filepath.Join(t.TempDir(), "override")
+	t.Setenv("HOME", home)
+	t.Setenv(codexHomeEnv, codexHome)
+	t.Setenv(codexRootEnv, override)
+
+	roots := DefaultSessionRoots()
+	if got, want := roots[1].Path, filepath.Join(override, "sessions"); got != want {
+		t.Fatalf("Codex transcript root = %q, want canonical override %q", got, want)
+	}
+}
+
 func TestNewSessionLocatorUsesOverrideFirst(t *testing.T) {
 	home := t.TempDir()
 	override := filepath.Join(t.TempDir(), "custom-projects")
