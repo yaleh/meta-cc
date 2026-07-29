@@ -22,7 +22,7 @@ func StandardToolParameters() map[string]Property {
 		},
 		"provider": {
 			Type:        "string",
-			Description: `Provider filter: "claude" (default), "codex", or "all". Use "all" only when your jq filter is compatible with both providers.`,
+			Description: `Provider filter: "claude", "codex", or "all". When omitted, defaults to the host that launched this MCP server: claude under Claude Code, codex under Codex, claude for standalone installations (META_CC_HOST). Explicit values always override the host default. Use "all" only when your jq filter is compatible with both providers. Responses carry provider provenance so you can verify which corpus was searched.`,
 		},
 		"jq_filter": {
 			Type: "string",
@@ -280,7 +280,7 @@ func GetToolDefinitions() []Tool {
 			},
 			"provider": {
 				Type:        "string",
-				Description: `Provider filter: "claude" (default) returns the Claude session directory unchanged; "codex" resolves only Codex rollout files (returned as an explicit "files" list plus "directory" when they share one parent); "all" returns a per-provider breakdown ({"providers": {"claude": ..., "codex": ...}}) since Claude and Codex files never share one directory. Unavailable/invalid providers fail with an error instead of silently falling back to Claude.`,
+				Description: `Provider filter: "claude", "codex", or "all". When omitted, defaults to the host that launched this MCP server (claude under Claude Code, codex under Codex, claude for standalone); the response "provider" field shows which corpus was searched. "claude" returns the Claude session directory unchanged; "codex" resolves only Codex rollout files (returned as an explicit "files" list plus "directory" when they share one parent); "all" returns a per-provider breakdown ({"providers": {"claude": ..., "codex": ...}}) since Claude and Codex files never share one directory. Unavailable/invalid providers fail with an error instead of silently falling back to Claude.`,
 			},
 			"working_dir": {
 				Type:        "string",
@@ -376,7 +376,7 @@ func GetToolDefinitions() []Tool {
 			},
 			"provider": {
 				Type:        "string",
-				Description: `Provider filter: "claude" (default) returns the Claude JSONL schema/templates unchanged; "codex" returns Codex's own raw rollout schema and jq templates (never a lossy projection onto the Claude schema); "all" returns a per-provider breakdown ({"providers": {"claude": ..., "codex": ...}}). Unavailable/invalid providers fail with an error instead of silently falling back to Claude.`,
+				Description: `Provider filter: "claude", "codex", or "all". When omitted, defaults to the host that launched this MCP server (claude under Claude Code, codex under Codex, claude for standalone); the response "provider" field shows which corpus was described. "claude" returns the Claude JSONL schema/templates unchanged; "codex" returns Codex's own raw rollout schema and jq templates (never a lossy projection onto the Claude schema); "all" returns a per-provider breakdown ({"providers": {"claude": ..., "codex": ...}}). Unavailable/invalid providers fail with an error instead of silently falling back to Claude.`,
 			},
 			"working_dir": {
 				Type:        "string",

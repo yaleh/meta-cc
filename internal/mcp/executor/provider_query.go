@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/yaleh/meta-cc/internal/config"
 	"github.com/yaleh/meta-cc/internal/locator"
 	mcquery "github.com/yaleh/meta-cc/internal/mcp/query"
 	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
@@ -17,8 +18,19 @@ func (e *ToolExecutor) ExecuteQueryForProvider(providerName, scope, jqFilter str
 	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, mcquery.ParsedTimeRange{}, includeSubagents...)
 }
 
+// resolveProviderDefault maps an empty provider name (omitted argument from
+// a direct library caller) onto the process host default (DIR-073), so this
+// file's routing has one source of truth instead of a hard-coded "claude".
+func resolveProviderDefault(providerName string) string {
+	if providerName == "" {
+		return config.OmittedProviderDefault()
+	}
+	return providerName
+}
+
 func (e *ToolExecutor) ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter string, limit int, workingDir string, tr mcquery.ParsedTimeRange, includeSubagents ...bool) (mcquery.QueryResult, error) {
-	if providerName == "" || providerName == "claude" {
+	providerName = resolveProviderDefault(providerName)
+	if providerName == "claude" {
 		return e.ExecuteQueryWithTimeRange(scope, jqFilter, limit, workingDir, tr, includeSubagents...)
 	}
 
@@ -54,7 +66,7 @@ func (e *ToolExecutor) ExecuteQueryWithTimeRangeForProvider(providerName, scope,
 // dispatchProviderQuery): unlike ExecuteQueryForProvider/
 // ExecuteQueryWithTimeRangeForProvider (which list every session in scope
 // and filter afterward), this reads only the one requested session —
-// locator.FromSessionID for the default/claude path (a direct file lookup,
+// locator.FromSessionID for the claude-resolved path (a direct file lookup,
 // no directory scan), or providerrecords.BuildForSession for codex/all
 // (GetSession + LoadTurns for that one ID, never ListSessions).
 func (e *ToolExecutor) ExecuteQueryForSession(providerName, sessionID, jqFilter string, limit int, workingDir string, tr mcquery.ParsedTimeRange) (mcquery.QueryResult, error) {
@@ -62,7 +74,8 @@ func (e *ToolExecutor) ExecuteQueryForSession(providerName, sessionID, jqFilter 
 		return mcquery.QueryResult{}, fmt.Errorf("session_id must not be empty")
 	}
 
-	if providerName == "" || providerName == "claude" {
+	providerName = resolveProviderDefault(providerName)
+	if providerName == "claude" {
 		// DIR-033: locator.FromSessionID (the raw, unscoped primitive) searches
 		// every project-hash directory on disk for a matching
 		// {session_id}.jsonl and returns whatever it finds, with no comparison
@@ -126,7 +139,8 @@ func (e *ToolExecutor) ExecuteQueryForSession(providerName, sessionID, jqFilter 
 }
 
 func (e *ToolExecutor) executeIndexedContent(providerName, scope, literal, jqFilter string, limit int, workingDir string, tr mcquery.ParsedTimeRange) (mcquery.QueryResult, bool, error) {
-	if providerName == "" || providerName == "claude" || literal == "" {
+	providerName = resolveProviderDefault(providerName)
+	if providerName == "claude" || literal == "" {
 		return mcquery.QueryResult{}, false, nil
 	}
 	projectPath := workingDir

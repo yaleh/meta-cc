@@ -6,8 +6,8 @@ meta-cc provides a Model Context Protocol (MCP) server for local coding-agent hi
 
 | Provider | Local source | Notes |
 |----------|--------------|-------|
-| `claude` | `~/.claude/projects/<project-hash>/*.jsonl` | Default provider for backward compatibility. |
-| `codex` | `${META_CC_CODEX_ROOT:-~/.codex}/state_5.sqlite` plus rollout JSONL paths from the `threads` table | `~/.codex/history.jsonl` is intentionally excluded. |
+| `claude` | `~/.claude/projects/<project-hash>/*.jsonl` | Host default under Claude Code and for standalone installations. |
+| `codex` | `${META_CC_CODEX_ROOT:-~/.codex}/state_5.sqlite` plus rollout JSONL paths from the `threads` table | Host default under Codex. `~/.codex/history.jsonl` is intentionally excluded. |
 | `all` | Claude Code and Codex | Returned records include a `provider` field. |
 
 Convenience query and analysis tools accept the standard `provider` parameter:
@@ -25,7 +25,37 @@ get_work_patterns({
 })
 ```
 
-If `provider` is omitted, meta-cc uses `claude` to preserve existing behavior.
+If `provider` is omitted, meta-cc resolves it to the host that launched the MCP
+server (DIR-073): `claude` under Claude Code, `codex` under Codex. Explicit
+`provider` values always override this host default. Responses preserve
+provider provenance (a `provider` field on sessions/records) so you can verify
+which corpus was searched.
+
+### Default provider for manual/standalone installs (`META_CC_HOST`)
+
+Packaged plugin manifests inject `META_CC_HOST` (`claude` for the Claude Code
+plugin, `codex` for the Codex plugin) into the MCP server environment; this is
+the single source of truth for the omitted-provider default. Manual or
+standalone installations have a deterministic fallback: when `META_CC_HOST` is
+unset the default is `claude` (pre-DIR-073 behavior). To change the default
+without touching query arguments, set it explicitly in your MCP client
+configuration:
+
+```json
+{
+  "mcpServers": {
+    "meta-cc": {
+      "command": "meta-cc-mcp",
+      "args": [],
+      "env": { "META_CC_HOST": "codex" }
+    }
+  }
+}
+```
+
+An invalid `META_CC_HOST` (anything other than `claude` or `codex`) fails
+server startup with an actionable error instead of silently reading the wrong
+history.
 
 ## Configuration
 
@@ -33,14 +63,16 @@ If `provider` is omitted, meta-cc uses `claude` to preserve existing behavior.
 
 The release archive includes `.mcp.json`; the installer merges it into `~/.claude/mcp.json`.
 
-Manual configuration:
+Manual configuration (an unset `META_CC_HOST` deterministically defaults to
+`claude`; set it to `codex` when this server is launched from Codex):
 
 ```json
 {
   "mcpServers": {
     "meta-cc": {
       "command": "meta-cc-mcp",
-      "args": []
+      "args": [],
+      "env": { "META_CC_HOST": "claude" }
     }
   }
 }

@@ -19,7 +19,7 @@ import (
 // ─── Private implementations ──────────────────────────────────────────────────
 
 func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
+	providerName := providerParam(args)
 	pattern := GetStringParam(args, "pattern", "")
 	contains := GetStringParam(args, "contains", "")
 	contentType := GetStringParam(args, "content_type", "string")
@@ -85,7 +85,7 @@ func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]inte
 }
 
 func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
+	providerName := providerParam(args)
 	toolName := GetStringParam(args, "tool", "")
 	status := GetStringParam(args, "status", "")
 	limit := GetIntParam(args, "limit", 0)
@@ -188,7 +188,7 @@ func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}
 }
 
 func handleQueryToolErrors(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
+	providerName := providerParam(args)
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
@@ -201,7 +201,7 @@ func handleQueryToolErrors(e *ToolExecutor, scope string, args map[string]interf
 }
 
 func handleQueryTokenUsage(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
+	providerName := providerParam(args)
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
@@ -213,7 +213,7 @@ func handleQueryTokenUsage(e *ToolExecutor, scope string, args map[string]interf
 }
 
 func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
+	providerName := providerParam(args)
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
 	sinceStr := GetStringParam(args, "since", "")
@@ -255,7 +255,7 @@ func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]
 }
 
 func handleQuerySystemErrors(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
+	providerName := providerParam(args)
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
@@ -267,7 +267,7 @@ func handleQuerySystemErrors(e *ToolExecutor, scope string, args map[string]inte
 }
 
 func handleQueryFileSnapshots(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
+	providerName := providerParam(args)
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
@@ -279,7 +279,7 @@ func handleQueryFileSnapshots(e *ToolExecutor, scope string, args map[string]int
 }
 
 func handleQueryTimestamps(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
+	providerName := providerParam(args)
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
 	sinceStr := GetStringParam(args, "since", "")
@@ -298,7 +298,7 @@ func handleQueryTimestamps(e *ToolExecutor, scope string, args map[string]interf
 }
 
 func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
+	providerName := providerParam(args)
 	blockType := GetStringParam(args, "block_type", "tool_use")
 	toolName := GetStringParam(args, "tool_name", "")
 	contains := GetStringParam(args, "contains", "")

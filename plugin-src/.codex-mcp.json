@@ -3,7 +3,9 @@
     "meta-cc": {
       "command": "./bin/meta-cc-mcp",
       "args": [],
-      "env": {},
+      "env": {
+        "META_CC_HOST": "codex"
+      },
       "cwd": "."
     }
   }

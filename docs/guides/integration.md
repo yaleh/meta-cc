@@ -16,9 +16,15 @@ The MCP server is the primary integration. It exposes 16 tools for querying and 
 
 | Provider | Source | Notes |
 |----------|--------|-------|
-| `claude` | `~/.claude/projects/<project-hash>/*.jsonl` | Default provider for backward compatibility. |
-| `codex` | `${META_CC_CODEX_ROOT:-~/.codex}/state_5.sqlite` and rollout JSONL files referenced by `threads.rollout_path` | `~/.codex/history.jsonl` is intentionally not used. |
+| `claude` | `~/.claude/projects/<project-hash>/*.jsonl` | Host default under Claude Code and for standalone installs. |
+| `codex` | `${META_CC_CODEX_ROOT:-~/.codex}/state_5.sqlite` and rollout JSONL files referenced by `threads.rollout_path` | Host default under Codex. `~/.codex/history.jsonl` is intentionally not used. |
 | `all` | Both providers | Results include a provider tag where applicable. |
+
+An omitted `provider` argument resolves to the host that launched the MCP
+server (the packaged manifests inject `META_CC_HOST=claude`/`codex`;
+standalone defaults to `claude` — see the
+[MCP guide](mcp.md#default-provider-for-manualstandalone-installs-meta_cc_host)).
+Explicit `provider` values always override this default.
 
 Use `working_dir` to query a project path different from the current process working directory.
 

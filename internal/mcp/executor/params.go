@@ -1,5 +1,20 @@
 package executor
 
+import "github.com/yaleh/meta-cc/internal/config"
+
+// providerParam resolves the `provider` tool argument (DIR-073): an explicit
+// claude/codex/all passes through unchanged; an omitted or empty value
+// resolves to the host that launched this MCP process via
+// config.OmittedProviderDefault — the single source of truth shared with the
+// pipeline, stage-1 discovery, raw-file selection, and analysis paths, so no
+// handler hard-codes its own omitted-provider default.
+func providerParam(args map[string]interface{}) string {
+	if v, ok := args["provider"].(string); ok && v != "" {
+		return v
+	}
+	return config.OmittedProviderDefault()
+}
+
 // GetStringParam extracts a string parameter from args map.
 func GetStringParam(args map[string]interface{}, key, defaultVal string) string {
 	if v, ok := args[key].(string); ok {

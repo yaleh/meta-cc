@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/analyzer"
+	"github.com/yaleh/meta-cc/internal/config"
 	"github.com/yaleh/meta-cc/internal/locator"
 	"github.com/yaleh/meta-cc/internal/parser"
 	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
@@ -90,12 +91,17 @@ func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, [
 	}
 
 	providerName := stringArg(args, "provider")
+	// DIR-073: an omitted/empty provider resolves to the process host
+	// default (config.OmittedProviderDefault), never a hard-coded claude.
+	if providerName == "" {
+		providerName = config.OmittedProviderDefault()
+	}
 	// DIR-030: session_id, when set, is an exact-thread selector distinct
 	// from scope="session" ("most recent session") — it takes precedence
 	// over scope entirely and reads only the one requested session.
 	sessionID := stringArg(args, "session_id")
 
-	if providerName != "" && providerName != "claude" {
+	if providerName != "claude" {
 		return s.loadProviderData(scope, workingDir, providerName, sessionID)
 	}
 

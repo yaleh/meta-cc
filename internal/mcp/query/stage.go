@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yaleh/meta-cc/internal/config"
 	"github.com/yaleh/meta-cc/internal/conversation"
 	"github.com/yaleh/meta-cc/internal/locator"
 	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
@@ -26,6 +27,18 @@ type DirectoryMetadata struct {
 	NewestFile string // RFC3339 timestamp
 }
 
+// stageProviderArg resolves the stage-1 `provider` argument (DIR-073): an
+// explicit claude/codex/all passes through unchanged; an omitted/empty value
+// resolves to the host that launched this MCP process via
+// config.OmittedProviderDefault — the same single source of truth the
+// executor handlers, pipeline, raw-file selection, and analysis dispatch use.
+func stageProviderArg(args map[string]interface{}) string {
+	if providerName, ok := args["provider"].(string); ok && providerName != "" {
+		return providerName
+	}
+	return config.OmittedProviderDefault()
+}
+
 // HandleGetSessionDirectory implements get_session_directory tool
 func HandleGetSessionDirectory(ctx context.Context, args map[string]interface{}) (interface{}, error) {
 	scope, ok := args["scope"].(string)
@@ -37,11 +50,11 @@ func HandleGetSessionDirectory(ctx context.Context, args map[string]interface{})
 		return nil, fmt.Errorf("invalid scope: %s (must be 'session' or 'project')", scope)
 	}
 
-	providerName, _ := args["provider"].(string)
+	providerName := stageProviderArg(args)
 	workingDir, _ := args["working_dir"].(string)
 
 	switch providerName {
-	case "", "claude":
+	case "claude":
 		return buildClaudeDirectoryResult(scope, workingDir)
 	case "codex":
 		return buildCodexDirectoryResult(ctx, scope, workingDir)
@@ -53,8 +66,9 @@ func HandleGetSessionDirectory(ctx context.Context, args map[string]interface{})
 }
 
 // buildClaudeDirectoryResult implements the original (pre-DIR-024) Claude-only
-// get_session_directory behavior unchanged, so provider="claude" (the default)
-// remains backward compatible.
+// get_session_directory behavior unchanged, so an explicit provider="claude"
+// (and the host default when launched from Claude Code) remains backward
+// compatible.
 func buildClaudeDirectoryResult(scope, workingDir string) (map[string]interface{}, error) {
 	directory, err := GetDirectoryForScope(scope, workingDir)
 	if err != nil {
@@ -416,11 +430,11 @@ func HandleGetSessionMetadata(ctx context.Context, args map[string]interface{}) 
 		return nil, fmt.Errorf("invalid scope: %s (must be 'session' or 'project')", scope)
 	}
 
-	providerName, _ := args["provider"].(string)
+	providerName := stageProviderArg(args)
 	workingDir, _ := args["working_dir"].(string)
 
 	switch providerName {
-	case "", "claude":
+	case "claude":
 		return buildClaudeMetadataResult(scope, workingDir)
 	case "codex":
 		return buildCodexMetadataResult(ctx, scope, workingDir)
@@ -432,8 +446,9 @@ func HandleGetSessionMetadata(ctx context.Context, args map[string]interface{}) 
 }
 
 // buildClaudeMetadataResult implements the original (pre-DIR-024) Claude-only
-// get_session_metadata behavior unchanged, so provider="claude" (the
-// default) remains backward compatible.
+// get_session_metadata behavior unchanged, so an explicit provider="claude"
+// (and the host default when launched from Claude Code) remains backward
+// compatible.
 func buildClaudeMetadataResult(scope, workingDir string) (map[string]interface{}, error) {
 	// Get JSONL files for the scope (include subagents by default)
 	files, err := GetQueryFiles(scope, workingDir, true)

@@ -56,7 +56,7 @@ var newCodexProvider = func() *codexprovider.Provider {
 }
 
 func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
-	providerName := GetStringParam(args, "provider", "claude")
+	providerName := providerParam(args)
 	workingDir := GetStringParam(args, "working_dir", "")
 
 	providers, err := rawfiles.ParseProviderFilter(providerName)
@@ -64,7 +64,7 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 		return mcquery.QueryResult{}, err
 	}
 
-	if providerName == "" || providerName == "claude" {
+	if providerName == "claude" {
 		for _, argName := range codexOnlyFilterArgs {
 			if _, set := args[argName]; set {
 				return mcquery.QueryResult{}, fmt.Errorf(

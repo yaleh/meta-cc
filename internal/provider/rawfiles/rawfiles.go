@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/yaleh/meta-cc/internal/config"
 	"github.com/yaleh/meta-cc/internal/conversation"
 	"github.com/yaleh/meta-cc/internal/locator"
 	providerpkg "github.com/yaleh/meta-cc/internal/provider"
@@ -42,12 +43,17 @@ func NewRegistry(projectPath string) *providerpkg.Registry {
 }
 
 // ParseProviderFilter parses a "provider" tool argument into a filter list of
-// conversation.ProviderID. An empty string and "claude" both mean
-// Claude-only (the default). Invalid provider names return an actionable
-// error rather than silently falling back to Claude.
+// conversation.ProviderID. An empty string resolves to the process host
+// default (DIR-073: config.OmittedProviderDefault — claude for a Claude Code
+// launched server, codex for a Codex launched one), never a hard-coded
+// provider. Invalid provider names return an actionable error rather than
+// silently falling back to Claude.
 func ParseProviderFilter(providerName string) ([]conversation.ProviderID, error) {
+	if providerName == "" {
+		providerName = config.OmittedProviderDefault()
+	}
 	switch providerName {
-	case "", "claude":
+	case "claude":
 		return []conversation.ProviderID{conversation.ProviderClaude}, nil
 	case "codex":
 		return []conversation.ProviderID{conversation.ProviderCodex}, nil

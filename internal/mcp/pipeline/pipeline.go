@@ -94,11 +94,16 @@ func BuildResponse(cfg *config.Config, result mcquerypkg.QueryResult, args map[s
 
 	if pc.ContextTurns > 0 && pc.ApplyMessageFilters &&
 		pipelineStringArg(args, "content_type") != "array" {
-		providerName := pipelineStringArg(args, "provider", "claude")
+		// DIR-073: an omitted/empty provider resolves to the process host
+		// default (config.OmittedProviderDefault), never a hard-coded claude.
+		providerName := pipelineStringArg(args, "provider", config.OmittedProviderDefault())
+		if providerName == "" {
+			providerName = config.OmittedProviderDefault()
+		}
 		scope := pipelineStringArg(args, "scope", "project")
 		workingDir := pipelineStringArg(args, "working_dir", "")
 
-		if providerName == "" || providerName == "claude" {
+		if providerName == "claude" {
 			// Claude-only queries keep the pre-existing behavior exactly:
 			// matched records carry a native Claude uuid, so the direct
 			// baseDir JSONL rescan remains correct and backward compatible.
@@ -158,7 +163,7 @@ func BuildResponse(cfg *config.Config, result mcquerypkg.QueryResult, args map[s
 }
 
 // expandProviderContext is the DIR-036 provider-neutral context-expansion
-// entry point for any provider other than the Claude default ("codex" or
+// entry point for any provider that did not resolve to claude ("codex" or
 // "all"). It resolves the same Claude+Codex provider registry the original
 // query used (internal/provider/rawfiles.NewRegistry), and for each session
 // referenced by an already-matched record, reloads that session's full

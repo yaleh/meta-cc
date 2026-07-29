@@ -25,6 +25,9 @@ type Config struct {
 
 	// Session holds session information from Claude Code
 	Session SessionConfig
+
+	// Provider holds the host/default-provider resolution (DIR-073)
+	Provider ProviderConfig
 }
 
 // LogConfig holds logging-related configuration.
@@ -87,11 +90,16 @@ func Load() (*Config, error) {
 		Output:     loadOutputConfig(),
 		Capability: loadCapabilityConfig(),
 		Session:    loadSessionConfig(),
+		Provider:   loadProviderConfig(),
 	}
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
+
+	// DIR-073: publish the validated omitted-provider default as the
+	// process-wide source of truth every provider-aware tool reads.
+	applyProcessDefault(cfg.Provider.Default)
 
 	return cfg, nil
 }
@@ -115,6 +123,14 @@ func (c *Config) Validate() error {
 	if c.Output.InlineThreshold <= 0 {
 		return fmt.Errorf("META_CC_INLINE_THRESHOLD must be positive, got: %d",
 			c.Output.InlineThreshold)
+	}
+
+	// DIR-073: an invalid host must fail visibly at startup rather than
+	// silently searching the wrong corpus.
+	if c.Provider.Default != HostClaude && c.Provider.Default != HostCodex {
+		return fmt.Errorf("invalid %s=%q: must be %q (Claude Code) or %q (Codex CLI); "+
+			"leave it unset to default to %q for standalone installations",
+			HostEnv, c.Provider.Host, HostClaude, HostCodex, StandaloneHostFallback)
 	}
 
 	return nil

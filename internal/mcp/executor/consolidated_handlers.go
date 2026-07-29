@@ -54,7 +54,7 @@ func handleQuerySessionContent(e *ToolExecutor, scope string, args map[string]in
 	case "assistant":
 		// Query assistant messages; optionally filter by 'contains'
 		contains := GetStringParam(args, "contains", "")
-		providerName := GetStringParam(args, "provider", "claude")
+		providerName := providerParam(args)
 		limit := GetIntParam(args, "limit", 0)
 		workingDir := GetStringParam(args, "working_dir", "")
 		includeSubagents := GetBoolParam(args, "include_subagents", true)

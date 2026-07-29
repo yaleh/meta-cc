@@ -2,6 +2,8 @@
   "meta-cc": {
     "command": "${CLAUDE_PLUGIN_ROOT}/bin/meta-cc-mcp",
     "args": [],
-    "env": {}
+    "env": {
+      "META_CC_HOST": "claude"
+    }
   }
 }
