@@ -140,6 +140,45 @@ future item kind, without a kind-by-kind carve-out) or its `Status` is set
 `TestLoadTurnsFromRolloutLifecycleOnlyTurnAborted`, and
 `TestLoadTurnsFromRolloutLifecycleOnlyCompaction` in `rollout_test.go`.
 
+**Observable end-to-end through MCP tools (DIR-053):** DIR-050's fix stopped
+at the raw parser layer — `flush()` retained the lifecycle-only turn in the
+`[]conversation.Turn` slice, but `providerrecords.Normalize`
+(`internal/provider/records/records.go`) — the only layer downstream of
+`loadTurnsFromRollout` that turns a `conversation.Turn` into the query-time
+records MCP tools actually operate on — read only
+`UserText`/`AssistantText`/`ToolCalls`/`TokenUsage`. A lifecycle-only turn
+(all four empty) therefore still produced **zero** normalized records and
+stayed invisible to every MCP tool, so "a session looks like it has no
+history" was still reproducible via an actual tool call. `Normalize` now
+emits a minimal **lifecycle record** for a turn that carries a lifecycle
+signal but would otherwise produce no record, mirroring DIR-050's widening
+at the normalized-record layer:
+
+- an `ItemKindSessionEnd` item → one record with `"type": "session_end"` and
+  the reported `reason` (from `Item.Text`);
+- an `ItemKindCompaction` item → one record with `"type": "compaction"` and
+  its `CompactionBoundary` (`reason`/`summary`) under a `compaction` field;
+- an explicit terminal/failure `Turn.Status` with no such item (e.g.
+  `TurnStatusAborted`) → one record whose `type` is derived from the status
+  (`"turn_aborted"`, `"turn_failed"`, or `"turn_completed"`) and which carries
+  `turn_status`. `TurnStatusInProgress` alone is parser bookkeeping, not a
+  lifecycle event, and emits no record.
+
+Each lifecycle record reuses the existing record vocabulary — the standard
+identity fields (`provider`/`session_id`/`sessionId`/`cwd`/`timestamp`) plus
+the canonical `turn_id`/`turn_index`/`seq` (DIR-036) — so it is
+distinguishable by a jq filter such as `select(.type == "session_end")` and
+is surfaced by `query_session_content(role="all", provider="codex")` (whose
+conversation-flow filter now includes the lifecycle types) as well as any
+signal query that matches on a timestamp. Turns that already surface
+user/assistant/tool content are left untouched — no extra record is added —
+so ordinary sessions that merely *end* with a `session_end` event are
+unchanged. See `internal/provider/records/records_lifecycle_test.go`
+(Normalize layer) and
+`internal/mcp/executor/codex_lifecycle_e2e_test.go` (end-to-end
+`query_session_content(role="all")` against a rollout ending in a bare
+`session_end`).
+
 **Live/ongoing state:** there is no separate "session is live" field.
 A turn with `TurnStatusUnspecified` and no `ItemKindSessionEnd` item
 anywhere in its session is the existing, correct signal for "no terminal

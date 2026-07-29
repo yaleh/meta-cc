@@ -161,7 +161,16 @@ Query session messages by role. The `role` parameter is required.
 | `user` | Search user messages by regex pattern | Yes | Yes |
 | `assistant` | Query assistant messages | Yes | Yes |
 | `tool` | Query `tool_use` or `tool_result` blocks | Yes | Yes |
-| `all` | Query user/assistant conversation flow | Yes | Yes |
+| `all` | Query user/assistant conversation flow, plus lifecycle records (DIR-053) | Yes | Yes |
+
+> **Lifecycle records (DIR-053, Codex):** a Codex session can end in a bare
+> lifecycle event (`session_end` / `turn_aborted` / `compaction`) that forms a
+> turn with no user/assistant/tool content. `role="all"` surfaces these as
+> minimal records whose `type` is the lifecycle signal — `"session_end"`
+> (carrying `reason`), `"compaction"` (carrying a `compaction` boundary), or
+> `"turn_aborted"` (carrying `turn_status`) — so a lifecycle-only session is no
+> longer invisible. Filter them with e.g. `select(.type == "session_end")`. See
+> `docs/reference/codex-history-model.md` (Turn/session lifecycle status).
 
 Additional parameters for ALL roles:
 - `contains` — literal substring filter (case-insensitive, not a regex — `"main.go"` does not match `"mainXgo"`). For `role=user/assistant/all` it matches the message content (array content is matched via its JSON text); for `role=tool` it matches the block's `name` and `input` (`block_type=tool_use`) or its `content` (`block_type=tool_result`). Use `"## Summary"` with `role=assistant` to retrieve summaries.

@@ -155,6 +155,11 @@ func Normalize(session conversation.Session, turns []conversation.Turn) []map[st
 	}
 	for turnIndex, turn := range turns {
 		ts := turn.Timestamp.Format(time.RFC3339)
+		// turnStartSeq snapshots the output position before this turn emits
+		// anything, so after the user/assistant/tool_result blocks we can tell
+		// whether the turn produced ANY record. DIR-053 uses this to widen
+		// emission to lifecycle-only turns (see lifecycleRecords).
+		turnStartSeq := seq
 		if turn.UserText != "" {
 			emit(map[string]interface{}{
 				"type":       "user",
@@ -236,8 +241,107 @@ func Normalize(session conversation.Session, turns []conversation.Turn) []map[st
 				},
 			}, turnIndex, turn.ID)
 		}
+		// DIR-053: a turn whose only content is a typed lifecycle signal
+		// (ItemKindSessionEnd / ItemKindCompaction) or a non-default Status
+		// (e.g. TurnStatusAborted) produces none of the user/assistant/
+		// tool_result records above, so it would remain invisible to every MCP
+		// tool even though DIR-050's flush() now retains it as a Turn. When the
+		// turn emitted nothing else (seq unchanged), emit a minimal lifecycle
+		// record so the turn is observable end-to-end. Turns that already
+		// surface content are left untouched (no extra record) to avoid
+		// changing record counts for ordinary sessions.
+		if seq == turnStartSeq {
+			for _, rec := range lifecycleRecords(session, turn, ts) {
+				emit(rec, turnIndex, turn.ID)
+			}
+		}
 	}
 	return out
+}
+
+// lifecycleRecords builds the minimal normalized record(s) for a turn that
+// carries a lifecycle signal but no user/assistant/tool content (DIR-053). It
+// mirrors the widening DIR-050 applied to flush()'s retention condition, but at
+// the normalized-record layer: one record per ItemKindSessionEnd /
+// ItemKindCompaction item, plus — when no such item is present — one record for
+// a non-default Turn.Status (Codex's "turn_aborted" sets a status with no
+// accompanying item). Each record reuses the existing record vocabulary: the
+// standard identity fields (type/provider/session_id/sessionId/cwd/timestamp,
+// plus turn_id/turn_index/seq added by emit) and a distinguishable type value
+// drawn from the ItemKind/TurnStatus vocabulary ("session_end", "compaction",
+// "turn_aborted", ...), so a jq filter such as select(.type == "session_end")
+// or a role="all" conversation-flow query can surface it. No large new schema
+// is introduced — just the signal-specific fields each kind already carries
+// (reason for session_end, the CompactionBoundary for compaction).
+func lifecycleRecords(session conversation.Session, turn conversation.Turn, ts string) []map[string]interface{} {
+	base := func(typ string) map[string]interface{} {
+		rec := map[string]interface{}{
+			"type":       typ,
+			"provider":   session.Provider,
+			"session_id": session.ID,
+			"sessionId":  session.ID,
+			"cwd":        session.CWD,
+			"timestamp":  ts,
+		}
+		if turn.Status != conversation.TurnStatusUnspecified {
+			rec["turn_status"] = string(turn.Status)
+		}
+		return rec
+	}
+
+	var recs []map[string]interface{}
+	itemEmitted := false
+	for _, item := range turn.Items {
+		switch item.Kind {
+		case conversation.ItemKindSessionEnd:
+			rec := base("session_end")
+			if item.Text != "" {
+				rec["reason"] = item.Text
+			}
+			recs = append(recs, rec)
+			itemEmitted = true
+		case conversation.ItemKindCompaction:
+			rec := base("compaction")
+			if item.Compaction != nil {
+				boundary := map[string]interface{}{}
+				if item.Compaction.Reason != "" {
+					boundary["reason"] = item.Compaction.Reason
+				}
+				if item.Compaction.Summary != "" {
+					boundary["summary"] = item.Compaction.Summary
+				}
+				if len(boundary) > 0 {
+					rec["compaction"] = boundary
+				}
+			}
+			recs = append(recs, rec)
+			itemEmitted = true
+		}
+	}
+	// Status-only terminal/failure signals (e.g. turn_aborted): emit a record
+	// only when no lifecycle item already produced one. InProgress is parser
+	// bookkeeping (not a lifecycle event), so it deliberately emits nothing.
+	if !itemEmitted {
+		if typ, ok := lifecycleTypeForStatus(turn.Status); ok {
+			recs = append(recs, base(typ))
+		}
+	}
+	return recs
+}
+
+// lifecycleTypeForStatus maps only explicit terminal/failure statuses. A bare
+// InProgress status is not a genuine lifecycle event and must remain invisible.
+func lifecycleTypeForStatus(status conversation.TurnStatus) (string, bool) {
+	switch status {
+	case conversation.TurnStatusAborted:
+		return "turn_aborted", true
+	case conversation.TurnStatusFailed:
+		return "turn_failed", true
+	case conversation.TurnStatusCompleted:
+		return "turn_completed", true
+	default:
+		return "", false
+	}
 }
 
 func hasUsage(usage conversation.TokenUsage) bool {

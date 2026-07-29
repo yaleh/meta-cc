@@ -223,7 +223,18 @@ func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]
 		return mcquery.QueryResult{}, err
 	}
 
-	jqFilter := `select(.type == "user" or .type == "assistant")`
+	// DIR-053: the conversation flow also includes lifecycle records. A Codex
+	// rollout can end in a bare lifecycle event (session_end / turn_aborted /
+	// compaction) that forms a turn with NO user/assistant/tool content; before
+	// DIR-053 such a turn produced zero normalized records, so a lifecycle-only
+	// session looked empty to every MCP tool. providerrecords.Normalize now
+	// emits a minimal lifecycle record for such a turn (see lifecycleRecords),
+	// carrying a distinguishable type drawn from the ItemKind/TurnStatus
+	// vocabulary. Including those types here makes the lifecycle signal
+	// observable through query_session_content(role="all") end-to-end, rather
+	// than only at the raw parser layer. Records without these types (the
+	// ordinary user/assistant flow) are unaffected.
+	jqFilter := `select(.type == "user" or .type == "assistant" or .type == "session_end" or .type == "compaction" or .type == "turn_aborted" or .type == "turn_failed" or .type == "turn_completed")`
 
 	// DIR-062: honor the documented cross-role `contains` literal-substring
 	// filter for role=all too (previously silently dropped).
