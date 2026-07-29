@@ -66,11 +66,34 @@ checkout), then re-run:
 codex plugin add meta-cc@meta-cc-marketplace
 ```
 
-This re-resolves the plugin from the (now updated) local source and installs
-the new version into Codex's plugin cache — `codex plugin marketplace
-upgrade` is only needed for marketplaces added from a remote Git URL.
+This is Codex's supported refresh operation for a local marketplace. As of
+Codex CLI 0.146.0, `codex plugin add` is **destructive**: it materializes the
+new version and removes the previously cached version *before* any post-install
+verification runs. There is therefore no automatic rollback — if the new
+version turns out to be inconsistent, the old cache is already gone.
+`codex plugin marketplace upgrade` is only needed for marketplaces added from a
+remote Git URL.
+
+For repository user-scope installs, run `make install-user` followed by
+`make install-user-codex`. The second target performs the supported refresh and
+then verifies that every discovery surface agrees on one version: the discovery
+metadata (`plugin list`), both cached manifests, the source manifests, all three
+skills, and the MCP binary's **self-reported** version (queried over MCP
+`initialize`, not just its executability).
+
+- If verification succeeds, the cache is aligned and the next session loads it
+  cleanly — no dangling old-version path remains to warn about.
+- If the Codex CLI lacks the plugin-manager commands, the target fails visibly
+  *before* any destructive call, so the previous cache is left untouched.
+- If post-install verification fails, the target exits non-zero with an error
+  naming the missing/inconsistent artifact and an explicit manual recovery
+  command (`codex plugin add meta-cc@meta-cc-marketplace --json`, i.e. re-run
+  `make install-user-codex`). It performs **no automatic rollback**, because
+  Codex has already removed the old cache.
+
 **Start a new Codex session afterward** to pick up the updated skills/MCP
-server; a running session keeps using whatever was resolved at its start.
+server. A running session keeps using whatever was resolved at its start and
+does not hot-reload plugin upgrades.
 
 ### Uninstalling
 

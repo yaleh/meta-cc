@@ -441,17 +441,19 @@ install-user: stage
 	@echo "dev-mode repo path, run 'make install-user-codex' once as well."
 
 install-user-codex:
-	@echo "Registering Codex's [marketplaces.meta-cc-marketplace] against the user-scope install..."
-	@CODEX_CONFIG="$(HOME)/.codex/config.toml"; \
-	if [ ! -d "$(HOME)/.local/share/meta-cc" ]; then \
-		echo "⚠️  $(HOME)/.local/share/meta-cc does not exist yet."; \
+	@echo "Registering and refreshing Codex against the user-scope install..."
+	@if [ ! -d "$(HOME)/.local/share/meta-cc" ]; then \
+		echo "❌ $(HOME)/.local/share/meta-cc does not exist yet."; \
 		echo "   Run 'make install-user' first, then re-run 'make install-user-codex'."; \
-	fi; \
+		exit 1; \
+	fi
+	@CODEX_HOME="$${CODEX_HOME:-$(HOME)/.codex}"; \
 	python3 scripts/install/update-codex-marketplace-toml.py \
-		"$$CODEX_CONFIG" "$(HOME)/.local/share/meta-cc" local
+		"$$CODEX_HOME/config.toml" "$(HOME)/.local/share/meta-cc" local && \
+	CODEX_HOME="$$CODEX_HOME" scripts/install/refresh-codex-plugin.sh \
+		"$(HOME)/.local/share/meta-cc"
 	@echo ""
-	@echo "✅ Codex registration step complete (no-op if ~/.codex/config.toml has no"
-	@echo "   [marketplaces.meta-cc-marketplace] entry -- see docs/guides/plugin-development.md)."
+	@echo "✅ Codex registration and cache refresh complete."
 
 uninstall-local:
 	@echo "Removing local scope plugin install..."

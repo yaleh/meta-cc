@@ -59,29 +59,53 @@ running whatever binary its `source`/`source_type` already point at (often
 a dev-mode path straight into this repo), silently drifting from the
 user-scope binary Claude Code just switched to.
 
-To keep Codex in sync, run the sibling target once after `make install-user`:
+To keep Codex in sync, run the sibling target after each `make install-user`:
 
 ```bash
 make install-user-codex
 ```
 
-This updates only the `source` (and `source_type`, defaulting to `"local"`)
-keys inside `~/.codex/config.toml`'s `[marketplaces.meta-cc-marketplace]`
-table to point at `~/.local/share/meta-cc`, via
+The target first updates only the `source` (and `source_type`, defaulting to
+`"local"`) keys inside `~/.codex/config.toml`'s
+`[marketplaces.meta-cc-marketplace]` table to point at
+`~/.local/share/meta-cc`, via
 `scripts/install/update-codex-marketplace-toml.py`. Everything else in
 `~/.codex/config.toml` -- other `[marketplaces.*]`, `[model_providers.*]`,
 `[projects.*]`, `[plugins.*]` entries, comments, formatting -- is left
-byte-for-byte unchanged; the update is a targeted line-level edit, not a
-full TOML rewrite. It prints what changed (old source → new source), and is
-a safe no-op if `~/.codex/config.toml` doesn't exist yet or has no
-`[marketplaces.meta-cc-marketplace]` table (e.g. you've never registered
-meta-cc with Codex). Re-running it when Codex already points at the
-user-scope path is also a no-op.
+byte-for-byte unchanged; the update is a targeted line-level edit, not a full
+TOML rewrite.
 
-Both behaviors -- `stage`'s locked-binary safety and the Codex TOML update
--- are covered by `tests/scripts/stage-locked-binary.bats` and
-`tests/scripts/codex-registration.bats`, run via `make test-bats` (wired
-into `make push`).
+When that marketplace is registered, the target then invokes Codex's supported
+`codex plugin add meta-cc@meta-cc-marketplace --json` refresh flow and verifies
+that every discovery surface resolves the same version: the discovery metadata
+(`plugin list`), both cached manifests, the source manifests, all three skills,
+and the MCP binary's **self-reported** version (queried over MCP `initialize`
+-- executability alone is not enough).
+
+Refresh is **destructive** on real Codex CLI 0.146.0: `codex plugin add`
+materializes the new version and removes the previously cached version *before*
+post-install verification runs. The script therefore performs **no automatic
+rollback** -- on verification failure the old cache is already gone. Instead it
+exits non-zero with an actionable error naming the missing/inconsistent
+artifact and an explicit manual recovery command (re-run the refresh). The only
+failures that leave the prior cache intact are the pre-destructive ones: a
+missing Codex CLI, or a CLI that lacks the plugin-manager commands (detected
+via `--help` probes before any `plugin add`). Tests can set `CODEX_HOME` to an
+isolated directory; the target honors it and never needs to inspect a developer
+cache.
+
+A successful update still requires a **new Codex session**. Running sessions
+keep the skills and MCP process resolved when they started and do not hot-reload
+the upgraded plugin; a successful, fully verified upgrade leaves no dangling
+old-version path for the next session to warn about.
+
+These behaviors -- `stage`'s locked-binary safety, the Codex TOML update, and
+the destructive upgrade/restart and verification-failure semantics -- are
+covered by `tests/scripts/stage-locked-binary.bats`,
+`tests/scripts/codex-registration.bats`, and
+`tests/scripts/codex-user-upgrade.bats`, run via `make test-bats` (wired
+into `make push`). The upgrade tests drive a fake Codex double that reproduces
+the real CLI's destructive replacement (old cache removed before verification).
 
 ### Verifying which commit/build is actually installed
 
