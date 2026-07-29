@@ -13,7 +13,8 @@ meta-cc provides a Model Context Protocol (MCP) server for local coding-agent hi
 Convenience query and analysis tools accept the standard `provider` parameter:
 
 ```javascript
-query_user_messages({
+query_session_content({
+  role: "user",
   provider: "codex",
   pattern: "migration",
   limit: 20
@@ -106,7 +107,7 @@ drifting from the live `tools/list` response).
 
 ### Consolidated Query Tools
 
-These 4 tools replace the older set of individual `query_*` tools (see
+These 3 tools replace the older set of individual `query_*` tools (see
 [MCP Query Tools Reference](mcp-query-tools.md) for full parameter docs):
 
 | Tool | Purpose | Claude Code | Codex |
@@ -114,7 +115,6 @@ These 4 tools replace the older set of individual `query_*` tools (see
 | `query_session_content` | Query messages by role: `user`, `assistant`, `tool`, or `all` | Yes | Yes |
 | `query_session_signals` | Query signals: `errors`, `tokens`, `system_errors`, `timestamps`, `tool_stats` | Yes | Yes (`system_errors` is Claude-specific) |
 | `query_file_activity` | Query file history (`type: "snapshots"`) | Yes | Host-specific empty |
-| `query_edit_sequences` | Analyze file edit/read patterns: docRole, co-accessed docs, DocVoid | Yes | Yes |
 
 All three of `query_session_content`, `query_session_signals`, and `query_file_activity` also accept an exact `session_id` parameter (DIR-030): when set, the query reads only that one session instead of listing/loading every session in scope — see [`scope` vs exact `session_id`](mcp-query-tools.md#scope-vs-exact-session_id-dir-030).
 
@@ -188,6 +188,7 @@ Use these when you need file selection control or custom jq over selected JSONL 
 | `inspect_session_files` | Inspect selected JSONL files for record counts, time ranges, and samples |
 | `execute_stage2_query` | Run jq-style filter/sort/transform on selected files |
 | `get_session_metadata` | Return schema hints, file info, and query templates |
+| `query_edit_sequences` | Analyze file edit/read patterns: docRole, co-accessed docs, DocVoid |
 
 Two-stage tools operate on selected files. They retain raw-file compatibility, including normalized Codex JSONL records when a Codex rollout/session file is selected directly. Provider-aware cross-host querying is handled by the convenience query and analysis tools through the `provider` parameter.
 
@@ -201,7 +202,7 @@ The Codex provider reads session metadata from `state_5.sqlite` and follows each
 - `event_msg` `token_count` usage
 - newer dotted schema events such as `turn.started`, `item.message`, `item.tool_call`, and `item.tool_result`
 
-Codex `tokens_used` from SQLite is retained as session metadata, but `query_token_usage(provider: "codex")` reports per-turn usage only when the rollout contains a `token_count` event.
+Codex `tokens_used` from SQLite is retained as session metadata, but `query_session_signals({type: "tokens", provider: "codex"})` reports per-turn usage only when the rollout contains a `token_count` event.
 
 ## Standard Parameters
 
@@ -218,7 +219,7 @@ Most query and analysis tools accept:
 | `stats_first` | boolean | Return stats followed by details. Only declared on the 4 tools routed through the response pipeline (see below) — not on the six analysis tools. |
 | `inline_threshold_bytes` | number | Threshold for inline vs file reference output |
 
-Time-aware tools also accept RFC3339 `since` and `until`.
+RFC3339 `since`/`until` time filters are declared only on `query_session_content`, `query_session_signals`, and `get_timeline` — not on every query tool. `query_sessions` filters session metadata with `created_since`/`created_until` (plus Codex-only `updated_since`/`updated_until`) instead.
 
 ### `jq_filter`, `stats_first`, `offset`, `page_size` (DIR-048: scoped to pipeline-routed tools)
 
@@ -323,11 +324,11 @@ For Codex-specific verification, `make test-e2e-codex` creates a temporary Codex
 
 ### Tool returns empty on Codex
 
-Some tools query Claude Code-only record types:
+Some queries target Claude Code-only record types:
 
-- `query_file_snapshots`
-- `query_summaries`
-- `query_system_errors`
+- `query_file_activity` (`type: "snapshots"`)
+- `query_session_signals` (`type: "system_errors"`)
+- Compact summaries via `query_session_content` (`role: "assistant"`, `contains: "## Summary"`)
 
 Empty results are expected for Codex unless Codex adds equivalent local records.
 

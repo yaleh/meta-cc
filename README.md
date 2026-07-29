@@ -119,6 +119,11 @@ Ask Claude Code or Codex naturally - MCP tools are invoked automatically:
 **16 MCP tools: consolidated query tools, two-stage jq, and analysis tools**:
 
 ```javascript
+// Session discovery - metadata-first: list sessions without loading turn content
+query_sessions({limit: 10})                              // what sessions exist in this project
+// Discovery-to-content: target one discovered session by exact ID
+query_session_content({role: "user", session_id: "<id from query_sessions>"})
+
 // Consolidated query tools - cover the most common access patterns
 query_session_signals({type: "errors", limit: 10})       // tool execution errors
 query_session_signals({type: "tokens", stats_first: true}) // token usage stats
@@ -150,13 +155,14 @@ get_session_metadata({})    // JSONL schema, file info, and query templates
 - **Provider-aware normalization**: Use `provider: "claude" | "codex" | "all"` on query and analysis tools; Codex `response_item`, `event_msg`, function/custom tool calls, tool outputs, and token counts are normalized through the same MCP surface
 - **Hybrid Output Mode**: Auto-switches between inline (<8KB) and file_ref (≥8KB)
 - **jq Integration**: Native jq filtering for complex queries; warns when a transform produces all-null results
-- **Time Filtering**: `since`/`until` (RFC3339) on all query tools for narrowing to a time window
+- **Time Filtering**: `since`/`until` (RFC3339) on `query_session_content`, `query_session_signals`, and `get_timeline`; `query_sessions` filters with `created_since`/`created_until`
 - **No Limits by Default**: Returns all results, relies on hybrid mode
 - **data_source field**: All six analysis tools label results as `measured` (from session data) or `estimated` so callers know data provenance
-- **15 Tools**: 3 consolidated query + 4 utility (directory/inspect/stage2/edit-sequences) + 1 metadata + 1 cleanup + 6 analysis
+- **16 Tools**: 1 session discovery + 3 consolidated query + 5 two-stage (directory/inspect/stage2/metadata/edit-sequences) + 6 analysis + 1 cleanup
 
 **Resources**:
-- [MCP Query Tools Reference](docs/guides/mcp-query-tools.md) - Complete tool documentation
+- [MCP Query Tools Reference](docs/guides/mcp-query-tools.md) - Complete tool documentation (authoritative query reference)
+- [Codex History Model](docs/reference/codex-history-model.md) - Codex provider reference (lineage, archiving, pagination)
 - [MCP Query Cookbook](docs/examples/mcp-query-cookbook.md) - 25+ practical examples
 - [MCP v2.0 Migration Guide](docs/guides/mcp-v2-migration.md) - Upgrade from v1.x
 
@@ -209,10 +215,10 @@ Save and reuse your best prompts with 3 built-in Claude Code slash commands or C
 
 ## Key Features
 
-- **16 MCP tools** - Autonomous session data analysis: 1 session discovery + 3 consolidated query + 4 utility + 1 metadata + 1 cleanup + 6 analysis
+- **16 MCP tools** - Autonomous session data analysis: 1 session discovery + 3 consolidated query + 5 two-stage + 6 analysis + 1 cleanup
 - **Claude Code + Codex transcript analysis** - Shared query/analysis surface over both host schemas
 - **3 Prompt Library commands/skills** - Prompt management (`prompt-find`, `prompt-list`, `prompt-show`)
-- **Advanced analytics** - jq-based filtering, aggregation, time series; `since`/`until` time filtering on all query tools
+- **Advanced analytics** - jq-based filtering, aggregation, time series; `since`/`until` time filtering on `query_session_content`, `query_session_signals`, and `get_timeline`
 - **Error analysis** - Aggregate tool errors by name and type, with `data_source` provenance field
 - **Quality scanning** - Error/retry/diversity/completion dimensions
 - **Work pattern detection** - Tool frequency, hourly activity, context switches
@@ -221,7 +227,7 @@ Save and reuse your best prompts with 3 built-in Claude Code slash commands or C
 - **Tech debt tracking** - TODO/FIXME markers and unresolved errors
 - **Edit sequence analysis** - File edit/read patterns, docRole classification, co-accessed document detection
 - **File operation tracking** - Identify hotspots and churn
-- **Zero dependencies** - Single binary MCP server
+- **No external runtime dependencies** - Single binary MCP server
 - **Prompt Learning System** - Save, search, and reuse optimized prompts with project-specific intelligence
 
 ---
@@ -230,7 +236,7 @@ Save and reuse your best prompts with 3 built-in Claude Code slash commands or C
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.24 or later (matches the `go` directive in `go.mod`)
 - make
 
 ### Build from Source

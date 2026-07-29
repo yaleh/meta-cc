@@ -17,16 +17,19 @@ The `provider` parameter controls which history is queried:
 
 ## MCP Tools
 
-meta-cc exposes 16 MCP tools.
+meta-cc exposes 16 MCP tools. The live registry (`internal/mcp/tools.GetToolDefinitions()`) is the source of truth for this list; `internal/release` regression tests keep the catalog and tool-count claims below in sync with it.
+
+### Session Discovery
+
+- `query_sessions`: list session/thread metadata (id, cwd, title, status, model, archived, timestamps) without loading turn content — the metadata-first entry point for discovering which session to target, then drill in via `session_id` on a content or signals tool. See the [MCP Query Tools Reference](../guides/mcp-query-tools.md#query_sessions-session-discovery) for its full filter list and the [Codex History Model](codex-history-model.md) for thread lineage and archive semantics.
 
 ### Consolidated Query Tools
 
 - `query_session_content`: query messages by role (`user`, `assistant`, `tool`, or `all`)
 - `query_session_signals`: query signals (`errors`, `tokens`, `system_errors`, `timestamps`, `tool_stats`)
 - `query_file_activity`: query Claude Code file history snapshots
-- `query_edit_sequences`: analyze file edit/read patterns (docRole, co-accessed docs, DocVoid)
 
-These 4 tools replace the older set of individually named `query_*` tools. Claude-only record types return empty results for Codex when Codex has no equivalent local record.
+These 3 tools replace the older set of individually named `query_*` tools. Claude-only record types return empty results for Codex when Codex has no equivalent local record. Only `query_session_content` and `query_session_signals` accept the RFC3339 `since`/`until` time filters (plus `get_timeline` among the analysis tools); `query_sessions` filters by `created_since`/`created_until` instead.
 
 ### Analysis Tools
 
@@ -43,6 +46,7 @@ These 4 tools replace the older set of individually named `query_*` tools. Claud
 - `inspect_session_files`: inspect selected JSONL files
 - `execute_stage2_query`: run jq-style filter/sort/transform on selected files
 - `get_session_metadata`: return schema hints, file info, and query templates
+- `query_edit_sequences`: analyze file edit/read patterns (docRole, co-accessed docs, DocVoid)
 
 ### Utilities
 
@@ -126,3 +130,4 @@ The Codex E2E test creates an isolated Codex home, installs Codex skills and plu
 - [Integration Guide](../guides/integration.md)
 - [Examples](../tutorials/examples.md)
 - [JSONL Schema Reference](jsonl-schema.md)
+- [Codex History Model](codex-history-model.md)

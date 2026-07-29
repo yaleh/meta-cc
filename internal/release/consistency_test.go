@@ -225,3 +225,141 @@ func TestAdvertisedToolCountMatchesRegisteredTools(t *testing.T) {
 			"internal/release/consistency_test.go so this check keeps covering real claims.")
 	}
 }
+
+// liveToolNames returns the set of tool names registered by
+// tools.GetToolDefinitions() — the live tools/list source of truth.
+func liveToolNames(t *testing.T) map[string]bool {
+	t.Helper()
+	defs := tools.GetToolDefinitions()
+	if len(defs) == 0 {
+		t.Fatal("tools.GetToolDefinitions() returned 0 tools — registry looks broken")
+	}
+	names := make(map[string]bool, len(defs))
+	for _, d := range defs {
+		names[d.Name] = true
+	}
+	return names
+}
+
+// TestFeatureCatalogMatchesLiveToolRegistry asserts that the "## MCP Tools"
+// section of docs/reference/features.md catalogs exactly the registered tool
+// set: every tool bullet (`- `name`: ...`) names a live tool (no phantoms),
+// every live tool appears (no omissions — e.g. query_sessions), and no tool
+// is listed twice, so the per-category bullet lists partition the registry
+// and their counts must sum to the live total (DIR-074). Parameter values
+// inside descriptions are deliberately ignored — only line-leading tool
+// bullets are matched.
+func TestFeatureCatalogMatchesLiveToolRegistry(t *testing.T) {
+	root := repoRoot(t)
+	live := liveToolNames(t)
+
+	data, err := os.ReadFile(filepath.Join(root, "docs/reference/features.md"))
+	if err != nil {
+		t.Fatalf("reading docs/reference/features.md: %v", err)
+	}
+	section := regexp.MustCompile(`(?ms)^## MCP Tools\n(.*?)^## `).FindStringSubmatch(string(data))
+	if section == nil {
+		t.Fatal("docs/reference/features.md has no '## MCP Tools' section — " +
+			"the feature catalog may have been reworded. Restore the section or " +
+			"update internal/release/consistency_test.go to keep covering it.")
+	}
+
+	counts := make(map[string]int)
+	for _, m := range regexp.MustCompile(`(?m)^- ` + "`" + `([a-z][a-z0-9_]*)` + "`" + `:`).FindAllStringSubmatch(section[1], -1) {
+		counts[m[1]]++
+	}
+	if len(counts) == 0 {
+		t.Fatal("no '- `tool_name`:' bullets found in the '## MCP Tools' section of " +
+			"docs/reference/features.md — the catalog may have been reworded.")
+	}
+
+	for name, n := range counts {
+		if !live[name] {
+			t.Errorf("feature-catalog drift: docs/reference/features.md lists %q, but "+
+				"tools.GetToolDefinitions() does not register it. Remove the stale entry "+
+				"or register the tool.", name)
+		}
+		if n > 1 {
+			t.Errorf("feature-catalog drift: docs/reference/features.md lists %q %d times; "+
+				"each tool must appear in exactly one category so the category counts "+
+				"partition the registry and sum to %d.", name, n, len(live))
+		}
+	}
+	for name := range live {
+		if counts[name] == 0 {
+			t.Errorf("feature-catalog drift: tools.GetToolDefinitions() registers %q, but "+
+				"docs/reference/features.md does not catalog it. Add it to the category it "+
+				"belongs to; the category lists must sum to the live tool count (%d).",
+				name, len(live))
+		}
+	}
+}
+
+// TestReadmeCategoryBreakdownSumsToLiveCount asserts that every README
+// category breakdown of the form "N session discovery + N consolidated query
+// + N two-stage + N analysis + N cleanup" sums to the live registered tool
+// count, so the overview arithmetic cannot silently drift (DIR-074).
+func TestReadmeCategoryBreakdownSumsToLiveCount(t *testing.T) {
+	root := repoRoot(t)
+	actual := len(tools.GetToolDefinitions())
+
+	data, err := os.ReadFile(filepath.Join(root, "README.md"))
+	if err != nil {
+		t.Fatalf("reading README.md: %v", err)
+	}
+	re := regexp.MustCompile(`(\d+) session discovery \+ (\d+) consolidated query \+ (\d+) two-stage(?: \([^)]*\))? \+ (\d+) analysis \+ (\d+) cleanup`)
+	matches := re.FindAllStringSubmatch(string(data), -1)
+	if len(matches) == 0 {
+		t.Fatal("README.md has no category breakdown of the form " +
+			"'N session discovery + N consolidated query + N two-stage + N analysis + N cleanup'. " +
+			"Restore the breakdown or update internal/release/consistency_test.go to keep covering it.")
+	}
+	for _, m := range matches {
+		sum := 0
+		for _, g := range m[1:] {
+			n, convErr := strconv.Atoi(g)
+			if convErr != nil {
+				t.Fatalf("README.md: matched %q but could not parse %q as a count: %v", m[0], g, convErr)
+			}
+			sum += n
+		}
+		if sum != actual {
+			t.Errorf("README category breakdown drift: %q sums to %d, but "+
+				"tools.GetToolDefinitions() currently registers %d tools. Fix the counts "+
+				"in README.md so the breakdown sums to %d.", m[0], sum, actual, actual)
+		}
+	}
+}
+
+// TestReadmeGoRequirementMatchesGoMod asserts that the Go prerequisite in
+// README.md states the same major.minor toolchain as the go directive in
+// go.mod, so the documented requirement cannot silently drift (DIR-074).
+func TestReadmeGoRequirementMatchesGoMod(t *testing.T) {
+	root := repoRoot(t)
+
+	gomod, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		t.Fatalf("reading go.mod: %v", err)
+	}
+	wantMatch := regexp.MustCompile(`(?m)^go (\d+\.\d+)`).FindStringSubmatch(string(gomod))
+	if wantMatch == nil {
+		t.Fatal("go.mod has no 'go X.Y' directive — cannot derive the required toolchain")
+	}
+	want := wantMatch[1]
+
+	readme, err := os.ReadFile(filepath.Join(root, "README.md"))
+	if err != nil {
+		t.Fatalf("reading README.md: %v", err)
+	}
+	matches := regexp.MustCompile(`Go (\d+\.\d+) or later`).FindAllStringSubmatch(string(readme), -1)
+	if len(matches) == 0 {
+		t.Fatal("README.md has no 'Go X.Y or later' prerequisite — the requirement " +
+			"may have been reworded. Restore it or update internal/release/consistency_test.go.")
+	}
+	for _, m := range matches {
+		if m[1] != want {
+			t.Errorf("Go requirement drift: README.md says 'Go %s or later', but go.mod "+
+				"requires Go %s. Update README.md prerequisites to match go.mod.", m[1], want)
+		}
+	}
+}
