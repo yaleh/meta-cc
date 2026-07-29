@@ -138,6 +138,7 @@ func TestGetTimelineStats_Basic(t *testing.T) {
 	assert.Equal(t, 3, stats.TotalEntries)
 	assert.Equal(t, 2, stats.EventTypeCounts["user_message"])
 	assert.Equal(t, 1, stats.EventTypeCounts["assistant_message"])
+	assert.Equal(t, DataSourceMeasured, stats.DataSource)
 	require.NotNil(t, stats.TimeRange)
 	assert.NotEmpty(t, stats.TimeRange.From)
 	assert.NotEmpty(t, stats.TimeRange.To)
@@ -157,4 +158,5 @@ func TestGetTimelineStats_Empty(t *testing.T) {
 	assert.Equal(t, 0, stats.TotalEntries)
 	assert.NotNil(t, stats.EventTypeCounts)
 	assert.Nil(t, stats.TimeRange)
+	assert.Equal(t, DataSourceMeasured, stats.DataSource)
 }

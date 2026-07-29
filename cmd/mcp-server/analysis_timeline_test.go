@@ -51,6 +51,8 @@ func TestGetTimelineStatsOnly(t *testing.T) {
 	_, hasEventTypeCounts := result["event_type_counts"]
 	assert.True(t, hasEventTypeCounts, "stats_only result should have event_type_counts field")
 
+	assert.Equal(t, "measured", result["data_source"])
+
 	_, hasEvents := result["events"]
 	assert.False(t, hasEvents, "stats_only result should not have events field")
 }

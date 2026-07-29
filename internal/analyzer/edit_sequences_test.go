@@ -178,6 +178,36 @@ func TestBuildEditSequences_EmptyEntries(t *testing.T) {
 	if len(result.Files) != 0 {
 		t.Errorf("expected 0 files, got %d", len(result.Files))
 	}
+	if result.DataSource != DataSourceMeasured {
+		t.Errorf("DataSource = %q, want %q", result.DataSource, DataSourceMeasured)
+	}
+	// The empty result still serializes the heuristic pattern-distribution
+	// zeros, so estimated_fields must advertise that path (ADR-007).
+	if !containsString(result.EstimatedFields, "summary.patternDistribution") {
+		t.Errorf("EstimatedFields = %v, want it to contain %q", result.EstimatedFields, "summary.patternDistribution")
+	}
+	data, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+	var output map[string]interface{}
+	if err := json.Unmarshal(data, &output); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if output["data_source"] != string(DataSourceMeasured) {
+		t.Errorf("JSON data_source = %v, want %q", output["data_source"], DataSourceMeasured)
+	}
+	fields, _ := output["estimated_fields"].([]interface{})
+	found := false
+	for _, f := range fields {
+		if f == "summary.patternDistribution" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("JSON estimated_fields = %v, want it to contain %q", output["estimated_fields"], "summary.patternDistribution")
+	}
 }
 
 func TestBuildEditSequences_SingleFile(t *testing.T) {

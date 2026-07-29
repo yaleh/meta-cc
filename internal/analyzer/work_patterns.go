@@ -14,23 +14,27 @@ type ToolCount struct {
 	Count    int    `json:"count"`
 }
 
-// WorkPatternsResult contains work pattern analysis results.
-// DataSource is "measured": ToolFrequency, HourlyActivity, and PeakHour are
-// directly counted from session entries and tool calls. NOTE: ContextSwitches
-// uses a heuristic (file-path changes within a 5-minute window) and is
-// technically "estimated"; the top-level DataSource reflects the dominant
-// measured provenance.
+// WorkPatternsResult contains work pattern analysis results. Provenance
+// follows ADR-007: DataSource records the dominant provenance ("measured" —
+// ToolFrequency, HourlyActivity, and PeakHour are directly counted from
+// session entries and tool calls), and EstimatedFields lists the
+// heuristic-derived fields by JSON name. ContextSwitches is heuristic
+// (file-path changes within a 5-minute window), so results carry
+// EstimatedFields ["context_switches"].
 type WorkPatternsResult struct {
 	ToolFrequency   []ToolCount `json:"tool_frequency"`
 	HourlyActivity  [24]int     `json:"hourly_activity"`
 	ContextSwitches int         `json:"context_switches"`
 	PeakHour        int         `json:"peak_hour"`
 	DataSource      DataSource  `json:"data_source"`
+	EstimatedFields []string    `json:"estimated_fields,omitempty"`
 }
 
 // GetWorkPatterns analyzes work patterns from session entries and tool calls
 func GetWorkPatterns(entries []types.SessionEntry, toolCalls []types.ToolCall) (*WorkPatternsResult, error) {
-	result := &WorkPatternsResult{DataSource: DataSourceMeasured}
+	// ContextSwitches is heuristic, so it is surfaced in EstimatedFields
+	// (ADR-007) even though the dominant provenance is measured.
+	result := &WorkPatternsResult{DataSource: DataSourceMeasured, EstimatedFields: []string{"context_switches"}}
 
 	// 1. Count tool frequency
 	freqMap := make(map[string]int)

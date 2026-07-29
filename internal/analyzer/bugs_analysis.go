@@ -14,13 +14,14 @@ type BugPattern struct {
 	Examples       []string `json:"examples"`
 }
 
-// BugAnalysisResult holds the result of bug pattern analysis.
-// DataSource is always "measured": Patterns and TotalPairs are derived
-// from direct counts of error→success tool-call pairs in the session trace.
+// BugAnalysisResult holds the result of bug pattern analysis. Provenance follows
+// ADR-007: error and success calls are observed, but treating a same-tool
+// success within three positions as the error's fix is a causal heuristic.
 type BugAnalysisResult struct {
-	Patterns   []BugPattern `json:"patterns"`
-	TotalPairs int          `json:"total_pairs"`
-	DataSource DataSource   `json:"data_source"`
+	Patterns        []BugPattern `json:"patterns"`
+	TotalPairs      int          `json:"total_pairs"`
+	DataSource      DataSource   `json:"data_source"`
+	EstimatedFields []string     `json:"estimated_fields,omitempty"`
 }
 
 // AnalyzeBugs scans toolCalls for error→success fix pairs, groups them by
@@ -86,9 +87,10 @@ func AnalyzeBugs(entries []types.SessionEntry, toolCalls []types.ToolCall, limit
 	})
 
 	return &BugAnalysisResult{
-		Patterns:   patterns,
-		TotalPairs: totalPairs,
-		DataSource: DataSourceMeasured,
+		Patterns:        patterns,
+		TotalPairs:      totalPairs,
+		DataSource:      DataSourceMeasured,
+		EstimatedFields: []string{"patterns", "total_pairs"},
 	}, nil
 }
 
@@ -103,10 +105,11 @@ type BugPatternStat struct {
 // with no Examples text, mirroring GetTimelineStats's role for GetTimeline
 // (DIR-042).
 type BugAnalysisStats struct {
-	TotalPairs    int              `json:"total_pairs"`
-	TotalPatterns int              `json:"total_patterns"`
-	Patterns      []BugPatternStat `json:"patterns"`
-	DataSource    DataSource       `json:"data_source"`
+	TotalPairs      int              `json:"total_pairs"`
+	TotalPatterns   int              `json:"total_patterns"`
+	Patterns        []BugPatternStat `json:"patterns"`
+	DataSource      DataSource       `json:"data_source"`
+	EstimatedFields []string         `json:"estimated_fields,omitempty"`
 }
 
 // AnalyzeBugsStats computes the same error->success fix-pair analysis as
@@ -156,9 +159,10 @@ func AnalyzeBugsStats(entries []types.SessionEntry, toolCalls []types.ToolCall) 
 	})
 
 	return &BugAnalysisStats{
-		TotalPairs:    totalPairs,
-		TotalPatterns: len(patterns),
-		Patterns:      patterns,
-		DataSource:    DataSourceMeasured,
+		TotalPairs:      totalPairs,
+		TotalPatterns:   len(patterns),
+		Patterns:        patterns,
+		DataSource:      DataSourceMeasured,
+		EstimatedFields: []string{"total_pairs", "total_patterns", "patterns"},
 	}, nil
 }

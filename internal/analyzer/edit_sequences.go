@@ -54,9 +54,13 @@ type EditSequenceSummary struct {
 }
 
 // EditSequencesResult is the top-level result type for BuildEditSequences.
+// Provenance follows ADR-007: access events and counts are observed, while
+// file/document roles, pattern hints, and gap signals use threshold heuristics.
 type EditSequencesResult struct {
-	Files   map[string]FileEditSequence `json:"files"`
-	Summary EditSequenceSummary         `json:"summary"`
+	Files           map[string]FileEditSequence `json:"files"`
+	Summary         EditSequenceSummary         `json:"summary"`
+	DataSource      DataSource                  `json:"data_source"`
+	EstimatedFields []string                    `json:"estimated_fields,omitempty"`
 }
 
 // classifyFileType returns "doc", "source", "config", or "other" based on extension.
@@ -187,7 +191,8 @@ func BuildEditSequences(entries []types.SessionEntry, files []string, includeCon
 	}
 
 	result := EditSequencesResult{
-		Files: make(map[string]FileEditSequence),
+		Files:      make(map[string]FileEditSequence),
+		DataSource: DataSourceMeasured,
 		Summary: EditSequenceSummary{
 			PatternDistribution: map[string]int{"A": 0, "B": 0, "C": 0},
 		},
@@ -392,5 +397,49 @@ func BuildEditSequences(entries []types.SessionEntry, files []string, includeCon
 	}
 
 	result.Summary.TotalFiles = len(result.Files)
+	result.EstimatedFields = editSequencesEstimatedFields(result)
 	return result
+}
+
+func editSequencesEstimatedFields(result EditSequencesResult) []string {
+	if len(result.Files) == 0 {
+		// An empty result still serializes the heuristic pattern-distribution
+		// zeros, so it must advertise that path. Absent optional file/event
+		// paths stay omitted (ADR-007).
+		return []string{"summary.patternDistribution"}
+	}
+	fields := []string{
+		"files.*.events.*.fileType",
+		"files.*.patternHint",
+		"files.*.docVoid",
+		"files.*.specPrecisionGap",
+		"summary.patternDistribution",
+	}
+	allEventsHaveDocRole := true
+	allFilesHaveCoAccessedDocRole := true
+	for _, seq := range result.Files {
+		if len(seq.Events) == 0 {
+			allEventsHaveDocRole = false
+		}
+		for _, event := range seq.Events {
+			if event.DocRole == "" {
+				allEventsHaveDocRole = false
+			}
+		}
+		if len(seq.CoAccessedDocs) == 0 {
+			allFilesHaveCoAccessedDocRole = false
+		}
+		for _, doc := range seq.CoAccessedDocs {
+			if doc.DocRole == "" {
+				allFilesHaveCoAccessedDocRole = false
+			}
+		}
+	}
+	if allEventsHaveDocRole {
+		fields = append(fields, "files.*.events.*.docRole")
+	}
+	if allFilesHaveCoAccessedDocRole {
+		fields = append(fields, "files.*.coAccessedDocs.*.docRole")
+	}
+	return fields
 }

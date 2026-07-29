@@ -30,12 +30,13 @@ type QualityDimension struct {
 	RawValue string  `json:"raw_value"` // e.g. "3/10"
 }
 
-// QualityScanResult holds all quality dimensions for a session.
-// DataSource is always "measured": all four dimensions are computed from
-// direct counts of tool call statuses in the session trace.
+// QualityScanResult holds all quality dimensions for a session. Provenance
+// follows ADR-007: error rate, diversity, and completion are direct aggregates,
+// while retry_rate infers retries from same-tool proximity after an error.
 type QualityScanResult struct {
-	Dimensions []QualityDimension `json:"dimensions"`
-	DataSource DataSource         `json:"data_source"`
+	Dimensions      []QualityDimension `json:"dimensions"`
+	DataSource      DataSource         `json:"data_source"`
+	EstimatedFields []string           `json:"estimated_fields,omitempty"`
 }
 
 // QualityScan computes four quality dimensions over the given tool calls.
@@ -51,7 +52,8 @@ func QualityScan(entries []types.SessionEntry, toolCalls []types.ToolCall) (*Qua
 				{Name: "tool_diversity", Score: 1.0, RawValue: "0/0"},
 				{Name: "completion_rate", Score: 1.0, RawValue: "0/0"},
 			},
-			DataSource: DataSourceMeasured,
+			DataSource:      DataSourceMeasured,
+			EstimatedFields: []string{"dimensions"},
 		}, nil
 	}
 
@@ -125,7 +127,8 @@ func QualityScan(entries []types.SessionEntry, toolCalls []types.ToolCall) (*Qua
 			{Name: "tool_diversity", Score: diversityScore, RawValue: itoa(unique) + "/" + itoa(total)},
 			{Name: "completion_rate", Score: completionScore, RawValue: itoa(completed) + "/" + itoa(total)},
 		},
-		DataSource: DataSourceMeasured,
+		DataSource:      DataSourceMeasured,
+		EstimatedFields: []string{"dimensions"},
 	}, nil
 }
 

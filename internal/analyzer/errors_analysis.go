@@ -23,21 +23,25 @@ type ErrorTypeGroup struct {
 	Examples  []string `json:"examples"`
 }
 
-// ErrorAnalysisResult holds the full error analysis output.
-// DataSource is always "measured": TotalErrors, ByTool, and ByType are
-// all derived from direct counts of error-status tool calls in the session trace.
+// ErrorAnalysisResult holds the full error analysis output. Provenance follows
+// ADR-007: counts and examples are observed, while ByType uses normalized
+// signatures and human-readable classification heuristics.
 type ErrorAnalysisResult struct {
-	TimeRange   types.TimeRange  `json:"time_range"`
-	TotalErrors int              `json:"total_errors"`
-	ByTool      []ToolErrorGroup `json:"by_tool"`
-	ByType      []ErrorTypeGroup `json:"by_type"`
-	DataSource  DataSource       `json:"data_source"`
+	TimeRange       types.TimeRange  `json:"time_range"`
+	TotalErrors     int              `json:"total_errors"`
+	ByTool          []ToolErrorGroup `json:"by_tool"`
+	ByType          []ErrorTypeGroup `json:"by_type"`
+	DataSource      DataSource       `json:"data_source"`
+	EstimatedFields []string         `json:"estimated_fields,omitempty"`
 }
 
 // AnalyzeErrors analyzes tool call errors and groups them by tool and error type.
 // limit controls the maximum number of example messages per group (0 = no limit).
 func AnalyzeErrors(entries []types.SessionEntry, toolCalls []types.ToolCall, limit int) (*ErrorAnalysisResult, error) {
-	result := &ErrorAnalysisResult{DataSource: DataSourceMeasured}
+	result := &ErrorAnalysisResult{
+		DataSource:      DataSourceMeasured,
+		EstimatedFields: []string{"by_type"},
+	}
 
 	// Calculate TimeRange from entries using internal time.Time for comparison,
 	// then store as RFC3339 strings in the result.
@@ -140,11 +144,12 @@ type ErrorTypeCount struct {
 // by_type[].examples full-text arrays that make AnalyzeErrors's own output
 // unbounded (DIR-042).
 type ErrorAnalysisStats struct {
-	TimeRange   types.TimeRange  `json:"time_range"`
-	TotalErrors int              `json:"total_errors"`
-	ByTool      []ToolErrorCount `json:"by_tool"`
-	ByType      []ErrorTypeCount `json:"by_type"`
-	DataSource  DataSource       `json:"data_source"`
+	TimeRange       types.TimeRange  `json:"time_range"`
+	TotalErrors     int              `json:"total_errors"`
+	ByTool          []ToolErrorCount `json:"by_tool"`
+	ByType          []ErrorTypeCount `json:"by_type"`
+	DataSource      DataSource       `json:"data_source"`
+	EstimatedFields []string         `json:"estimated_fields,omitempty"`
 }
 
 // AnalyzeErrorsStats computes the same tool/type error groupings as
@@ -152,7 +157,10 @@ type ErrorAnalysisStats struct {
 // stays small regardless of how many/how long the underlying error messages
 // are.
 func AnalyzeErrorsStats(entries []types.SessionEntry, toolCalls []types.ToolCall) (*ErrorAnalysisStats, error) {
-	result := &ErrorAnalysisStats{DataSource: DataSourceMeasured}
+	result := &ErrorAnalysisStats{
+		DataSource:      DataSourceMeasured,
+		EstimatedFields: []string{"by_type"},
+	}
 
 	var minTime, maxTime time.Time
 	for _, e := range entries {

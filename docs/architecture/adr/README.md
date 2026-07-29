@@ -33,6 +33,7 @@ We follow the standard ADR format proposed by Michael Nygard:
 | [ADR-004](ADR-004-hybrid-output-mode.md) | Hybrid Output Mode Design | Accepted | 2025-10-10 |
 | [ADR-005](ADR-005-scope-parameter-standardization.md) | Scope Parameter Standardization | Accepted | 2025-10-10 |
 | [ADR-006](ADR-006-pkg-vs-internal-convention.md) | pkg/ vs internal/ Directory Convention | Accepted | 2026-03-10 |
+| [ADR-007](ADR-007-provenance-data-source.md) | DataSource Provenance Convention (measured / estimated) | Accepted | 2026-07-28 |
 
 ## Creating New ADRs
 

@@ -20,18 +20,23 @@ type TimelineEvent struct {
 // DataSource is always "measured": Events are parsed directly from session
 // entries with no heuristic inference.
 type TimelineResult struct {
-	Events      []TimelineEvent `json:"events"`
-	TotalSpan   string          `json:"total_span"`
-	Truncated   bool            `json:"truncated,omitempty"`
-	TotalEvents int             `json:"total_events,omitempty"`
-	DataSource  DataSource      `json:"data_source"`
+	Events          []TimelineEvent `json:"events"`
+	TotalSpan       string          `json:"total_span"`
+	Truncated       bool            `json:"truncated,omitempty"`
+	TotalEvents     int             `json:"total_events,omitempty"`
+	DataSource      DataSource      `json:"data_source"`
+	EstimatedFields []string        `json:"estimated_fields,omitempty"`
 }
 
 // TimelineStats holds aggregate statistics for a set of session entries.
+// DataSource is always "measured": all fields aggregate observable entries
+// and timestamps directly (ADR-007).
 type TimelineStats struct {
 	TotalEntries    int            `json:"total_entries"`
 	TimeRange       *TimeRange     `json:"time_range,omitempty"`
 	EventTypeCounts map[string]int `json:"event_type_counts"`
+	DataSource      DataSource     `json:"data_source"`
+	EstimatedFields []string       `json:"estimated_fields,omitempty"`
 }
 
 // TimeRange holds the first and last timestamps plus a human-readable span.
@@ -164,7 +169,7 @@ func GetTimeline(entries []types.SessionEntry, limit int) (*TimelineResult, erro
 func GetTimelineStats(entries []types.SessionEntry) *TimelineStats {
 	counts := map[string]int{}
 	if len(entries) == 0 {
-		return &TimelineStats{TotalEntries: 0, EventTypeCounts: counts}
+		return &TimelineStats{TotalEntries: 0, EventTypeCounts: counts, DataSource: DataSourceMeasured}
 	}
 
 	var earliest, latest time.Time
@@ -183,7 +188,7 @@ func GetTimelineStats(entries []types.SessionEntry) *TimelineStats {
 		}
 	}
 
-	stats := &TimelineStats{TotalEntries: len(entries), EventTypeCounts: counts}
+	stats := &TimelineStats{TotalEntries: len(entries), EventTypeCounts: counts, DataSource: DataSourceMeasured}
 	if !earliest.IsZero() {
 		stats.TimeRange = &TimeRange{
 			From: earliest.UTC().Format(time.RFC3339),

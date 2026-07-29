@@ -45,16 +45,18 @@ type FileDebt struct {
 	Provenance  Provenance `json:"provenance,omitempty"`
 }
 
-// TechDebtResult is the output of GetTechDebt.
-// DataSource is "measured": Markers and HotspotFiles are scanned directly
-// from tool output text. NOTE: OpenIssues uses a heuristic (error call with
-// no subsequent success for the same tool) and is technically "estimated";
-// the top-level DataSource reflects the dominant measured provenance.
+// TechDebtResult is the output of GetTechDebt. Provenance follows ADR-007:
+// DataSource records the dominant provenance ("measured" — Markers and
+// HotspotFiles are scanned directly from tool output text), and
+// EstimatedFields lists the heuristic-derived fields by JSON name. OpenIssues
+// is heuristic (error call with no subsequent success for the same tool), so
+// session-scan results carry EstimatedFields ["open_issues"].
 type TechDebtResult struct {
-	Markers      []MarkerCount `json:"markers"`
-	HotspotFiles []FileDebt    `json:"hotspot_files"`
-	OpenIssues   int           `json:"open_issues"`
-	DataSource   DataSource    `json:"data_source"`
+	Markers         []MarkerCount `json:"markers"`
+	HotspotFiles    []FileDebt    `json:"hotspot_files"`
+	OpenIssues      int           `json:"open_issues"`
+	DataSource      DataSource    `json:"data_source"`
+	EstimatedFields []string      `json:"estimated_fields,omitempty"`
 }
 
 // scannerToolNames is the set of tool names whose Output we scan for markers.
@@ -221,7 +223,7 @@ func appendMarkerLabels(found []string, segment []byte) []string {
 // duplicated across GetTechDebt, ScanSourceDir, and MergeTechDebtResults
 // (DIR-055): markers sorted by count descending, hotspot files sorted by
 // marker count descending then path ascending.
-func buildTechDebtResult(labelCounts map[string]int, fileDebt map[string]FileDebt, openIssues int, source DataSource) *TechDebtResult {
+func buildTechDebtResult(labelCounts map[string]int, fileDebt map[string]FileDebt, openIssues int, source DataSource, estimatedFields []string) *TechDebtResult {
 	var markers []MarkerCount
 	for label, count := range labelCounts {
 		markers = append(markers, MarkerCount{Label: label, Count: count})
@@ -242,11 +244,33 @@ func buildTechDebtResult(labelCounts map[string]int, fileDebt map[string]FileDeb
 	})
 
 	return &TechDebtResult{
-		Markers:      markers,
-		HotspotFiles: hotspots,
-		OpenIssues:   openIssues,
-		DataSource:   source,
+		Markers:         markers,
+		HotspotFiles:    hotspots,
+		OpenIssues:      openIssues,
+		DataSource:      source,
+		EstimatedFields: estimatedFields,
 	}
+}
+
+// unionEstimatedFields returns the deduplicated union of two ADR-007
+// estimated_fields lists, preserving first-seen order. Returns nil when the
+// union is empty so the JSON field stays omitted.
+func unionEstimatedFields(a, b []string) []string {
+	seen := make(map[string]bool, len(a)+len(b))
+	var out []string
+	for _, f := range a {
+		if !seen[f] {
+			seen[f] = true
+			out = append(out, f)
+		}
+	}
+	for _, f := range b {
+		if !seen[f] {
+			seen[f] = true
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // GetTechDebt scans toolCalls for debt markers (the four labels matched by
@@ -295,15 +319,20 @@ func GetTechDebt(entries []types.SessionEntry, toolCalls []types.ToolCall) (*Tec
 		}
 	}
 
-	return buildTechDebtResult(labelCounts, fileDebt, openIssues, DataSourceMeasured), nil
+	// OpenIssues is heuristic (ADR-007): the session scan always applies it, so
+	// its field provenance is "estimated" regardless of the resulting count.
+	return buildTechDebtResult(labelCounts, fileDebt, openIssues, DataSourceMeasured, []string{"open_issues"}), nil
 }
 
 // ScanSourceDir walks sourceDir recursively, scanning known code files for
 // debt markers in comment context (see markerScanner). Hidden directories
 // (.git, node_modules, etc.) are skipped; documentation and data files
 // (.md, .json) are not scanned. Scanning stops after maxFiles (safety cap).
-// The returned result has DataSourceMeasured provenance and hotspot entries
-// carry provenance "source".
+// The returned result keeps dominant DataSourceMeasured provenance but lists
+// "markers" and "hotspot_files" as estimated (ADR-007): markerScanner is a
+// language-aware lexical heuristic, not a parser, so its comment-context
+// classification can under-count unsupported syntax. Hotspot entries carry
+// provenance "source".
 func ScanSourceDir(sourceDir string) (*TechDebtResult, error) {
 	labelCounts := make(map[string]int)
 	fileDebt := make(map[string]FileDebt)
@@ -375,7 +404,7 @@ func ScanSourceDir(sourceDir string) (*TechDebtResult, error) {
 		return nil, err
 	}
 
-	return buildTechDebtResult(labelCounts, fileDebt, 0, DataSourceMeasured), nil
+	return buildTechDebtResult(labelCounts, fileDebt, 0, DataSourceMeasured, []string{"markers", "hotspot_files"}), nil
 }
 
 // combineProvenance merges the provenance of two entries for the same path:
@@ -400,7 +429,9 @@ func combineProvenance(a, b Provenance) Provenance {
 // source-scanned carries the same on-disk markers in both buckets, so
 // summing double-counts it (DIR-055). Each merged hotspot entry records
 // provenance ("session", "source", or "both"). OpenIssues uses the max of
-// both inputs. The DataSource is set to the provided combinedSource.
+// both inputs. The DataSource is set to the provided combinedSource, and the
+// EstimatedFields lists of both inputs are unioned (ADR-007): a merged result
+// that carries a session-scan OpenIssues value inherits "open_issues".
 func MergeTechDebtResults(a, b *TechDebtResult, combinedSource DataSource) *TechDebtResult {
 	labelCounts := make(map[string]int)
 	fileDebt := make(map[string]FileDebt)
@@ -433,20 +464,22 @@ func MergeTechDebtResults(a, b *TechDebtResult, combinedSource DataSource) *Tech
 		openIssues = b.OpenIssues
 	}
 
-	return buildTechDebtResult(labelCounts, fileDebt, openIssues, combinedSource)
+	return buildTechDebtResult(labelCounts, fileDebt, openIssues, combinedSource, unionEstimatedFields(a.EstimatedFields, b.EstimatedFields))
 }
 
 // TechDebtStats holds aggregate-only tech debt output: marker counts (bounded
 // to the four known marker labels) and a hotspot file *count*, omitting the
 // full HotspotFiles path list — which can grow to one entry per matched file
 // across an entire scanned source tree — and any other per-item detail
-// (DIR-042).
+// (DIR-042). Provenance is preserved per ADR-007: DataSource and
+// EstimatedFields pass through from the source result.
 type TechDebtStats struct {
-	TotalMarkers     int           `json:"total_markers"`
+	MarkerCount      int           `json:"marker_count"`
 	Markers          []MarkerCount `json:"markers"`
 	HotspotFileCount int           `json:"hotspot_file_count"`
-	OpenIssues       int           `json:"open_issues"`
+	OpenIssueCount   int           `json:"open_issue_count"`
 	DataSource       DataSource    `json:"data_source"`
+	EstimatedFields  []string      `json:"estimated_fields,omitempty"`
 }
 
 // TechDebtResultStats converts an already-computed TechDebtResult (which may
@@ -458,12 +491,28 @@ func TechDebtResultStats(result *TechDebtResult) *TechDebtStats {
 		total += m.Count
 	}
 	return &TechDebtStats{
-		TotalMarkers:     total,
+		MarkerCount:      total,
 		Markers:          result.Markers,
 		HotspotFileCount: len(result.HotspotFiles),
-		OpenIssues:       result.OpenIssues,
+		OpenIssueCount:   result.OpenIssues,
 		DataSource:       result.DataSource,
+		EstimatedFields:  techDebtStatsEstimatedFields(result.EstimatedFields),
 	}
+}
+
+func techDebtStatsEstimatedFields(fields []string) []string {
+	mapped := make([]string, 0, len(fields))
+	for _, field := range fields {
+		switch field {
+		case "markers":
+			mapped = append(mapped, "markers", "marker_count")
+		case "hotspot_files":
+			mapped = append(mapped, "hotspot_file_count")
+		case "open_issues":
+			mapped = append(mapped, "open_issue_count")
+		}
+	}
+	return mapped
 }
 
 // getFilePath extracts file path from tool input map.

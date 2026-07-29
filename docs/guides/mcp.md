@@ -127,12 +127,12 @@ All six analysis tools include a `data_source` field in their response (see
 
 | Tool | `data_source` value | Notes on mixed provenance |
 |------|---------------------|---------------------------|
-| `analyze_errors` | `measured` | TotalErrors/ByTool/ByType are direct counts |
-| `analyze_bugs` | `measured` | Patterns/TotalPairs are direct error→success pair counts |
-| `quality_scan` | `measured` | All four dimensions are computed from direct counts of tool calls (see [Quality scan dimensions](#quality-scan-dimensions)) |
+| `analyze_errors` | `measured` | TotalErrors/ByTool are direct counts; `by_type` uses normalized signature and label classification heuristics |
+| `analyze_bugs` | `measured` | `patterns`/`total_pairs` infer causal fixes from a same-tool success within three positions |
+| `quality_scan` | `measured` | Error/diversity/completion dimensions aggregate observations; retry rate infers retries from same-tool proximity (see [Quality scan dimensions](#quality-scan-dimensions)) |
 | `get_work_patterns` | `measured` | ToolFrequency/HourlyActivity/PeakHour are direct counts; `context_switches` uses a heuristic (file changes within 5 min) |
 | `get_timeline` | `measured` | Events parsed directly from session entries |
-| `get_tech_debt` | `measured` | Markers/HotspotFiles scanned from tool output; `open_issues` uses a heuristic (error with no subsequent success) |
+| `get_tech_debt` | `measured` | Session `markers`/`hotspot_files` scan observed tool output; source-dir scans list both fields as estimated because comment detection is lexical; `open_issues` uses an error→success heuristic |
 
 #### Quality scan dimensions
 
@@ -244,7 +244,8 @@ data and overflow the context window.
   "event_type_counts": {
     "assistant_message": 5600,
     "user_message": 3768
-  }
+  },
+  "data_source": "measured"
 }
 ```
 
@@ -316,16 +317,37 @@ self-observation bias (e.g., delta_H inflation observed in BAIME TASK-152).
 
 Some result structs combine measured and estimated fields. In these cases the
 top-level `data_source` reflects the **dominant** provenance (always `measured`
-for the current analysis tools), and mixed fields are documented in code
-comments:
+for the current analysis tools), and the response includes an
+`estimated_fields` list naming the JSON fields derived heuristically:
 
-- **`TechDebtResult.open_issues`** — estimated: based on the heuristic "an
-  error call with no subsequent success for the same tool". The rest of the
-  struct (Markers, HotspotFiles) is measured.
+- **`TechDebtResult`** — session scans list `"open_issues"`, based on the
+  heuristic "an error call with no subsequent success for the same tool".
+  Source-directory scans list `"markers"` and `"hotspot_files"`: their
+  comment-context detection uses the language-aware lexical `markerScanner`,
+  which deliberately under-counts unsupported syntax rather than claiming
+  parser-level certainty. Merged results union the contributing lists.
 
-- **`WorkPatternsResult.context_switches`** — estimated: based on the heuristic
-  "file-path changes between consecutive tool calls within a 5-minute window".
-  The rest of the struct (ToolFrequency, HourlyActivity, PeakHour) is measured.
+- **`WorkPatternsResult.context_switches`** — listed as `"context_switches"`:
+  based on the heuristic "file-path changes between consecutive tool calls
+  within a 5-minute window". The rest of the struct (ToolFrequency,
+  HourlyActivity, PeakHour) is measured.
+
+- **`QualityScanResult.dimensions`** — listed as `"dimensions"` because the
+  serialized dimensions array combines the estimated `retry_rate` element with
+  directly aggregated elements; a same-tool call within five positions after
+  an error is inferred to be a retry.
+
+- **`BugAnalysisResult` / `BugAnalysisStats`** — pair and pattern fields are
+  listed because a same-tool success within three positions after an error is
+  inferred to be that error's fix.
+
+- **`ErrorAnalysisResult.by_type` / `ErrorAnalysisStats.by_type`** — listed as
+  `"by_type"`: human-readable labels and signatures use normalization and
+  classification heuristics.
+
+- **`EditSequencesResult`** — lists heuristic descendant paths for file/document
+  roles, pattern hints, documentation-gap signals, and pattern distribution.
+  Wildcards such as `files.*.docVoid` identify fields on every map entry.
 
 When building automated pipelines that depend on precise values, treat
 fields with known estimated provenance with appropriate uncertainty margins.

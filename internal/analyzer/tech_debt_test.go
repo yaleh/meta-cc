@@ -143,6 +143,14 @@ func TestScanSourceDir_DetectsMarkers(t *testing.T) {
 	// DataSource should be measured
 	assert.Equal(t, DataSourceMeasured, result.DataSource)
 
+	// Source marker/comment detection is lexical rather than parser-backed, so
+	// ADR-007 surfaces both scanner-derived fields as estimated.
+	assert.ElementsMatch(t, []string{"markers", "hotspot_files"}, result.EstimatedFields)
+
+	data, err := json.Marshal(result)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"estimated_fields":["markers","hotspot_files"]`)
+
 	// OpenIssues should be 0 (source scan has no open issues)
 	assert.Equal(t, 0, result.OpenIssues)
 }
@@ -409,12 +417,17 @@ func TestTechDebtResultStats_OmitsHotspotFileList(t *testing.T) {
 	if stats.HotspotFileCount != 50 {
 		t.Errorf("expected HotspotFileCount=50, got %d", stats.HotspotFileCount)
 	}
-	if stats.TotalMarkers != 50 {
-		t.Errorf("expected TotalMarkers=50, got %d", stats.TotalMarkers)
+	if stats.MarkerCount != 50 {
+		t.Errorf("expected MarkerCount=50, got %d", stats.MarkerCount)
 	}
-	if stats.OpenIssues != full.OpenIssues {
-		t.Errorf("expected OpenIssues to pass through: got %d, want %d", stats.OpenIssues, full.OpenIssues)
+	if stats.OpenIssueCount != full.OpenIssues {
+		t.Errorf("expected OpenIssueCount to pass through: got %d, want %d", stats.OpenIssueCount, full.OpenIssues)
 	}
+
+	if !containsString(stats.EstimatedFields, "open_issue_count") {
+		t.Errorf("expected stats EstimatedFields to contain open_issue_count, got %v", stats.EstimatedFields)
+	}
+	assertEstimatedJSONPathsExist(t, stats)
 
 	data, err := json.Marshal(stats)
 	if err != nil {

@@ -336,6 +336,6 @@ func TestService_GetTechDebt_StatsOnly_OmitsHotspotFileList(t *testing.T) {
 	var stats analyzer.TechDebtStats
 	require.NoError(t, json.Unmarshal([]byte(statsOut), &stats))
 	assert.Equal(t, 30, stats.HotspotFileCount)
-	assert.Equal(t, 30, stats.TotalMarkers)
+	assert.Equal(t, 30, stats.MarkerCount)
 	assert.Less(t, len(statsOut), len(full), "stats_only response must be measurably smaller than the full response")
 }
