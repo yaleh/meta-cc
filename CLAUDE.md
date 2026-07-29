@@ -199,6 +199,18 @@ See [docs/core/principles.md](docs/core/principles.md) for complete details.
 - Document failure state and blockers
 - Do NOT proceed until resolved
 
+### Quay Workspace Boundary
+
+Routine findings may be filed as meta-cc tasks only when every intended
+code or documentation write belongs to this repository or one of its Git
+worktrees.
+
+Findings whose fix belongs to another repository must be reported only.
+Do not create a local task, dispatch an agent, or modify that repository.
+
+Every routine-filed execution task must declare `scope.owner_repo: meta-cc`
+and a repository-relative `## Touches` section.
+
 ## Development Quick Start
 
 ### Build and Test
