@@ -308,6 +308,8 @@ The MCP server uses hybrid output:
 - Small responses are returned inline.
 - Large responses are written to a temporary file and returned as `file_ref`.
 
+`file_ref` is a transport mode only — the inline `data` array and the JSONL file behind a `file_ref` hold the same logical records. Since DIR-080 the reference is self-describing: alongside `path`/`size_bytes`/`line_count`/`fields`/`summary`, it carries a versioned nested `shape` (typed jq paths with `optional`/`nullable` flags, heterogeneous `variants`, array `elements`, and provider-provenance `values`), a bounded redacted `sample`, and server-validated jq `recipes` generated from the emitted shape. Use the shipped recipes (scope `"record"`) directly as `execute_stage2_query` transforms or as `.[] | <recipe>` `jq_filter` expressions instead of reverse-engineering result structure. See [MCP Query Tools Reference](mcp-query-tools.md#self-describing-file_ref-results-dir-080) and [Two-Stage Query Guide](two-stage-query-guide.md) for details.
+
 ## Verification
 
 Ask either host:

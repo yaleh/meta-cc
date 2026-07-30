@@ -551,6 +551,41 @@ meta-cc uses hybrid output:
 
 This keeps MCP responses usable for both short interactive questions and large project-level scans.
 
+`file_ref` is a transport mode, not a different logical result: the inline `data` array and the JSONL file behind a `file_ref` contain exactly the same records (ADR-004/ADR-009).
+
+## Self-Describing `file_ref` Results (DIR-080)
+
+A `file_ref` response is self-describing, so you can construct a valid jq query over the result **without reading source code or guessing the shape**. Alongside the existing `path`/`size_bytes`/`line_count`/`fields`/`summary`, the `file_ref` object carries:
+
+| Field | Meaning |
+|-------|---------|
+| `schema_version` | Contract version of the metadata below (currently `1`). |
+| `shape` | Versioned, typed nested description derived from the emitted records: absolute jq paths (`.message.content[].text`), value types, `optional`/`nullable` flags, heterogeneous `variants` (e.g. `message.content` being a string on user records and an array on assistant records is declared as `mixed`), array `elements`, and bounded observed `values` (provider provenance, e.g. `["claude","codex"]`). |
+| `sample` | Bounded, redacted illustration of the shape: ≤2 records, arrays capped at 2 elements, strings truncated with a `...[truncated: N chars]` marker, sensitive-looking fields (`api_key`, `token`, `secret`, `password`, `authorization`, ...) replaced by `[REDACTED]`. A sample illustrates the contract — it is not a complete subset. |
+| `recipes` | Bounded jq programs **generated from the actual emitted shape and validated server-side** before emission. Each recipe is `{id, description, jq, scope}` with `scope: "record"` (applied per record/JSONL line). Heterogeneous paths use safe iteration (`[]?` / trailing `?`) so recipes run across every record variant. |
+
+Consuming a spilled result without guessing:
+
+```javascript
+// 1. A large query spills to file_ref with recipes already attached:
+query_session_content({ role: "assistant", provider: "all" })
+// → { mode: "file_ref", file_ref: { path: "...", schema_version: 1,
+//      shape: {...}, sample: [...],
+//      recipes: [ { id: "message_content_type", jq: ".message.content[].type", scope: "record" }, ... ] } }
+
+// 2. Reuse a shipped recipe as a stage-2 transform over the spilled file
+//    (no shape discovery, no Read/Bash round trip):
+execute_stage2_query({
+  files: ["<file_ref.path>"],
+  filter: "select(.type == \"assistant\")",
+  transform: ".message.content[].type"   // copied from file_ref.recipes
+})
+```
+
+The same recipes work as `jq_filter` post-filters over inline arrays: wrap a record-scoped recipe as `.[] | <recipe>` (e.g. `jq_filter: ".[] | .message.usage.input_tokens"`).
+
+Server-side field projection (`response.ProjectRecords`) validates requested paths against the derived shape: unknown paths are rejected with the list of known paths, and attempts to descend into a scalar (e.g. `.timestamp.deeper`) fail with an actionable type error instead of silently returning null. Evidence bundles (`response.BuildEvidenceBundle`) package bounded, redacted excerpts plus query criteria, provider provenance, and the same DIR-079 diagnostics vocabulary (`files_considered`/`files_loaded`/`files_skipped`/`degraded`/`skip_warnings`, ...) for attaching findings to tasks — deliberately separate from the base response envelope.
+
 ## Common Recipes
 
 Find Codex user prompts about a topic:

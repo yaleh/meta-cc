@@ -65,12 +65,23 @@ func BuildFileRefResponse(filePath string, data []interface{}, pagination *filte
 		return nil, fmt.Errorf("failed to generate file reference for %s: %w", filePath, mcerrors.ErrFileIO)
 	}
 
+	// DIR-080 / ADR-009: self-describing result contract. The rich metadata is
+	// derived here (not stored on the lean FileReference struct, which has a
+	// pre-existing ≤500-byte serialization contract of its own). This is
+	// additive; the inline/file_ref selection threshold from ADR-004 is
+	// unchanged, and inline/file_ref remain the same logical result.
+	shape := DeriveResultShape(data)
+
 	fileRefMap := map[string]interface{}{
-		"path":       fileRef.Path,
-		"size_bytes": fileRef.SizeBytes,
-		"line_count": fileRef.LineCount,
-		"fields":     fileRef.Fields,
-		"summary":    fileRef.Summary,
+		"path":           fileRef.Path,
+		"size_bytes":     fileRef.SizeBytes,
+		"line_count":     fileRef.LineCount,
+		"fields":         fileRef.Fields,
+		"summary":        fileRef.Summary,
+		"schema_version": ShapeSchemaVersion,
+		"shape":          shape,
+		"sample":         BuildBoundedSample(data),
+		"recipes":        GenerateRecipes(shape, data),
 	}
 
 	resp := map[string]interface{}{

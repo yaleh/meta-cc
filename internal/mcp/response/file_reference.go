@@ -7,6 +7,13 @@ import (
 )
 
 // FileReference provides metadata about a temporary JSONL file.
+//
+// This struct is deliberately LEAN. A pre-existing contract
+// (cmd/mcp-server/file_reference_test.go TestFileReferenceSize) marshals it
+// directly and requires ≤500 bytes, so the heavy self-describing metadata
+// (shape / sample / recipes) is NOT stored here. DIR-080 / ADR-009 attaches
+// that richer metadata to the caller-facing file_ref envelope inside
+// BuildFileRefResponse (see adapter.go) instead of this struct.
 type FileReference struct {
 	Path      string                 `json:"path"`
 	SizeBytes int64                  `json:"size_bytes"`

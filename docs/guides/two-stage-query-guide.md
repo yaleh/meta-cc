@@ -13,6 +13,7 @@ Complete guide to meta-cc's two-stage query architecture for high-performance se
 - [Architecture](#architecture)
 - [Stage 1: File Selection](#stage-1-file-selection)
 - [Stage 2: Query Execution](#stage-2-query-execution)
+- [Consuming Self-Describing file_ref Results (DIR-080)](#consuming-self-describing-file_ref-results-dir-080)
 - [Complete Workflow](#complete-workflow)
 - [Performance Comparison](#performance-comparison)
 - [Best Practices](#best-practices)
@@ -376,6 +377,37 @@ execute_stage2_query({
 - Analyze tool usage patterns
 - Track conversation topics
 - Extract performance metrics
+
+---
+
+## Consuming Self-Describing file_ref Results (DIR-080)
+
+When a consolidated query (or a stage-2 result handled through the response pipeline) spills to `file_ref`, the reference is **self-describing**: you no longer need Read/Bash/jq round trips to reverse-engineer nested paths like `.turns[].message.content`. The `file_ref` object carries:
+
+- `schema_version` — metadata contract version (currently `1`);
+- `shape` — versioned, typed nested paths derived from the emitted records: object `properties`, array `elements`, `optional`/`nullable` flags, heterogeneous `variants` (a `mixed` node declares e.g. `message.content` as string on user records, array on assistant records), and bounded observed `values` for provenance (`.provider: ["claude","codex"]`);
+- `sample` — ≤2 redacted, truncated records illustrating the shape (sensitive fields → `[REDACTED]`, long strings → `...[truncated: N chars]`); it illustrates, it does not complete;
+- `recipes` — jq programs **generated from the emitted shape and validated server-side** against the result before emission, each `{id, description, jq, scope: "record"}`.
+
+The intended stage-2 workflow is to reuse a shipped recipe instead of writing (and debugging) jq paths by hand:
+
+```javascript
+// The spilled result ships its own validated recipes:
+// file_ref.recipes: [
+//   { id: "turns_timestamp", jq: ".turns[].timestamp", scope: "record" },
+//   { id: "session_id",      jq: ".session_id",        scope: "record" }, ...
+// ]
+
+execute_stage2_query({
+  files: ["<file_ref.path>"],
+  filter: "select(.match_count > 1)",
+  transform: "{session: .session_id, turns: [.turns[].timestamp]}"  // built from shipped paths
+})
+```
+
+Recipes are per-record programs: over a JSONL file they apply line by line; over an inline array, wrap them as `.[] | <recipe>` in a `jq_filter`. Heterogeneous paths use safe iteration (`[]?`, trailing `?`) so a recipe executes across every record variant — including grouped results where `.turns[]` wraps flat turns.
+
+Expert jq over raw provider files remains a supported escape hatch (ADR-009); the recipes are the supported shortcut for the common projections.
 
 ---
 
