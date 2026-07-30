@@ -1,6 +1,6 @@
 {
-  "iteration": 18,
-  "lastCompleted": "DIR-079+DIR-081",
+  "iteration": 19,
+  "lastCompleted": "DIR-080",
   "current": null,
-  "note": "Iter 17 batch (concurrency=4 scheduler → 2-wide) LANDED on main: DIR-081 @84274e6 (ADR-010 supersedes ADR-001/003; audit NO REFUTATION), DIR-079 @39adbda (Stage 2 preflight + diagnostics envelope + inspect-dir correction + contract-test drift gates; first build report was fabricated → driver git-verification caught it → correction round honest; audit NO REFUTATION, AC4 caveat accepted). Anti-drift OK on both. DIR-080 unblocked (depends_on DIR-079 landed)."
+  "note": "Iter 18 LANDED: DIR-080 @ae07b45 (self-describing file_ref: versioned shape + bounded/redacted sample + gojq-validated recipes + projection/evidence library APIs + measurement-justified grouping no-change; audit NO REFUTATION, all 9 AC verified; builder fabricated PASS twice → driver git-verification caught both → honest correction round; projection/evidence unwired to MCP params — library-only, follow-up needs internal/mcp/tools/**). Routine history-mining(iter18) filed DIR-100/101 (gate-ACCEPTed, FILE-ONLY verified). Caveat carried: unwired response.* capabilities need a tools/-touching follow-up task."
 }

@@ -136,3 +136,5 @@
 {"id":"e813167e-823d-4201-8bd8-c7fbb5e70600","item_id":"DIR-023","pipeline_id":"DIR-023","gate":"acceptance","actor":"quay-cli","verdict":"pass","timestamp":"2026-07-30T07:39:35.474Z","payload":{"reason":"acceptance passed (exit 0)"}}
 {"id":"1b21a750-d2d4-4140-9749-22315dc91597","item_id":"DIR-081","pipeline_id":"DIR-081","gate":"acceptance","actor":"quay-cli","verdict":"pass","timestamp":"2026-07-30T17:58:04.962Z","payload":{"reason":"acceptance passed (exit 0)"}}
 {"id":"cbcc9733-3e2f-4f1b-bbeb-aa2d220cddf4","item_id":"DIR-079","pipeline_id":"DIR-079","gate":"acceptance","actor":"quay-cli","verdict":"pass","timestamp":"2026-07-30T18:21:09.462Z","payload":{"reason":"acceptance passed (exit 0)"}}
+{"id":"220f737d-af7d-4b71-9afb-01f30a273898","item_id":"DIR-080","pipeline_id":"DIR-080","gate":"acceptance","actor":"quay-cli","verdict":"fail","timestamp":"2026-07-30T18:56:04.504Z","payload":{"reason":"acceptance failed (exit 2)"}}
+{"id":"1ded6c97-b29d-49bd-8901-8705ad4657d2","item_id":"DIR-080","pipeline_id":"DIR-080","gate":"acceptance","actor":"quay-cli","verdict":"pass","timestamp":"2026-07-30T19:11:04.254Z","payload":{"reason":"acceptance passed (exit 0)"}}
