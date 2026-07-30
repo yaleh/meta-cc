@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,37 @@ import (
 	"github.com/yaleh/meta-cc/internal/conversation"
 	"github.com/yaleh/meta-cc/internal/locator"
 )
+
+// seedProjectDir creates the project-hash transcript directory that mirrors
+// how Claude Code stores session JSONL under META_CC_PROJECTS_ROOT, returning
+// the resolved project path (for NewProvider) and the on-disk hash directory
+// (for writing session files into).
+func seedProjectDir(t *testing.T, root string) (resolvedProject, projectDir string) {
+	t.Helper()
+	project := t.TempDir()
+	resolved, err := filepath.EvalSymlinks(project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(root, strings.NewReplacer("\\", "-", "/", "-", ":", "-").Replace(resolved))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return resolved, dir
+}
+
+// stubSessionJSONL returns the on-disk shape of a session Claude Code created
+// but never exchanged a turn in: only mode/permission-mode/system metadata
+// entries, no user/assistant messages. These are valid JSON but carry no
+// queryable content, and (before the fix) poisoned every project-wide query.
+func stubSessionJSONL(sessionID string) []byte {
+	lines := []string{
+		`{"type":"mode","sessionId":"` + sessionID + `","mode":"default"}`,
+		`{"type":"permission-mode","sessionId":"` + sessionID + `","permissionMode":"default"}`,
+		`{"type":"system","sessionId":"` + sessionID + `","subtype":"init"}`,
+	}
+	return []byte(strings.Join(lines, "\n") + "\n")
+}
 
 func TestProviderID(t *testing.T) {
 	p := NewProvider(locator.NewSessionLocator(), ".")
@@ -218,5 +250,76 @@ func TestLoadTurnsCorrelatesToolResultFromFollowingUserEntry(t *testing.T) {
 	}
 	if bashCall.Output != "command failed" {
 		t.Fatalf("call-bash.Output = %q, want %q (its own tool_result, not call-read's or empty)", bashCall.Output, "command failed")
+	}
+}
+
+// TestListSessionsSkipsZeroMessageStub is the regression test for the
+// project-wide-query poisoning bug: a "stub" session file — one Claude Code
+// writes at session start containing only mode/permission-mode/system
+// metadata entries and no user/assistant messages — made sessionFromFile
+// return "no Claude entries", and ListSessions propagated that error
+// immediately, failing the ENTIRE project listing (and thus query_sessions /
+// query_session_content under provider=all) even though every other session
+// file was healthy. This seeds one valid session alongside one stub and
+// asserts ListSessions skips the stub and returns the valid session with no
+// error. This extends the DIR-030 "one bad session must not erase the rest"
+// guarantee — previously honored only at the LoadTurns stage in records.Build
+// — down to the ListSessions stage, which failed before that tolerance was
+// ever reached.
+func TestListSessionsSkipsZeroMessageStub(t *testing.T) {
+	root := t.TempDir()
+	resolvedProject, projectDir := seedProjectDir(t, root)
+
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "tests", "fixtures", "sample-session.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "valid.jsonl"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "stub.jsonl"), stubSessionJSONL("stub-session"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("META_CC_PROJECTS_ROOT", root)
+	p := NewProvider(locator.NewSessionLocator(), resolvedProject)
+	sessions, err := p.ListSessions(context.Background())
+	if err != nil {
+		t.Fatalf("ListSessions must skip a zero-message stub, not fail the whole listing: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected exactly 1 session (valid returned, stub skipped), got %d: %#v", len(sessions), sessions)
+	}
+}
+
+// TestSessionFromFileDistinguishesEmptyFromError guards the sentinel contract
+// ListSessions relies on: a readable file with zero message entries returns
+// errNoMessageEntries (benign — safe to skip in a listing), while a genuine
+// I/O failure returns a DIFFERENT error that ListSessions must still treat as
+// fatal. A real mid-read I/O error is not portably simulable in a unit test,
+// so the "real error stays distinct" half is asserted here via a nonexistent
+// file (an os.Open *PathError), which is the same error class any genuine
+// read failure surfaces as.
+func TestSessionFromFileDistinguishesEmptyFromError(t *testing.T) {
+	root := t.TempDir()
+	resolvedProject, projectDir := seedProjectDir(t, root)
+
+	stubPath := filepath.Join(projectDir, "stub.jsonl")
+	if err := os.WriteFile(stubPath, stubSessionJSONL("stub-session"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("META_CC_PROJECTS_ROOT", root)
+	p := NewProvider(locator.NewSessionLocator(), resolvedProject)
+
+	// Benign case: readable file, zero message entries → sentinel.
+	if _, err := p.sessionFromFile(stubPath); !errors.Is(err, errNoMessageEntries) {
+		t.Fatalf("empty stub: expected errNoMessageEntries, got %v", err)
+	}
+
+	// Real-error case: nonexistent file → NOT the sentinel, so ListSessions
+	// keeps failing hard on genuine problems.
+	if _, err := p.sessionFromFile(filepath.Join(projectDir, "does-not-exist.jsonl")); errors.Is(err, errNoMessageEntries) {
+		t.Fatalf("missing file: expected a real I/O error, got errNoMessageEntries")
 	}
 }

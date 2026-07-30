@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +18,18 @@ import (
 )
 
 var _ provider.Provider = (*Provider)(nil)
+
+// errNoMessageEntries marks a session file that is readable and well-formed
+// but contains no user/assistant message entries — the "stub" Claude Code
+// writes at session start (only mode/permission-mode/system metadata) before
+// any turn is exchanged. It is a benign, expected state with nothing
+// queryable to report, distinct from a genuine I/O or parse failure. Callers
+// that enumerate sessions (ListSessions) use errors.Is against this sentinel
+// to skip such files instead of aborting the whole listing — the same
+// "one bad session must not erase the rest" guarantee DIR-030 established for
+// the LoadTurns stage, extended here to the listing stage that previously
+// failed before that tolerance was ever reached.
+var errNoMessageEntries = errors.New("no message entries")
 
 type Provider struct {
 	locator    *locator.SessionLocator
@@ -67,6 +80,14 @@ func (p *Provider) ListSessions(ctx context.Context) ([]conversation.Session, er
 	for _, file := range files {
 		session, err := p.sessionFromFile(file)
 		if err != nil {
+			// A zero-message stub carries nothing queryable, so excluding it
+			// from a listing is correct, not data loss — skip it and keep
+			// going rather than letting one empty session poison the whole
+			// project listing (see errNoMessageEntries). Any OTHER error is a
+			// genuine failure and still aborts.
+			if errors.Is(err, errNoMessageEntries) {
+				continue
+			}
 			return nil, err
 		}
 		sessions = append(sessions, session)
@@ -191,7 +212,7 @@ func (p *Provider) sessionFromFile(file string) (conversation.Session, error) {
 		return conversation.Session{}, err
 	}
 	if len(entries) == 0 {
-		return conversation.Session{}, fmt.Errorf("no Claude entries in %s", file)
+		return conversation.Session{}, fmt.Errorf("%w in %s", errNoMessageEntries, file)
 	}
 
 	first := entries[0]
