@@ -49,10 +49,13 @@ func setupJQFilterFixtureProject(t *testing.T) (projectPath, sessionID string) {
 	sessionID = "jq-filter-e2e-session"
 	lines := []string{
 		`{"type":"user","timestamp":"2026-01-01T00:00:00Z","sessionId":"` + sessionID + `","cwd":"` + resolvedProject + `","message":{"role":"user","content":"please run a command"}}`,
-		`{"type":"assistant","timestamp":"2026-01-01T00:00:01Z","sessionId":"` + sessionID + `","cwd":"` + resolvedProject + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"echo hi"}}]}}`,
-		`{"type":"user","timestamp":"2026-01-01T00:00:02Z","sessionId":"` + sessionID + `","cwd":"` + resolvedProject + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","is_error":false,"content":"hi"}]}}`,
+		`{"type":"assistant","timestamp":"2026-01-01T00:00:01Z","sessionId":"` + sessionID + `","cwd":"` + resolvedProject + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"OldTool","input":{"command":"echo old"}}],"usage":{"input_tokens":1}}}`,
+		`{"type":"user","timestamp":"2026-01-01T00:00:02Z","sessionId":"` + sessionID + `","cwd":"` + resolvedProject + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","is_error":true,"content":"old error"}]}}`,
 		`{"type":"file-history-snapshot","timestamp":"2026-01-01T00:00:03Z","sessionId":"` + sessionID + `","cwd":"` + resolvedProject + `","messageId":"msg-1","snapshot":{}}`,
-		`{"type":"system","subtype":"api_error","timestamp":"2026-01-01T00:00:04Z","sessionId":"` + sessionID + `","cwd":"` + resolvedProject + `","content":"boom"}`,
+		`{"type":"system","subtype":"api_error","timestamp":"2026-01-01T00:00:04Z","sessionId":"` + sessionID + `","cwd":"` + resolvedProject + `","content":"old boom"}`,
+		`{"type":"assistant","timestamp":"2026-01-01T00:01:01Z","sessionId":"` + sessionID + `","cwd":"` + resolvedProject + `","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_2","name":"NewTool","input":{"command":"echo new"}}],"usage":{"input_tokens":2}}}`,
+		`{"type":"user","timestamp":"2026-01-01T00:01:02Z","sessionId":"` + sessionID + `","cwd":"` + resolvedProject + `","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_2","is_error":true,"content":"new error"}]}}`,
+		`{"type":"system","subtype":"api_error","timestamp":"2026-01-01T00:01:04Z","sessionId":"` + sessionID + `","cwd":"` + resolvedProject + `","content":"new boom"}`,
 	}
 
 	sessionFile := filepath.Join(sessionDir, sessionID+".jsonl")
@@ -67,6 +70,55 @@ func setupJQFilterFixtureProject(t *testing.T) (projectPath, sessionID string) {
 func dataArrayLen(t *testing.T, output string) int {
 	t.Helper()
 	return len(extractDataArray(t, output))
+}
+
+func TestExecuteTool_QuerySessionTimeRangeFormerlyIgnoredPaths(t *testing.T) {
+	projectPath, _ := setupJQFilterFixtureProject(t)
+	e := NewToolExecutor()
+	cfg := &config.Config{}
+
+	cases := []struct {
+		name, tool string
+		args       map[string]interface{}
+	}{
+		{"assistant", "query_session_content", map[string]interface{}{"role": "assistant"}},
+		{"tool", "query_session_content", map[string]interface{}{"role": "tool"}},
+		{"errors", "query_session_signals", map[string]interface{}{"type": "errors"}},
+		{"tokens", "query_session_signals", map[string]interface{}{"type": "tokens"}},
+		{"system_errors", "query_session_signals", map[string]interface{}{"type": "system_errors"}},
+		{"tool_stats", "query_session_signals", map[string]interface{}{"type": "tool_stats"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.args["working_dir"] = projectPath
+			out, err := e.ExecuteTool(cfg, tc.tool, tc.args)
+			require.NoError(t, err)
+			require.Equal(t, 2, dataArrayLen(t, out), "baseline must include old and new records")
+			tc.args["since"] = "2026-01-01T00:01:00Z"
+			out, err = e.ExecuteTool(cfg, tc.tool, tc.args)
+			require.NoError(t, err)
+			require.Equal(t, 1, dataArrayLen(t, out), "since must exclude the old record")
+		})
+	}
+}
+
+func TestExecuteTool_QuerySessionTimeRangeInvalidDateConsistent(t *testing.T) {
+	projectPath, _ := setupJQFilterFixtureProject(t)
+	e := NewToolExecutor()
+	cfg := &config.Config{}
+	for _, args := range []map[string]interface{}{
+		{"role": "assistant"}, {"role": "tool"},
+		{"type": "errors"}, {"type": "tokens"}, {"type": "system_errors"}, {"type": "tool_stats"},
+	} {
+		args["working_dir"], args["since"] = projectPath, "not-a-date"
+		tool := "query_session_signals"
+		if _, ok := args["role"]; ok {
+			tool = "query_session_content"
+		}
+		_, err := e.ExecuteTool(cfg, tool, args)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid since value")
+	}
 }
 
 // TestExecuteTool_QuerySessionContent_JQFilterSelectFalseEmptiesResult is the

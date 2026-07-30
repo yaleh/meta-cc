@@ -18,6 +18,12 @@ import (
 
 // ─── Private implementations ──────────────────────────────────────────────────
 
+// parseTimeRange is the shared since/until validation path for consolidated
+// content and signal queries.
+func parseTimeRange(args map[string]interface{}) (mcquery.ParsedTimeRange, error) {
+	return mcquery.ParseTimeRange(GetStringParam(args, "since", ""), GetStringParam(args, "until", ""))
+}
+
 func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := providerParam(args)
 	pattern := GetStringParam(args, "pattern", "")
@@ -27,13 +33,11 @@ func handleQueryUserMessages(e *ToolExecutor, scope string, args map[string]inte
 	minContentLength := GetIntParam(args, "min_content_length", 0)
 	maxContentLength := GetIntParam(args, "max_content_length", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
-	sinceStr := GetStringParam(args, "since", "")
-	untilStr := GetStringParam(args, "until", "")
 	excludeSystem := GetBoolParam(args, "exclude_system_messages", false)
 	excludeCompact := GetBoolParam(args, "exclude_compact_summaries", true)
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
 
-	tr, err := mcquery.ParseTimeRange(sinceStr, untilStr)
+	tr, err := parseTimeRange(args)
 	if err != nil {
 		return mcquery.QueryResult{}, err
 	}
@@ -92,6 +96,10 @@ func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}
 	workingDir := GetStringParam(args, "working_dir", "")
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
 	sessionID := GetStringParam(args, "session_id", "")
+	tr, err := parseTimeRange(args)
+	if err != nil {
+		return mcquery.QueryResult{}, err
+	}
 
 	if status != "" && status != "error" && status != "success" {
 		return mcquery.QueryResult{}, fmt.Errorf("invalid status %q: must be 'error' or 'success' (or omit status to skip status filtering)", status)
@@ -105,7 +113,7 @@ func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}
 	}
 
 	if status == "" {
-		return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+		return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
 	}
 
 	// status filtering needs the outcome (.is_error) of each tool_use, but
@@ -123,7 +131,7 @@ func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}
 		jqFilter,
 	)
 
-	joined, err := e.dispatchProviderQuery(providerName, scope, joinFilter, 0, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+	joined, err := e.dispatchProviderQuery(providerName, scope, joinFilter, 0, workingDir, sessionID, tr, includeSubagents)
 	if err != nil {
 		return mcquery.QueryResult{}, err
 	}
@@ -197,7 +205,11 @@ func handleQueryToolErrors(e *ToolExecutor, scope string, args map[string]interf
 		`select(.message.content[] | select(.type == "tool_result" and .is_error == true))`
 
 	sessionID := GetStringParam(args, "session_id", "")
-	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+	tr, err := parseTimeRange(args)
+	if err != nil {
+		return mcquery.QueryResult{}, err
+	}
+	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
 }
 
 func handleQueryTokenUsage(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
@@ -209,20 +221,22 @@ func handleQueryTokenUsage(e *ToolExecutor, scope string, args map[string]interf
 	jqFilter := `select(.type == "assistant" and has("message")) | select(.message | has("usage"))`
 
 	sessionID := GetStringParam(args, "session_id", "")
-	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+	tr, err := parseTimeRange(args)
+	if err != nil {
+		return mcquery.QueryResult{}, err
+	}
+	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
 }
 
 func handleQueryConversationFlow(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := providerParam(args)
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
-	sinceStr := GetStringParam(args, "since", "")
-	untilStr := GetStringParam(args, "until", "")
 	excludeCompact := GetBoolParam(args, "exclude_compact_summaries", true)
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
 	contains := GetStringParam(args, "contains", "")
 
-	tr, err := mcquery.ParseTimeRange(sinceStr, untilStr)
+	tr, err := parseTimeRange(args)
 	if err != nil {
 		return mcquery.QueryResult{}, err
 	}
@@ -263,7 +277,11 @@ func handleQuerySystemErrors(e *ToolExecutor, scope string, args map[string]inte
 	jqFilter := `select(.type == "system" and .subtype == "api_error")`
 
 	sessionID := GetStringParam(args, "session_id", "")
-	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+	tr, err := parseTimeRange(args)
+	if err != nil {
+		return mcquery.QueryResult{}, err
+	}
+	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
 }
 
 func handleQueryFileSnapshots(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
@@ -282,11 +300,9 @@ func handleQueryTimestamps(e *ToolExecutor, scope string, args map[string]interf
 	providerName := providerParam(args)
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
-	sinceStr := GetStringParam(args, "since", "")
-	untilStr := GetStringParam(args, "until", "")
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
 
-	tr, err := mcquery.ParseTimeRange(sinceStr, untilStr)
+	tr, err := parseTimeRange(args)
 	if err != nil {
 		return mcquery.QueryResult{}, err
 	}
@@ -335,7 +351,11 @@ func handleQueryToolBlocks(e *ToolExecutor, scope string, args map[string]interf
 	}
 
 	sessionID := GetStringParam(args, "session_id", "")
-	return e.dispatchIndexedContent(providerName, scope, contains, jqFilter, limit, workingDir, sessionID, mcquery.ParsedTimeRange{}, includeSubagents)
+	tr, err := parseTimeRange(args)
+	if err != nil {
+		return mcquery.QueryResult{}, err
+	}
+	return e.dispatchIndexedContent(providerName, scope, contains, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
 }
 
 func plainLiteralPattern(pattern string) string {
