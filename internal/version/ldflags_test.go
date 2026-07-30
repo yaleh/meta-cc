@@ -139,8 +139,13 @@ func TestNoHandDuplicatedDeadPathLDFLAGS(t *testing.T) {
 	// of the bug's narrative (task write-ups, plans, past experiment logs),
 	// plus VCS/build internals. None of these are consumed by `go build`;
 	// the guard targets live build wiring (workflows, scripts, tooling).
+	// ".meta-cc" holds runtime-generated data (the session FTS index under
+	// .meta-cc/index/), which legitimately embeds session transcripts and
+	// task narratives quoting the dead string; it is gitignored and never
+	// part of the build.
 	skipDirs := map[string]bool{
 		".git":         true,
+		".meta-cc":     true,
 		"tasks":        true,
 		"plans":        true,
 		"_experiments": true,
