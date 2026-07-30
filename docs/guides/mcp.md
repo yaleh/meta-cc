@@ -7,7 +7,7 @@ meta-cc provides a Model Context Protocol (MCP) server for local coding-agent hi
 | Provider | Local source | Notes |
 |----------|--------------|-------|
 | `claude` | `~/.claude/projects/<project-hash>/*.jsonl` | Host default under Claude Code and for standalone installations. |
-| `codex` | `${META_CC_CODEX_ROOT:-~/.codex}/state_5.sqlite` plus rollout JSONL paths from the `threads` table | Host default under Codex. `~/.codex/history.jsonl` is intentionally excluded. |
+| `codex` | Highest-compatible `state_N.sqlite` under the canonical Codex root (`META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`), plus rollout JSONL paths from the `threads` table; rollout-only fallback when no compatible database exists | Host default under Codex. `~/.codex/history.jsonl` is intentionally excluded. See [Discovery roots](../reference/codex-history-model.md#discovery-roots-and-database-compatibility-dir-069). |
 | `all` | Claude Code and Codex | Returned records include a `provider` field. |
 
 Convenience query and analysis tools accept the standard `provider` parameter:
@@ -83,7 +83,11 @@ Manual configuration (an unset `META_CC_HOST` deterministically defaults to
 
 The release archive includes `.codex-plugin/plugin.json` and `.codex-mcp.json`. The installer copies them under `~/.codex/plugins/meta-cc/`.
 
-Use `CODEX_HOME` for installation targets and `META_CC_CODEX_ROOT` when you need the MCP provider to read a non-default Codex state directory:
+`CODEX_HOME` targets a non-default Codex home for both installation and
+history reads; `META_CC_CODEX_ROOT` is a meta-cc-only override that takes
+precedence over `CODEX_HOME` when both are set (precedence:
+`META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex` — see
+[Discovery roots](../reference/codex-history-model.md#discovery-roots-and-database-compatibility-dir-069)):
 
 ```bash
 CODEX_HOME=/tmp/codex ./install.sh
@@ -194,7 +198,7 @@ Two-stage tools operate on selected files. They retain raw-file compatibility, i
 
 ## Codex Normalization
 
-The Codex provider reads session metadata from `state_5.sqlite` and follows each thread's `rollout_path`. It normalizes:
+The Codex provider reads session metadata from the highest-compatible `state_N.sqlite` under the canonical Codex root and follows each thread's `rollout_path` (with a cwd-enforced rollout-only fallback when no compatible database exists). It normalizes:
 
 - legacy `response_item` messages with `input_text` / `output_text`
 - `function_call` and `function_call_output`
@@ -211,7 +215,7 @@ Most query and analysis tools accept:
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `scope` | string | `project` (default) or `session` (= most recently modified session) |
-| `provider` | string | `claude` (default), `codex`, or `all` |
+| `provider` | string | `claude`, `codex`, or `all`; omitted resolves to the active host (`META_CC_HOST`, standalone fallback `claude` — see [Default provider](#default-provider-for-manualstandalone-installs-meta_cc_host)) |
 | `working_dir` | string | Override project path used for session lookup |
 | `session_id` | string | Exact session ID (query/analysis tools and `query_sessions`). Distinct from `scope="session"` — see [MCP Query Tools Reference](mcp-query-tools.md#scope-vs-exact-session_id-dir-030). |
 | `limit` | number | Maximum results; default is no limit |
@@ -320,7 +324,7 @@ For Codex-specific verification, `make test-e2e-codex` creates a temporary Codex
 
 - Check `working_dir` points at the project whose history you want.
 - For Claude Code, verify `~/.claude/projects/<project-hash>/` exists.
-- For Codex, verify `${META_CC_CODEX_ROOT:-$HOME/.codex}/state_5.sqlite` has a `threads` row whose `cwd` matches the project and whose `rollout_path` points to a readable JSONL file.
+- For Codex, verify the highest `state_N.sqlite` under the canonical root (`${META_CC_CODEX_ROOT:-${CODEX_HOME:-$HOME/.codex}}`) has a `threads` row whose `cwd` matches the project and whose `rollout_path` points to a readable JSONL file. If no compatible database exists, sessions come from the rollout trees directly — check `${META_CC_CODEX_ROOT:-${CODEX_HOME:-$HOME/.codex}}/sessions/` for `*.jsonl` files whose `session_meta` records the project `cwd`.
 
 ### Tool returns empty on Codex
 

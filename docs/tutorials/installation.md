@@ -274,7 +274,7 @@ minimal fallback from Method 1b:
 codex mcp add meta-cc -- /absolute/path/to/meta-cc-mcp
 ```
 
-Codex session discovery reads JSONL transcripts from `$CODEX_HOME/sessions` when `CODEX_HOME` is set, otherwise from `~/.codex/sessions`. meta-cc normalizes Codex `response_item` and `event_msg` records into the same internal message/tool schema used for Claude Code, so the common MCP tools work across both hosts.
+Codex history discovery resolves one canonical Codex root — `META_CC_CODEX_ROOT` first, then `CODEX_HOME`, then `~/.codex` — and reads session metadata from the highest-compatible `state_N.sqlite` under it, following each thread's `rollout_path` to the JSONL rollouts. When no compatible database exists, meta-cc falls back to listing sessions directly from the rollout trees (`<root>/sessions/` and `<root>/archived_sessions/`), filtered by the `cwd` recorded in each rollout's `session_meta`. See [Codex History Model: Discovery roots](../reference/codex-history-model.md#discovery-roots-and-database-compatibility-dir-069) for the full contract. meta-cc normalizes Codex `response_item` and `event_msg` records into the same internal message/tool schema used for Claude Code, so the common MCP tools work across both hosts.
 
 ## Verification
 
@@ -427,10 +427,10 @@ Then start a new Codex session.
 
 **Solutions**:
 
-1. **Check the Codex session root**:
+1. **Check the canonical Codex root** (`META_CC_CODEX_ROOT` wins over `CODEX_HOME` when both are set):
    ```bash
-   echo "${CODEX_HOME:-$HOME/.codex}"
-   find "${CODEX_HOME:-$HOME/.codex}/sessions" -name '*.jsonl' | tail
+   echo "${META_CC_CODEX_ROOT:-${CODEX_HOME:-$HOME/.codex}}"
+   find "${META_CC_CODEX_ROOT:-${CODEX_HOME:-$HOME/.codex}}/sessions" -name '*.jsonl' | tail
    ```
 2. **Pass the project explicitly** when asking through MCP:
    ```json

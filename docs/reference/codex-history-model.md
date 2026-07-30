@@ -11,9 +11,28 @@ those documents — read them first.
 
 ## Discovery roots and database compatibility (DIR-069)
 
-All Codex backends use one canonical home: `META_CC_CODEX_ROOT` takes
-precedence over `CODEX_HOME`, then `~/.codex`. This root drives app-server's
-`CODEX_HOME`, SQLite discovery, transcript roots, and rollout lookup.
+All Codex backends use one canonical home, resolved with this precedence:
+
+| Priority | Source | Notes |
+|---|---|---|
+| 1 | `META_CC_CODEX_ROOT` | meta-cc-specific override; wins when set |
+| 2 | `CODEX_HOME` | Codex CLI's own home override |
+| 3 | `~/.codex` | User default |
+
+This single resolved root drives every Codex storage path meta-cc reads —
+there is no per-surface override:
+
+| Consumer | Path derived from the canonical root |
+|---|---|
+| Transcript/session discovery | `<root>/sessions/` (active) and `<root>/archived_sessions/` |
+| SQLite thread index | highest-compatible `<root>/state_N.sqlite` (see below) |
+| Rollout-only fallback | `*.jsonl` under the two session trees above |
+| App-server child process | spawned with `CODEX_HOME=<root>` so it reads the same state |
+
+`<root>/history.jsonl` is intentionally never used. The one related override
+is backend selection: `META_CC_CODEX_BACKEND` (`auto`/`app_server`/`files`,
+default `auto`) picks between the app-server and files backends — see
+`docs/reference/codex-app-server.md` — but both backends honor the same root.
 
 The files backend enumerates `state_N.sqlite` files by numeric version,
 newest first, and selects the first database whose `threads` table contains

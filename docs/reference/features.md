@@ -7,13 +7,18 @@ meta-cc is a provider-aware MCP server for local coding-agent history analysis. 
 | Host | Data source | Integration files |
 |------|-------------|-------------------|
 | Claude Code | `~/.claude/projects/<project-hash>/*.jsonl` | `plugin-src/.claude-plugin/`, `plugin-src/.mcp.json`, `plugin-src/commands/` |
-| Codex | `${META_CC_CODEX_ROOT:-~/.codex}/state_5.sqlite` plus rollout JSONL files referenced by `threads.rollout_path` | `plugin-src/.codex-plugin/`, `plugin-src/.codex-mcp.json`, `plugin-src/skills/` |
+| Codex | Highest-compatible `state_N.sqlite` under the canonical Codex root (`META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`) plus rollout JSONL files referenced by `threads.rollout_path`; rollout-only fallback when no compatible database exists | `plugin-src/.codex-plugin/`, `plugin-src/.codex-mcp.json`, `plugin-src/skills/` |
 
 The `provider` parameter controls which history is queried:
 
-- `claude`: Claude Code only. This is the default for backward compatibility.
+- `claude`: Claude Code only.
 - `codex`: Codex only.
 - `all`: merge both providers and include provider-tagged records.
+
+An omitted `provider` resolves to the host that launched the MCP server
+(`META_CC_HOST`; standalone installs fall back to `claude` — see the
+[MCP guide](../guides/mcp.md#default-provider-for-manualstandalone-installs-meta_cc_host)).
+Explicit values always override.
 
 ## MCP Tools
 

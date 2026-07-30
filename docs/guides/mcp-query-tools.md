@@ -8,9 +8,11 @@ Convenience query tools accept a standard `provider` parameter:
 
 | Provider | Meaning |
 |----------|---------|
-| `claude` | Query Claude Code sessions. This is the default for backward compatibility. |
+| `claude` | Query Claude Code sessions. |
 | `codex` | Query Codex local history and rollout JSONL files. |
 | `all` | Query both providers and include a `provider` field on returned records. |
+
+When `provider` is omitted, it resolves to the active host that launched the MCP server (`META_CC_HOST`: `claude` under Claude Code, `codex` under Codex); standalone installs fall back to `claude`. Explicit values always override the host default.
 
 Use `provider: "all"` only when your filters can handle records from both providers.
 
@@ -63,7 +65,7 @@ these four tools' already-produced, semantically-filtered result), use
 | Host | Session source | Notes |
 |------|----------------|-------|
 | Claude Code | `~/.claude/projects/<project-hash>/` | Native Claude Code JSONL schema |
-| Codex | `~/.codex/state_5.sqlite` plus rollout JSONL files | Project sessions are filtered by `cwd`; `~/.codex/history.jsonl` is intentionally excluded |
+| Codex | Highest-compatible `state_N.sqlite` under the canonical Codex root (`META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`) plus rollout JSONL files | Project sessions are filtered by `cwd`; a rollout-only fallback applies when no compatible database exists; `~/.codex/history.jsonl` is intentionally excluded. See [Discovery roots](../reference/codex-history-model.md#discovery-roots-and-database-compatibility-dir-069) |
 
 Codex rollout normalization covers:
 
@@ -123,7 +125,7 @@ Lists session/thread **metadata** — id, cwd, title, status, source_kind, model
 | `include_subagents` | boolean | Default `true`; `false` excludes subagent-sourced sessions. |
 | `limit` | number | Max sessions to return. Combine with the standard `offset`/`page_size` parameters for pagination over a large project. |
 
-Codex-only filters (`source_kind`, `model_provider`, `parent_thread_id`, `archived`, `status`, `ancestors_of`) fail with an actionable error if used while `provider` is `"claude"` (the default) — Claude sessions don't carry this metadata, so the filter could never match and a silent empty result would be indistinguishable from "no sessions found".
+Codex-only filters (`source_kind`, `model_provider`, `parent_thread_id`, `archived`, `status`, `ancestors_of`) fail with an actionable error if used while `provider` is `"claude"` (the default under Claude Code and standalone installs) — Claude sessions don't carry this metadata, so the filter could never match and a silent empty result would be indistinguishable from "no sessions found".
 
 A session whose metadata can't be read (e.g. a corrupted `threads` row) is skipped with a warning rather than aborting the whole listing; other sessions still return normally.
 
@@ -349,9 +351,9 @@ Use these when you need file selection control or custom jq over selected sessio
 | `execute_stage2_query` | Run jq-style filter/sort/transform on selected files | Yes | Yes (jq expression must match the selected provider's raw schema) |
 | `get_session_metadata` | Return schema hints, file info, and query templates | Yes | Yes |
 
-`get_session_directory` and `get_session_metadata` accept `provider` (`claude` default, `codex`, or `all`) and `working_dir` just like the convenience query tools (see [Standard Parameters](#standard-parameters)). They never mix providers into one response:
+`get_session_directory` and `get_session_metadata` accept `provider` (`claude`, `codex`, or `all`; omitted resolves to the active host, standalone fallback `claude`) and `working_dir` just like the convenience query tools (see [Standard Parameters](#standard-parameters)). They never mix providers into one response:
 
-- `provider: "claude"` (default): unchanged response shape — a single `directory` plus aggregate counts.
+- `provider: "claude"` (the standalone/Claude Code default): unchanged response shape — a single `directory` plus aggregate counts.
 - `provider: "codex"`: resolves only Codex rollout files, returned as an explicit `files` list (Codex sessions are not guaranteed to share one directory) with Codex-specific `jsonl_schema`/`query_templates`.
 - `provider: "all"`: an explicit `{ "providers": { "claude": {...}, "codex": {...} } }` breakdown — Claude and Codex files/schemas are never merged. A provider with no data appears in `warnings` instead of silently vanishing; the call only fails if *no* provider has data. An invalid or unavailable single provider (e.g. `codex` with no Codex session state) fails closed with an error rather than silently falling back to Claude.
 
@@ -436,7 +438,7 @@ Most query tools accept:
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `scope` | string | `project` (default) or `session` (= most recently modified session — see [`scope` vs exact `session_id`](#scope-vs-exact-session_id-dir-030)) |
-| `provider` | string | `claude` (default), `codex`, or `all` |
+| `provider` | string | `claude`, `codex`, or `all`; omitted resolves to the active host that launched the MCP server (`META_CC_HOST`, standalone fallback `claude` — see the [MCP guide](mcp.md#default-provider-for-manualstandalone-installs-meta_cc_host)) |
 | `working_dir` | string | Override project path used for session lookup |
 | `session_id` | string | Exact session/thread ID (content/signal/file-activity/analysis tools, and `query_sessions`). Reads only that one session; distinct from `scope="session"`. |
 | `limit` | number | Maximum results; default is no limit |

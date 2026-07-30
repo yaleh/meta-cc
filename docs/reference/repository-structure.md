@@ -97,7 +97,7 @@ Defines the provider-neutral model used by Claude Code and Codex:
 Contains the multi-provider adapter layer:
 
 - `provider/claude`: reads Claude Code project JSONL transcripts
-- `provider/codex`: reads Codex `state_5.sqlite` and rollout JSONL files
+- `provider/codex`: reads the highest-compatible Codex `state_N.sqlite` and rollout JSONL files (rollout-only fallback when no compatible database exists)
 - `provider/registry.go`: fan-out and provider filtering
 - `provider/records`: shared normalized record helpers
 
@@ -106,7 +106,7 @@ Contains the multi-provider adapter layer:
 Resolves host-specific paths:
 
 - Claude Code project roots from `~/.claude/projects/` or `META_CC_PROJECTS_ROOT`
-- Codex roots from `~/.codex` or `META_CC_CODEX_ROOT`
+- Codex roots from `~/.codex`, `CODEX_HOME`, or `META_CC_CODEX_ROOT` (precedence: `META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`)
 
 ### `internal/mcp`
 

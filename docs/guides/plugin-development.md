@@ -99,6 +99,13 @@ keep the skills and MCP process resolved when they started and do not hot-reload
 the upgraded plugin; a successful, fully verified upgrade leaves no dangling
 old-version path for the next session to warn about.
 
+The refreshed MCP server reads Codex history from the canonical root resolved
+as `META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex` (highest-compatible
+`state_N.sqlite`, with a rollout-only fallback) — see
+[Discovery roots](../reference/codex-history-model.md#discovery-roots-and-database-compatibility-dir-069)
+and [Codex App-Server Backend](../reference/codex-app-server.md) for the
+storage and backend-mode contract.
+
 These behaviors -- `stage`'s locked-binary safety, the Codex TOML update, and
 the destructive upgrade/restart and verification-failure semantics -- are
 covered by `tests/scripts/stage-locked-binary.bats`,

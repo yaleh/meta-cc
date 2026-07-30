@@ -56,6 +56,28 @@ ls ~/.claude/projects/
 
 Make sure you run Claude Code from the project directory so the MCP server can locate session files.
 
+### Codex sessions not found
+
+**Symptoms**: MCP tools return no sessions for a Codex project.
+
+**Possible causes**:
+1. The canonical Codex root does not match where Codex actually writes.
+   meta-cc resolves it as `META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`
+   (see [Discovery roots](../reference/codex-history-model.md#discovery-roots-and-database-compatibility-dir-069)).
+2. The queried `working_dir` does not match the `cwd` recorded in the
+   Codex thread (SQLite `threads` table) or rollout `session_meta`.
+
+**Solution**:
+```bash
+ROOT="${META_CC_CODEX_ROOT:-${CODEX_HOME:-$HOME/.codex}}"
+ls "$ROOT"/state_*.sqlite 2>/dev/null        # highest N wins when compatible
+find "$ROOT/sessions" -name '*.jsonl' | tail # rollout-only fallback source
+```
+
+If no compatible `state_N.sqlite` exists, meta-cc lists sessions from the
+rollout trees directly — rollouts missing a recorded `cwd` are skipped with
+a warning, so cross-project leakage is never inferred.
+
 ## MCP Server Issues
 
 ### "unknown source type: package" error

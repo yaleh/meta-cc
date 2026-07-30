@@ -8,8 +8,10 @@
 
 meta-cc can read Codex conversation history two ways:
 
-- **files**: parse the existing SQLite thread index (`state_5.sqlite`) and
-  the Codex JSONL rollout files directly. This is meta-cc's original
+- **files**: parse the SQLite thread index (the highest-compatible
+  `state_N.sqlite` under the canonical Codex root — see
+  [Discovery roots and database compatibility](codex-history-model.md#discovery-roots-and-database-compatibility-dir-069))
+  and the Codex JSONL rollout files directly. This is meta-cc's original
   behavior and remains fully supported — it works offline, works with any
   installed Codex CLI version, and is the only option for forensic access
   to raw session state.
@@ -28,12 +30,16 @@ incompatible/unparseable version, or otherwise fails.
 |---|---|---|---|
 | `META_CC_CODEX_BACKEND` | `auto`, `app_server`, `files` | `auto` | Selects the backend mode. An invalid value falls back to `auto` with a warning (see `Provider.Warnings()`). |
 | `META_CC_CODEX_APP_SERVER_BIN` | path or executable name | `codex` | Overrides the executable used to spawn `codex app-server`, for environments where it isn't on `PATH` as `codex`. |
-| `META_CC_CODEX_ROOT` / `CODEX_HOME` | directory | `~/.codex` | Existing Codex-home override (see `internal/locator.CodexLocator`). Also used to pin the spawned app-server child's own `CODEX_HOME`, so the external process and meta-cc's files backend agree on which state they're reading. |
+| `META_CC_CODEX_ROOT` / `CODEX_HOME` | directory | `~/.codex` | Canonical Codex-home override, resolved as `META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex` (see [Discovery roots](codex-history-model.md#discovery-roots-and-database-compatibility-dir-069); `internal/locator.CodexLocator`). The resolved root also pins the spawned app-server child's own `CODEX_HOME`, so the external process and meta-cc's files backend agree on which state they're reading. |
 
 ### Mode semantics
 
 - **`files`**: identical to pre-DIR-029 behavior. The app-server backend is
-  never invoked.
+  never invoked. Storage discovery follows DIR-069: the highest-compatible
+  `state_N.sqlite` is used when one exists; when no compatible database
+  exists, sessions are still listed from the rollout-only fallback (active
+  and archived session trees, cwd-enforced — see
+  [Discovery roots](codex-history-model.md#discovery-roots-and-database-compatibility-dir-069)).
 - **`app_server`**: only the app-server backend is used. A failure (process
   won't start, handshake fails, a call errors) is returned to the caller as
   a clear error — it never silently substitutes files-backend results.

@@ -151,8 +151,8 @@ get_session_metadata({})    // JSONL schema, file info, and query templates
 ```
 
 **Key Features**:
-- **Claude Code + Codex support**: Reads Claude transcripts from `~/.claude/projects/` and Codex conversations from `${META_CC_CODEX_ROOT:-~/.codex}/state_5.sqlite` plus rollout JSONL files
-- **Provider-aware normalization**: Use `provider: "claude" | "codex" | "all"` on query and analysis tools; Codex `response_item`, `event_msg`, function/custom tool calls, tool outputs, and token counts are normalized through the same MCP surface
+- **Claude Code + Codex support**: Reads Claude transcripts from `~/.claude/projects/` and Codex conversations from the highest-compatible `state_N.sqlite` under the canonical Codex root (`META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`) plus rollout JSONL files, with a rollout-only fallback when no compatible database exists
+- **Provider-aware normalization**: Use `provider: "claude" | "codex" | "all"` on query and analysis tools; omitted `provider` resolves to the host that launched the MCP server (`claude` for standalone installs). Codex `response_item`, `event_msg`, function/custom tool calls, tool outputs, and token counts are normalized through the same MCP surface
 - **Hybrid Output Mode**: Auto-switches between inline (<8KB) and file_ref (≥8KB)
 - **jq Integration**: Native jq filtering for complex queries; warns when a transform produces all-null results
 - **Time Filtering**: `since`/`until` (RFC3339) on `query_session_content`, `query_session_signals`, and `get_timeline`; `query_sessions` filters with `created_since`/`created_until`

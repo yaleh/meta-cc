@@ -137,10 +137,10 @@ Stage 1 provides two tools for understanding and selecting session files.
 
 **Parameters**:
 - `scope` (string, required): `"project"` or `"session"`
-- `provider` (string, optional): `"claude"` (default), `"codex"`, or `"all"`
+- `provider` (string, optional): `"claude"`, `"codex"`, or `"all"`; omitted resolves to the active host that launched the MCP server (standalone fallback `"claude"`)
 - `working_dir` (string, optional): override the project path used for session lookup
 
-**Returns (provider: "claude", default)** — unchanged from before Codex support:
+**Returns (provider: "claude" — explicit or Claude Code host default)** — unchanged from before Codex support:
 ```json
 {
   "provider": "claude",

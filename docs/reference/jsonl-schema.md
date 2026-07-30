@@ -3,7 +3,7 @@
 This document describes the session history JSONL schemas supported by meta-cc:
 
 - **Claude Code** transcripts stored in `~/.claude/projects/<project-hash>/`
-- **Codex** transcripts stored in `$CODEX_HOME/sessions` or `~/.codex/sessions`
+- **Codex** transcripts discovered under the canonical Codex root (precedence: `META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`), in `sessions/` and `archived_sessions/`
 
 Internally, meta-cc normalizes both hosts into a Claude-like message/tool schema before running MCP queries and analysis. Existing jq filters that target `.type`, `.message.content`, tool blocks, and `.message.usage` work across both hosts for the supported common events.
 
@@ -23,7 +23,7 @@ Claude Code and Codex session files use **newline-delimited JSON (JSONL)** forma
 | Host | Default transcript root | Project matching |
 |------|--------------------------|------------------|
 | Claude Code | `~/.claude/projects/<project-hash>/` | Project path hash directory |
-| Codex | `$CODEX_HOME/sessions` or `~/.codex/sessions` | Recursive JSONL scan, matched by project path in transcript content |
+| Codex | `<codex-root>/sessions` (root precedence: `META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`) | Database-first discovery via the highest compatible `state_N.sqlite`; cwd-scoped rollout-only fallback scans `sessions/` and `archived_sessions/` when no usable database exists |
 
 `META_CC_PROJECTS_ROOT` can still override the Claude-style project-hash root for tests and custom layouts.
 
@@ -891,7 +891,7 @@ When parsing JSONL session files:
 
 See the following files for complete examples:
 - **Claude Code session:** `~/.claude/projects/<project-hash>/*.jsonl`
-- **Codex session:** `$CODEX_HOME/sessions/**/*.jsonl` or `~/.codex/sessions/**/*.jsonl`
+- **Codex session:** `<codex-root>/sessions/**/*.jsonl` (root precedence: `META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`)
 - **Complex session:** Session files with tool executions, thinking blocks, and errors
 - **Query examples:**
   - `docs/examples/jq-query-examples.md` - Single-file query patterns (19 examples)

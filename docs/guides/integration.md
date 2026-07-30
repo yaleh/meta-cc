@@ -17,7 +17,7 @@ The MCP server is the primary integration. It exposes 16 tools for querying and 
 | Provider | Source | Notes |
 |----------|--------|-------|
 | `claude` | `~/.claude/projects/<project-hash>/*.jsonl` | Host default under Claude Code and for standalone installs. |
-| `codex` | `${META_CC_CODEX_ROOT:-~/.codex}/state_5.sqlite` and rollout JSONL files referenced by `threads.rollout_path` | Host default under Codex. `~/.codex/history.jsonl` is intentionally not used. |
+| `codex` | Highest-compatible `state_N.sqlite` under the canonical Codex root (`META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`) plus rollout JSONL files referenced by `threads.rollout_path`; rollout-only fallback when no compatible database exists | Host default under Codex. `~/.codex/history.jsonl` is intentionally not used. See [Discovery roots](../reference/codex-history-model.md#discovery-roots-and-database-compatibility-dir-069). |
 | `all` | Both providers | Results include a provider tag where applicable. |
 
 An omitted `provider` argument resolves to the host that launched the MCP
@@ -242,20 +242,28 @@ Restart Codex after installing.
 
 ### Codex MCP Query Returns No Sessions
 
-Check the Codex index:
+Check the Codex thread index (meta-cc picks the highest-compatible
+`state_N.sqlite`; `state_5.sqlite` is the current Codex CLI schema):
 
 ```bash
 sqlite3 ~/.codex/state_5.sqlite \
   "select cwd, rollout_path from threads order by updated_at desc limit 10;"
 ```
 
-If Codex data is stored outside `~/.codex`, set:
+If no compatible database exists, meta-cc lists sessions directly from the
+rollout trees (`sessions/` and `archived_sessions/`) — verify those contain
+`*.jsonl` files whose `session_meta` records the project `cwd`.
+
+If Codex data is stored outside `~/.codex`, set either override
+(`META_CC_CODEX_ROOT` wins when both are set):
 
 ```bash
-export META_CC_CODEX_ROOT=/path/to/codex-home
+export META_CC_CODEX_ROOT=/path/to/codex-home   # meta-cc-only override
+# or
+export CODEX_HOME=/path/to/codex-home           # Codex CLI's own override
 ```
 
-The `cwd` in the `threads` table must match the project path you query with `working_dir`.
+The `cwd` in the `threads` table (or in rollout `session_meta`) must match the project path you query with `working_dir`.
 
 ## Related Documentation
 

@@ -6,7 +6,7 @@ This guide shows practical ways to use meta-cc from Claude Code and Codex. The c
 - Claude Code slash commands for the prompt library
 - Codex skills for the same prompt-library workflows
 
-meta-cc reads Claude Code transcripts from `~/.claude/projects/` and Codex sessions from `${META_CC_CODEX_ROOT:-~/.codex}/state_5.sqlite` plus rollout JSONL files.
+meta-cc reads Claude Code transcripts from `~/.claude/projects/` and Codex sessions from the highest-compatible `state_N.sqlite` under the canonical Codex root (`META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`) plus rollout JSONL files, with a rollout-only fallback when no compatible database exists (see [Discovery roots](../reference/codex-history-model.md#discovery-roots-and-database-compatibility-dir-069)).
 
 ## Quick Checks
 
@@ -34,9 +34,13 @@ Most convenience query and analysis tools accept `provider`:
 
 | Provider | Meaning |
 |----------|---------|
-| `claude` | Query Claude Code sessions. This is the default for compatibility. |
-| `codex` | Query Codex local history. |
+| `claude` | Query Claude Code sessions. Default when the MCP server runs under Claude Code or standalone. |
+| `codex` | Query Codex local history. Default when the MCP server runs under Codex. |
 | `all` | Query both providers and include provider-tagged records. |
+
+An omitted `provider` resolves to the host that launched the MCP server
+(`META_CC_HOST`; standalone installs fall back to `claude`). Explicit values
+always override — keep using them for cross-host or deterministic queries.
 
 Example MCP calls that a host can make:
 
@@ -237,14 +241,17 @@ It then calls the MCP server over JSON-RPC with `provider: "codex"` and verifies
 
 ### No Codex Results
 
-Check that the queried project path matches the Codex thread `cwd`:
+Check that the queried project path matches the Codex thread `cwd` (meta-cc
+uses the highest-compatible `state_N.sqlite`; `state_5.sqlite` is the current
+Codex CLI schema):
 
 ```bash
 sqlite3 ~/.codex/state_5.sqlite \
   "select cwd, rollout_path from threads order by updated_at desc limit 10;"
 ```
 
-If you use a non-default Codex home:
+If you use a non-default Codex home (`META_CC_CODEX_ROOT` takes precedence
+over `CODEX_HOME` when both are set):
 
 ```bash
 META_CC_CODEX_ROOT=/path/to/codex-home meta-cc-mcp
