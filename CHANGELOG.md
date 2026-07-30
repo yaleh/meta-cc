@@ -5,6 +5,47 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.0] - 2026-07-30
+
+
+### Added
+
+- build-feasibility early screen for workspace dod gate chain (DIR-015)
+- default provider to active host via META_CC_HOST
+- type remaining rollout event families
+- ADR-007 DataSource provenance convention and enforcement
+- wire canonical indexed content queries
+
+### Changed
+
+- Maintenance: fix formatting in consistency test
+- Maintenance: finalize task states and gate events for release
+- Maintenance: update task states, gate events, and dev version placeholders
+- Refactoring: share null-result detection (DIR-020)
+- Documentation: register ADR-001..007 with quay-native ADR store (DIR-009)
+- Documentation: reconcile Codex storage, upgrade, and host-default documentation (DIR-076)
+- Tests: add documentation contract drift gate
+- Documentation: refresh documentation map and implementation-status navigation
+- Documentation: migrate current guides off removed MCP query tools
+- Documentation: sync README and feature overview with v3.6 tool surface
+- Tests: enforce schema parameter wiring
+- Documentation: add remaining Codex integration follow-ups
+- Maintenance: record DIR-027 through DIR-065 outcomes
+
+### Fixed
+
+- exclude output_mode from analysis tool schemas (DIR-023)
+- track unfixed error occurrences with one-to-one fix matching (DIR-019)
+- log ScanSourceDir failure at WARN, surface in Warnings (DIR-022)
+- apply time ranges to all query paths (DIR-021)
+- surface skipped-session-file warnings in MCP responses (DIR-018)
+- re-sync stale workflow copies from quay canonical; add ADR-008 (DIR-017)
+- codex plugin cache refresh with post-install verification
+- preserve token provenance and reasoning-token semantics
+- scope analysis tool parameters
+- surface lifecycle-only provider records
+- harden storage discovery fallback
+
 ## [3.6.0] - 2026-07-29
 
 
