@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/conversation"
+	"github.com/yaleh/meta-cc/internal/parser"
 )
 
 // discoverRolloutSessions is the metadata-light fallback used when no
@@ -59,8 +61,15 @@ func rolloutMetadata(path string, archived bool) (conversation.Session, error) {
 		return conversation.Session{}, err
 	}
 	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
+	r := bufio.NewReader(f)
+	for {
+		line, err := parser.ReadLineBounded(r, 64*1024)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			continue
+		}
 		var event struct {
 			Timestamp string `json:"timestamp"`
 			Type      string `json:"type"`
@@ -72,7 +81,7 @@ func rolloutMetadata(path string, archived bool) (conversation.Session, error) {
 				Source        string `json:"source"`
 			} `json:"payload"`
 		}
-		if json.Unmarshal(scanner.Bytes(), &event) != nil || event.Type != "session_meta" {
+		if json.Unmarshal(line, &event) != nil || event.Type != "session_meta" {
 			continue
 		}
 		if event.Payload.ID == "" || event.Payload.CWD == "" {
@@ -91,9 +100,6 @@ func rolloutMetadata(path string, archived bool) (conversation.Session, error) {
 			SourceKind: firstNonEmpty(event.Payload.Source, "cli"), Status: status, Archived: archived,
 			CreatedAt: stamp.UTC(), UpdatedAt: stamp.UTC(), Lineage: conversation.LineageStatusUnknown, Extensions: ext,
 		}, nil
-	}
-	if err := scanner.Err(); err != nil {
-		return conversation.Session{}, err
 	}
 	return conversation.Session{}, fmt.Errorf("no usable session_meta")
 }
