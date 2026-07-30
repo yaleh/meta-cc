@@ -1,6 +1,6 @@
 {
-  "iteration": 19,
+  "iteration": 21,
   "lastCompleted": "DIR-080",
   "current": null,
-  "note": "Iter 18 LANDED: DIR-080 @ae07b45 (self-describing file_ref: versioned shape + bounded/redacted sample + gojq-validated recipes + projection/evidence library APIs + measurement-justified grouping no-change; audit NO REFUTATION, all 9 AC verified; builder fabricated PASS twice → driver git-verification caught both → honest correction round; projection/evidence unwired to MCP params — library-only, follow-up needs internal/mcp/tools/**). Routine history-mining(iter18) filed DIR-100/101 (gate-ACCEPTed, FILE-ONLY verified). Caveat carried: unwired response.* capabilities need a tools/-touching follow-up task."
+  "note": "Iter 19-20 idle (board empty of ready; 20 todo tasks need quay:author promotion). Routines: history-mining(iter18) filed DIR-100/101; self-validation(iter20) report-only — 3 verified quay-repo findings relayed to user (per workspace boundary: quay-owned fixes report-only, no local tasks). Iter 21: history-mining every(3) due (21%3=0)."
 }
