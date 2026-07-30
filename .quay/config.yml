@@ -156,7 +156,7 @@ loop:
   policy: ready-first         # SELECT: highest-priority ready task first
   execution: dispatched       # build in fresh background subagent (FAIL-CLOSED if no Agent tool)
   audit: adversarial          # fresh-context subagent audits diff before land
-  concurrency: 1              # serial — one dispatched build per cycle
+  concurrency: 4              # serial — one dispatched build per cycle
 
   routines:
     - name: history-mining
