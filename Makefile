@@ -318,7 +318,7 @@ dev: fmt build
 	@echo "  make commit"
 
 # Tier 2: COMMIT - Essential pre-commit validation (<60s)
-commit: check-essential test
+commit: check-essential check-no-scanner test
 	@echo ""
 	@echo "✅ Ready to commit"
 	@echo ""
