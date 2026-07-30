@@ -79,7 +79,7 @@ func StandardToolParameters() map[string]Property {
 // only the tools that can actually honor it.
 func AnalysisStandardToolParameters() map[string]Property {
 	params := StandardToolParameters()
-	for _, k := range []string{"jq_filter", "stats_first", "inline_threshold_bytes", "offset", "page_size"} {
+	for _, k := range []string{"jq_filter", "stats_first", "inline_threshold_bytes", "offset", "output_mode", "page_size"} {
 		delete(params, k)
 	}
 	return params
@@ -228,7 +228,7 @@ func standardParamsForTool(name string) map[string]Property {
 	var names []string
 	switch name {
 	case "query_session_content", "query_session_signals", "query_file_activity", "query_sessions":
-		names = []string{"scope", "provider", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes", "include_subagents", "offset", "page_size"}
+		names = []string{"scope", "provider", "jq_filter", "stats_only", "stats_first", "inline_threshold_bytes", "include_subagents", "offset", "output_mode", "page_size"}
 	case "analyze_errors", "analyze_bugs", "quality_scan", "get_work_patterns", "get_timeline", "get_tech_debt":
 		names = []string{"scope", "provider", "stats_only"}
 	case "get_session_directory", "get_session_metadata", "query_edit_sequences":

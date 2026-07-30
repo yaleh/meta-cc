@@ -84,12 +84,12 @@ var analysisServiceTools = []string{
 	"get_tech_debt",
 }
 
-// postProcessingParams are the five StandardToolParameters() entries that
+// postProcessingParams are the six StandardToolParameters() entries that
 // only have meaning on the internal/mcp/query response path: jq_filter
 // (post-filter), stats_first (stats-then-details mode),
 // inline_threshold_bytes (pipeline hybrid response threshold), and
 // offset/page_size (record-array pagination).
-var postProcessingParams = []string{"jq_filter", "stats_first", "inline_threshold_bytes", "offset", "page_size"}
+var postProcessingParams = []string{"jq_filter", "stats_first", "inline_threshold_bytes", "offset", "output_mode", "page_size"}
 
 // TestAnalysisToolParameters_ExcludesPostProcessingParams is the DIR-048
 // regression: AnalysisStandardToolParameters() (the base parameter set used
@@ -206,14 +206,14 @@ func TestBuildToolScopesSharedParametersToExecutionPath(t *testing.T) {
 	if _, ok := analysis["stats_only"]; !ok {
 		t.Fatal("analysis tools must retain stats_only, which their handlers read")
 	}
-	for _, unread := range []string{"jq_filter", "stats_first", "offset", "page_size", "inline_threshold_bytes"} {
+	for _, unread := range []string{"jq_filter", "stats_first", "offset", "output_mode", "page_size", "inline_threshold_bytes"} {
 		if _, ok := analysis[unread]; ok {
 			t.Errorf("analysis tool must not advertise unread query-pipeline parameter %q", unread)
 		}
 	}
 
 	query := byName["query_session_signals"].InputSchema.Properties
-	for _, wired := range []string{"jq_filter", "stats_first", "offset", "page_size", "inline_threshold_bytes"} {
+	for _, wired := range []string{"jq_filter", "stats_first", "offset", "output_mode", "page_size", "inline_threshold_bytes"} {
 		if _, ok := query[wired]; !ok {
 			t.Errorf("query-pipeline tool must retain wired shared parameter %q", wired)
 		}
