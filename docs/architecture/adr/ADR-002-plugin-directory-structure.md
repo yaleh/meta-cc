@@ -1,3 +1,9 @@
+---
+id: ADR-002
+title: "Plugin Directory Structure Refactoring"
+status: accepted
+date: 2025-10-10
+---
 # ADR-002: Plugin Directory Structure Refactoring
 
 ## Status

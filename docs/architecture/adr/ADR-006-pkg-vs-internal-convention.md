@@ -1,3 +1,9 @@
+---
+id: ADR-006
+title: "pkg/ vs internal/ Directory Convention"
+status: accepted
+date: 2026-03-10
+---
 # ADR-006: pkg/ vs internal/ Directory Convention
 
 ## Status

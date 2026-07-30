@@ -23,6 +23,22 @@ We follow the standard ADR format proposed by Michael Nygard:
 - **Related Decisions** - Links to related ADRs (optional)
 - **Notes** - Additional information, links, diagrams (optional)
 
+Each ADR file also carries YAML frontmatter (`id`, `title`, `status`, `date`) so
+the quay-native provider can register it as a first-class ADR object
+(`QUAY_NATIVE_ADR_DIR` in `.quay/config.yml` points at this directory).
+
+## ADR Lifecycle Convention
+
+Architecture decisions use the **ADR (decision) lifecycle**:
+`proposed → accepted → superseded | deprecated` (or `rejected`). This is NOT the
+task/directive lifecycle (`todo → ready → done`): an ADR is a standing decision
+that is continuously applied, never "done". ADR status values are validated
+against the quay-native ADR store (`proposed`, `accepted`, `superseded`,
+`deprecated`, `rejected`).
+
+Query registered ADRs with `quay adr list` / `quay adr get ADR-NNN` (or the MCP
+`adr_list` / `adr_get` tools); update them with `quay adr write`.
+
 ## Active ADRs
 
 | ADR | Title | Status | Date |
@@ -38,10 +54,11 @@ We follow the standard ADR format proposed by Michael Nygard:
 ## Creating New ADRs
 
 1. Copy the [template](template.md)
-2. Use sequential numbering (ADR-006, ADR-007, ...)
-3. Place in `docs/adr/` directory
-4. Update this index
-5. Submit for review if significant
+2. Use sequential numbering (ADR-008, ADR-009, ...)
+3. Place in this directory (`docs/architecture/adr/`)
+4. Add the required YAML frontmatter (`id`, `title`, `status`, `date`) — start with `status: proposed`
+5. Update this index
+6. Submit for review if significant
 
 ## References
 

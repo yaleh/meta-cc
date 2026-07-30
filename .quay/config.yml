@@ -31,7 +31,7 @@ providers:
     default_task_status: ready     # uncomment to override; valid values: todo, ready, done, needs-human
     env:
       QUAY_NATIVE_TASKS_DIR: "./tasks"
-      # QUAY_NATIVE_ADR_DIR: "./adr"        # default: auto-resolved from tasksDir parent
+      QUAY_NATIVE_ADR_DIR: "./docs/architecture/adr"   # meta-cc ADRs live in docs/architecture/adr (DIR-009)
       # QUAY_NATIVE_DOCS_DIR: "./docs-managed"  # default: <repo-root>/docs-managed
 
   # github:                              # example multi-provider setup (disabled)

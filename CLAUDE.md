@@ -360,7 +360,7 @@ git commit -m "feat: improve prompt-find matching"
 
 **Architecture**:
 - [Technical Proposal](docs/architecture/proposals/meta-cognition-proposal.md) - Architecture design
-- [ADR Index](docs/architecture/adr/README.md) - Architecture decision records
+- [ADR Index](docs/architecture/adr/README.md) - Architecture decision records. ADRs use the **decision lifecycle** (`proposed → accepted → superseded | deprecated`, or `rejected`), not the task/directive lifecycle — an ADR is a standing decision, never "done". Each ADR file carries YAML frontmatter (`id`, `title`, `status`, `date`) and is registered with the quay-native provider via `QUAY_NATIVE_ADR_DIR` in `.quay/config.yml`; query with `quay adr list` / `quay adr get` (MCP `adr_list` / `adr_get`).
 
 **Universal Methodology** (project-independent):
 - [Methodology Index](docs/methodology/) - Software development methodologies

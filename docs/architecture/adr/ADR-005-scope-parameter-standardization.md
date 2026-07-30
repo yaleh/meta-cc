@@ -1,3 +1,9 @@
+---
+id: ADR-005
+title: "Scope Parameter Standardization"
+status: accepted
+date: 2025-10-10
+---
 # ADR-005: Scope Parameter Standardization
 
 ## Status

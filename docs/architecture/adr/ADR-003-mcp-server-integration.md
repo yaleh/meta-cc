@@ -1,3 +1,9 @@
+---
+id: ADR-003
+title: "MCP Server Integration Strategy"
+status: accepted
+date: 2025-10-10
+---
 # ADR-003: MCP Server Integration Strategy
 
 ## Status

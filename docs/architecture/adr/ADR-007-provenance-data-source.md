@@ -1,3 +1,9 @@
+---
+id: ADR-007
+title: "DataSource Provenance Convention (measured / estimated)"
+status: accepted
+date: 2026-07-28
+---
 # ADR-007: DataSource Provenance Convention (measured / estimated)
 
 ## Status

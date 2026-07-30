@@ -1,3 +1,9 @@
+---
+id: ADR-001
+title: "Two-Layer Architecture Design"
+status: accepted
+date: 2025-10-10
+---
 # ADR-001: Two-Layer Architecture Design
 
 ## Status

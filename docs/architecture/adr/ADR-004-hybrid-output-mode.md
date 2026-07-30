@@ -1,3 +1,9 @@
+---
+id: ADR-004
+title: "Hybrid Output Mode Design"
+status: accepted
+date: 2025-10-10
+---
 # ADR-004: Hybrid Output Mode Design
 
 ## Status
