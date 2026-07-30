@@ -26,6 +26,16 @@ import (
 
 // Analyzers holds the injected analyzer interfaces used by Service.
 // Zero-value fields are replaced with DefaultAnalyzer instances at construction time.
+//
+// Contract: the injected implementations serve full (non-stats_only) analysis
+// calls only. When args carry stats_only:true, five of the seven Service
+// methods (AnalyzeBugs, AnalyzeErrors, QualityScan, GetWorkPatterns,
+// GetTimeline) short-circuit to package-level analyzer.*Stats* aggregations
+// and never invoke the injected analyzer (DIR-042, enforced by
+// service_stats_only_test.go). GetTechDebt differs deliberately: it always
+// calls the injected TechDebt analyzer first (the full result is required for
+// the optional source_dir merge) and stats-converts that result afterwards.
+// QueryEditSequences has no stats_only parameter and always runs directly.
 type Analyzers struct {
 	BugAnalyzer    analyzer.BugAnalyzer
 	ErrorAnalyzer  analyzer.ErrorAnalyzer
@@ -47,6 +57,9 @@ func New() *Service {
 
 // NewWithAnalyzers creates a new Service with the provided analyzer interfaces.
 // Any nil field is replaced with the corresponding DefaultAnalyzer method.
+// Note the stats_only contract documented on Analyzers: injected
+// implementations are bypassed on stats_only calls (except GetTechDebt,
+// which stats-converts the injected analyzer's result).
 func NewWithAnalyzers(a Analyzers) *Service {
 	d := &analyzer.DefaultAnalyzer{}
 	if a.BugAnalyzer == nil {
