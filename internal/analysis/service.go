@@ -484,16 +484,22 @@ func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
 	}
 
 	sourceDir := stringArg(args, "source_dir")
+	var scanWarning string
 	if sourceDir != "" {
 		if srcResult, scanErr := s.analyzers.TechDebt.ScanSourceDir(sourceDir); scanErr == nil {
 			result = analyzer.MergeTechDebtResults(result, srcResult, analyzer.DataSourceMeasured)
+		} else {
+			slog.Warn("ScanSourceDir failed, returning session-only result", "source_dir", sourceDir, "error", scanErr)
+			scanWarning = fmt.Sprintf("source_dir scan failed for %s: %v", sourceDir, scanErr)
 		}
-		// Degrade gracefully on scan error: keep the session-only result.
 	}
 
 	// Set before the stats_only conversion so TechDebtResultStats carries the
 	// warnings through to the aggregate response (DIR-018).
 	result.Warnings = warnings
+	if scanWarning != "" {
+		result.Warnings = append(result.Warnings, scanWarning)
+	}
 
 	if boolArg(args, "stats_only") {
 		return marshalResult(analyzer.TechDebtResultStats(result))

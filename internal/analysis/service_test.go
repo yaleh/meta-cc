@@ -1,8 +1,12 @@
 package analysis_test
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,8 +74,9 @@ func (s *stubTimelineAnalyzer) GetTimeline(_ []types.SessionEntry, _ int) (*anal
 }
 
 type stubTechDebtAnalyzer struct {
-	result *analyzer.TechDebtResult
-	err    error
+	result  *analyzer.TechDebtResult
+	err     error
+	scanErr error
 }
 
 func (s *stubTechDebtAnalyzer) GetTechDebt(_ []types.SessionEntry, _ []types.ToolCall) (*analyzer.TechDebtResult, error) {
@@ -79,6 +84,9 @@ func (s *stubTechDebtAnalyzer) GetTechDebt(_ []types.SessionEntry, _ []types.Too
 }
 
 func (s *stubTechDebtAnalyzer) ScanSourceDir(sourceDir string) (*analyzer.TechDebtResult, error) {
+	if s.scanErr != nil {
+		return nil, s.scanErr
+	}
 	return s.result, s.err
 }
 
@@ -290,6 +298,48 @@ func TestService_GetTechDebt(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, out)
+}
+
+func TestService_GetTechDebt_ScanSourceDirError(t *testing.T) {
+	projectPath := setupEmptyProjectDir(t)
+
+	// Capture slog output to verify the WARN log (DIR-022 AC1).
+	var logBuf bytes.Buffer
+	h := slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	prevLogger := slog.Default()
+	logger := slog.New(h)
+	slog.SetDefault(logger)
+	defer slog.SetDefault(prevLogger)
+
+	scanErr := errors.New("permission denied")
+	stub := &stubTechDebtAnalyzer{
+		result:  &analyzer.TechDebtResult{OpenIssues: 1},
+		scanErr: scanErr,
+	}
+	svc := analysis.NewWithAnalyzers(analysis.Analyzers{TechDebt: stub})
+
+	out, err := svc.GetTechDebt(map[string]interface{}{
+		"working_dir": projectPath,
+		"source_dir":  "/nonexistent/src",
+	})
+	require.NoError(t, err)
+
+	// AC1: WARN log emitted with source_dir and error.
+	logOutput := logBuf.String()
+	assert.Contains(t, logOutput, "WARN")
+	assert.Contains(t, logOutput, "ScanSourceDir failed")
+	assert.Contains(t, logOutput, "source_dir=/nonexistent/src")
+	assert.Contains(t, logOutput, "permission denied")
+
+	// AC2: Session-only result still returned (graceful degradation).
+	var got analyzer.TechDebtResult
+	require.NoError(t, json.Unmarshal([]byte(out), &got))
+	assert.Equal(t, 1, got.OpenIssues)
+
+	// AC3 (optional): Warnings surfaced in result.
+	assert.NotEmpty(t, got.Warnings)
+	warnText := fmt.Sprintf("source_dir scan failed for /nonexistent/src: %v", scanErr)
+	assert.Contains(t, got.Warnings, warnText)
 }
 
 func TestService_WithStubErrorAnalyzer(t *testing.T) {
