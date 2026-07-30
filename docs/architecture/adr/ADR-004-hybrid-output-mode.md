@@ -10,6 +10,20 @@ date: 2025-10-10
 
 Accepted
 
+> **Current implementation note (2026-07-30):** The hybrid-output decision
+> remains active, but some implementation details below are historical. The
+> current default inline threshold is 32KB, the implementation lives under
+> `internal/mcp/response/`, and only tools routed through the response pipeline
+> accept `output_mode` and related post-processing parameters. Temporary files
+> are removed explicitly through `cleanup_temp_files` (default
+> `max_age_days=7`); no automatic seven-day cleanup scheduler is implied. See
+> [ADR-009](ADR-009-query-execution-result-consumption-contract.md) for the
+> proposed contract that treats `file_ref` as a transport mode and defines
+> result-shape discoverability, diagnostics, and the boundary between normal
+> query consumption and advanced Read/Grep/Bash/jq analysis. This note records
+> current behavior without rewriting the original decision or its historical
+> rationale.
+
 ## Context
 
 The MCP server needs to return query results to Claude. The challenge is handling result sets of varying sizes:
@@ -317,6 +331,8 @@ query_tools({
 
 - [ADR-001](ADR-001-two-layer-architecture.md) - Two-Layer Architecture Design
 - [ADR-003](ADR-003-mcp-server-integration.md) - MCP Server Integration Strategy
+- [ADR-009](ADR-009-query-execution-result-consumption-contract.md) - Query
+  Execution and Result Consumption Contract
 
 ## Notes
 
