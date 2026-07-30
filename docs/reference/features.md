@@ -34,7 +34,7 @@ meta-cc exposes 16 MCP tools. The live registry (`internal/mcp/tools.GetToolDefi
 - `query_session_signals`: query signals (`errors`, `tokens`, `system_errors`, `timestamps`, `tool_stats`)
 - `query_file_activity`: query Claude Code file history snapshots
 
-These 3 tools replace the older set of individually named `query_*` tools. Claude-only record types return empty results for Codex when Codex has no equivalent local record. Only `query_session_content` and `query_session_signals` accept the RFC3339 `since`/`until` time filters (plus `get_timeline` among the analysis tools); `query_sessions` filters by `created_since`/`created_until` instead.
+These 3 tools replace the older set of individually named `query_*` tools. Claude-only record types return empty results for Codex when Codex has no equivalent local record. All `query_session_content` roles (user, assistant, tool, all) and all `query_session_signals` types (errors, tokens, system_errors, timestamps, tool_stats) accept the RFC3339 `since`/`until` time filters (plus `get_timeline` among the analysis tools); `query_sessions` filters by `created_since`/`created_until` instead.
 
 ### Analysis Tools
 

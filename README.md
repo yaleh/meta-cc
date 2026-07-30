@@ -153,9 +153,9 @@ get_session_metadata({})    // JSONL schema, file info, and query templates
 **Key Features**:
 - **Claude Code + Codex support**: Reads Claude transcripts from `~/.claude/projects/` and Codex conversations from the highest-compatible `state_N.sqlite` under the canonical Codex root (`META_CC_CODEX_ROOT` → `CODEX_HOME` → `~/.codex`) plus rollout JSONL files, with a rollout-only fallback when no compatible database exists
 - **Provider-aware normalization**: Use `provider: "claude" | "codex" | "all"` on query and analysis tools; omitted `provider` resolves to the host that launched the MCP server (`claude` for standalone installs). Codex `response_item`, `event_msg`, function/custom tool calls, tool outputs, and token counts are normalized through the same MCP surface
-- **Hybrid Output Mode**: Auto-switches between inline (<8KB) and file_ref (≥8KB)
+- **Hybrid Output Mode**: Auto-switches between inline (<8KB) and file_ref (≥8KB); can override with `output_mode` parameter
 - **jq Integration**: Native jq filtering for complex queries; warns when a transform produces all-null results
-- **Time Filtering**: `since`/`until` (RFC3339) on `query_session_content`, `query_session_signals`, and `get_timeline`; `query_sessions` filters with `created_since`/`created_until`
+- **Time Filtering**: `since`/`until` (RFC3339) on all `query_session_content` roles, all `query_session_signals` types, and `get_timeline`; `query_sessions` filters with `created_since`/`created_until`
 - **No Limits by Default**: Returns all results, relies on hybrid mode
 - **data_source field**: All six analysis tools label results as `measured` (from session data) or `estimated` so callers know data provenance
 - **16 Tools**: 1 session discovery + 3 consolidated query + 5 two-stage (directory/inspect/stage2/metadata/edit-sequences) + 6 analysis + 1 cleanup
@@ -223,7 +223,7 @@ Save and reuse your best prompts with 3 built-in Claude Code slash commands or C
 - **16 MCP tools** - Autonomous session data analysis: 1 session discovery + 3 consolidated query + 5 two-stage + 6 analysis + 1 cleanup
 - **Claude Code + Codex transcript analysis** - Shared query/analysis surface over both host schemas
 - **3 Prompt Library commands/skills** - Prompt management (`prompt-find`, `prompt-list`, `prompt-show`)
-- **Advanced analytics** - jq-based filtering, aggregation, time series; `since`/`until` time filtering on `query_session_content`, `query_session_signals`, and `get_timeline`
+- **Advanced analytics** - jq-based filtering, aggregation, time series; `since`/`until` time filtering on all query and signal paths + `get_timeline`
 - **Error analysis** - Aggregate tool errors by name and type, with `data_source` provenance field
 - **Quality scanning** - Error/retry/diversity/completion dimensions
 - **Work pattern detection** - Tool frequency, hourly activity, context switches
