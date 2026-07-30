@@ -5,6 +5,17 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.4] - 2026-07-30
+
+
+### Changed
+
+- Tests: cover hybrid response adapter
+- Tests: exercise query and response boundaries
+- Documentation: define query consumption contract
+- Documentation: document stats_only injection-bypass contract on Analyzers
+- Tests: skip .meta-cc runtime data dir in dead-path LDFLAGS guard
+
 ## [3.7.3] - 2026-07-30
 
 
