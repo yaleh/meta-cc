@@ -50,11 +50,12 @@ Query registered ADRs with `quay adr list` / `quay adr get ADR-NNN` (or the MCP
 | [ADR-005](ADR-005-scope-parameter-standardization.md) | Scope Parameter Standardization | Accepted | 2025-10-10 |
 | [ADR-006](ADR-006-pkg-vs-internal-convention.md) | pkg/ vs internal/ Directory Convention | Accepted | 2026-03-10 |
 | [ADR-007](ADR-007-provenance-data-source.md) | DataSource Provenance Convention (measured / estimated) | Accepted | 2026-07-28 |
+| [ADR-008](ADR-008-workflow-skill-api-isolation.md) | Workflow Scripts Have No Claude Code Tool API (One-Way Workflow/Skill Bridge) | Accepted | 2026-07-30 |
 
 ## Creating New ADRs
 
 1. Copy the [template](template.md)
-2. Use sequential numbering (ADR-008, ADR-009, ...)
+2. Use sequential numbering (ADR-009, ADR-010, ...)
 3. Place in this directory (`docs/architecture/adr/`)
 4. Add the required YAML frontmatter (`id`, `title`, `status`, `date`) — start with `status: proposed`
 5. Update this index
