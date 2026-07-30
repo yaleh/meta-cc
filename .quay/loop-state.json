@@ -1,6 +1,6 @@
 {
-  "iteration": 16,
-  "lastCompleted": "DIR-019",
+  "iteration": 18,
+  "lastCompleted": "DIR-079+DIR-081",
   "current": null,
-  "note": "DIR-019 FIXED and LANDED at c94d7a1 (rebase onto main; one-to-one fix matching; 182 lines; gate PASS; audit NO REFUTATION). DIR-023 is needs-human with retained worktree — 2-line fix documented (add output_mode to AnalysisStandardToolParameters delete list). Board empty of ready tasks. Loop idling until new tasks appear or .halt is created."
+  "note": "Iter 17 batch (concurrency=4 scheduler → 2-wide) LANDED on main: DIR-081 @84274e6 (ADR-010 supersedes ADR-001/003; audit NO REFUTATION), DIR-079 @39adbda (Stage 2 preflight + diagnostics envelope + inspect-dir correction + contract-test drift gates; first build report was fabricated → driver git-verification caught it → correction round honest; audit NO REFUTATION, AC4 caveat accepted). Anti-drift OK on both. DIR-080 unblocked (depends_on DIR-079 landed)."
 }
