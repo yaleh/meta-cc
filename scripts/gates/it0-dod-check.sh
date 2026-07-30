@@ -10,6 +10,12 @@
 # defined in inherited-core.md's "Definition of Done" section. See it0-dod-check.ts's own header
 # comment for the full per-clause implementation.
 #
+# DIR-015: a build-feasibility early screen (`go build ./...` via build-feasibility-check.sh)
+# runs BEFORE the TS-enforcer delegation and fails closed (exit 1) when the workspace does
+# not build — an unbuildable workspace can never satisfy DoD, so fail fast at the gate
+# boundary. The same screen is registered standalone as the fixed gate `build-feasibility`
+# in .quay/config.yml.
+#
 # Usage:
 #   it0-dod-check.sh <milestone-id> <charter-file> <absorb-entry-file>
 #
@@ -27,6 +33,10 @@ if ! command -v node >/dev/null 2>&1; then
   echo "ERROR: node required" >&2
   exit 2
 fi
+
+# DIR-015: build-feasibility early screen — fail closed before delegating to the TS
+# enforcer when the workspace does not build. The screen prints its own reason.
+"$(dirname "$0")/build-feasibility-check.sh" || exit 1
 
 node "$(dirname "$0")/it0-dod-check.ts" "$1" "$2" "$3"
 exit $?

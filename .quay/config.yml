@@ -96,6 +96,14 @@ gates:
       script: "./scripts/gates/tree-hygiene-check.sh"
     - name: worktree-branch-hygiene
       script: "./scripts/gates/worktree-branch-hygiene-check.sh"
+    # DIR-015: build-feasibility early screen (go build ./..., fail-closed). Registered
+    # under a NON-shadowed name: quay's built-in `dod` gate always wins the name
+    # collision with the workspace it0 `dod` gate (registry.ts resolveGate checks
+    # gateRegistry first), so a workspace gate named "dod" never runs during
+    # todo->ready promotion. Cold `go build ./...` can exceed the 60s default timeout.
+    - name: build-feasibility
+      script: "./scripts/gates/build-feasibility-check.sh"
+      timeoutMs: 180000
 
   # ── ADR gates (auto-wired from ADR enforcement: fields) ───────────────────
   # adr:
