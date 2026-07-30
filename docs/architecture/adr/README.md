@@ -26,6 +26,10 @@ We follow the standard ADR format proposed by Michael Nygard:
 Each ADR file also carries YAML frontmatter (`id`, `title`, `status`, `date`) so
 the quay-native provider can register it as a first-class ADR object
 (`QUAY_NATIVE_ADR_DIR` in `.quay/config.yml` points at this directory).
+Supersession links are expressed in frontmatter as `superseded_by` (on the
+superseded record) and `supersedes` (on the replacing record); the index tables
+below must stay consistent with this frontmatter, since the quay-native
+provider lists ADRs from it.
 
 ## ADR Lifecycle Convention
 
@@ -43,23 +47,35 @@ Query registered ADRs with `quay adr list` / `quay adr get ADR-NNN` (or the MCP
 
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
-| [ADR-001](ADR-001-two-layer-architecture.md) | Two-Layer Architecture Design | Accepted | 2025-10-10 |
 | [ADR-002](ADR-002-plugin-directory-structure.md) | Plugin Directory Structure Refactoring | Accepted | 2025-10-10 |
-| [ADR-003](ADR-003-mcp-server-integration.md) | MCP Server Integration Strategy | Accepted | 2025-10-10 |
 | [ADR-004](ADR-004-hybrid-output-mode.md) | Hybrid Output Mode Design | Accepted | 2025-10-10 |
 | [ADR-005](ADR-005-scope-parameter-standardization.md) | Scope Parameter Standardization | Accepted | 2025-10-10 |
 | [ADR-006](ADR-006-pkg-vs-internal-convention.md) | pkg/ vs internal/ Directory Convention | Accepted | 2026-03-10 |
 | [ADR-007](ADR-007-provenance-data-source.md) | DataSource Provenance Convention (measured / estimated) | Accepted | 2026-07-28 |
 | [ADR-008](ADR-008-workflow-skill-api-isolation.md) | Workflow Scripts Have No Claude Code Tool API (One-Way Workflow/Skill Bridge) | Accepted | 2026-07-30 |
 | [ADR-009](ADR-009-query-execution-result-consumption-contract.md) | Query Execution and Result Consumption Contract | Proposed | 2026-07-30 |
+| [ADR-010](ADR-010-provider-neutral-mcp-only-architecture.md) | Provider-Neutral MCP-Only Architecture | Accepted | 2026-07-30 |
+
+## Superseded ADRs
+
+Superseded records are preserved unchanged as historical decisions; read them
+together with the replacing record.
+
+| ADR | Title | Status | Date | Superseded By |
+|-----|-------|--------|------|---------------|
+| [ADR-001](ADR-001-two-layer-architecture.md) | Two-Layer Architecture Design | Superseded | 2025-10-10 | [ADR-010](ADR-010-provider-neutral-mcp-only-architecture.md) |
+| [ADR-003](ADR-003-mcp-server-integration.md) | MCP Server Integration Strategy | Superseded | 2025-10-10 | [ADR-010](ADR-010-provider-neutral-mcp-only-architecture.md) |
 
 ## Creating New ADRs
 
 1. Copy the [template](template.md)
-2. Use sequential numbering (ADR-010, ADR-011, ...)
+2. Use sequential numbering (ADR-011, ADR-012, ...)
 3. Place in this directory (`docs/architecture/adr/`)
 4. Add the required YAML frontmatter (`id`, `title`, `status`, `date`) — start with `status: proposed`
-5. Update this index
+5. Update this index (and, when superseding an accepted record, add
+   `superseded_by` to the old record's frontmatter, `supersedes` to the new
+   one, and move the old record to the Superseded ADRs table — without
+   rewriting its historical context or decision text)
 6. Submit for review if significant
 
 ## References

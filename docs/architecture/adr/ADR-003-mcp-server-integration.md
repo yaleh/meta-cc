@@ -1,14 +1,24 @@
 ---
 id: ADR-003
 title: "MCP Server Integration Strategy"
-status: accepted
+status: superseded
 date: 2025-10-10
+superseded_by: ADR-010
 ---
 # ADR-003: MCP Server Integration Strategy
 
 ## Status
 
-Accepted
+Superseded by [ADR-010](ADR-010-provider-neutral-mcp-only-architecture.md) (2026-07-30)
+
+> **Supersession note (2026-07-30):** MCP as the primary, supported data-access
+> boundary is **preserved** by
+> [ADR-010](ADR-010-provider-neutral-mcp-only-architecture.md); the fixed tool
+> inventory, the three-tier model with use-case coverage percentages, the
+> "only data-access layer" absolutism (refined by ADR-009's controlled
+> `file_ref`/jq escape hatch), and the Claude-only framing are **superseded**.
+> The historical context and decision text below are intentionally left
+> unchanged.
 
 ## Context
 
@@ -229,6 +239,7 @@ Complex exploration? → Subagent → MCP Server (5%)
 
 ## Related Decisions
 
+- [ADR-010](ADR-010-provider-neutral-mcp-only-architecture.md) - Supersedes this decision (provider-neutral MCP-only architecture)
 - [ADR-001](ADR-001-two-layer-architecture.md) - Two-Layer Architecture Design
 - [ADR-004](ADR-004-hybrid-output-mode.md) - Hybrid Output Mode Design
 

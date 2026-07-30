@@ -1,14 +1,22 @@
 ---
 id: ADR-001
 title: "Two-Layer Architecture Design"
-status: accepted
+status: superseded
 date: 2025-10-10
+superseded_by: ADR-010
 ---
 # ADR-001: Two-Layer Architecture Design
 
 ## Status
 
-Accepted
+Superseded by [ADR-010](ADR-010-provider-neutral-mcp-only-architecture.md) (2026-07-30)
+
+> **Supersession note (2026-07-30):** The two-layer separation of deterministic
+> data processing from LLM interpretation is **preserved** by
+> [ADR-010](ADR-010-provider-neutral-mcp-only-architecture.md); the standalone
+> CLI form of Layer 1, the Claude-centric framing of Layer 2, and the fixed
+> tool-count implementation notes are **superseded**. The historical context and
+> decision text below are intentionally left unchanged.
 
 ## Context
 
@@ -129,6 +137,7 @@ Session Data → CLI Tool → Structured JSON/JSONL → Claude Integration → I
 
 ## Related Decisions
 
+- [ADR-010](ADR-010-provider-neutral-mcp-only-architecture.md) - Supersedes this decision (provider-neutral MCP-only architecture)
 - [ADR-003](ADR-003-mcp-server-integration.md) - MCP Server Integration Strategy
 - [ADR-004](ADR-004-hybrid-output-mode.md) - Hybrid Output Mode Design
 

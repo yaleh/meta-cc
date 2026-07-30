@@ -10,6 +10,19 @@ date: 2025-10-10
 
 Accepted
 
+> **Current implementation note (2026-07-30):** The scope-standardization
+> decision remains active. References below to "14 query tools" and to 80% of
+> use cases are historical 2025 descriptions, not architectural requirements:
+> the current tool surface is documented in the [MCP Guide](../../guides/mcp.md)
+> and evolves independently of this record. The enduring decision is that tools
+> standardize on an explicit `scope` parameter defaulting to the most useful
+> option. This note records current status without rewriting the original
+> decision or its historical rationale. See
+> [ADR-010](ADR-010-provider-neutral-mcp-only-architecture.md) for the
+> provider-neutral MCP-only architecture, and
+> [ADR-009](ADR-009-query-execution-result-consumption-contract.md) for the
+> query execution and result consumption contract.
+
 ## Context
 
 The MCP server provides 14 query tools that can analyze session data. Each tool needs to support two query scopes:

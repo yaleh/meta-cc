@@ -23,6 +23,14 @@ Accepted
 > query consumption and advanced Read/Grep/Bash/jq analysis. This note records
 > current behavior without rewriting the original decision or its historical
 > rationale.
+>
+> References below to "all 14 MCP tools" and to 90%/10% query-size splits are
+> historical 2025 descriptions, not architectural requirements. The current
+> tool surface is documented in the [MCP Guide](../../guides/mcp.md), and the
+> enduring decision is automatic size-based mode selection, not any fixed tool
+> count or percentage. See
+> [ADR-010](ADR-010-provider-neutral-mcp-only-architecture.md) for the
+> provider-neutral MCP-only architecture this transport mode serves.
 
 ## Context
 
