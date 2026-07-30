@@ -290,7 +290,7 @@ func TestExecuteTool_ValidScopeSucceeds(t *testing.T) {
 	}
 }
 
-func TestExecuteTool_SpecialToolsExemptFromValidation(t *testing.T) {
+func TestExecuteTool_SpecialToolsRejectUnknownParameters(t *testing.T) {
 	toolSchemaIndex = nil
 
 	executor := NewToolExecutor()
@@ -299,14 +299,17 @@ func TestExecuteTool_SpecialToolsExemptFromValidation(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	// Special tools should not be subject to parameter validation
-	// cleanup_temp_files with an extra param should not fail with "unknown parameter"
+	// Special tools must pass the same schema validation as query tools before
+	// their handler is dispatched (DIR-023 post-release regression).
 	_, err = executor.ExecuteTool(cfg, "cleanup_temp_files", map[string]interface{}{
 		"max_age_days": float64(7),
-		"extra_param":  "should_be_ignored",
+		"extra_param":  "must_be_rejected",
 	})
-	if err != nil && strings.Contains(err.Error(), "unknown parameter") {
-		t.Errorf("special tool cleanup_temp_files should be exempt from parameter validation, got: %v", err)
+	if err == nil {
+		t.Fatal("expected special tool to reject an unknown parameter")
+	}
+	if !strings.Contains(err.Error(), "unknown parameter") || !strings.Contains(err.Error(), "extra_param") {
+		t.Errorf("expected unknown parameter error naming extra_param, got: %v", err)
 	}
 }
 

@@ -107,8 +107,12 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 	scope := DetermineScope(toolName, args)
 	start := time.Now()
 
-	if output, handled, err := e.ExecuteSpecialTool(cfg, toolName, scope, args, start); handled {
-		return output, err
+	if err := toolspkg.ValidateToolArgs(toolName, args); err != nil {
+		RecordToolFailure(toolName, scope, start, "validation_error")
+		if strings.Contains(err.Error(), "unknown tool") {
+			return "", fmt.Errorf("unknown tool %s in executor: %w", toolName, mcerrors.ErrUnknownTool)
+		}
+		return "", err
 	}
 
 	if scope != "project" && scope != "session" {
@@ -116,12 +120,8 @@ func (e *ToolExecutor) ExecuteTool(cfg *config.Config, toolName string, args map
 		return "", fmt.Errorf("invalid scope %q: must be \"project\" or \"session\"", scope)
 	}
 
-	if err := toolspkg.ValidateToolArgs(toolName, args); err != nil {
-		RecordToolFailure(toolName, scope, start, "validation_error")
-		if strings.Contains(err.Error(), "unknown tool") {
-			return "", fmt.Errorf("unknown tool %s in executor: %w", toolName, mcerrors.ErrUnknownTool)
-		}
-		return "", err
+	if output, handled, err := e.ExecuteSpecialTool(cfg, toolName, scope, args, start); handled {
+		return output, err
 	}
 
 	handler, ok := queryHandlerRegistry[toolName]
