@@ -265,7 +265,7 @@ func TestFeatureCatalogMatchesLiveToolRegistry(t *testing.T) {
 	}
 
 	counts := make(map[string]int)
-	for _, m := range regexp.MustCompile(`(?m)^- ` + "`" + `([a-z][a-z0-9_]*)` + "`" + `:`).FindAllStringSubmatch(section[1], -1) {
+	for _, m := range regexp.MustCompile(`(?m)^- `+"`"+`([a-z][a-z0-9_]*)`+"`"+`:`).FindAllStringSubmatch(section[1], -1) {
 		counts[m[1]]++
 	}
 	if len(counts) == 0 {
