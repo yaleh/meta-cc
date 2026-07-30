@@ -262,7 +262,7 @@ func TestAnalyzeBugs_SurfacesEstimatedCausalPairing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AnalyzeBugs: %v", err)
 	}
-	for _, field := range []string{"patterns", "total_pairs"} {
+	for _, field := range []string{"patterns", "total_pairs", "unfixed_errors"} {
 		if !containsString(full.EstimatedFields, field) {
 			t.Errorf("BugAnalysisResult.EstimatedFields = %v, want %q", full.EstimatedFields, field)
 		}
@@ -272,7 +272,7 @@ func TestAnalyzeBugs_SurfacesEstimatedCausalPairing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AnalyzeBugsStats: %v", err)
 	}
-	for _, field := range []string{"patterns", "total_pairs", "total_patterns"} {
+	for _, field := range []string{"patterns", "total_pairs", "total_patterns", "unfixed_errors"} {
 		if !containsString(stats.EstimatedFields, field) {
 			t.Errorf("BugAnalysisStats.EstimatedFields = %v, want %q", stats.EstimatedFields, field)
 		}
@@ -299,8 +299,8 @@ func TestMixedProvenanceJSONIncludesEstimatedFields(t *testing.T) {
 		want  []string
 	}{
 		{"quality", QualityScanResult{DataSource: DataSourceMeasured, EstimatedFields: []string{"dimensions"}}, []string{"dimensions"}},
-		{"bugs", BugAnalysisResult{DataSource: DataSourceMeasured, EstimatedFields: []string{"patterns", "total_pairs"}}, []string{"patterns", "total_pairs"}},
-		{"bug_stats", BugAnalysisStats{DataSource: DataSourceMeasured, EstimatedFields: []string{"patterns", "total_pairs", "total_patterns"}}, []string{"patterns", "total_pairs", "total_patterns"}},
+		{"bugs", BugAnalysisResult{DataSource: DataSourceMeasured, EstimatedFields: []string{"patterns", "total_pairs", "unfixed_errors"}}, []string{"patterns", "total_pairs", "unfixed_errors"}},
+		{"bug_stats", BugAnalysisStats{DataSource: DataSourceMeasured, EstimatedFields: []string{"patterns", "total_pairs", "total_patterns", "unfixed_errors"}}, []string{"patterns", "total_pairs", "total_patterns", "unfixed_errors"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

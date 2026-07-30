@@ -161,6 +161,111 @@ func TestAnalyzeBugsStats_OmitsExamples(t *testing.T) {
 	}
 }
 
+// sharedTestData builds [2 fixed + 98 unfixed] tool calls sharing one signature.
+func fixTestData() []types.ToolCall {
+	tc := make([]types.ToolCall, 0, 102)
+	for i := 0; i < 2; i++ {
+		tc = append(tc,
+			types.ToolCall{UUID: "fixed-err", ToolName: "Bash", Status: "error", Error: "boom"},
+			types.ToolCall{UUID: "fixed-ok", ToolName: "Bash", Status: "success"},
+		)
+	}
+	for i := 0; i < 98; i++ {
+		tc = append(tc, types.ToolCall{UUID: "unfixed", ToolName: "Bash", Status: "error", Error: "boom"})
+	}
+	return tc
+}
+
+// TestAnalyzeBugs_UnfixedErrorsCounted verifies (DIR-019): 100 errors + 2 fixes
+// → Recurrences=100, FixCount=2, UnfixedErrors=98. Covers both full and stats.
+func TestAnalyzeBugs_UnfixedErrorsCounted(t *testing.T) {
+	tc := fixTestData()
+
+	t.Run("full", func(t *testing.T) {
+		result, err := AnalyzeBugs([]types.SessionEntry{}, tc, 0)
+		if err != nil {
+			t.Fatalf("error: %v", err)
+		}
+		if len(result.Patterns) != 1 {
+			t.Fatalf("want 1 pattern, got %d", len(result.Patterns))
+		}
+		p := result.Patterns[0]
+		if p.Recurrences != 100 || p.FixCount != 2 || p.UnfixedErrors != 98 {
+			t.Errorf("want R=100 F=2 U=98, got R=%d F=%d U=%d", p.Recurrences, p.FixCount, p.UnfixedErrors)
+		}
+		if result.TotalErrors != 100 || result.TotalPairs != 2 || result.UnfixedErrors != 98 {
+			t.Errorf("want TE=100 TP=2 UE=98, got TE=%d TP=%d UE=%d",
+				result.TotalErrors, result.TotalPairs, result.UnfixedErrors)
+		}
+	})
+
+	t.Run("stats", func(t *testing.T) {
+		stats, err := AnalyzeBugsStats([]types.SessionEntry{}, tc)
+		if err != nil {
+			t.Fatalf("error: %v", err)
+		}
+		if len(stats.Patterns) != 1 {
+			t.Fatalf("want 1 pattern, got %d", len(stats.Patterns))
+		}
+		sp := stats.Patterns[0]
+		if sp.Recurrences != 100 || sp.FixCount != 2 || sp.UnfixedErrors != 98 {
+			t.Errorf("want R=100 F=2 U=98, got R=%d F=%d U=%d", sp.Recurrences, sp.FixCount, sp.UnfixedErrors)
+		}
+		if stats.TotalErrors != 100 || stats.TotalPairs != 2 || stats.UnfixedErrors != 98 {
+			t.Errorf("want TE=100 TP=2 UE=98, got TE=%d TP=%d UE=%d",
+				stats.TotalErrors, stats.TotalPairs, stats.UnfixedErrors)
+		}
+	})
+}
+
+// TestAnalyzeBugs_FixNotDoubleCounted verifies one-to-one fix matching (DIR-019):
+// two errors sharing one success → FixCount=1, UnfixedErrors=1.
+func TestAnalyzeBugs_FixNotDoubleCounted(t *testing.T) {
+	tc := []types.ToolCall{
+		{UUID: "1", ToolName: "Bash", Status: "error", Error: "boom"},
+		{UUID: "2", ToolName: "Bash", Status: "error", Error: "boom"},
+		{UUID: "3", ToolName: "Bash", Status: "success"},
+	}
+	result, err := AnalyzeBugs([]types.SessionEntry{}, tc, 0)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if len(result.Patterns) != 1 {
+		t.Fatalf("want 1 pattern, got %d", len(result.Patterns))
+	}
+	p := result.Patterns[0]
+	if p.Recurrences != 2 || p.FixCount != 1 || p.UnfixedErrors != 1 {
+		t.Errorf("want R=2 F=1 U=1, got R=%d F=%d U=%d", p.Recurrences, p.FixCount, p.UnfixedErrors)
+	}
+	if result.TotalErrors != 2 || result.TotalPairs != 1 || result.UnfixedErrors != 1 {
+		t.Errorf("want TE=2 TP=1 UE=1, got TE=%d TP=%d UE=%d",
+			result.TotalErrors, result.TotalPairs, result.UnfixedErrors)
+	}
+}
+
+// TestAnalyzeBugs_UnfixedOnlyPatternVisible verifies (DIR-019) error patterns
+// with zero fixes produce visible output.
+func TestAnalyzeBugs_UnfixedOnlyPatternVisible(t *testing.T) {
+	tc := []types.ToolCall{
+		{UUID: "1", ToolName: "Bash", Status: "error", Error: "never fixed"},
+		{UUID: "2", ToolName: "Bash", Status: "error", Error: "never fixed"},
+	}
+	result, err := AnalyzeBugs([]types.SessionEntry{}, tc, 0)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if len(result.Patterns) != 1 {
+		t.Fatalf("want 1 pattern, got %d", len(result.Patterns))
+	}
+	p := result.Patterns[0]
+	if p.FixCount != 0 || p.Recurrences != 2 || p.UnfixedErrors != 2 {
+		t.Errorf("want F=0 R=2 U=2, got F=%d R=%d U=%d", p.FixCount, p.Recurrences, p.UnfixedErrors)
+	}
+	if len(p.Examples) != 2 {
+		t.Errorf("want 2 examples, got %d", len(p.Examples))
+	}
+}
+
 func TestAnalyzeBugsStats_Empty(t *testing.T) {
 	stats, err := AnalyzeBugsStats([]types.SessionEntry{}, []types.ToolCall{})
 	if err != nil {

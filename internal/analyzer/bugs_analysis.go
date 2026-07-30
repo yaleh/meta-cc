@@ -11,6 +11,7 @@ type BugPattern struct {
 	ErrorSignature string   `json:"error_signature"` // from CalculateErrorSignature()
 	FixCount       int      `json:"fix_count"`
 	Recurrences    int      `json:"recurrences"`
+	UnfixedErrors  int      `json:"unfixed_errors"`
 	Examples       []string `json:"examples"`
 }
 
@@ -20,6 +21,8 @@ type BugPattern struct {
 type BugAnalysisResult struct {
 	Patterns        []BugPattern `json:"patterns"`
 	TotalPairs      int          `json:"total_pairs"`
+	TotalErrors     int          `json:"total_errors"`
+	UnfixedErrors   int          `json:"unfixed_errors"`
 	DataSource      DataSource   `json:"data_source"`
 	EstimatedFields []string     `json:"estimated_fields,omitempty"`
 	// Warnings names any session files skipped during load (DIR-018).
@@ -39,37 +42,36 @@ func AnalyzeBugs(entries []types.SessionEntry, toolCalls []types.ToolCall, limit
 	patternMap := make(map[string]*patternData)
 
 	totalPairs := 0
+	totalErrors := 0
+	consumed := make(map[int]bool) // success positions already claimed as fixes
 
-	// Scan toolCalls; for each error look ahead up to 3 positions for a fix
 	for i := 0; i < len(toolCalls); i++ {
 		tc := toolCalls[i]
 		if tc.Status != "error" {
 			continue
 		}
 
-		// Look ahead up to 3 positions for a matching success
-		found := false
+		totalErrors++
+		sig := CalculateErrorSignature(tc.ToolName, tc.Error)
+		if _, ok := patternMap[sig]; !ok {
+			patternMap[sig] = &patternData{}
+		}
+		pd := patternMap[sig]
+		pd.recurrences++
+		if limit <= 0 || len(pd.examples) < limit {
+			pd.examples = append(pd.examples, tc.Error)
+		}
+
+		// Look ahead up to 3 positions for a matching unconsumed success
 		for j := i + 1; j <= i+3 && j < len(toolCalls); j++ {
 			candidate := toolCalls[j]
-			if candidate.ToolName == tc.ToolName && candidate.Status == "success" {
-				// It's a fix pair
-				sig := CalculateErrorSignature(tc.ToolName, tc.Error)
-				if _, ok := patternMap[sig]; !ok {
-					patternMap[sig] = &patternData{}
-				}
-				pd := patternMap[sig]
-				pd.recurrences++
+			if candidate.ToolName == tc.ToolName && candidate.Status == "success" && !consumed[j] {
+				consumed[j] = true
 				pd.fixCount++
-				// Store example (error text) respecting limit
-				if limit <= 0 || len(pd.examples) < limit {
-					pd.examples = append(pd.examples, tc.Error)
-				}
 				totalPairs++
-				found = true
 				break
 			}
 		}
-		_ = found
 	}
 
 	// Build result slice
@@ -79,6 +81,7 @@ func AnalyzeBugs(entries []types.SessionEntry, toolCalls []types.ToolCall, limit
 			ErrorSignature: sig,
 			FixCount:       pd.fixCount,
 			Recurrences:    pd.recurrences,
+			UnfixedErrors:  pd.recurrences - pd.fixCount,
 			Examples:       pd.examples,
 		})
 	}
@@ -91,8 +94,10 @@ func AnalyzeBugs(entries []types.SessionEntry, toolCalls []types.ToolCall, limit
 	return &BugAnalysisResult{
 		Patterns:        patterns,
 		TotalPairs:      totalPairs,
+		TotalErrors:     totalErrors,
+		UnfixedErrors:   totalErrors - totalPairs,
 		DataSource:      DataSourceMeasured,
-		EstimatedFields: []string{"patterns", "total_pairs"},
+		EstimatedFields: []string{"patterns", "total_pairs", "unfixed_errors"},
 	}, nil
 }
 
@@ -101,6 +106,7 @@ type BugPatternStat struct {
 	ErrorSignature string `json:"error_signature"`
 	FixCount       int    `json:"fix_count"`
 	Recurrences    int    `json:"recurrences"`
+	UnfixedErrors  int    `json:"unfixed_errors"`
 }
 
 // BugAnalysisStats holds aggregate-only bug analysis output: pattern counts
@@ -108,6 +114,8 @@ type BugPatternStat struct {
 // (DIR-042).
 type BugAnalysisStats struct {
 	TotalPairs      int              `json:"total_pairs"`
+	TotalErrors     int              `json:"total_errors"`
+	UnfixedErrors   int              `json:"unfixed_errors"`
 	TotalPatterns   int              `json:"total_patterns"`
 	Patterns        []BugPatternStat `json:"patterns"`
 	DataSource      DataSource       `json:"data_source"`
@@ -128,21 +136,27 @@ func AnalyzeBugsStats(entries []types.SessionEntry, toolCalls []types.ToolCall) 
 	patternMap := make(map[string]*patternData)
 
 	totalPairs := 0
+	totalErrors := 0
+	consumed := make(map[int]bool)
+
 	for i := 0; i < len(toolCalls); i++ {
 		tc := toolCalls[i]
 		if tc.Status != "error" {
 			continue
 		}
 
+		totalErrors++
+		sig := CalculateErrorSignature(tc.ToolName, tc.Error)
+		if _, ok := patternMap[sig]; !ok {
+			patternMap[sig] = &patternData{}
+		}
+		pd := patternMap[sig]
+		pd.recurrences++
+
 		for j := i + 1; j <= i+3 && j < len(toolCalls); j++ {
 			candidate := toolCalls[j]
-			if candidate.ToolName == tc.ToolName && candidate.Status == "success" {
-				sig := CalculateErrorSignature(tc.ToolName, tc.Error)
-				if _, ok := patternMap[sig]; !ok {
-					patternMap[sig] = &patternData{}
-				}
-				pd := patternMap[sig]
-				pd.recurrences++
+			if candidate.ToolName == tc.ToolName && candidate.Status == "success" && !consumed[j] {
+				consumed[j] = true
 				pd.fixCount++
 				totalPairs++
 				break
@@ -156,6 +170,7 @@ func AnalyzeBugsStats(entries []types.SessionEntry, toolCalls []types.ToolCall) 
 			ErrorSignature: sig,
 			FixCount:       pd.fixCount,
 			Recurrences:    pd.recurrences,
+			UnfixedErrors:  pd.recurrences - pd.fixCount,
 		})
 	}
 	sort.Slice(patterns, func(i, j int) bool {
@@ -164,9 +179,11 @@ func AnalyzeBugsStats(entries []types.SessionEntry, toolCalls []types.ToolCall) 
 
 	return &BugAnalysisStats{
 		TotalPairs:      totalPairs,
+		TotalErrors:     totalErrors,
+		UnfixedErrors:   totalErrors - totalPairs,
 		TotalPatterns:   len(patterns),
 		Patterns:        patterns,
 		DataSource:      DataSourceMeasured,
-		EstimatedFields: []string{"total_pairs", "total_patterns", "patterns"},
+		EstimatedFields: []string{"total_pairs", "total_patterns", "patterns", "unfixed_errors"},
 	}, nil
 }
