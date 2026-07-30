@@ -320,6 +320,28 @@ func HandleInspectSessionFiles(ctx context.Context, args map[string]interface{})
 		return nil, fmt.Errorf("files array cannot be empty")
 	}
 
+	// DIR-079 / ADR-009: get_session_directory naturally returns a directory
+	// (provider=claude) or a files list (provider=codex/all), so callers often
+	// hand the directory straight back. Reject a directory entry with a
+	// structured correction naming the exact supported workflow, rather than
+	// letting it fail deep in the reader with a low-level "is a directory"
+	// error. Path sandboxing is preserved: the directory is never expanded.
+	for i, file := range files {
+		info, err := os.Stat(file)
+		if err != nil {
+			continue // unreadable here; InspectFiles reports it with context
+		}
+		if info.IsDir() {
+			return nil, fmt.Errorf(
+				"inspect_session_files entry %d is a directory (%s), but this tool expects session file paths.\n"+
+					"To inspect a session directory, resolve its files first:\n"+
+					"  1. call get_session_directory(scope=\"project\"|\"session\") and use its \"files\" list (provider=\"codex\"/\"all\"),\n"+
+					"     or glob the returned \"directory\" for *.jsonl (provider=\"claude\");\n"+
+					"  2. pass those file paths: inspect_session_files(files=[\"<dir>/session.jsonl\", ...]).",
+				i, file)
+		}
+	}
+
 	includeSamples := false
 	if samplesRaw, ok := args["include_samples"]; ok {
 		includeSamples, ok = samplesRaw.(bool)
@@ -404,6 +426,12 @@ func HandleExecuteStage2Query(ctx context.Context, args map[string]interface{}) 
 		warnings = []string{}
 	}
 
+	d := result.Diagnostics
+	skipWarnings := d.SkipWarnings
+	if skipWarnings == nil {
+		skipWarnings = []string{}
+	}
+
 	return map[string]interface{}{
 		"results": result.Results,
 		"metadata": map[string]interface{}{
@@ -412,6 +440,22 @@ func HandleExecuteStage2Query(ctx context.Context, args map[string]interface{}) 
 			"total_records_scanned": result.Metadata.TotalRecordsScanned,
 			"results_returned":      result.Metadata.ResultsReturned,
 			"truncated":             result.Metadata.Truncated,
+		},
+		// DIR-079 / ADR-009: uniform, bounded query-accounting envelope so
+		// callers can distinguish an empty result from an incomplete or
+		// degraded search without source inspection.
+		"diagnostics": map[string]interface{}{
+			"backend":            d.Backend,
+			"provider":           d.Provider,
+			"provider_effective": d.ProviderEffective,
+			"files_considered":   d.FilesConsidered,
+			"files_loaded":       d.FilesLoaded,
+			"files_skipped":      d.FilesSkipped,
+			"records_scanned":    d.RecordsScanned,
+			"matches_returned":   d.MatchesReturned,
+			"truncated":          d.Truncated,
+			"degraded":           d.Degraded,
+			"skip_warnings":      skipWarnings,
 		},
 		"warnings": warnings,
 	}, nil

@@ -260,6 +260,13 @@ inspect_session_files({
 })
 ```
 
+**Pass files, not directories**: this tool expects session *file* paths. If you
+pass a directory (which `get_session_directory` returns for `provider="claude"`),
+it returns a structured correction instead of a low-level "is a directory"
+error. Resolve the files first — use the `files` list from
+`get_session_directory(provider="codex"|"all")`, or glob the returned
+`directory` for `*.jsonl` — then pass those file paths.
+
 **Use Cases**:
 - Preview file contents before querying
 - Determine which files contain relevant data
@@ -293,8 +300,49 @@ inspect_session_files({
     "total_records_scanned": 2468,
     "results_returned": 10,
     "truncated": false
+  },
+  "diagnostics": {
+    "backend": "stage2_jq",
+    "provider": "explicit",
+    "provider_effective": "explicit",
+    "files_considered": 3,
+    "files_loaded": 2,
+    "files_skipped": 1,
+    "records_scanned": 2468,
+    "matches_returned": 10,
+    "truncated": false,
+    "degraded": true,
+    "skip_warnings": ["skipped unreadable file /path/corrupt.jsonl: ..."]
   }
 }
+```
+
+**Diagnostics envelope**: every response carries a uniform, bounded
+`diagnostics` object so you can tell an *empty* result apart from an
+*incomplete* search without reading source. `files_considered`/`files_loaded`/
+`files_skipped` account for every input file; `degraded` is `true` when one or
+more files were unreadable and therefore skipped (their bounded reasons appear
+in `skip_warnings`, capped so a fully corrupt corpus cannot flood the
+response); `records_scanned`, `matches_returned`, and `truncated` report how
+much was searched and returned. If *no* file can be loaded, the call fails
+closed with an accounting error instead of returning a misleadingly clean
+empty result.
+
+**Type preflight**: before scanning the full corpus, `execute_stage2_query`
+runs your jq against a small, type-diverse sample of records. A common
+type/path mismatch — e.g. applying `test()` to an object/array `message.content`
+— fails fast with the observed input type and at least one actionable
+correction (coerce with `tostring`, or select a string field path). Your jq is
+never silently rewritten. Valid queries are unaffected.
+
+```text
+stage 2 preflight: jq type error detected on representative input, before full-corpus execution.
+  observed input type: array
+  corrections:
+    - `test` expects a string but received a value of type "array"; select a string
+      field path (e.g. .message.content for user text, or .message.content[].text ...).
+    - or coerce explicitly: (.<field> | tostring) | test(...).
+    - use inspect_session_files(include_samples=true) to discover the actual field names and value types.
 ```
 
 **jq Filter Examples**:

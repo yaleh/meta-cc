@@ -196,6 +196,8 @@ Use these when you need file selection control or custom jq over selected JSONL 
 
 Two-stage tools operate on selected files. They retain raw-file compatibility, including normalized Codex JSONL records when a Codex rollout/session file is selected directly. Provider-aware cross-host querying is handled by the convenience query and analysis tools through the `provider` parameter.
 
+`execute_stage2_query` responses include a bounded `diagnostics` envelope (`backend`, `provider`/`provider_effective`, `files_considered`/`files_loaded`/`files_skipped`, `records_scanned`, `matches_returned`, `truncated`, `degraded`, `skip_warnings`) so an empty result can be told apart from an incomplete or degraded search. Unreadable files are skipped with bounded warnings (degraded mode); if no file loads, the call fails closed. A type preflight runs your jq on a small representative sample before the full scan and fails fast — naming the observed input type and a correction — on common mismatches such as `test()` applied to an object. `inspect_session_files` expects file paths; passing a directory returns a structured correction pointing to the `get_session_directory(...).files` workflow. See the [MCP Query Tools Reference](mcp-query-tools.md) for field detail.
+
 ## Codex Normalization
 
 The Codex provider reads session metadata from the highest-compatible `state_N.sqlite` under the canonical Codex root and follows each thread's `rollout_path` (with a cwd-enforced rollout-only fallback when no compatible database exists). It normalizes:

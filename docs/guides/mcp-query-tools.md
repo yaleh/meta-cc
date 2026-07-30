@@ -399,6 +399,37 @@ const results = await execute_stage2_query({
 })
 ```
 
+#### Stage 2 diagnostics and type preflight (DIR-079)
+
+`execute_stage2_query` responses carry a uniform, bounded `diagnostics` object
+so you can distinguish an empty result from an incomplete or degraded search:
+
+| Field | Meaning |
+|-------|---------|
+| `backend` / `provider` / `provider_effective` | The engine and provider requested vs. actually used (`stage2_jq` / `explicit` for Stage 2, which takes caller-supplied files). |
+| `files_considered` / `files_loaded` / `files_skipped` | Accounting for every input file. |
+| `records_scanned` | Normalized records examined across loaded files. |
+| `matches_returned` / `truncated` | Records returned and whether a `limit` cut the result short. |
+| `degraded` | `true` when one or more files were unreadable and skipped. |
+| `skip_warnings` | Bounded per-file skip reasons (capped so a fully corrupt corpus cannot flood the response). |
+
+Unreadable files are skipped with a bounded warning (degraded mode) rather than
+aborting the whole scan; if *no* file can be loaded, the call fails closed with
+an accounting error instead of returning a misleadingly clean empty result.
+
+**Type preflight**: before the full scan, `execute_stage2_query` runs your jq
+against a small, type-diverse sample of records. A common type/path mismatch —
+e.g. `test()` applied to an object/array `message.content` — fails fast naming
+the observed input type and at least one correction (coerce with `tostring`, or
+select a string field path). Your jq is never silently rewritten; valid queries
+are unaffected.
+
+**Directory input to `inspect_session_files`**: this tool expects file paths.
+Passing a directory (which `get_session_directory(provider="claude")` returns)
+yields a structured correction pointing to the exact workflow — use the `files`
+list from `get_session_directory(provider="codex"|"all")`, or glob the returned
+`directory` for `*.jsonl`, then pass those file paths.
+
 ### Analysis Tools
 
 | Tool | Purpose | Claude Code | Codex |
