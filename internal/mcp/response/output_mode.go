@@ -13,9 +13,19 @@ const (
 	DefaultInlineThresholdBytes = 32 * 1024 // 32KB
 
 	// Output mode constants
+	OutputModeAuto    = "auto"
 	OutputModeInline  = "inline"
 	OutputModeFileRef = "file_ref"
 )
+
+// IsValidOutputMode returns true if mode is a recognised output_mode value.
+func IsValidOutputMode(mode string) bool {
+	switch mode {
+	case OutputModeAuto, OutputModeInline, OutputModeFileRef:
+		return true
+	}
+	return false
+}
 
 // OutputModeConfig holds configuration for output mode selection
 type OutputModeConfig struct {

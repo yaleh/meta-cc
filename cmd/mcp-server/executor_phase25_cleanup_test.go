@@ -204,14 +204,10 @@ func TestNoBackwardCompatibilityCode(t *testing.T) {
 			"output_mode": "legacy", // Should be ignored/error
 		}
 
-		// adaptResponse should NOT recognize "legacy" mode
-		result, err := adaptResponse(cfg, data, params, "query", nil)
-		require.NoError(t, err)
-
-		// Should return hybrid mode response, NOT raw array
-		resultMap, ok := result.(map[string]interface{})
-		require.True(t, ok, "Should return hybrid mode response (map), not legacy raw array")
-		require.Contains(t, resultMap, "mode", "Response should have 'mode' field")
+		// adaptResponse should REJECT invalid output_mode values (DIR-023).
+		_, err := adaptResponse(cfg, data, params, "query", nil)
+		require.Error(t, err, "legacy output_mode should be rejected by IsValidOutputMode")
+		require.Contains(t, err.Error(), "output_mode must be")
 	})
 
 	t.Run("no_deprecated_filter_functions", func(t *testing.T) {

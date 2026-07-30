@@ -53,6 +53,23 @@ func StandardToolParameters() map[string]Property {
 			Type:        "number",
 			Description: "Maximum number of records to return per page (for pagination). Default: 0 = no limit, return all results",
 		},
+		"output_mode": OutputModeProperty(),
+	}
+}
+
+// OutputModeProperty is the "output_mode" property shared by tools whose results
+// flow through pipeline.BuildResponse → response.AdaptResponse. DIR-023: this
+// was formerly read in AdaptResponse but never declared in any tool schema,
+// so ValidateToolArgs always rejected it — every real tool call with output_mode
+// hard-errored. It's now registered on every tool via StandardToolParameters()
+// and scoped in standardParamsForTool to the tools that pass through the
+// response pipeline. Analysis tools exclude it via AnalysisStandardToolParameters.
+func OutputModeProperty() Property {
+	return Property{
+		Type: "string",
+		Description: "Output mode: \"auto\" (default, size-based hybrid), \"inline\" (always inline JSON), " +
+			"or \"file_ref\" (always write to temp file). Auto mode returns inline for results ≤inline_threshold_bytes " +
+			"and file_ref for larger results.",
 	}
 }
 

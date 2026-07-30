@@ -13,8 +13,12 @@ import (
 // paginationMeta carries pagination metadata for the response envelope (may be nil for backward compatibility).
 func AdaptResponse(cfg *config.Config, data []interface{}, params map[string]interface{}, toolName string, pagination *filterpkg.PaginationMetadata) (interface{}, error) {
 	size := CalculateOutputSize(data)
+	explicitMode := getStringParam(params, "output_mode", "")
+	if explicitMode != "" && !IsValidOutputMode(explicitMode) {
+		return nil, fmt.Errorf("%w: output_mode must be auto, inline, or file_ref, got %q", mcerrors.ErrInvalidInput, explicitMode)
+	}
 	modeCfg := GetOutputModeConfig(cfg, params)
-	mode := SelectOutputModeWithConfig(size, getStringParam(params, "output_mode", ""), modeCfg)
+	mode := SelectOutputModeWithConfig(size, explicitMode, modeCfg)
 
 	switch mode {
 	case OutputModeInline:
