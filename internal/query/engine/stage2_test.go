@@ -363,41 +363,6 @@ func TestReadJSONLFile_LargeImageLine_ReturnsData(t *testing.T) {
 	}
 }
 
-func TestIsAllNullOrEmpty_AllNull(t *testing.T) {
-	input := []interface{}{map[string]interface{}{"a": nil, "b": nil}}
-	if !isAllNullOrEmpty(input) {
-		t.Error("expected true for all-null map")
-	}
-}
-
-func TestIsAllNullOrEmpty_AllEmpty(t *testing.T) {
-	input := []interface{}{map[string]interface{}{"a": "", "b": ""}}
-	if !isAllNullOrEmpty(input) {
-		t.Error("expected true for all-empty-string map")
-	}
-}
-
-func TestIsAllNullOrEmpty_Mixed(t *testing.T) {
-	input := []interface{}{map[string]interface{}{"a": nil, "b": "hello"}}
-	if isAllNullOrEmpty(input) {
-		t.Error("expected false for map with one non-empty value")
-	}
-}
-
-func TestIsAllNullOrEmpty_Scalar(t *testing.T) {
-	input := []interface{}{"hello"}
-	if isAllNullOrEmpty(input) {
-		t.Error("expected false for scalar value")
-	}
-}
-
-func TestIsAllNullOrEmpty_EmptySlice(t *testing.T) {
-	input := []interface{}{}
-	if isAllNullOrEmpty(input) {
-		t.Error("expected false for empty slice")
-	}
-}
-
 func TestExecuteStage2Query_TransformAllNull_Warning(t *testing.T) {
 	tempDir := t.TempDir()
 	testFile := filepath.Join(tempDir, "test_warn.jsonl")

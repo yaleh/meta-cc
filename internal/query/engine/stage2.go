@@ -11,6 +11,7 @@ import (
 	"github.com/itchyny/gojq"
 
 	"github.com/yaleh/meta-cc/internal/parser"
+	querycommon "github.com/yaleh/meta-cc/internal/query/common"
 	"github.com/yaleh/meta-cc/internal/session"
 )
 
@@ -64,44 +65,11 @@ func ExecuteStage2Query(query *Stage2Query) (*Stage2Result, error) {
 		Metadata: *metadata,
 	}
 
-	if query.Transform != "" && isAllNullOrEmpty(results) {
+	if query.Transform != "" && querycommon.AllNullOrEmpty(results) {
 		result.Warnings = append(result.Warnings, "transform produced all-null fields: check your field paths (e.g. .timestamp not .Timestamp). Use inspect_session_files(include_samples=true) to see actual field names.")
 	}
 
 	return result, nil
-}
-
-// isAllNullOrEmpty returns true if every entry in the slice is:
-//   - nil (null scalar from jq), or
-//   - a map where all values are nil or empty string.
-//
-// Returns false for empty slices, non-null scalars, or maps with any non-empty value.
-func isAllNullOrEmpty(entries []interface{}) bool {
-	if len(entries) == 0 {
-		return false
-	}
-	for _, entry := range entries {
-		if entry == nil {
-			// null scalar — counts as null/empty, continue
-			continue
-		}
-		m, ok := entry.(map[string]interface{})
-		if !ok {
-			// Non-null scalar — considered non-empty
-			return false
-		}
-		for _, v := range m {
-			if v == nil {
-				continue
-			}
-			if s, ok := v.(string); ok && s == "" {
-				continue
-			}
-			// Found a non-nil, non-empty value
-			return false
-		}
-	}
-	return true
 }
 
 func buildJQExpression(filter, sort, transform string) string {

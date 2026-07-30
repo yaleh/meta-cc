@@ -19,6 +19,7 @@ import (
 
 	"github.com/yaleh/meta-cc/internal/locator"
 	"github.com/yaleh/meta-cc/internal/parser"
+	querycommon "github.com/yaleh/meta-cc/internal/query/common"
 	"github.com/yaleh/meta-cc/internal/session"
 )
 
@@ -386,33 +387,6 @@ type JQRunner interface {
 // Ensure QueryExecutor implements JQRunner at compile time.
 var _ JQRunner = (*QueryExecutor)(nil)
 
-// isAllNullOrEmpty returns true if every entry is nil or a map with all nil/"" values.
-// Returns false for empty slices or non-null scalars.
-func isAllNullOrEmpty(entries []interface{}) bool {
-	if len(entries) == 0 {
-		return false
-	}
-	for _, entry := range entries {
-		if entry == nil {
-			continue
-		}
-		m, ok := entry.(map[string]interface{})
-		if !ok {
-			return false
-		}
-		for _, v := range m {
-			if v == nil {
-				continue
-			}
-			if s, ok := v.(string); ok && s == "" {
-				continue
-			}
-			return false
-		}
-	}
-	return true
-}
-
 const transformAllNullWarning = "transform produced all-null fields: check your field paths (e.g. .timestamp not .Timestamp). Use inspect_session_files(include_samples=true) to see actual field names."
 
 // RunQuery executes a jq query against the given JSONL files.
@@ -423,7 +397,7 @@ func (e *QueryExecutor) RunQuery(ctx context.Context, files []string, filter, tr
 		return QueryResult{}, err
 	}
 	result := e.StreamFiles(ctx, files, code, limit)
-	if transform != "" && isAllNullOrEmpty(result.Entries) {
+	if transform != "" && querycommon.AllNullOrEmpty(result.Entries) {
 		result.Warnings = append(result.Warnings, transformAllNullWarning)
 	}
 	return result, nil
@@ -437,7 +411,7 @@ func (e *QueryExecutor) RunQueryWithTimeRange(ctx context.Context, files []strin
 		return QueryResult{}, err
 	}
 	result := e.StreamFilesWithTimeRange(ctx, files, code, limit, tr)
-	if transform != "" && isAllNullOrEmpty(result.Entries) {
+	if transform != "" && querycommon.AllNullOrEmpty(result.Entries) {
 		result.Warnings = append(result.Warnings, transformAllNullWarning)
 	}
 	return result, nil
