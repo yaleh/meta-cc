@@ -57,6 +57,8 @@ type TechDebtResult struct {
 	OpenIssues      int           `json:"open_issues"`
 	DataSource      DataSource    `json:"data_source"`
 	EstimatedFields []string      `json:"estimated_fields,omitempty"`
+	// Warnings names any session files skipped during load (DIR-018).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // scannerToolNames is the set of tool names whose Output we scan for markers.
@@ -480,6 +482,8 @@ type TechDebtStats struct {
 	OpenIssueCount   int           `json:"open_issue_count"`
 	DataSource       DataSource    `json:"data_source"`
 	EstimatedFields  []string      `json:"estimated_fields,omitempty"`
+	// Warnings names any session files skipped during load (DIR-018).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // TechDebtResultStats converts an already-computed TechDebtResult (which may
@@ -497,6 +501,7 @@ func TechDebtResultStats(result *TechDebtResult) *TechDebtStats {
 		OpenIssueCount:   result.OpenIssues,
 		DataSource:       result.DataSource,
 		EstimatedFields:  techDebtStatsEstimatedFields(result.EstimatedFields),
+		Warnings:         result.Warnings,
 	}
 }
 

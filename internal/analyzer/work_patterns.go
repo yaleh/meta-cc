@@ -28,6 +28,8 @@ type WorkPatternsResult struct {
 	PeakHour        int         `json:"peak_hour"`
 	DataSource      DataSource  `json:"data_source"`
 	EstimatedFields []string    `json:"estimated_fields,omitempty"`
+	// Warnings names any session files skipped during load (DIR-018).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // GetWorkPatterns analyzes work patterns from session entries and tool calls

@@ -22,6 +22,8 @@ type BugAnalysisResult struct {
 	TotalPairs      int          `json:"total_pairs"`
 	DataSource      DataSource   `json:"data_source"`
 	EstimatedFields []string     `json:"estimated_fields,omitempty"`
+	// Warnings names any session files skipped during load (DIR-018).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // AnalyzeBugs scans toolCalls for error→success fix pairs, groups them by
@@ -110,6 +112,8 @@ type BugAnalysisStats struct {
 	Patterns        []BugPatternStat `json:"patterns"`
 	DataSource      DataSource       `json:"data_source"`
 	EstimatedFields []string         `json:"estimated_fields,omitempty"`
+	// Warnings names any session files skipped during load (DIR-018).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // AnalyzeBugsStats computes the same error->success fix-pair analysis as

@@ -61,6 +61,8 @@ type EditSequencesResult struct {
 	Summary         EditSequenceSummary         `json:"summary"`
 	DataSource      DataSource                  `json:"data_source"`
 	EstimatedFields []string                    `json:"estimated_fields,omitempty"`
+	// Warnings names any session files skipped during load (DIR-018).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // classifyFileType returns "doc", "source", "config", or "other" based on extension.

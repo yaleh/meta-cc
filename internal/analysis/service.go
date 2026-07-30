@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,7 +73,13 @@ func NewWithAnalyzers(a Analyzers) *Service {
 // loadData locates session files, parses them, and extracts tool calls.
 // It supports "project" (default) and "session" scopes, and an optional
 // working_dir override extracted from args.
-func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, []types.ToolCall, error) {
+//
+// The returned warnings slice carries one entry per session file that could
+// not be parsed (DIR-018): previously such files were skipped with a bare
+// `continue`, so analysis results silently excluded data. Each skipped file
+// is also logged at WARN level. Callers must surface the warnings in their
+// marshaled results so MCP responses never hide data exclusion.
+func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, []types.ToolCall, []string, error) {
 	scope := "project"
 	if v, ok := args["scope"].(string); ok && v != "" {
 		scope = v
@@ -102,7 +109,8 @@ func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, [
 	sessionID := stringArg(args, "session_id")
 
 	if providerName != "claude" {
-		return s.loadProviderData(scope, workingDir, providerName, sessionID)
+		entries, toolCalls, err := s.loadProviderData(scope, workingDir, providerName, sessionID)
+		return entries, toolCalls, nil, err
 	}
 
 	loc := locator.NewSessionLocator()
@@ -124,35 +132,41 @@ func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, [
 		// site.
 		sessionFile, err := loc.FromSessionIDScoped(sessionID, workingDir)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		files = []string{sessionFile}
 	case scope == "session":
 		sessionFile, err := loc.FromProjectPath(workingDir)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to locate session: %w", err)
+			return nil, nil, nil, fmt.Errorf("failed to locate session: %w", err)
 		}
 		files = []string{sessionFile}
 	default:
 		var err error
 		files, err = loc.AllSessionsFromProject(workingDir)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to locate project sessions: %w", err)
+			return nil, nil, nil, fmt.Errorf("failed to locate project sessions: %w", err)
 		}
 	}
 
 	var allEntries []types.SessionEntry
+	var warnings []string
 	for _, f := range files {
 		p := parser.NewSessionParser(f)
 		entries, err := p.ParseEntries()
 		if err != nil {
-			continue // skip malformed files
+			// DIR-018: never silently exclude data — record a warning naming
+			// the file and log at WARN level instead of a bare `continue`.
+			warning := fmt.Sprintf("skipped session file %s: %v", f, err)
+			slog.Warn("skipping unparseable session file", "file", f, "error", err)
+			warnings = append(warnings, warning)
+			continue
 		}
 		allEntries = append(allEntries, entries...)
 	}
 
 	toolCalls := types.ExtractToolCalls(allEntries)
-	return allEntries, toolCalls, nil
+	return allEntries, toolCalls, warnings, nil
 }
 
 func (s *Service) loadProviderData(scope, workingDir, providerName, sessionID string) ([]types.SessionEntry, []types.ToolCall, error) {
@@ -236,7 +250,7 @@ func marshalResult(v interface{}) (string, error) {
 // summary (analyzer.AnalyzeBugsStats) with no per-pattern Examples text,
 // mirroring GetTimeline's own stats_only short-circuit (DIR-042).
 func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
-	entries, toolCalls, err := s.loadData(args)
+	entries, toolCalls, warnings, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -245,12 +259,14 @@ func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("analyze bugs failed: %w", err)
 		}
+		stats.Warnings = warnings
 		return marshalResult(stats)
 	}
 	result, err := s.analyzers.BugAnalyzer.AnalyzeBugs(entries, toolCalls, intArg(args, "limit"))
 	if err != nil {
 		return "", fmt.Errorf("analyze bugs failed: %w", err)
 	}
+	result.Warnings = warnings
 	return marshalResult(result)
 }
 
@@ -259,7 +275,7 @@ func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
 // per-type count summary (analyzer.AnalyzeErrorsStats) with no examples
 // text, mirroring GetTimeline's own stats_only short-circuit (DIR-042).
 func (s *Service) AnalyzeErrors(args map[string]interface{}) (string, error) {
-	entries, toolCalls, err := s.loadData(args)
+	entries, toolCalls, warnings, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -268,12 +284,14 @@ func (s *Service) AnalyzeErrors(args map[string]interface{}) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to analyze errors: %w", err)
 		}
+		stats.Warnings = warnings
 		return marshalResult(stats)
 	}
 	result, err := s.analyzers.ErrorAnalyzer.AnalyzeErrors(entries, toolCalls, intArg(args, "limit"))
 	if err != nil {
 		return "", fmt.Errorf("failed to analyze errors: %w", err)
 	}
+	result.Warnings = warnings
 	return marshalResult(result)
 }
 
@@ -284,7 +302,7 @@ func (s *Service) AnalyzeErrors(args map[string]interface{}) (string, error) {
 // documented stats_only contract explicitly rather than silently ignoring it
 // (DIR-042).
 func (s *Service) QualityScan(args map[string]interface{}) (string, error) {
-	entries, toolCalls, err := s.loadData(args)
+	entries, toolCalls, warnings, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -293,12 +311,14 @@ func (s *Service) QualityScan(args map[string]interface{}) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("quality scan failed: %w", err)
 		}
+		stats.Warnings = warnings
 		return marshalResult(stats)
 	}
 	result, err := s.analyzers.QualityScanner.QualityScan(entries, toolCalls)
 	if err != nil {
 		return "", fmt.Errorf("quality scan failed: %w", err)
 	}
+	result.Warnings = warnings
 	return marshalResult(result)
 }
 
@@ -309,7 +329,7 @@ func (s *Service) QualityScan(args map[string]interface{}) (string, error) {
 // exists so this method still honors the documented stats_only contract
 // explicitly rather than silently ignoring it (DIR-042).
 func (s *Service) GetWorkPatterns(args map[string]interface{}) (string, error) {
-	entries, toolCalls, err := s.loadData(args)
+	entries, toolCalls, warnings, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -318,12 +338,14 @@ func (s *Service) GetWorkPatterns(args map[string]interface{}) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("get work patterns failed: %w", err)
 		}
+		stats.Warnings = warnings
 		return marshalResult(stats)
 	}
 	result, err := s.analyzers.WorkPatterns.GetWorkPatterns(entries, toolCalls)
 	if err != nil {
 		return "", fmt.Errorf("get work patterns failed: %w", err)
 	}
+	result.Warnings = warnings
 	return marshalResult(result)
 }
 
@@ -337,7 +359,7 @@ const timelineAutoStatsThreshold = 1000
 // When no since/until is set and entry count exceeds timelineAutoStatsThreshold,
 // defaults to stats summary mode to prevent context overflow.
 func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
-	entries, _, err := s.loadData(args)
+	entries, _, warnings, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -354,6 +376,7 @@ func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
 
 	if boolArg(args, "stats_only") {
 		stats := analyzer.GetTimelineStats(entries)
+		stats.Warnings = warnings
 		return marshalResult(stats)
 	}
 
@@ -361,6 +384,7 @@ func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
 	// to prevent the 737K+ character context truncation observed in large projects.
 	if since == "" && until == "" && len(entries) > timelineAutoStatsThreshold {
 		stats := analyzer.GetTimelineStats(entries)
+		stats.Warnings = warnings
 		return marshalResult(stats)
 	}
 
@@ -374,6 +398,7 @@ func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("get timeline failed: %w", err)
 	}
+	result.Warnings = warnings
 	return marshalResult(result)
 }
 
@@ -449,7 +474,7 @@ func parseEntryTimestamp(ts string) (time.Time, error) {
 // so stats_only reflects the same combined result the full response would
 // (DIR-042).
 func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
-	entries, toolCalls, err := s.loadData(args)
+	entries, toolCalls, warnings, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -465,6 +490,10 @@ func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
 		}
 		// Degrade gracefully on scan error: keep the session-only result.
 	}
+
+	// Set before the stats_only conversion so TechDebtResultStats carries the
+	// warnings through to the aggregate response (DIR-018).
+	result.Warnings = warnings
 
 	if boolArg(args, "stats_only") {
 		return marshalResult(analyzer.TechDebtResultStats(result))
@@ -528,7 +557,7 @@ func (s *Service) QueryEditSequences(args map[string]interface{}) (string, error
 	includeContent := boolArg(args, "include_content")
 	limitPerFile := intArg(args, "limit_per_file")
 
-	entries, _, err := s.loadData(args)
+	entries, _, warnings, err := s.loadData(args)
 	if err != nil {
 		// When no session files are found, return an empty result immediately
 		// rather than propagating the error. This prevents hangs in git worktrees,
@@ -541,6 +570,7 @@ func (s *Service) QueryEditSequences(args map[string]interface{}) (string, error
 	}
 
 	result := analyzer.BuildEditSequences(entries, files, includeContent, limitPerFile)
+	result.Warnings = warnings
 	return marshalResult(result)
 }
 

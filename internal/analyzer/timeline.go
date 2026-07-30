@@ -26,6 +26,8 @@ type TimelineResult struct {
 	TotalEvents     int             `json:"total_events,omitempty"`
 	DataSource      DataSource      `json:"data_source"`
 	EstimatedFields []string        `json:"estimated_fields,omitempty"`
+	// Warnings names any session files skipped during load (DIR-018).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // TimelineStats holds aggregate statistics for a set of session entries.
@@ -37,6 +39,8 @@ type TimelineStats struct {
 	EventTypeCounts map[string]int `json:"event_type_counts"`
 	DataSource      DataSource     `json:"data_source"`
 	EstimatedFields []string       `json:"estimated_fields,omitempty"`
+	// Warnings names any session files skipped during load (DIR-018).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // TimeRange holds the first and last timestamps plus a human-readable span.

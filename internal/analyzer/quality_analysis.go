@@ -37,6 +37,8 @@ type QualityScanResult struct {
 	Dimensions      []QualityDimension `json:"dimensions"`
 	DataSource      DataSource         `json:"data_source"`
 	EstimatedFields []string           `json:"estimated_fields,omitempty"`
+	// Warnings names any session files skipped during load (DIR-018).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // QualityScan computes four quality dimensions over the given tool calls.

@@ -33,6 +33,8 @@ type ErrorAnalysisResult struct {
 	ByType          []ErrorTypeGroup `json:"by_type"`
 	DataSource      DataSource       `json:"data_source"`
 	EstimatedFields []string         `json:"estimated_fields,omitempty"`
+	// Warnings names any session files skipped during load (DIR-018).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // AnalyzeErrors analyzes tool call errors and groups them by tool and error type.
@@ -150,6 +152,8 @@ type ErrorAnalysisStats struct {
 	ByType          []ErrorTypeCount `json:"by_type"`
 	DataSource      DataSource       `json:"data_source"`
 	EstimatedFields []string         `json:"estimated_fields,omitempty"`
+	// Warnings names any session files skipped during load (DIR-018).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // AnalyzeErrorsStats computes the same tool/type error groupings as
