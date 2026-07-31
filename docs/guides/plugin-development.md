@@ -624,6 +624,47 @@ Fix errors iteratively. See [Testing Failure Protocol](../core/principles.md#tes
 - Run `make all` before committing
 - Use conventional commit messages (feat:, fix:, docs:)
 
+## Worktree Cache Environment
+
+When the quay loop driver dispatches tasks to git worktree subagents
+(`execution: dispatched` in `.quay/config.yml`), each task builds in an
+isolated worktree under `/tmp/meta-cc-worktrees/<id>`. Go's build and test
+caches (GOCACHE, GOMODCACHE) are **content-addressed and shared across
+worktrees by default** — they resolve to paths under `$HOME`, not to the
+worktree directory:
+
+| Variable   | Typical value (Linux)         | What it caches          |
+|------------|-------------------------------|-------------------------|
+| GOCACHE    | `$HOME/.cache/go-build`       | Build + test artifacts  |
+| GOMODCACHE | `$HOME/go/pkg/mod`            | Downloaded modules      |
+| GOPATH     | `$HOME/go`                    | Installed binaries      |
+| GOFLAGS    | (empty)                       | No overrides            |
+
+This means a second worktree's `go build ./...` or `go test ./...` reuses
+compiled packages from the first worktree, keeping incremental builds fast.
+The environment is verified by `scripts/checks/check-worktree-cache-env.sh`,
+which:
+
+- **PASS**: GOCACHE and GOMODCACHE both resolve to shared paths under `$HOME`.
+- **FAIL**: Either cache points into `/tmp` (per-worktree isolation), `HOME`
+  is unset, or `GOFLAGS` contains a worktree-directed override.
+- **WARN** (non-fatal): The cache directories exist but are empty or cold —
+  expected on a first build in a new environment.
+
+To confirm cache sharing manually, build in one worktree and then build the
+same code in a second worktree — the second build should be markedly faster
+and Go's `-x` trace will show cached package lookups:
+
+```bash
+# First worktree (cold or partially cold)
+cd /tmp/meta-cc-worktrees/<id>
+time go build ./...
+
+# Second worktree (should be hot)
+cd /tmp/meta-cc-worktrees/<id2>
+time go build -x ./... 2>&1 | grep -c 'cached'
+```
+
 ## See Also
 
 - [Release Process](release-process.md) - Complete release workflow

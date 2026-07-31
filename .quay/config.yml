@@ -104,6 +104,13 @@ gates:
     - name: build-feasibility
       script: "./scripts/gates/build-feasibility-check.sh"
       timeoutMs: 180000
+    # DIR-091: worktree-cache-env verifies Go build/test caches are shared under
+    # $HOME (not per-worktree isolated in /tmp). WARN when caches are cold/empty
+    # (non-fatal); FAIL on per-worktree paths, unset HOME, or worktree-directed
+    # GOFLAGS overrides. This keeps incremental builds fast across dispatched
+    # worktree subagents.
+    - name: worktree-cache-env
+      script: "./scripts/checks/check-worktree-cache-env.sh"
 
   # ── ADR gates (auto-wired from ADR enforcement: fields) ───────────────────
   # adr:
@@ -147,6 +154,27 @@ gates:
 loop:
   board: native
 
+  # ── Expected worktree cache environment (DIR-091) ──────────────────────────
+  # Dispatched worktree subagents (execution: dispatched) build in per-task
+  # git worktrees under /tmp/meta-cc-worktrees/<id>. Go's content-addressed
+  # build and test caches (GOCACHE, GOMODCACHE) resolve to shared paths under
+  # $HOME by default — Go derives them from GOPATH and the OS cache directory,
+  # not from the current working directory. This means all worktrees share one
+  # warm cache: a second worktree's build reuses artifacts from the first.
+  #
+  # The env is verified at startup by the `worktree-cache-env` fixed gate
+  # (scripts/checks/check-worktree-cache-env.sh), which fails on per-worktree
+  # isolation, unset HOME, or worktree-directed GOFLAGS overrides. The gate
+  # also reports GOCACHE warmth (file count + size) as a non-fatal WARN when
+  # caches are empty or cold, so the first cold build in a new environment is
+  # not blocked but is noted.
+  #
+  # Expected values (Go 1.x, Linux/macOS):
+  #   GOCACHE    = $HOME/.cache/go-build      (build + test cache)
+  #   GOMODCACHE = $HOME/go/pkg/mod           (module download cache)
+  #   GOPATH     = $HOME/go                   (default GOPATH)
+  #   GOFLAGS    = (empty — no overrides)
+  #
   # Gate set for the autonomous loop — single gate "acceptance" (runs task.extra.acceptance shell
   # command, fail-closed if unset). For a richer gate pipeline, use a gate list or a named set
   # from the gates section (e.g. ["dod", "impl-row", "tree-hygiene"]).
@@ -156,7 +184,7 @@ loop:
   policy: ready-first         # SELECT: highest-priority ready task first
   execution: dispatched       # build in fresh background subagent (FAIL-CLOSED if no Agent tool)
   audit: adversarial          # fresh-context subagent audits diff before land
-  concurrency: 4              # serial — one dispatched build per cycle
+  concurrency: 4              # up to 4 concurrent touches-disjoint builds
 
   routines:
     - name: history-mining
