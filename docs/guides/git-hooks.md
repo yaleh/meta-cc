@@ -4,13 +4,45 @@ This document describes the git hooks available for meta-cc development.
 
 ## Overview
 
-meta-cc provides git hooks to automate plugin version management:
+meta-cc uses two complementary hook systems:
 
-- **pre-commit hook**: Auto-bumps plugin version when `.claude/` files change
+- **Pre-commit framework** (`.pre-commit-config.yaml`): Managed by the [pre-commit](https://pre-commit.com/)
+  framework. Runs goimports (check-only), golangci-lint, go-mod-tidy, gosec, go test, and
+  miscellaneous checks (YAML/JSON syntax, merge conflicts, trailing whitespace, etc).
+  Installed via `make install-pre-commit`.
+
+- **`.githooks/` directory**: A single pre-commit hook that auto-bumps the plugin version
+  when `.claude/` files change. Installed via `./scripts/install-hooks.sh`.
+
+## Intended Workflow (Pre-Commit Framework)
+
+Before committing Go changes, ensure imports and formatting are correct:
+
+```bash
+make fmt          # Format code with gofmt
+make fix-imports  # Fix import ordering with goimports
+```
+
+The pre-commit framework's goimports hook runs **check-only** (no `-w` flag) — it will
+reject commits with unformatted imports but will not rewrite files mid-commit. Run
+`make fix-imports` before committing to satisfy the hook.
 
 ## Installation
 
-### Install Hooks
+### Install Pre-Commit Framework Hooks
+
+```bash
+make install-pre-commit
+```
+
+This runs `scripts/install/install-pre-commit.sh`, which:
+1. Detects the `pre_commit` Python module (`python3 -m pre_commit` or bare `pre-commit` binary)
+2. Auto-installs the module if missing (via `pip install --user`, with a venv fallback)
+3. Runs `pre-commit install` to activate the hooks defined in `.pre-commit-config.yaml`
+
+On failure, the script prints an exact one-line remediation command and exits.
+
+### Install Plugin Version Hooks
 
 ```bash
 ./scripts/install-hooks.sh
