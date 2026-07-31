@@ -14,6 +14,65 @@ meta-cc uses two complementary hook systems:
 - **`.githooks/` directory**: A single pre-commit hook that auto-bumps the plugin version
   when `.claude/` files change. Installed via `./scripts/install-hooks.sh`.
 
+- **Board-file EOF normalizer** (`scripts/gates/normalize-board-eof.sh`): Ensures all
+  board files under `tasks/**` and `docs/architecture/adr/**` end with a trailing newline
+  (`\n`). This runs as a gate inside `make commit` (wired as its first dependency) so
+  that quay-native-written board files pass pre-commit's `end-of-file-fixer` on the
+  first try, avoiding a hook-induced abort and commit retry loop.
+
+## Board-File EOF Normalizer
+
+### What It Fixes
+
+Every landing commit that carries a quay-native-written board file (`tasks/*.md` or
+`docs/architecture/adr/*.md`) lacks a trailing newline, which triggers pre-commit's
+`end-of-file-fixer` hook to mutate the file and abort the commit. The normalizer
+preempts this by ensuring those files terminate with `\n` before pre-commit runs.
+
+### How It Works
+
+The script scans two directory globs:
+- `tasks/**/*.md` -- task/board files
+- `docs/architecture/adr/**/*.md` -- ADR documents
+
+For each file whose last byte is not `0x0a` (newline), it appends a single `\n`.
+The operation is append-only at EOF -- it never rewrites line endings or file bodies.
+
+### Manual Invocation
+
+```bash
+# Fix mode (default): append trailing newlines where missing
+make normalize-board-eof
+
+# Or invoke directly:
+scripts/gates/normalize-board-eof.sh
+
+# Check-only mode: list dirty files and exit 1, do not mutate
+scripts/gates/normalize-board-eof.sh --check
+```
+
+The normalizer is **idempotent** -- a second run after fixing produces no diffs.
+
+### `make commit` Wiring
+
+The normalizer is the first dependency of `make commit`, so every pre-commit
+validation pass ensures board files have trailing newlines:
+
+```
+commit: normalize-board-eof check-essential check-no-scanner test
+```
+
+This means `make commit` automatically fixes EOF before running essential checks
+and tests. You never need to remember to run it manually.
+
+### Relationship to `end-of-file-fixer`
+
+The pre-commit framework's `end-of-file-fixer` hook remains enabled in
+`.pre-commit-config.yaml` as defense-in-depth. It still enforces trailing-newline
+for all **non-board** files (Go, YAML, JSON, etc.). Because the normalizer
+preemptively fixes board files, `end-of-file-fixer` passes on the first try for
+every commit.
+
 ## Intended Workflow (Pre-Commit Framework)
 
 Before committing Go changes, ensure imports and formatting are correct:

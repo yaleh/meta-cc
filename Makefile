@@ -44,7 +44,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # Default target when running 'make' without arguments
 .DEFAULT_GOAL := all
 
-.PHONY: all build stage test test-verbose test-all test-coverage clean install install-local install-user install-user-codex uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-docs check-path-independence _path-independence-probe print-ldflags-value
+.PHONY: all build stage test test-verbose test-all test-coverage clean install install-local install-user install-user-codex uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-docs normalize-board-eof check-path-independence _path-independence-probe print-ldflags-value
 
 # ==============================================================================
 # Build Quality Gates (BAIME Experiment - Iteration 1)
@@ -241,6 +241,9 @@ check-fixtures:
 check-deps:
 	@bash scripts/checks/check-deps.sh
 
+normalize-board-eof:
+	@bash scripts/gates/normalize-board-eof.sh
+
 # DIR-033: fails if any code outside internal/locator/ calls the raw,
 # unscoped SessionLocator.FromSessionID directly instead of going through
 # FromSessionIDScoped's cwd-boundary check. See scripts/checks/check-session-
@@ -318,7 +321,7 @@ dev: fmt build
 	@echo "  make commit"
 
 # Tier 2: COMMIT - Essential pre-commit validation (<60s)
-commit: check-essential check-no-scanner test
+commit: normalize-board-eof check-essential check-no-scanner test
 	@echo ""
 	@echo "✅ Ready to commit"
 	@echo ""
@@ -794,6 +797,7 @@ help:
 	@echo "Quality Gates (Grouped):"
 	@echo "  make check-essential         - P0: Essential validation (temp files, fixtures, deps, session locator, docs)"
 	@echo "  make check-docs              - P0: Documentation contract gate (removed tools, Go baseline, nav links; DIR-078)"
+	@echo "  make normalize-board-eof     - Ensure board files (tasks/**, docs/architecture/adr/**) end with newline (DIR-101)"
 	@echo "  make check-path-independence - Verify Makefile finds go/gofmt even with a minimal PATH (DIR-035)"
 	@echo "  make check-code-quality      - P1: Code quality (formatting, mod tidy)"
 	@echo "  make check-build-quality     - P1: Build quality (plugin sync, go quality)"
