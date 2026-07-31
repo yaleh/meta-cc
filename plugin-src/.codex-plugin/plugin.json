@@ -1,6 +1,6 @@
 {
   "name": "meta-cc",
-  "version": "3.7.4",
+  "version": "3.8.0",
   "description": "Meta-cognition tools for Claude Code and Codex: session history analysis, workflow optimization, and prompt library workflows.",
   "author": {
     "name": "Yale Huang",

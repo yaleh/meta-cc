@@ -5,6 +5,33 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.0] - 2026-07-31
+
+
+### Added
+
+- make file_ref results self-describing and add server-side result shaping (DIR-080)
+- harden Stage 2 preflight, session-file inspection, and query diagnostics (DIR-079)
+
+### Changed
+
+- Documentation: board-unblocking wave 1 — promote DIR-086/088/091/092/101 to ready
+- Documentation: DIR-087 gate-format normalization (DoD floor + checked AC checkboxes)
+- Documentation: author+promote DIR-087 to ready (board-unblocking pilot)
+- Maintenance: iters 19-20 idle + self-validation routine report (loop state)
+- Documentation: mark DIR-080 done (iter 18 lifecycle record)
+- Maintenance: iter 18 landed — gate events + loop state (DIR-080 done)
+- Documentation: file DIR-100/101 from history-mining routine (iter 18); DIR-079/081 done, DIR-080 Touches
+- Maintenance: iter 17 landed — gate events + loop state (DIR-079, DIR-081 done)
+- Maintenance: record DIR-081 acceptance gate pass
+- Documentation: supersede ADR-001/003 with provider-neutral MCP-only architecture (DIR-081)
+- Maintenance: declare Touches + scope.owner_repo for DIR-079, DIR-081 (loop iter 17 prep)
+- Documentation: file DIR-082..DIR-099 iteration-speed and meta-cc dogfooding tasks
+
+### Fixed
+
+- increase concurrency from 1 to 4 for improved task dispatching
+
 ## [3.7.4] - 2026-07-30
 
 
