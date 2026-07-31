@@ -107,3 +107,18 @@ func TestValidateRecipes_ActionableError(t *testing.T) {
 	assert.Contains(t, err.Error(), ".message.content[].text")
 	assert.Contains(t, err.Error(), "record")
 }
+
+func TestValidateRecipesDoesNotMutateInput(t *testing.T) {
+	record := map[string]interface{}{
+		"count": int64(1),
+		"nested": []interface{}{
+			map[string]interface{}{"value": int32(2)},
+		},
+	}
+	recipes := []Recipe{{ID: "count", JQ: ".count", Scope: "record"}}
+
+	require.NoError(t, ValidateRecipes(recipes, []interface{}{record}))
+	require.IsType(t, int64(0), record["count"])
+	nested := record["nested"].([]interface{})[0].(map[string]interface{})
+	require.IsType(t, int32(0), nested["value"])
+}

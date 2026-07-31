@@ -177,7 +177,10 @@ func ValidateRecipes(recipes []Recipe, records []interface{}) error {
 			continue
 		}
 		for i, record := range records {
-			iter := query.Run(record)
+			// gojq normalizes numeric values in place before execution. File-ref
+			// responses may be built concurrently from the same result slice, so
+			// never let recipe validation mutate caller-owned records.
+			iter := query.Run(cloneJQInput(record))
 			for {
 				value, ok := iter.Next()
 				if !ok {
@@ -197,4 +200,23 @@ func ValidateRecipes(recipes []Recipe, records []interface{}) error {
 		return nil
 	}
 	return fmt.Errorf("recipe validation failed: %s", strings.Join(failures, "; "))
+}
+
+func cloneJQInput(value interface{}) interface{} {
+	switch value := value.(type) {
+	case map[string]interface{}:
+		cloned := make(map[string]interface{}, len(value))
+		for key, child := range value {
+			cloned[key] = cloneJQInput(child)
+		}
+		return cloned
+	case []interface{}:
+		cloned := make([]interface{}, len(value))
+		for i, child := range value {
+			cloned[i] = cloneJQInput(child)
+		}
+		return cloned
+	default:
+		return value
+	}
 }
