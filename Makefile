@@ -544,9 +544,15 @@ test-e2e-codex: build
 		"$(BUILD_DIR)/bundles/meta-cc-v0.0.0-codex-e2e-$$GOOS-$$GOARCH" \
 		"./bin/$(MCP_BINARY_NAME)"
 
-test-all: test test-e2e-mcp test-e2e-codex
+# DIR-086: test-all is the single suite-executing `go test` run in the push
+# path.  It omits -short so slow/e2e tests execute (the E2E shell scripts are
+# separate prerequisites), and it writes coverage.out so that test-coverage-check
+# can validate the threshold without a second scan.  Do NOT add `test` back as a
+# prerequisite — the short-mode run already gates `make commit` and repeating it
+# here would be a second execution.
+test-all: test-e2e-mcp test-e2e-codex
 	@echo "Running all tests (including slow E2E tests ~30s)..."
-	$(GOTEST) -v ./...
+	$(GOTEST) -v -coverpkg=./... -coverprofile=coverage.out ./...
 	@echo ""
 	@echo "✅ All tests passed (unit + E2E)"
 
@@ -726,8 +732,11 @@ install-pre-commit:
 	@echo "Installing pre-commit hooks..."
 	@bash scripts/install/install-pre-commit.sh
 
+# DIR-086: test-coverage-check only validates the threshold against
+# coverage.out produced by test-all (the single suite-executing run in the push
+# path).  Do NOT add a `go test -coverpkg=...` line here — that would be a
+# second execution.
 test-coverage-check:
-	@$(GOTEST) -coverpkg=./... -coverprofile=coverage.out ./... > /dev/null 2>&1
 	@bash scripts/checks/check-coverage.sh 80
 
 lint-fix:
@@ -762,10 +771,10 @@ help:
 	@echo "  make build                   - Build meta-cc-mcp MCP server"
 	@echo "  make stage                   - Build + copy binary to plugin-src/bin/ for local install"
 	@echo "  make test                    - Run tests (short mode, skips slow E2E tests)"
-	@echo "  make test-all                - Run all tests (including slow E2E tests ~30s)"
+	@echo "  make test-all                - Run full test suite + coverage profile (single pass)"
 	@echo "  make test-e2e-codex          - Run Codex install/session E2E tests"
 	@echo "  make test-coverage           - Run tests with coverage report"
-	@echo "  make test-coverage-check     - Check test coverage meets 80% threshold"
+	@echo "  make test-coverage-check     - Verify coverage threshold (\(\geq 80\%\)) from test-all profile"
 	@echo "  make lint                    - Run static analysis (fmt + vet + error-linting + golangci-lint + markdown)"
 	@echo "  make lint-markdown           - Run markdown linting"
 	@echo "  make fmt                     - Format code with gofmt"
