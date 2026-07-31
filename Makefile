@@ -55,7 +55,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # ==============================================================================
 
 # Group 1: Essential (P0) - Blocks commit
-check-essential: check-temp-files check-fixtures check-deps check-session-locator-scope check-path-independence check-docs
+check-essential: check-temp-files check-fixtures check-deps check-session-locator-scope check-docs
 	@echo "✅ Essential validation passed"
 
 # Group 2: Code Quality (P1) - Blocks push
@@ -229,7 +229,7 @@ check-commit-ready: check-essential test
 	@echo "✅ Ready for commit (essential checks passed)"
 
 # Full validation for push (uses new grouped checks)
-check-push-ready: check-essential check-code-quality check-build-quality test-all lint build
+check-push-ready: check-essential check-path-independence check-code-quality check-build-quality test-all lint build
 	@echo "✅ Ready for push (all quality gates passed)"
 
 check-temp-files:
@@ -332,7 +332,7 @@ commit: check-essential check-no-scanner test
 	@echo "  make push"
 
 # Tier 3: PUSH - Full validation before push (<120s)
-push: check-code-quality check-build-quality check-comprehensive test-all test-coverage-check test-bats lint build
+push: check-path-independence check-code-quality check-build-quality check-comprehensive test-all test-coverage-check test-bats lint build
 	@echo ""
 	@echo "✅ Ready to push"
 	@echo ""
@@ -792,7 +792,7 @@ help:
 	@echo "  make check-release-ready              - Verify latest tag matches marketplace.json"
 	@echo ""
 	@echo "Quality Gates (Grouped):"
-	@echo "  make check-essential         - P0: Essential validation (temp files, fixtures, deps, PATH independence)"
+	@echo "  make check-essential         - P0: Essential validation (temp files, fixtures, deps, session locator, docs)"
 	@echo "  make check-docs              - P0: Documentation contract gate (removed tools, Go baseline, nav links; DIR-078)"
 	@echo "  make check-path-independence - Verify Makefile finds go/gofmt even with a minimal PATH (DIR-035)"
 	@echo "  make check-code-quality      - P1: Code quality (formatting, mod tidy)"
