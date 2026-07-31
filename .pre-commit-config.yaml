@@ -13,15 +13,13 @@
 #   - Update hooks: pre-commit autoupdate
 
 repos:
-  # Go formatting and imports (go-imports includes go-fmt functionality)
+  # Go formatting and imports
+  # goimports is a local check-only hook (DIR-092) — the upstream
+  # run-go-imports.sh hardcodes -w which causes a rewrite loop.
+  # Run 'make fix-imports' before committing to satisfy this hook.
   - repo: https://github.com/dnephin/pre-commit-golang
     rev: v0.5.1
     hooks:
-      - id: go-imports
-        name: goimports
-        description: Format Go code and organize imports
-        args: [-w, -local=github.com/yaleh/meta-cc]
-
       # go-vet removed: redundant with golangci-lint and has hook issues
       # Use: golangci-lint (includes go vet) and go test (short)
 
@@ -62,6 +60,14 @@ repos:
         language: system
         pass_filenames: false
         always_run: false
+        files: \.go$
+
+      # goimports check-only (DIR-092): replace upstream hook that hardcodes -w
+      - id: go-imports-check
+        name: goimports (check-only)
+        description: Verify Go imports are formatted (run 'make fix-imports' to fix)
+        entry: scripts/hooks/check-go-imports.sh
+        language: script
         files: \.go$
 
       # Marketplace.json validation (Phase 27.6)
