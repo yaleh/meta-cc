@@ -18,7 +18,7 @@ func StandardToolParameters() map[string]Property {
 	return map[string]Property{
 		"scope": {
 			Type:        "string",
-			Description: "Query scope: 'project' (default) or 'session'",
+			Description: "Query scope: 'project' (default) or 'session'. Note: 'project' covers ALL sessions in the project, including the caller's own session — when verifying what another session did, use the session_id parameter instead of relying on scope alone.",
 		},
 		"provider": {
 			Type:        "string",
@@ -155,7 +155,8 @@ func SessionIDProperty() Property {
 		Type: "string",
 		Description: `Exact session/thread ID to query, reading only that one session (never "most recent" and never every session in scope). ` +
 			`Distinct from scope="session" (which means "the most recently modified session" and is unrelated to a specific ID). ` +
-			`When set, "scope" and "cwd"/project-boundary filters still apply to the fetched session's metadata (e.g. a session outside the current project is excluded), but no other session is listed or loaded.`,
+			`When set, "scope" and "cwd"/project-boundary filters still apply to the fetched session's metadata (e.g. a session outside the current project is excluded), but no other session is listed or loaded. ` +
+			`Prefer this parameter for cross-session verification (checking what another specific session ran): scope="project" without session_id also returns the caller's own session, which can look like a valid answer to a different question.`,
 	}
 }
 
@@ -437,7 +438,7 @@ func GetToolDefinitions() []Tool {
 		// ─── New consolidated query tools (replacing the 10 legacy query_* tools) ───
 
 		BuildTool("query_session_content",
-			"Query session messages by role (user/assistant/tool/all). Default scope: project. role=tool outputs: {timestamp, session_id, turn, ...block fields}. For custom transform, first call inspect_session_files(include_samples=true).",
+			"Query session messages by role (user/assistant/tool/all). Default scope: project. role=tool outputs: {timestamp, sessionId, turn, ...block fields}. For custom transform, first call inspect_session_files(include_samples=true).",
 			map[string]Property{
 				"role": {
 					Type:        "string",
@@ -453,7 +454,7 @@ func GetToolDefinitions() []Tool {
 				},
 				"block_type": {
 					Type:        "string",
-					Description: "When role=tool: 'tool_use' or 'tool_result' (default: 'tool_use'). Each result includes outer context fields: timestamp, sessionId, turn.",
+					Description: "When role=tool: 'tool_use' or 'tool_result' (default: 'tool_use'). Each result includes outer context fields: timestamp, sessionId, turn. Remaining fields are the raw upstream block passed through unchanged — e.g. tool_use blocks may carry `caller`, a Claude Code field whose only observed values are null and {\"type\":\"direct\"}; it does NOT indicate subagent origin.",
 				},
 				"tool_name": {
 					Type:        "string",

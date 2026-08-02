@@ -192,6 +192,8 @@ Additional parameters when `role=tool`:
 - `block_type` — `tool_use` (default) or `tool_result`
 - `tool_name` — substring or regex filter on the tool's `name` field (only applies to `block_type=tool_use`); e.g. `"Dispatch"` or `"Read|Write"`
 
+Output shape when `role=tool`: each result merges outer context fields `{timestamp, sessionId, turn}` (camelCase `sessionId`, not `session_id`) with the raw upstream block fields. Raw block fields are passed through unchanged — e.g. tool_use blocks may carry `caller`, a Claude Code field whose only observed values are `null` and `{"type":"direct"}`; it does **not** indicate subagent origin.
+
 Examples:
 
 ```javascript
