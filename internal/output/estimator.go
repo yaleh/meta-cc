@@ -17,6 +17,23 @@ type SizeEstimate struct {
 // EstimateToolCallsSize estimates the output size for ToolCall slice
 // Achieves ≥95% accuracy by sampling actual JSON serialization
 func EstimateToolCallsSize(tools []types.ToolCall, format string) (SizeEstimate, error) {
+	// Empty input: no records means no output body. json still serializes the
+	// empty array literal "[]" (2 bytes); md/csv/default have no rows and so
+	// estimate 0 bytes. Previously md/csv/default reported a fixed non-zero
+	// size (500/100/0) for zero records, overstating empty results.
+	if len(tools) == 0 {
+		sizeBytes := 0
+		if format == "json" {
+			sizeBytes = 2 // "[]"
+		}
+		return SizeEstimate{
+			EstimatedBytes: sizeBytes,
+			EstimatedKB:    float64(sizeBytes) / 1024.0,
+			Format:         format,
+			RecordCount:    0,
+		}, nil
+	}
+
 	var sizeBytes int
 
 	switch format {
