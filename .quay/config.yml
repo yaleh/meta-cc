@@ -28,7 +28,7 @@ providers:
     enabled: true
     path: "."
     mcp_entry: ["quay-native", "mcp"]
-    default_task_status: ready     # uncomment to override; valid values: todo, ready, done, needs-human
+    default_task_status: todo     # uncomment to override; valid values: todo, ready, done, needs-human
     env:
       QUAY_NATIVE_TASKS_DIR: "./tasks"
       QUAY_NATIVE_ADR_DIR: "./docs/architecture/adr"   # meta-cc ADRs live in docs/architecture/adr (DIR-009)
