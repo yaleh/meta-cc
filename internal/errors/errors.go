@@ -59,4 +59,10 @@ var (
 	// ErrConfigError indicates a configuration error.
 	// Use for invalid config values, missing required config, config validation failures.
 	ErrConfigError = errors.New("configuration error")
+
+	// ErrDuplicate indicates a resource already exists and cannot be created twice.
+	// Use for duplicate IDs, duplicate sessions, duplicate records, and other
+	// "already exists" conditions where the caller must distinguish a duplicate
+	// from a malformed input (ErrInvalidInput) or a missing resource (ErrNotFound).
+	ErrDuplicate = errors.New("duplicate resource")
 )
