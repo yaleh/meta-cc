@@ -34,7 +34,12 @@ func EnsureDir(indexPath string) error {
 	gitignore := filepath.Join(dir, ".gitignore")
 	if _, err := os.Stat(gitignore); os.IsNotExist(err) {
 		content := "# Derived FTS index (DIR-031) - safe to delete, rebuilt on demand.\n*\n"
-		_ = os.WriteFile(gitignore, []byte(content), 0o644)
+		// The .gitignore guards the derived database against accidental
+		// commits; if it cannot be written, the caller must know rather than
+		// silently leaving the index unguarded.
+		if err := os.WriteFile(gitignore, []byte(content), 0o644); err != nil {
+			return err
+		}
 	}
 	return nil
 }
