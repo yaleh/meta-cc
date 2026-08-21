@@ -139,20 +139,16 @@ check-mod-tidy:
 test-bats:
 	@echo "=== Bats Pipeline Tests ==="
 	@echo ""
-	@if ! command -v bats >/dev/null 2>&1; then \
+	@if command -v bats >/dev/null 2>&1; then \
+		echo "Running Bats tests..."; \
+		bats tests/scripts/*.bats; \
+		echo ""; \
+		echo "✅ Bats tests passed"; \
+	else \
 		echo "⚠️  WARNING: bats not installed"; \
-		echo ""; \
-		echo "Install with:"; \
-		echo "  Ubuntu/Debian: sudo apt-get install bats"; \
-		echo "  macOS: brew install bats-core"; \
-		echo ""; \
+		echo "Install with: apt-get install bats / brew install bats-core"; \
 		echo "Skipping Bats tests..."; \
-		exit 0; \
 	fi
-	@echo "Running Bats tests..."
-	@bats tests/scripts/*.bats
-	@echo ""
-	@echo "✅ Bats tests passed"
 
 check-release-ready:
 	@echo "=== Release Readiness Check ==="
