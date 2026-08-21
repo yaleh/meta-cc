@@ -5,6 +5,25 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.4] - 2026-08-21
+
+
+### Changed
+
+- fix test-bats skip guard so bats-less machines skip cleanly
+- Tests: pin files backend in codex fixture helpers; skip .gocache in LDFLAGS guard
+- Tests: pin files backend in codex-e2e.sh for hermetic corpus
+- Maintenance: ignore quay loop runtime artifacts (.quay/runtime/, tasks/.quay-parse-cache.json)
+
+### Other
+
+- tasks: AC118-001/002/003 execute-to-done gate passed, flip to done
+- ftsindex: EnsureDir propagates .gitignore write error
+- errors: add ErrDuplicate sentinel for duplicate-resource conditions
+- output: EstimateToolCallsSize empty-input guard for md/csv/default
+- tasks: AC118-001/002/003 author→ready gate passed, flip to ready
+- tasks: add AC118-001/002/003 as todo (AC118 third-party lifecycle verification)
+
 ## [3.8.3] - 2026-08-02
 
 
