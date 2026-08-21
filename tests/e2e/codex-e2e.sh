@@ -110,6 +110,12 @@ TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 CODEX_HOME="$TMP_DIR/codex-home"
+# Pin the files backend: in auto mode the provider spawns a real `codex
+# app-server` child (65bcb7a) whose ThreadList reads the same CODEX_HOME but
+# returns nothing for this hand-written threads table, shadowing the hermetic
+# rollout corpus this test sets up. This test only exercises the files
+# (sqlite/rollout) backend, so it must never depend on a live app server.
+export META_CC_CODEX_BACKEND=files
 CLAUDE_DIR="$TMP_DIR/claude-home"
 INSTALL_DIR="$TMP_DIR/bin"
 PLUGIN_DATA_DIR="$TMP_DIR/plugin-data"
