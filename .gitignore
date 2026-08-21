@@ -77,3 +77,7 @@ CHANGELOG.md.bak
 .epicd/.last-review-commit
 .epicd/tasks/.scanner-ready.lock
 .manda/hub.addr
+
+# quay loop runtime coordination artifacts
+.quay/runtime/
+tasks/.quay-parse-cache.json
