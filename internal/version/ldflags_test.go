@@ -153,6 +153,10 @@ func TestNoHandDuplicatedDeadPathLDFLAGS(t *testing.T) {
 		"dist":         true,
 		"bin":          true,
 		".archguard":   true,
+		// Repo-local Go build cache (gitignored): compiled artifacts embed the
+		// ldflags -X strings from whichever build produced them. Like dist/bin,
+		// it is cache output, never live build wiring.
+		".gocache": true,
 	}
 
 	var hits []string

@@ -22,6 +22,9 @@ import (
 // setupCodexHome. Returns the resolved project path to pass as working_dir.
 func setupCodexRolloutFixtureProject(t *testing.T, fixtureName string) string {
 	t.Helper()
+	// Pin the files backend: auto mode spawns a real `codex app-server` child
+	// which shadows this hermetic fixture corpus (see tests/e2e/codex-e2e.sh).
+	t.Setenv("META_CC_CODEX_BACKEND", "files")
 
 	projectPath := t.TempDir()
 	resolvedProject, err := filepath.EvalSymlinks(projectPath)

@@ -21,6 +21,9 @@ import (
 // can only return the right corpus if it follows the host default (DIR-073).
 func setupStageDualCorpus(t *testing.T) string {
 	t.Helper()
+	// Pin the files backend so a real `codex app-server` never shadows the
+	// hermetic fixture corpus (see tests/e2e/codex-e2e.sh).
+	t.Setenv("META_CC_CODEX_BACKEND", "files")
 
 	projectPath, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)

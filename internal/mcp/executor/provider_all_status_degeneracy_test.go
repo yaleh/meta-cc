@@ -39,6 +39,9 @@ import (
 // providers and all three sessions.
 func setupProviderAllStatusDegeneracyFixture(t *testing.T) (projectPath string) {
 	t.Helper()
+	// Pin the files backend so a real `codex app-server` never shadows the
+	// hermetic fixture corpus (see tests/e2e/codex-e2e.sh).
+	t.Setenv("META_CC_CODEX_BACKEND", "files")
 
 	claudeRoot := t.TempDir()
 	t.Setenv("META_CC_PROJECTS_ROOT", claudeRoot)

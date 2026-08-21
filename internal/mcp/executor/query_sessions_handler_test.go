@@ -26,6 +26,9 @@ import (
 // behavior around the archived dimension can be tested directly (DIR-032).
 func setupCodexArchivedAndActiveSessionFixtureProject(t *testing.T) (projectPath string) {
 	t.Helper()
+	// Pin the files backend so a real `codex app-server` never shadows the
+	// hermetic fixture corpus (see tests/e2e/codex-e2e.sh).
+	t.Setenv("META_CC_CODEX_BACKEND", "files")
 
 	projectDir := t.TempDir()
 	resolvedProject, err := filepath.EvalSymlinks(projectDir)

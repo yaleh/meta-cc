@@ -21,6 +21,9 @@ import (
 // resolved project path to pass as working_dir.
 func setupCodexMultiSessionFixtureProject(t *testing.T, goodCount int) string {
 	t.Helper()
+	// Pin the files backend so a real `codex app-server` never shadows the
+	// hermetic fixture corpus (see tests/e2e/codex-e2e.sh).
+	t.Setenv("META_CC_CODEX_BACKEND", "files")
 
 	projectPath := t.TempDir()
 	resolvedProject, err := filepath.EvalSymlinks(projectPath)

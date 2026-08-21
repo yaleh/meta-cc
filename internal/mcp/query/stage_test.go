@@ -207,6 +207,9 @@ func setupClaudeSessionDir(t *testing.T) (projectsRoot, sessionDir, projectPath 
 // writes a minimal rollout file at that path. Returns the rollout file path.
 func setupCodexHomeDir(t *testing.T, sessionID, cwd string) (codexHome, rolloutPath string) {
 	t.Helper()
+	// Pin the files backend so a real `codex app-server` never shadows the
+	// hermetic fixture corpus (see tests/e2e/codex-e2e.sh).
+	t.Setenv("META_CC_CODEX_BACKEND", "files")
 
 	codexHome = t.TempDir()
 	t.Setenv("META_CC_CODEX_ROOT", codexHome)

@@ -20,6 +20,9 @@ import (
 // the session.
 func setupCodexHome(t *testing.T, codexHome, sessionID, cwd string) string {
 	t.Helper()
+	// Pin the files backend so a real `codex app-server` never shadows the
+	// hermetic fixture corpus (see tests/e2e/codex-e2e.sh).
+	t.Setenv("META_CC_CODEX_BACKEND", "files")
 	t.Setenv("META_CC_CODEX_ROOT", codexHome)
 
 	rolloutPath := filepath.Join(codexHome, sessionID+".jsonl")
@@ -63,6 +66,9 @@ func setupCodexHomeMultiProject(t *testing.T, codexHome string, sessions []struc
 	createdAt int64
 }) map[string]string {
 	t.Helper()
+	// Pin the files backend so a real `codex app-server` never shadows the
+	// hermetic fixture corpus (see tests/e2e/codex-e2e.sh).
+	t.Setenv("META_CC_CODEX_BACKEND", "files")
 	t.Setenv("META_CC_CODEX_ROOT", codexHome)
 
 	db, err := sql.Open("sqlite", filepath.Join(codexHome, "state_5.sqlite"))

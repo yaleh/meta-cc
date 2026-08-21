@@ -116,6 +116,9 @@ func setupEmptyProjectDir(t *testing.T) string {
 
 func setupCodexProviderProject(t *testing.T) string {
 	t.Helper()
+	// Pin the files backend so a real `codex app-server` never shadows the
+	// hermetic fixture corpus (see tests/e2e/codex-e2e.sh).
+	t.Setenv("META_CC_CODEX_BACKEND", "files")
 	t.Setenv("META_CC_PROJECTS_ROOT", filepath.Join(t.TempDir(), "missing-claude-root"))
 	t.Setenv("HOME", t.TempDir())
 
