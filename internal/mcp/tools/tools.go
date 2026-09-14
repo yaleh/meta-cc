@@ -160,6 +160,35 @@ func SessionIDProperty() Property {
 	}
 }
 
+// TimeWindowProperties is the RFC3339 "since"/"until" time-window pair shared
+// by the six analysis.Service-backed tools (analyze_errors, analyze_bugs,
+// quality_scan, get_work_patterns, get_timeline, get_tech_debt).
+//
+// DIR-095: get_timeline already honored since/until (and query_session_content
+// / query_session_signals declare their own), but the other five analysis
+// tools declared no time filter at all — so a "last 2 days" question silently
+// produced whole-corpus statistics. They now take the same two parameters,
+// with the same semantics: since is inclusive, until is exclusive.
+//
+// Declared once so all six tools document the window identically rather than
+// drifting apart the way five separately hand-written copies would. It is
+// merged into each tool's own property map (see BuildAnalysisTool call sites
+// below) rather than added to AnalysisStandardToolParameters(), because the
+// window is a genuine per-tool data-selection parameter, not part of the
+// shared base set.
+func TimeWindowProperties() map[string]Property {
+	return map[string]Property{
+		"since": {
+			Type:        "string",
+			Description: `Include only records with timestamp >= this value (ISO 8601 / RFC3339, e.g. "2026-01-01T00:00:00Z"). Filtering happens before aggregation, so counts, rates, and stats_only summaries all describe the window rather than the whole corpus. An unparseable value is rejected as invalid input.`,
+		},
+		"until": {
+			Type:        "string",
+			Description: `Include only records with timestamp < this value (ISO 8601 / RFC3339, e.g. "2026-06-01T00:00:00Z"). Exclusive bound; pairs with since to bound a window. An unparseable value is rejected as invalid input.`,
+		},
+	}
+}
+
 // OutputFormatProperty is the "output_format" property shared by the four
 // consolidated query tools (query_sessions, query_session_content,
 // query_session_signals, query_file_activity) whose results are produced via
@@ -351,7 +380,7 @@ func GetToolDefinitions() []Tool {
 				Required: []string{"files", "filter"},
 			},
 		},
-		BuildAnalysisTool("analyze_errors", "Aggregate tool errors by tool name and error type. Default scope: project.", map[string]Property{
+		BuildAnalysisTool("analyze_errors", "Aggregate tool errors by tool name and error type. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"limit": {
 				Type:        "number",
 				Description: "Max examples per group (0 = unlimited)",
@@ -361,8 +390,8 @@ func GetToolDefinitions() []Tool {
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 			"session_id": SessionIDProperty(),
-		}),
-		BuildAnalysisTool("analyze_bugs", "Detect error-fix pairs and recurring bug patterns. Default scope: project.", map[string]Property{
+		})),
+		BuildAnalysisTool("analyze_bugs", "Detect error-fix pairs and recurring bug patterns. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"max_patterns": {
 				Type:        "number",
 				Description: "Max patterns to return, ranked by recurrence then fix count (default: 20; 0 = unlimited)",
@@ -376,21 +405,21 @@ func GetToolDefinitions() []Tool {
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 			"session_id": SessionIDProperty(),
-		}),
-		BuildAnalysisTool("quality_scan", "Compute quality dimensions: error rate, retry rate, diversity, completion. Default scope: project.", map[string]Property{
+		})),
+		BuildAnalysisTool("quality_scan", "Compute quality dimensions: error rate, retry rate, diversity, completion. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 			"session_id": SessionIDProperty(),
-		}),
-		BuildAnalysisTool("get_work_patterns", "Get tool frequency, hourly activity, and context switches. Default scope: project.", map[string]Property{
+		})),
+		BuildAnalysisTool("get_work_patterns", "Get tool frequency, hourly activity, and context switches. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 			"session_id": SessionIDProperty(),
-		}),
+		})),
 		BuildTool("get_session_metadata", "Get session metadata including JSONL schema, file info, and query templates. Default scope: project.", map[string]Property{
 			"scope": {
 				Type:        "string",
@@ -405,7 +434,7 @@ func GetToolDefinitions() []Tool {
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 		}),
-		BuildAnalysisTool("get_timeline", "Get chronological session events as JSON. Claude renders visualization. Default scope: project.", map[string]Property{
+		BuildAnalysisTool("get_timeline", "Get chronological session events as JSON. Claude renders visualization. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"limit": {
 				Type:        "number",
 				Description: "Max events to return (0 = unlimited)",
@@ -414,21 +443,13 @@ func GetToolDefinitions() []Tool {
 				Type:        "boolean",
 				Description: "Return summary statistics (total entries, time range, event type counts) instead of the full event list. Safe for large project scopes.",
 			},
-			"since": {
-				Type:        "string",
-				Description: `Include only entries with timestamp >= this value (ISO 8601 / RFC3339, e.g. "2026-01-01T00:00:00Z"). Enables full event stream for a focused time range even in large projects.`,
-			},
-			"until": {
-				Type:        "string",
-				Description: `Include only entries with timestamp < this value (ISO 8601 / RFC3339, e.g. "2026-06-01T00:00:00Z").`,
-			},
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 			"session_id": SessionIDProperty(),
-		}),
-		BuildAnalysisTool("get_tech_debt", "Detect TODO/FIXME/HACK/XXX markers and unresolved errors as tech debt. Default scope: project.", map[string]Property{
+		})),
+		BuildAnalysisTool("get_tech_debt", "Detect TODO/FIXME/HACK/XXX markers and unresolved errors as tech debt. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
@@ -438,7 +459,7 @@ func GetToolDefinitions() []Tool {
 				Description: "Optional path to source code directory to scan for TODO/FIXME/HACK/XXX markers on disk. Only code files are scanned (docs/data like .md/.json are excluded) and markers count only in comment context, not inside string or regex literals. Results merged with session-transcript markers (per-file counts take the max across buckets; hotspot entries carry provenance session/source/both).",
 			},
 			"session_id": SessionIDProperty(),
-		}),
+		})),
 		// ─── New consolidated query tools (replacing the 10 legacy query_* tools) ───
 
 		BuildTool("query_session_content",
@@ -544,6 +565,10 @@ func GetToolDefinitions() []Tool {
 				"status": {
 					Type:        "string",
 					Description: "When type=tool_stats: filter by status (error/success)",
+				},
+				"raw": {
+					Type:        "boolean",
+					Description: "When type=errors: return the untouched source record instead of the projected {timestamp, session_id, tool_name, error_text, category} shape. Default false.",
 				},
 				"since": {
 					Type:        "string",

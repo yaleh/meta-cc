@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	queryfiles "github.com/yaleh/meta-cc/internal/query/files"
 )
 
 func TestHandleInspectSessionFilesValidation(t *testing.T) {
@@ -41,9 +42,23 @@ func TestHandleInspectSessionFilesSuccessAndInspectionError(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, got)
 
-	_, err = HandleInspectSessionFiles(context.Background(), map[string]interface{}{"files": []interface{}{filepath.Join(t.TempDir(), "missing.jsonl")}})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to inspect files")
+	// DIR-098: an unreadable file is reported as structured data on the
+	// response, not raised as an error. The previous assertion here
+	// (require.Error + "failed to inspect files") is the fail-fast contract this
+	// task replaces: with one bad entry in the list, the caller lost the
+	// inspection of every other file.
+	missing := filepath.Join(t.TempDir(), "missing.jsonl")
+	got, err = HandleInspectSessionFiles(context.Background(), map[string]interface{}{"files": []interface{}{missing}})
+	require.NoError(t, err)
+
+	result, ok := got.(*queryfiles.InspectionResult)
+	require.True(t, ok, "expected an inspection result, got %T", got)
+	require.Len(t, result.MalformedFiles, 1)
+	assert.Equal(t, missing, result.MalformedFiles[0].File)
+	assert.NotEmpty(t, result.MalformedFiles[0].Reason, "a malformed file must carry a reason string")
+	require.Len(t, result.Files, 1)
+	assert.False(t, result.Files[0].Parseable)
+	assert.NotEmpty(t, result.Files[0].Error)
 }
 
 func TestHandleExecuteStage2QueryValidation(t *testing.T) {
