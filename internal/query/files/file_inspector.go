@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/parser"
+	providerpkg "github.com/yaleh/meta-cc/internal/provider"
 	"github.com/yaleh/meta-cc/internal/types"
 )
 
@@ -19,14 +20,24 @@ type RecordSample struct {
 	Preview   string `json:"preview"`
 }
 
-// FileMetadata contains metadata about a session file
+// FileMetadata contains metadata about a session file, including its health.
+//
+// The health fields (Entries, Parseable, Empty, Error) are what make a corrupt
+// file discoverable at inspection time rather than at crash time: before them,
+// a truncated file reported {"line_count": 1, "record_types": {}} — a shape
+// indistinguishable from a legitimately thin session, with nothing saying the
+// file was broken.
 type FileMetadata struct {
 	Path        string          `json:"path"`
 	SizeBytes   int64           `json:"size_bytes"`
 	LineCount   int             `json:"line_count"`
+	Entries     int             `json:"entries"`
+	Parseable   bool            `json:"parseable"`
+	Empty       bool            `json:"empty"`
 	RecordTypes map[string]int  `json:"record_types"`
 	TimeRange   types.TimeRange `json:"time_range"`
 	Samples     []RecordSample  `json:"samples,omitempty"`
+	Error       string          `json:"error,omitempty"`
 }
 
 // InspectionSummary provides aggregate information about inspected files
@@ -36,53 +47,73 @@ type InspectionSummary struct {
 	TotalRecords   int   `json:"total_records"`
 }
 
-// InspectionResult is the result of inspecting session files
+// InspectionResult is the result of inspecting session files. MalformedFiles is
+// empty for a healthy corpus and never nil.
 type InspectionResult struct {
-	Files   []FileMetadata    `json:"files"`
-	Summary InspectionSummary `json:"summary"`
+	Files          []FileMetadata              `json:"files"`
+	Summary        InspectionSummary           `json:"summary"`
+	MalformedFiles []providerpkg.MalformedFile `json:"malformed_files"`
 }
 
-// InspectFiles inspects one or more session files and returns metadata
-func InspectFiles(files []string, includeSamples bool) (*InspectionResult, error) {
+// InspectFiles inspects one or more session files and returns metadata.
+//
+// It does not fail on a bad file: an unreadable or empty or truncated entry is
+// reported as structured data in that file's FileMetadata (and named in
+// MalformedFiles), while the other files are inspected normally. Returning an
+// error for one file would erase every other file in the batch, which is the
+// whole-batch-abort failure this replaces.
+func InspectFiles(files []string, includeSamples bool) *InspectionResult {
 	result := &InspectionResult{
-		Files: make([]FileMetadata, 0, len(files)),
-		Summary: InspectionSummary{
-			TotalFiles: len(files),
-		},
+		Files:          make([]FileMetadata, 0, len(files)),
+		Summary:        InspectionSummary{TotalFiles: len(files)},
+		MalformedFiles: make([]providerpkg.MalformedFile, 0),
 	}
 
+	health := make([]providerpkg.FileHealth, 0, len(files))
 	for _, filePath := range files {
-		metadata, err := inspectFile(filePath, includeSamples)
-		if err != nil {
-			return nil, fmt.Errorf("failed to inspect file %s: %w", filePath, err)
+		// One probe decides health for every discovery surface; the line scan
+		// below only adds the descriptive detail (record types, time range,
+		// samples) that inspection exists to provide.
+		h := providerpkg.ProbeFileHealth(filePath, providerpkg.KindClaudeSession)
+		health = append(health, h)
+
+		metadata := FileMetadata{
+			Path:        filePath,
+			SizeBytes:   h.Bytes,
+			Entries:     h.Entries,
+			Parseable:   h.Parseable,
+			Empty:       h.Empty,
+			Error:       h.Error,
+			RecordTypes: make(map[string]int),
+		}
+		if h.Readable() {
+			if err := scanSessionFile(&metadata, includeSamples); err != nil {
+				// Raced away between probe and scan (or an I/O fault): record
+				// it on this file and keep the rest of the batch.
+				metadata.Parseable = false
+				metadata.Error = err.Error()
+			}
 		}
 
-		result.Files = append(result.Files, *metadata)
+		result.Files = append(result.Files, metadata)
 		result.Summary.TotalSizeBytes += metadata.SizeBytes
 		result.Summary.TotalRecords += metadata.LineCount
 	}
 
-	return result, nil
+	result.MalformedFiles = providerpkg.MalformedFilesFromHealth(health)
+	return result
 }
 
-// inspectFile inspects a single session file and returns its metadata
-func inspectFile(path string, includeSamples bool) (*FileMetadata, error) {
-	// Get file info
-	fileInfo, err := os.Stat(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to stat file: %w", err)
-	}
-
-	metadata := &FileMetadata{
-		Path:        path,
-		SizeBytes:   fileInfo.Size(),
-		RecordTypes: make(map[string]int),
-	}
+// scanSessionFile fills in the descriptive fields of an already-probed
+// FileMetadata. It is separate from the health probe on purpose: health has one
+// rule shared by every discovery tool, while this is inspection detail.
+func scanSessionFile(metadata *FileMetadata, includeSamples bool) error {
+	path := metadata.Path
 
 	// Open and read file
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
+		return fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
 
@@ -135,7 +166,7 @@ func inspectFile(path string, includeSamples bool) (*FileMetadata, error) {
 			break
 		}
 		if readErr != nil {
-			return nil, fmt.Errorf("error reading file: %w", readErr)
+			return fmt.Errorf("error reading file: %w", readErr)
 		}
 	}
 
@@ -150,7 +181,7 @@ func inspectFile(path string, includeSamples bool) (*FileMetadata, error) {
 		metadata.Samples = collectSamples(lines, metadata.RecordTypes)
 	}
 
-	return metadata, nil
+	return nil
 }
 
 // parseRecordType extracts the record type from a JSONL line

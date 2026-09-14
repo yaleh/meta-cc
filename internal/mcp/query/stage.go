@@ -13,6 +13,7 @@ import (
 	"github.com/yaleh/meta-cc/internal/config"
 	"github.com/yaleh/meta-cc/internal/conversation"
 	"github.com/yaleh/meta-cc/internal/locator"
+	providerpkg "github.com/yaleh/meta-cc/internal/provider"
 	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
 	"github.com/yaleh/meta-cc/internal/query/catalog"
 	"github.com/yaleh/meta-cc/internal/query/engine"
@@ -97,6 +98,11 @@ func buildClaudeDirectoryResult(scope, workingDir string) (map[string]interface{
 		"oldest_file":         metadata.OldestFile,
 		"newest_file":         metadata.NewestFile,
 		"subagent_file_count": subagentFileCount,
+		// DIR-098: the corpus is enumerated with its health attached, so a
+		// corrupt file (the 8eda8f4e empty/truncated shape) is discoverable
+		// here — before it hard-crashes a downstream query_sessions. Empty for
+		// a healthy corpus.
+		"malformed_files": providerpkg.MalformedFiles(mainFiles, providerpkg.KindClaudeSession),
 	}, nil
 }
 
@@ -136,6 +142,15 @@ func buildCodexDirectoryResult(ctx context.Context, scope, workingDir string) (m
 		}
 	}
 
+	// DIR-098: probe every selected rollout, not just the stat-able ones, so a
+	// file that could not even be stat'd is named instead of silently vanishing
+	// from "files" above. KindRaw: Codex rollouts are not Claude-shaped, so only
+	// readability is judged.
+	allPaths := make([]string, 0, len(files))
+	for _, f := range files {
+		allPaths = append(allPaths, f.Path)
+	}
+
 	result := map[string]interface{}{
 		"provider":         string(conversation.ProviderCodex),
 		"scope":            scope,
@@ -143,6 +158,7 @@ func buildCodexDirectoryResult(ctx context.Context, scope, workingDir string) (m
 		"file_count":       len(paths),
 		"total_size_bytes": totalSize,
 		"directory":        commonDirectory(paths),
+		"malformed_files":  providerpkg.MalformedFiles(allPaths, providerpkg.KindRaw),
 	}
 	if !oldest.IsZero() {
 		result["oldest_file"] = oldest.Format(time.RFC3339)
@@ -350,12 +366,10 @@ func HandleInspectSessionFiles(ctx context.Context, args map[string]interface{})
 		}
 	}
 
-	result, err := queryfiles.InspectFiles(files, includeSamples)
-	if err != nil {
-		return nil, fmt.Errorf("failed to inspect files: %w", err)
-	}
-
-	return result, nil
+	// DIR-098: InspectFiles cannot fail per-file — a bad file is reported as
+	// structured data on that file (and in malformed_files) rather than
+	// aborting the batch, so one corrupt entry no longer erases the rest.
+	return queryfiles.InspectFiles(files, includeSamples), nil
 }
 
 // HandleExecuteStage2Query implements execute_stage2_query tool
