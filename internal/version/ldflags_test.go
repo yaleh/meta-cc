@@ -42,6 +42,29 @@ import (
 // validate-artifacts.sh) and kept shipping dead LDFLAGS even after the
 // Makefile itself was fixed.
 func TestLDFLAGSCommitAndBuildTimeAreWired(t *testing.T) {
+	// DIR-085: this assertion spawns `make`, `git` and -- the expensive part
+	// -- a full `go build -ldflags` compiler invocation, measured at ~2.9s of
+	// wall time (4.8s for the whole package under -short). A compiler
+	// invocation inside the short path is disproportionate: this single
+	// package was contributing ~10% of the `-short` suite's wall time, and
+	// `make commit` (the acceptance gate every routine change pays) runs
+	// `go test -short ./...` on every single run.
+	//
+	// The DIR-049 guarantee itself is NOT weakened by this skip. `make push`
+	// and CI run `go test` WITHOUT `-short` (see the Makefile's `test-all`
+	// target, which deliberately omits -short so slow/E2E tests execute), so
+	// the assertion still runs exactly where it matters -- on the path where
+	// a release binary is actually produced and DIR-049's "the shipped binary
+	// embeds commit/build-time" promise has to hold. Plain `go test
+	// ./internal/version/` (non-short) also still executes it.
+	//
+	// The companion TestNoHandDuplicatedDeadPathLDFLAGS below (DIR-052) is
+	// deliberately NOT skipped: it only walks the tree, spawns no compiler,
+	// and costs ~0.2s, so the drift guard stays on the fast path.
+	if testing.Short() {
+		t.Skip("skipping DIR-049 ldflags build assertion in -short mode (spawns `go build`); it still runs on the non-short `go test` / `make push` path")
+	}
+
 	repoRoot := findRepoRoot(t)
 
 	// Per `go help test`: "Tests that open files within the package's
