@@ -76,8 +76,8 @@ target's own failure message names the sanctioned replacement:
 
 ## DoD
 
-- [ ] `make commit` green
-- [ ] the change landed on `main`
+- [x] `make commit` green
+- [ ] the change landed on `main`（待外部）
 
 ## Needs-Human
 
@@ -85,3 +85,22 @@ target's own failure message names the sanctioned replacement:
 
 - 阻碍原因：worker-driver 连续 3 次 <60000ms 快速死亡（退避上限）
 - 成因类：human-adjudication
+
+## Evidence
+
+Worktree `FIX-MCP-SCANNER` on branch `task/FIX-MCP-SCANNER`; implementation commit
+`fix(mcp-server): stop raw bufio.Scanner from killing the server on one big frame`.
+
+- `make check-no-scanner` → exit 0, `OK: No raw bufio.NewScanner found.` with the
+  `main.go` exemption deleted from the target: `git show HEAD~:cmd/mcp-server/main.go`
+  still contains `scanner := bufio.NewScanner(os.Stdin)` (line 74), i.e. the
+  grep now covers the file that carried the defect.
+- `go test ./cmd/mcp-server/ -run TestServeRequests -v` → 5/5 PASS:
+  a >64 KiB frame followed by a normal frame (both answered, `serveRequests`
+  returns nil, no -32603 input-error reply); a frame past the cap answered with
+  -32600 with the next frame still served; an over-long line whose read stopped
+  mid-line (tail does not swallow the next frame); ordinary `initialize` +
+  non-JSON + `initialize` (only the non-JSON line gets -32700); a final
+  newline-less frame.
+- `go test ./...` (the scoped gate, after `git merge develop`) → green.
+- `make commit` → exit 0.
