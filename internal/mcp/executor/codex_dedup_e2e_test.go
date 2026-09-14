@@ -1,67 +1,10 @@
 package executor
 
 import (
-	"database/sql"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
-
-	_ "modernc.org/sqlite"
 
 	"github.com/stretchr/testify/require"
 )
-
-// setupCodexRolloutFixtureProject wires a temporary Codex home (a
-// state_5.sqlite pointing at a single thread) backed by the given rollout
-// fixture under tests/fixtures/codex/. It rewrites the fixture's
-// placeholder cwd ("/tmp/project") to a real per-test directory so that
-// scope/project filtering (FilterSessionsForScope) matches, mirroring the
-// pattern used by internal/analysis/service_test.go's
-// setupCodexProviderProject and internal/provider/rawfiles/rawfiles_test.go's
-// setupCodexHome. Returns the resolved project path to pass as working_dir.
-func setupCodexRolloutFixtureProject(t *testing.T, fixtureName string) string {
-	t.Helper()
-	// Pin the files backend: auto mode spawns a real `codex app-server` child
-	// which shadows this hermetic fixture corpus (see tests/e2e/codex-e2e.sh).
-	t.Setenv("META_CC_CODEX_BACKEND", "files")
-
-	projectPath := t.TempDir()
-	resolvedProject, err := filepath.EvalSymlinks(projectPath)
-	require.NoError(t, err)
-
-	codexHome := filepath.Join(t.TempDir(), "codex-home")
-	t.Setenv("META_CC_CODEX_ROOT", codexHome)
-	require.NoError(t, os.MkdirAll(codexHome, 0o755))
-
-	rolloutPath := filepath.Join(codexHome, "rollout.jsonl")
-	fixture, err := os.ReadFile(filepath.Join("..", "..", "..", "tests", "fixtures", "codex", fixtureName))
-	require.NoError(t, err)
-	fixture = []byte(strings.ReplaceAll(string(fixture), "/tmp/project", resolvedProject))
-	require.NoError(t, os.WriteFile(rolloutPath, fixture, 0o644))
-
-	db, err := sql.Open("sqlite", filepath.Join(codexHome, "state_5.sqlite"))
-	require.NoError(t, err)
-	defer db.Close()
-	_, err = db.Exec(`CREATE TABLE threads (
-		id TEXT PRIMARY KEY,
-		rollout_path TEXT,
-		cwd TEXT,
-		title TEXT,
-		model TEXT,
-		model_provider TEXT,
-		tokens_used INTEGER,
-		source TEXT,
-		created_at INTEGER
-	)`)
-	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO threads(id, rollout_path, cwd, title, model, model_provider, tokens_used, source, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"codex-dedup-session", rolloutPath, resolvedProject, "dedup e2e test", "gpt-5", "openai", 0, "cli", int64(1700000000))
-	require.NoError(t, err)
-
-	return resolvedProject
-}
 
 // TestQuerySessionContent_Codex_DedupesAssistantSegmentsEndToEnd is an
 // end-to-end regression test for DIR-027 (duplicate Codex transcript
