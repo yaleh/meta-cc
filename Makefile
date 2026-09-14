@@ -44,7 +44,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # Default target when running 'make' without arguments
 .DEFAULT_GOAL := all
 
-.PHONY: all build stage test test-verbose test-all test-coverage clean install install-local install-user install-user-codex uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-docs normalize-board-eof check-path-independence _path-independence-probe print-ldflags-value
+.PHONY: all build stage test test-verbose test-all test-scoped test-coverage clean install install-local install-user install-user-codex uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-docs normalize-board-eof check-path-independence _path-independence-probe print-ldflags-value
 
 # ==============================================================================
 # Build Quality Gates (BAIME Experiment - Iteration 1)
@@ -537,6 +537,33 @@ test:
 	@echo "Running tests (short mode, compact output)..."
 	$(GOTEST) -short ./...
 
+# DIR-090: scoped, fail-fast iteration gate -- stage 1 of the two-stage
+# acceptance workflow (see docs/guides/testing.md). `make commit` is the
+# promotion gate, but it runs the whole short-mode suite and costs ~60s; most
+# acceptance retries are fix-compile-rerun cycles that only ever touched one
+# package. This target runs just the touched package's tests and then verifies
+# the entire module still builds, so a broken compile or a failing unit test
+# surfaces in seconds instead of after a full `make commit`.
+#
+#   make test-scoped PKGS=./internal/parser/...     # during iteration
+#   make commit                                     # before promoting
+#
+# PKGS defaults to ./... (a full short-mode run) so a bare `make test-scoped`
+# stays meaningful, but the scoped form above is the intended use. Note that
+# `go build ./...` is deliberately still the WHOLE module, not $(PKGS): the
+# common failure this catches is a scoped change breaking a caller elsewhere.
+#
+# Precedent: early tasks DIR-005/006/007 used hand-written scoped acceptance
+# strings (`go test ./internal/mcp/executor/... && go build ./...`) for exactly
+# this reason, before the fleet standardized on full `make commit`.
+PKGS ?= ./...
+test-scoped:
+	@echo "==> Scoped tests (fail-fast): go test -short $(PKGS)"
+	$(GOTEST) -short $(PKGS)
+	@echo "==> Scoped build: go build ./..."
+	$(GOBUILD) ./...
+	@echo "✅ Scoped checks passed ($(PKGS))"
+
 test-verbose:
 	@echo "Running tests (short mode, verbose output)..."
 	$(GOTEST) -short -v ./...
@@ -785,6 +812,8 @@ help:
 	@echo "  make stage                   - Build + copy binary to plugin-src/bin/ for local install"
 	@echo "  make test                    - Run tests (short mode, compact output)"
 	@echo "  make test-verbose            - Run tests (short mode, verbose per-test output)"
+	@echo "  make test-scoped PKGS=<pkgs> - Scoped fail-fast check: go test -short <pkgs> + go build ./..."
+	@echo "                                 (stage 1 of two-stage acceptance; default PKGS=./...; DIR-090)"
 	@echo "  make test-all                - Run full test suite + coverage profile (single pass)"
 	@echo "  make test-e2e-codex          - Run Codex install/session E2E tests"
 	@echo "  make test-coverage           - Run tests with coverage report"
