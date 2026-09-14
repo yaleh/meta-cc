@@ -365,4 +365,17 @@ func TestExecuteTool_QuerySessionSignals_RawFlagAcceptedBySchema(t *testing.T) {
 	require.Len(t, data, 2)
 	require.Contains(t, data[0], "toolUseResult", "raw=true must return the unprojected record")
 	require.NotContains(t, data[0], "error_text")
+
+	// The raw-mode recipe documented in docs/guides/two-stage-query-guide.md,
+	// run through the real tool: with raw records the failing calls have to be
+	// re-derived from the original nesting, since .category does not exist here.
+	out, err = e.ExecuteTool(cfg, "query_session_signals", map[string]interface{}{
+		"type": "errors", "working_dir": projectPath, "raw": true,
+		"jq_filter": `.[] | select(.message.content[]? | select(.type == "tool_result" and .is_error))`,
+	})
+	require.NoError(t, err)
+	data = extractDataArray(t, out)
+	require.Len(t, data, 2, "the documented raw recipe must select both failing calls")
+	require.Equal(t, "user", data[0]["type"])
+	require.Contains(t, data[0], "toolUseResult")
 }

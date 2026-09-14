@@ -700,7 +700,7 @@ query_session_signals({
   jq_filter: '.[] | select(.category == "bash_exit_code")'
 })
 
-// 3. Which tools fail most, as {tool_name, error_text} pairs
+// 3. Just the two fields you want, one record per failure
 query_session_signals({
   type: "errors",
   scope: "project",
@@ -714,8 +714,8 @@ agree and you can move between them without remapping.
 
 **When you need the raw record instead**, pass `raw: true` — that restores the
 pre-DIR-097 shape (the untouched user-role JSONL record, with `toolUseResult`,
-`message.content[]`, and camelCase `sessionId`). A recipe written against the
-raw shape needs one or the other:
+`message.content[]`, and camelCase `sessionId`). The same question, asked both
+ways:
 
 ```javascript
 // Projected: select on a flattened field
