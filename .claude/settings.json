@@ -1,0 +1,10 @@
+{
+  "enabledPlugins": {
+    "quay@quay": true
+  },
+  "permissions": {
+    "allow": [
+      "mcp__plugin_quay_quay__*"
+    ]
+  }
+}

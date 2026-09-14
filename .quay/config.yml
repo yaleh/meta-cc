@@ -1,196 +1,73 @@
-# .quay/config.yml — unified per-workspace config (DIR-050).
-# Travels with the project; single source of truth for provider, gate, and loop config.
-#
-# Sections:
-#   providers: — which Provider is enabled, its path, env, and creation defaults
-#   gates:     — workspace-owned gates (it0, adr, fixed, testPass, coverageFloor, redGreen)
-#   loop:      — autonomous loop driver params (board, stop, policy, execution, audit, routines)
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PROVIDERS
-# ═══════════════════════════════════════════════════════════════════════════════
-# Each provider has:
-#   enabled:              true|false — the FIRST enabled provider is the default
-#   path:                 path to the Provider's code root (resolved relative to workspaceRoot)
-#   tasks_dir:            where task files are stored (resolved relative to workspaceRoot)
-#   mcp_entry:            [cmd, ...args] — MCP server launch command (resolved relative to provider.path)
-#   default_task_status:  (optional) creation default for new tasks; "todo" if absent
-#   env:                  environment variables passed to the provider process:
-#     QUAY_NATIVE_TASKS_DIR — task store path (required for native provider)
-#     QUAY_NATIVE_ADR_DIR   — ADR directory (default: <parent-of-tasksDir>/adr)
-#     QUAY_NATIVE_DOCS_DIR  — docs-managed directory (default: <repo-root>/docs-managed)
-#
-# github provider env:
-#     QUAY_GITHUB_REPO     — owner/repo (required for github provider)
-
 providers:
   native:
     enabled: true
-    path: "."
-    mcp_entry: ["quay-native", "mcp"]
-    default_task_status: todo     # uncomment to override; valid values: todo, ready, done, needs-human
+    path: /home/yale/.local/opt/quay/0.7.0/lib/node_modules/quay/plugin/vendor/quay-native
+    mcp_entry:
+    - node
+    - /home/yale/.local/opt/quay/0.7.0/lib/node_modules/quay/plugin/vendor/quay-native/dist/quay-native.js
+    - mcp
+    default_task_status: todo
     env:
-      QUAY_NATIVE_TASKS_DIR: "./tasks"
-      QUAY_NATIVE_ADR_DIR: "./docs/architecture/adr"   # meta-cc ADRs live in docs/architecture/adr (DIR-009)
-      # QUAY_NATIVE_DOCS_DIR: "./docs-managed"  # default: <repo-root>/docs-managed
-
-  # github:                              # example multi-provider setup (disabled)
-  #   enabled: false
-  #   path: "./packages/quay-github"
-  #   mcp_entry: ["node", "./bin/quay-github.ts", "mcp"]
-  #   env:
-  #     QUAY_GITHUB_REPO: "yaleh/meta-cc"
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# GATES (DIR-050: unified; previously .quay/gates.yml)
-# ═══════════════════════════════════════════════════════════════════════════════
-# Six gate types. Every entry may carry optional per-gate cwd / timeoutMs overrides.
-#
-#   it0:           [{name, script, argsKey, cwd?, timeoutMs?}]
-#                  — wraps a fixed script, driven by task.extra[argsKey] positional args
-#   adr:           ["ADR-001", ...]
-#                  — auto-wires ADRs with enforcement: fields as adr-<id> gates
-#   fixed:         [{name, script, cwd?, timeoutMs?}]
-#                  — wraps a fixed script (no per-task args)
-#   testPass:      [{name, command, cwd?, timeoutMs?}]
-#                  — runs a command; PASS if exit 0
-#   coverageFloor: [{name, command, floor, pattern?, cwd?, timeoutMs?}]
-#                  — runs a command, extracts coverage %, fails if below floor
-#   redGreen:      [{name, red, green, cwd?, timeoutMs?}]
-#                  — runs red command (must fail), then green (must pass)
-
+      QUAY_NATIVE_TASKS_DIR: ./tasks
+      QUAY_NATIVE_ADR_DIR: ./docs/architecture/adr
+      QUAY_NATIVE_GOAL_DIR: ./goals
+      QUAY_NATIVE_META_DIR: ./meta
 gates:
-  # ── it0 gates (per-task args from task.extra) ──────────────────────────────
   it0:
-    - name: impl-row
-      script: "./scripts/gates/it0-impl-row-check.sh"
-      argsKey: implRowArgs
-    - name: ceiling-line-budget
-      script: "./scripts/gates/it0-ceiling-line-budget-check.sh"
-      argsKey: lineBudgetArgs
-    - name: vmeta-lag
-      script: "./scripts/gates/vmeta-lag-check.sh"
-      argsKey: vmetaLagArgs
-    - name: audit-independence
-      script: "./scripts/gates/audit-independence-check.sh"
-      argsKey: auditIndependenceArgs
-    - name: dogfood-evidence
-      script: "./scripts/gates/it0-dogfood-evidence-gate.sh"
-      argsKey: dogfoodEvidenceArgs
-    - name: backlog-projection
-      script: "./scripts/gates/it0-backlog-projection-check.sh"
-      argsKey: backlogProjectionArgs
-    - name: gate-hash
-      script: "./scripts/gates/it0-gate-hash-check.sh"
-      argsKey: gateHashArgs
-    - name: dod
-      script: "./scripts/gates/it0-dod-check.sh"
-      argsKey: dodArgs
-    - name: ceiling
-      script: "./scripts/gates/it0-ceiling-check.sh"
-      argsKey: ceilingArgs
-
-  # ── fixed gates (no per-task args) ────────────────────────────────────────
+  - name: impl-row
+    script: ./scripts/gates/it0-impl-row-check.sh
+    argsKey: implRowArgs
+  - name: ceiling-line-budget
+    script: ./scripts/gates/it0-ceiling-line-budget-check.sh
+    argsKey: lineBudgetArgs
+  - name: vmeta-lag
+    script: ./scripts/gates/vmeta-lag-check.sh
+    argsKey: vmetaLagArgs
+  - name: audit-independence
+    script: ./scripts/gates/audit-independence-check.sh
+    argsKey: auditIndependenceArgs
+  - name: dogfood-evidence
+    script: ./scripts/gates/it0-dogfood-evidence-gate.sh
+    argsKey: dogfoodEvidenceArgs
+  - name: backlog-projection
+    script: ./scripts/gates/it0-backlog-projection-check.sh
+    argsKey: backlogProjectionArgs
+  - name: gate-hash
+    script: ./scripts/gates/it0-gate-hash-check.sh
+    argsKey: gateHashArgs
+  - name: dod
+    script: ./scripts/gates/it0-dod-check.sh
+    argsKey: dodArgs
+  - name: ceiling
+    script: ./scripts/gates/it0-ceiling-check.sh
+    argsKey: ceilingArgs
   fixed:
-    - name: tree-hygiene
-      script: "./scripts/gates/tree-hygiene-check.sh"
-    - name: worktree-branch-hygiene
-      script: "./scripts/gates/worktree-branch-hygiene-check.sh"
-    # DIR-015: build-feasibility early screen (go build ./..., fail-closed). Registered
-    # under a NON-shadowed name: quay's built-in `dod` gate always wins the name
-    # collision with the workspace it0 `dod` gate (registry.ts resolveGate checks
-    # gateRegistry first), so a workspace gate named "dod" never runs during
-    # todo->ready promotion. Cold `go build ./...` can exceed the 60s default timeout.
-    - name: build-feasibility
-      script: "./scripts/gates/build-feasibility-check.sh"
-      timeoutMs: 180000
-    # DIR-091: worktree-cache-env verifies Go build/test caches are shared under
-    # $HOME (not per-worktree isolated in /tmp). WARN when caches are cold/empty
-    # (non-fatal); FAIL on per-worktree paths, unset HOME, or worktree-directed
-    # GOFLAGS overrides. This keeps incremental builds fast across dispatched
-    # worktree subagents.
-    - name: worktree-cache-env
-      script: "./scripts/checks/check-worktree-cache-env.sh"
-
-  # ── ADR gates (auto-wired from ADR enforcement: fields) ───────────────────
-  # adr:
-  #   - "ADR-001"
-
-  # ── testPass gates (command exit 0 = PASS) ─────────────────────────────────
-  # testPass:
-  #   - name: go-test
-  #     command: "go test ./..."
-  #     timeoutMs: 120000
-
-  # ── coverageFloor gates (command output parsed for coverage %) ─────────────
-  # coverageFloor:
-  #   - name: go-coverage
-  #     command: "go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%'"
-  #     floor: 80
-  #     pattern: '\d+\.?\d*'
-
-  # ── redGreen gates (red must fail, green must pass) ────────────────────────
-  # redGreen:
-  #   - name: tdd-cycle
-  #     red: "go test -run TestNewFeature ./..."
-  #     green: "go test ./..."
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# LOOP (DIR-050: unified; previously .quay/loop.yml)
-# ═══════════════════════════════════════════════════════════════════════════════
-#   board:       string            REQUIRED — provider name (e.g. "native")
-#   gates:       string|string[]   REQUIRED — gate name(s) or set labels
-#   stop:        string            default "once" — "once" | "until(.halt)" | "until(empty)" | "until(<condition>)"
-#   policy:      string            default "ready-first" — workspace-defined select-ranking label
-#   execution:   string            default "dispatched" — "dispatched" | "inline"
-#   audit:       string            default "adversarial" — "adversarial" | "none"
-#   concurrency: integer >=1       default 1 — max concurrent touches-disjoint builds
-#   routines:    array             default [] — standing routine track
-#     - name:      string   non-empty routine name
-#       trigger:   string   "every(N)" (N>=1) or "on(<event>)"
-#       probe:     string   probe spec name (DIR-056); at least one of probe or dispatch required
-#       dispatch:  string   (legacy) dispatch target name
-
+  - name: tree-hygiene
+    script: ./scripts/gates/tree-hygiene-check.sh
+  - name: worktree-branch-hygiene
+    script: ./scripts/gates/worktree-branch-hygiene-check.sh
+  - name: build-feasibility
+    script: ./scripts/gates/build-feasibility-check.sh
+    timeoutMs: 180000
+  - name: worktree-cache-env
+    script: ./scripts/checks/check-worktree-cache-env.sh
 loop:
   board: native
-
-  # ── Expected worktree cache environment (DIR-091) ──────────────────────────
-  # Dispatched worktree subagents (execution: dispatched) build in per-task
-  # git worktrees under /tmp/meta-cc-worktrees/<id>. Go's content-addressed
-  # build and test caches (GOCACHE, GOMODCACHE) resolve to shared paths under
-  # $HOME by default — Go derives them from GOPATH and the OS cache directory,
-  # not from the current working directory. This means all worktrees share one
-  # warm cache: a second worktree's build reuses artifacts from the first.
-  #
-  # The env is verified at startup by the `worktree-cache-env` fixed gate
-  # (scripts/checks/check-worktree-cache-env.sh), which fails on per-worktree
-  # isolation, unset HOME, or worktree-directed GOFLAGS overrides. The gate
-  # also reports GOCACHE warmth (file count + size) as a non-fatal WARN when
-  # caches are empty or cold, so the first cold build in a new environment is
-  # not blocked but is noted.
-  #
-  # Expected values (Go 1.x, Linux/macOS):
-  #   GOCACHE    = $HOME/.cache/go-build      (build + test cache)
-  #   GOMODCACHE = $HOME/go/pkg/mod           (module download cache)
-  #   GOPATH     = $HOME/go                   (default GOPATH)
-  #   GOFLAGS    = (empty — no overrides)
-  #
-  # Gate set for the autonomous loop — single gate "acceptance" (runs task.extra.acceptance shell
-  # command, fail-closed if unset). For a richer gate pipeline, use a gate list or a named set
-  # from the gates section (e.g. ["dod", "impl-row", "tree-hygiene"]).
-  gates: [acceptance]
-
-  stop: until(.halt)          # run until .halt sentinel exists at workspace root
-  policy: ready-first         # SELECT: highest-priority ready task first
-  execution: dispatched       # build in fresh background subagent (FAIL-CLOSED if no Agent tool)
-  audit: adversarial          # fresh-context subagent audits diff before land
-  concurrency: 4              # up to 4 concurrent touches-disjoint builds
-
+  gates:
+  - acceptance
+  stop: until(.halt)
+  policy: ready-first
+  execution: dispatched
+  audit: adversarial
+  concurrency: 4
   routines:
-    - name: history-mining
-      trigger: every(3)       # fire every 3 loop cycles
-      probe: history-mining
-
-    - name: self-validation
-      trigger: every(5)       # fire every 5 loop cycles
-      probe: self-validation
+  - name: history-mining
+    trigger: every(3)
+    probe: history-mining
+  - name: self-validation
+    trigger: every(5)
+    probe: self-validation
+  repo_root: /home/yale/work/meta-cc
+  test_command: go test ./...
+  tmux_session: null
+  worktree_root: /home/yale/work/meta-cc/../meta-cc-worktrees
