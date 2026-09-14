@@ -11,7 +11,8 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ### Development Workflow
 - **Current plan**: [docs/core/plan.md](docs/core/plan.md) - Phase roadmap and status
-- **Build and test**: Run `make dev` (quick) → `make commit` (validate) → `make push` (full check)
+- **Build and test**: Run `make dev` (quick) → `make test-scoped PKGS=<pkgs>` (scoped, seconds) → `make commit` (validate) → `make push` (full check)
+- **Testing workflow**: [docs/guides/testing.md](docs/guides/testing.md) - Two-stage acceptance (scoped iteration + full gate)
 - **Plugin development**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md) - Complete workflow
 
 ### MCP Server Usage
@@ -30,6 +31,9 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 **Q: Tests failed after my changes - what should I do?**
 A: Run `make dev` for quick iteration, then `make commit` to validate. Fix issues iteratively. If tests fail after multiple attempts, HALT development and document blockers.
+
+**Q: How do I iterate quickly instead of waiting ~60s for `make commit` on every edit?**
+A: Use the two-stage acceptance workflow. Stage 1: `make test-scoped PKGS=./internal/<pkg>/...` runs just the touched package's tests plus a module-wide build in seconds. Stage 2: `make commit` is unchanged and remains the promotion gate before a task goes to `ready`/`done`. See [docs/guides/testing.md](docs/guides/testing.md).
 
 **Q: How much code can I write in one phase?**
 A: Maximum 500 lines of code modifications per phase, 200 lines per stage. See [docs/core/principles.md](docs/core/principles.md).
@@ -217,12 +221,15 @@ and a repository-relative `## Touches` section.
 
 ```bash
 make dev           # Quick dev build (format + build, <10s)
+make test-scoped PKGS=./internal/<pkg>/...  # Scoped fail-fast check (<10s)
 make commit        # Pre-commit validation (workspace + tests, <60s)
 make push          # Full check before push (all checks + lint, <120s)
 make test          # Run tests only
 make lint          # Static analysis
 make test-coverage # Coverage report
 ```
+
+See [docs/guides/testing.md](docs/guides/testing.md) for the two-stage acceptance workflow.
 
 **Before committing**:
 1. Run `make commit` to ensure code passes essential validation
