@@ -18,6 +18,7 @@ import (
 	"github.com/yaleh/meta-cc/internal/locator"
 	codexprovider "github.com/yaleh/meta-cc/internal/provider/codex"
 	"github.com/yaleh/meta-cc/internal/provider/codex/appserver"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 // setupCodexArchivedAndActiveSessionFixtureProject wires a temporary Codex
@@ -557,6 +558,47 @@ func TestQuerySessions_Claude_DefaultBehaviorReturnsSessionMetadata(t *testing.T
 	require.Equal(t, sessionID, m["session_id"])
 	require.Equal(t, "claude", m["provider"])
 	require.Equal(t, projectPath, m["cwd"])
+}
+
+// TestQuerySessions_Claude_OneBadFileDoesNotEraseTheRestAndIsNamed is the
+// DIR-094 end-to-end regression test for the failure that opened this task:
+// query_sessions returned `MCP error -32603: provider claude: no Claude
+// entries in <file>` for a single empty/truncated session file, killing the
+// CLAUDE.md decision-tree entry point for the whole project. It seeds the
+// checked-in malformed corpus (one healthy session plus empty, metadata-only
+// stub, and truncated-JSON siblings) and asserts BOTH halves of the contract
+// the old behavior got wrong in opposite directions: the healthy session is
+// still listed, AND every excluded file is named in the response warnings
+// rather than dropped silently.
+func TestQuerySessions_Claude_OneBadFileDoesNotEraseTheRestAndIsNamed(t *testing.T) {
+	projectsRoot := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex-home"))
+
+	rawProjectPath := t.TempDir()
+	absProject, err := filepath.Abs(rawProjectPath)
+	require.NoError(t, err)
+	resolvedProject, err := filepath.EvalSymlinks(absProject)
+	require.NoError(t, err)
+
+	hash := strings.ReplaceAll(resolvedProject, "\\", "-")
+	hash = strings.ReplaceAll(hash, "/", "-")
+	hash = strings.ReplaceAll(hash, ":", "-")
+	excluded := testutil.SeedMalformedCorpus(t, filepath.Join(projectsRoot, hash), resolvedProject)
+
+	result, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+		"working_dir": resolvedProject,
+	})
+	require.NoError(t, err, "one bad session file must not fail the whole listing")
+	require.Len(t, result.Entries, 1, "the healthy session must still be listed alongside the bad files")
+	require.Equal(t, "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa",
+		result.Entries[0].(map[string]interface{})["session_id"])
+
+	for _, name := range excluded {
+		require.True(t, testutil.WarningsNameFile(result.Warnings, name),
+			"response metadata must name the excluded file %q; got warnings %v", name, result.Warnings)
+	}
 }
 
 // TestQuerySessions_Claude_ExactSessionID proves session_id also works on

@@ -263,9 +263,30 @@ check-session-locator-scope:
 # curated index/guide page carries a broken relative link. Historical/migration
 # docs are allowlisted in internal/release/doc_contract_test.go. CI runs the
 # same internal/release package via `make test`.
+#
+# DIR-089: the flag set below is -short ON PURPOSE -- do NOT "restore" it to the
+# bare `$(GOTEST) ./internal/release/...`. Go's test cache keys on the test
+# binary's arguments, so a bare run and the `test` target's `-short ./...` sweep
+# are DIFFERENT cache keys and the package executed twice per cold `make commit`
+# (measured: check-docs 0.047s + a second, uncached `0.117s` in the sweep).
+# check-docs runs FIRST in the commit chain (check-essential precedes test) and
+# now shares the sweep's flag set, so the sweep reuses THIS invocation's cache
+# entry instead of re-executing it -- one real execution per cold commit, with
+# the gate still genuinely running rather than being reduced to a cached no-op.
+# This is only sound while -short does not change WHICH contract tests run, i.e.
+# while internal/release contains no testing.Short() skip; the guard below fails
+# closed the moment that stops being true, so the gate cannot be silently
+# hollowed out by a future test. See tasks/DIR-089.md for the timing evidence.
 check-docs:
 	@echo "=== Documentation Contract Check (DIR-078) ==="
-	@$(GOTEST) ./internal/release/...
+	@if grep -rln "testing\.Short()" internal/release/ >/dev/null 2>&1; then \
+		echo "❌ DIR-089: internal/release now contains a testing.Short() skip."; \
+		echo "   'go test -short' would no longer run the full DIR-078 contract, so"; \
+		echo "   check-docs would pass while skipping part of the gate. Re-align"; \
+		echo "   check-docs and the 'test' sweep before relying on cache reuse."; \
+		exit 1; \
+	fi
+	@$(GOTEST) -short ./internal/release/...
 
 # DIR-035: regression check for the Makefile PATH hardening (see the
 # `export PATH` line near the top of this file). Spawns a nested `make`
