@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/yaleh/meta-cc/internal/analysis"
+	"github.com/yaleh/meta-cc/internal/testutil"
 	"github.com/yaleh/meta-cc/internal/types"
 )
 
@@ -113,6 +114,64 @@ func TestLoadDataWarnings_MalformedFileSurfacedInGetTimeline(t *testing.T) {
 	output, err := svc.GetTimeline(map[string]interface{}{"working_dir": projectPath})
 	require.NoError(t, err)
 	assertWarningsNameFile(t, output, malformedName)
+}
+
+// setupProjectDirWithMalformedCorpus seeds the checked-in DIR-094 regression
+// corpus (one healthy session plus empty / metadata-only-stub / truncated-JSON
+// siblings) into a temp project's transcript directory and returns the project
+// path to pass as working_dir, plus the file names that must be warned about.
+func setupProjectDirWithMalformedCorpus(t *testing.T) (projectPath string, excluded []string) {
+	t.Helper()
+	projectsRoot := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex-home"))
+	projectPath = t.TempDir()
+	absProject, err := filepath.Abs(projectPath)
+	require.NoError(t, err)
+	resolvedProject, err := filepath.EvalSymlinks(absProject)
+	require.NoError(t, err)
+	hash := strings.ReplaceAll(resolvedProject, "\\", "-")
+	hash = strings.ReplaceAll(hash, "/", "-")
+	hash = strings.ReplaceAll(hash, ":", "-")
+	excluded = testutil.SeedMalformedCorpus(t, filepath.Join(projectsRoot, hash), resolvedProject)
+	return projectPath, excluded
+}
+
+// TestLoadDataWarnings_EveryCorpusPathReportsExcludedFiles is the DIR-094
+// coverage proof for the analysis half of the corpus: get_timeline and all
+// five analysis tools must return results AND name every excluded session
+// file. DIR-018 had already made the unparseable case report; the empty /
+// zero-message case — the actual 8eda8f4e shape — parsed cleanly and was
+// therefore still dropped in silence, which is exactly the "silent tolerance
+// is not the DIR-018 contract" gap this task closes.
+//
+// Driving every tool off one seeded corpus (rather than a per-tool fixture)
+// is deliberate: the guarantee is about the shared loadData step, so a tool
+// that diverges must fail here rather than quietly keep its own behavior.
+func TestLoadDataWarnings_EveryCorpusPathReportsExcludedFiles(t *testing.T) {
+	tools := []struct {
+		name string
+		call func(*analysis.Service, map[string]interface{}) (string, error)
+	}{
+		{"analyze_errors", (*analysis.Service).AnalyzeErrors},
+		{"analyze_bugs", (*analysis.Service).AnalyzeBugs},
+		{"quality_scan", (*analysis.Service).QualityScan},
+		{"get_work_patterns", (*analysis.Service).GetWorkPatterns},
+		{"get_tech_debt", (*analysis.Service).GetTechDebt},
+		{"get_timeline", (*analysis.Service).GetTimeline},
+	}
+
+	for _, tool := range tools {
+		t.Run(tool.name, func(t *testing.T) {
+			projectPath, excluded := setupProjectDirWithMalformedCorpus(t)
+			output, err := tool.call(analysis.New(), map[string]interface{}{"working_dir": projectPath})
+			require.NoError(t, err, "a single empty or corrupt session file must not fail the whole tool")
+			for _, name := range excluded {
+				assertWarningsNameFile(t, output, name)
+			}
+		})
+	}
 }
 
 func TestLoadDataWarnings_CleanCorpusOmitsWarnings(t *testing.T) {

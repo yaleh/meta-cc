@@ -122,8 +122,12 @@ func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, [
 	sessionID := stringArg(args, "session_id")
 
 	if providerName != "claude" {
-		entries, toolCalls, err := s.loadProviderData(scope, workingDir, providerName, sessionID)
-		return entries, toolCalls, nil, err
+		// DIR-094: the provider path already accumulates per-session and
+		// per-file diagnostics (providerrecords.Build / BuildForSession), but
+		// this call site dropped them on the floor — so a codex/all analysis
+		// silently excluded sessions while the claude path warned about the
+		// same class of problem. Thread them through instead.
+		return s.loadProviderData(scope, workingDir, providerName, sessionID)
 	}
 
 	loc := locator.NewSessionLocator()
@@ -167,12 +171,17 @@ func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, [
 	for _, f := range files {
 		p := parser.NewSessionParser(f)
 		entries, err := p.ParseEntries()
-		if err != nil {
-			// DIR-018: never silently exclude data — record a warning naming
-			// the file and log at WARN level instead of a bare `continue`.
-			warning := fmt.Sprintf("skipped session file %s: %v", f, err)
-			slog.Warn("skipping unparseable session file", "file", f, "error", err)
-			warnings = append(warnings, warning)
+		// DIR-018 (skip-and-report) extended by DIR-094 to the zero-entry
+		// case: a file that parses cleanly but yields no message entries —
+		// literally empty, or a metadata-only session stub — is just as
+		// excluded from the result as an unparseable one, so it must be
+		// warned about too. Only warning on the parse error left the
+		// 8eda8f4e-style empty file invisible here. locator.ExclusionFor is
+		// the shared rule the claude listing path applies to the same file,
+		// so both paths reach one verdict.
+		if exclusion := locator.ExclusionFor(f, len(entries), err); exclusion != nil {
+			slog.Warn("skipping session file that contributed no data", "file", f, "error", exclusion.Err)
+			warnings = append(warnings, exclusion.Warning())
 			continue
 		}
 		allEntries = append(allEntries, entries...)
@@ -182,33 +191,49 @@ func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, [
 	return allEntries, toolCalls, warnings, nil
 }
 
-func (s *Service) loadProviderData(scope, workingDir, providerName, sessionID string) ([]types.SessionEntry, []types.ToolCall, error) {
+// loadProviderData is loadData's non-claude branch: it reads the corpus
+// through the provider abstraction (providerrecords.Build / BuildForSession)
+// rather than the raw claude JSONL parser. It returns warnings with the same
+// shape and meaning as loadData's own, so callers surface them identically
+// regardless of which provider answered (DIR-094).
+func (s *Service) loadProviderData(scope, workingDir, providerName, sessionID string) ([]types.SessionEntry, []types.ToolCall, []string, error) {
 	projectPath, err := filepath.Abs(workingDir)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to resolve project path: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to resolve project path: %w", err)
 	}
 	filters, err := rawfiles.ParseProviderFilter(providerName)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	registry := rawfiles.NewRegistry(projectPath)
 
-	var records []map[string]interface{}
+	var (
+		records  []map[string]interface{}
+		warnings []string
+	)
 	if sessionID != "" {
 		// DIR-030 exact-session fast path: GetSession/LoadTurns for this
 		// one ID only, never ListSessions across the whole project.
-		records, _, err = providerrecords.BuildForSession(context.Background(), registry, filters, sessionID, projectPath)
+		records, warnings, err = providerrecords.BuildForSession(context.Background(), registry, filters, sessionID, projectPath)
 	} else {
-		records, _, err = providerrecords.Build(context.Background(), registry, filters, scope, projectPath)
+		records, warnings, err = providerrecords.Build(context.Background(), registry, filters, scope, projectPath)
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, warnings, err
+	}
+	// The providers' own listing diagnostics (per-file skips on the claude
+	// path, backend degradation on the codex one) are a separate channel from
+	// providerrecords' per-session warnings; fold both in.
+	for _, p := range registry.Providers(filters) {
+		if wp, ok := p.(interface{ Warnings() []string }); ok {
+			warnings = append(warnings, wp.Warnings()...)
+		}
 	}
 	entries, err := entriesFromRecords(records)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, warnings, err
 	}
-	return entries, types.ExtractToolCalls(entries), nil
+	return entries, types.ExtractToolCalls(entries), warnings, nil
 }
 
 func entriesFromRecords(records []map[string]interface{}) ([]types.SessionEntry, error) {

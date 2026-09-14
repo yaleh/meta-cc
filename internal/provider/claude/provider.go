@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/conversation"
@@ -23,17 +23,49 @@ var _ provider.Provider = (*Provider)(nil)
 // but contains no user/assistant message entries — the "stub" Claude Code
 // writes at session start (only mode/permission-mode/system metadata) before
 // any turn is exchanged. It is a benign, expected state with nothing
-// queryable to report, distinct from a genuine I/O or parse failure. Callers
-// that enumerate sessions (ListSessions) use errors.Is against this sentinel
-// to skip such files instead of aborting the whole listing — the same
-// "one bad session must not erase the rest" guarantee DIR-030 established for
-// the LoadTurns stage, extended here to the listing stage that previously
-// failed before that tolerance was ever reached.
-var errNoMessageEntries = errors.New("no message entries")
+// queryable to report, distinct from a genuine I/O or parse failure, so a
+// targeted GetSession for such a file still reports "nothing here" rather
+// than pretending the file is absent.
+//
+// DIR-094: the sentinel itself (and the rule it encodes) now lives in
+// internal/locator, shared with the analysis loaders, because the verdict on
+// a given file must be the same no matter which corpus-enumerating path reads
+// it. This alias keeps the existing errors.Is call sites and tests working.
+var errNoMessageEntries = locator.ErrNoMessageEntries
 
 type Provider struct {
 	locator    *locator.SessionLocator
 	workingDir string
+
+	// mu guards warnings. A Provider is used concurrently by the registry's
+	// merged-session path, so per-file diagnostics cannot be an unguarded
+	// slice append.
+	mu       sync.Mutex
+	warnings []string
+}
+
+// Warnings returns the per-file diagnostics accumulated by this Provider's
+// corpus-enumerating calls — one entry per session file that was excluded
+// from a listing, in the canonical locator.SessionFileExclusion.Warning()
+// form. Never cleared, so callers see the full history for the instance; the
+// query_sessions handler constructs a fresh Provider per call and folds these
+// into its response warnings (DIR-094).
+//
+// This mirrors the codex Provider's Warnings(), so both providers answer
+// "what did you quietly drop?" the same way. An empty slice means the last
+// listing excluded nothing.
+func (p *Provider) Warnings() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]string(nil), p.warnings...)
+}
+
+// recordWarning appends one exclusion diagnostic without aborting the
+// in-flight listing.
+func (p *Provider) recordWarning(warning string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.warnings = append(p.warnings, warning)
 }
 
 func NewProvider(loc *locator.SessionLocator, workingDir string) *Provider {
@@ -78,19 +110,17 @@ func (p *Provider) ListSessions(ctx context.Context) ([]conversation.Session, er
 
 	sessions := make([]conversation.Session, 0, len(files))
 	for _, file := range files {
-		session, err := p.sessionFromFile(file)
-		if err != nil {
-			// A zero-message stub carries nothing queryable, so excluding it
-			// from a listing is correct, not data loss — skip it and keep
-			// going rather than letting one empty session poison the whole
-			// project listing (see errNoMessageEntries). Any OTHER error is a
-			// genuine failure and still aborts.
-			if errors.Is(err, errNoMessageEntries) {
-				continue
-			}
-			return nil, err
+		entries, parseErr := parseClaudeEntries(file)
+		// DIR-094: this is a corpus enumeration, so a single file's problem
+		// must never fail the batch. Every exclusion — a zero-message stub
+		// (the 2026-07-30 / 8eda8f4e failure), an unreadable file, anything
+		// else — is skipped AND recorded, so the caller can surface it
+		// instead of the listing either aborting or losing data silently.
+		if exclusion := locator.ExclusionFor(file, len(entries), parseErr); exclusion != nil {
+			p.recordWarning(exclusion.Warning())
+			continue
 		}
-		sessions = append(sessions, session)
+		sessions = append(sessions, sessionFromEntries(file, entries))
 	}
 	return sessions, nil
 }
@@ -206,15 +236,25 @@ func FilePath(session conversation.Session) (string, error) {
 	return ext.Path, nil
 }
 
+// sessionFromFile is the single-file read used by GetSession and
+// findSessionFile. Unlike ListSessions it is a targeted lookup, not a corpus
+// enumeration: there is no "rest of the batch" to protect, so an unusable
+// file is reported as an error to its caller rather than skipped. It applies
+// the same exclusion rule as ListSessions (locator.ExclusionFor) so a file is
+// never judged healthy on one path and empty on another — only the response
+// to that verdict differs.
 func (p *Provider) sessionFromFile(file string) (conversation.Session, error) {
 	entries, err := parseClaudeEntries(file)
-	if err != nil {
-		return conversation.Session{}, err
+	if exclusion := locator.ExclusionFor(file, len(entries), err); exclusion != nil {
+		return conversation.Session{}, fmt.Errorf("%w in %s", exclusion.Err, file)
 	}
-	if len(entries) == 0 {
-		return conversation.Session{}, fmt.Errorf("%w in %s", errNoMessageEntries, file)
-	}
+	return sessionFromEntries(file, entries), nil
+}
 
+// sessionFromEntries projects parsed message entries into a Session. It
+// requires a non-empty slice (its callers have already ruled out the
+// zero-entry case via locator.ExclusionFor).
+func sessionFromEntries(file string, entries []types.SessionEntry) conversation.Session {
 	first := entries[0]
 	last := entries[len(entries)-1]
 	createdAt, _ := time.Parse(time.RFC3339, first.Timestamp)
@@ -233,7 +273,7 @@ func (p *Provider) sessionFromFile(file string) (conversation.Session, error) {
 		CreatedAt:  createdAt.UTC(),
 		TokenUsage: tokenUsage,
 		Extensions: ext,
-	}, nil
+	}
 }
 
 // NOTE(DIR-038): this hand-rolled bufio.NewReader + ReadBytes('\n') loop

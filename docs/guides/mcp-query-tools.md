@@ -127,7 +127,11 @@ Lists session/thread **metadata** — id, cwd, title, status, source_kind, model
 
 Codex-only filters (`source_kind`, `model_provider`, `parent_thread_id`, `archived`, `status`, `ancestors_of`) fail with an actionable error if used while `provider` is `"claude"` (the default under Claude Code and standalone installs) — Claude sessions don't carry this metadata, so the filter could never match and a silent empty result would be indistinguishable from "no sessions found".
 
-A session whose metadata can't be read (e.g. a corrupted `threads` row) is skipped with a warning rather than aborting the whole listing; other sessions still return normally.
+A session file that contributes nothing is **skipped and named**, never silently dropped and never fatal to the listing (DIR-094). This covers all three shapes a Claude transcript can take: an empty/truncated file, a well-formed *metadata-only stub* (the entry Claude Code writes at session start — `mode`/`permission-mode`/`system`, no messages), and an unreadable file. Each one appears in the response `warnings` as `skipped session file <path>: <reason>`, and every other session in the project still returns. The same rule and the same wording are shared by `get_timeline` and all five analysis tools, which read the corpus through the same helper (`internal/locator/sessionfile.go`), so a file excluded from one tool is excluded-and-reported everywhere.
+
+> **Rebuild required for a fix to be observable.** The MCP server is a compiled Go binary installed into the Claude Code plugin directory; editing the source does not change what Claude Code runs. After pulling a change to session-file tolerance, refresh the installed binary with `make stage` (or `make install-user` for a user-scope install) and restart the MCP server. A fix can be present on `main` and still be absent from a running session — the original 2026-07-30 `query_sessions` failure was observed from an installed binary that predated the fix (DIR-094).
+
+Codex threads behave the same way: a row whose metadata can't be read (e.g. a corrupted `threads` row) is skipped with a warning rather than aborting the whole listing.
 
 Examples:
 
