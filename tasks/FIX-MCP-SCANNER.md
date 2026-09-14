@@ -1,7 +1,7 @@
 ---
 id: FIX-MCP-SCANNER
 title: AC-258 user-scope 驱动取证任务
-status: ready
+status: done
 needs_human_cause: human-adjudication
 labels: []
 parent: null
