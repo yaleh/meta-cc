@@ -2,19 +2,42 @@
 # Automated release script
 #
 # Purpose: Create and publish a new release with full validation
-# Usage: ./scripts/release.sh <version> [--skip-checks] [--dry-run]
-# Example: ./scripts/release.sh v2.0.3
-# Example: ./scripts/release.sh v2.0.3 --dry-run
+# Usage: ./scripts/release/release.sh <version> [--skip-checks] [--dry-run]
+# Example: ./scripts/release/release.sh v2.0.3
+# Example: ./scripts/release/release.sh v2.0.3 --dry-run
 #
 # This script:
-# 1. Runs pre-release validation checks
+# 0. Runs fast preconditions (branch, clean tree) - seconds, before anything slow
+# 1. Runs pre-release validation (fail-closed, time-bounded - see BOUND below)
 # 2. Updates marketplace.json version
 # 3. Generates CHANGELOG entry
 # 4. Commits version changes
 # 5. Creates and pushes git tag
 # 6. Triggers GitHub Actions release workflow
+#
+# PATH RESOLUTION: the repo root and the validator path are derived from this
+# script's own location (BASH_SOURCE), never from $PWD, so the script behaves
+# identically however it is invoked. The validator lives at
+# scripts/release/pre-release-check.sh - NOT scripts/pre-release-check.sh.
+#
+# FAIL-CLOSED: if the validator is missing or unreadable the release aborts with
+# a non-zero exit and an actionable message. There is no warn-and-continue
+# fallback: an unvalidated release is never silently produced. The only way to
+# bypass validation is the explicit --skip-checks flag.
+#
+# BOUND: the validation phase is wrapped in `timeout` (default 300s, override
+# with RELEASE_VALIDATION_TIMEOUT). The validator runs the suite in `-short`
+# mode, so the whole release finishes well inside the loop-driver's 10-minute
+# watchdog instead of being killed mid-run and left half-finished.
 
 set -e
+
+# Resolve the repo root from this script's location, not the caller's $PWD.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+# Validation time budget in seconds (see BOUND above).
+VALIDATION_TIMEOUT="${RELEASE_VALIDATION_TIMEOUT:-300}"
 
 VERSION=$1
 VERSION_NUM=${VERSION#v}  # Remove 'v' prefix
@@ -33,7 +56,7 @@ while [ $# -gt 0 ]; do
             ;;
         *)
             echo "Error: Unknown option: $1"
-            echo "Usage: ./scripts/release.sh v1.0.0 [--skip-checks] [--dry-run]"
+            echo "Usage: ./scripts/release/release.sh v1.0.0 [--skip-checks] [--dry-run]"
             exit 1
             ;;
     esac
@@ -42,7 +65,7 @@ done
 
 if [ -z "$VERSION" ]; then
     echo "Error: Version required"
-    echo "Usage: ./scripts/release.sh v1.0.0 [--skip-checks] [--dry-run]"
+    echo "Usage: ./scripts/release/release.sh v1.0.0 [--skip-checks] [--dry-run]"
     exit 1
 fi
 
@@ -58,6 +81,11 @@ if ! command -v jq &> /dev/null; then
     echo "Install with: sudo apt-get install jq (Ubuntu/Debian) or brew install jq (macOS)"
     exit 1
 fi
+
+# Operate from the repo root so every relative path below (git status,
+# .claude-plugin/marketplace.json, CHANGELOG.md, ...) is anchored to the
+# repository rather than to whatever directory the caller happened to be in.
+cd "${REPO_ROOT}"
 
 if [ -n "$DRY_RUN" ]; then
     echo "========================================"
@@ -77,41 +105,68 @@ if [ "$SKIP_CHECKS" != "--skip-checks" ]; then
     echo "Step 1: Running pre-release validation..."
     echo ""
 
-    if [ -f "scripts/pre-release-check.sh" ]; then
-        if bash scripts/pre-release-check.sh "$VERSION"; then
-            echo ""
-            echo "✓ Pre-release validation passed"
-            echo ""
-        else
-            echo ""
-            echo "❌ Pre-release validation failed"
-            echo ""
-            echo "Fix the issues above or run with --skip-checks to bypass (not recommended)"
-            exit 1
-        fi
+    # ----------------------------------------------------------------
+    # Step 1a: Fast preconditions (seconds) - BEFORE any long-running phase.
+    # A dirty tree or a wrong branch must fail the release immediately, not
+    # after the validator has spent minutes on vet/tests/build/smoke.
+    # ----------------------------------------------------------------
+
+    BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    if [[ "$BRANCH" != "main" && "$BRANCH" != "develop" ]]; then
+        echo "❌ ERROR: Must be on main or develop branch (current: $BRANCH)"
+        echo "    Release aborted before validation."
+        exit 1
+    fi
+
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "❌ ERROR: Working directory not clean. Commit or stash changes."
+        echo "    Run 'git status' to see the uncommitted changes."
+        echo "    Release aborted before validation."
+        exit 1
+    fi
+
+    echo "✓ Preconditions: on '$BRANCH' with a clean working tree"
+    echo ""
+
+    # ----------------------------------------------------------------
+    # Step 1b: Pre-release validator - resolved from the repo root.
+    # Fail closed: a missing validator aborts the release. There is no
+    # warn-and-continue fallback (an unvalidated release is never produced).
+    # ----------------------------------------------------------------
+
+    PRE_RELEASE_CHECK="${REPO_ROOT}/scripts/release/pre-release-check.sh"
+
+    if [ ! -f "$PRE_RELEASE_CHECK" ]; then
+        echo "❌ ERROR: pre-release validator not found:"
+        echo "    $PRE_RELEASE_CHECK"
+        echo ""
+        echo "Refusing to release without validation (fail-closed)."
+        echo "Restore the validator, or bypass validation explicitly with --skip-checks (not recommended)."
+        exit 1
+    fi
+
+    # Bounded: see BOUND in the header. Exit 124 from `timeout` means the
+    # validator was killed at the budget rather than reporting a verdict.
+    validation_rc=0
+    timeout "$VALIDATION_TIMEOUT" bash "$PRE_RELEASE_CHECK" "$VERSION" || validation_rc=$?
+
+    if [ "$validation_rc" -eq 0 ]; then
+        echo ""
+        echo "✓ Pre-release validation passed"
+        echo ""
+    elif [ "$validation_rc" -eq 124 ]; then
+        echo ""
+        echo "❌ Pre-release validation TIMED OUT after ${VALIDATION_TIMEOUT}s"
+        echo ""
+        echo "Raise the budget with RELEASE_VALIDATION_TIMEOUT=<seconds> if the"
+        echo "suite legitimately needs longer, or fix the slow phase."
+        exit 1
     else
-        echo "⚠️  Warning: pre-release-check.sh not found (skipping validation)"
         echo ""
-        echo "Basic checks:"
-
-        # Check current branch
-        BRANCH=$(git rev-parse --abbrev-ref HEAD)
-        if [[ "$BRANCH" != "main" && "$BRANCH" != "develop" ]]; then
-            echo "Error: Must be on main or develop branch (current: $BRANCH)"
-            exit 1
-        fi
-
-        # Check working directory clean
-        if [ -n "$(git status --porcelain)" ]; then
-            echo "Error: Working directory not clean. Commit or stash changes."
-            exit 1
-        fi
-
-        # Run tests
-        echo "Running tests..."
-        make all
-        echo "✓ Tests passed"
+        echo "❌ Pre-release validation failed (exit $validation_rc)"
         echo ""
+        echo "Fix the issues above or run with --skip-checks to bypass (not recommended)"
+        exit 1
     fi
 else
     echo "⚠️  SKIPPING PRE-RELEASE CHECKS (--skip-checks flag used)"
