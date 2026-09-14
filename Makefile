@@ -204,6 +204,16 @@ bump-version:
 	@echo "Bumping version to $(VERSION)..."
 	@bash scripts/release/bump-version.sh $(VERSION)
 
+# Create and publish a release.
+#
+# Pre-release validation is FAIL-CLOSED (a missing validator aborts the
+# release; there is no warn-and-skip path) and runs under a time BOUND so a
+# release finishes well inside the loop-driver's 10-minute watchdog. The
+# validator resolves its own path from the repo root, so this target works
+# from any working directory.
+#
+# Budget: 300s by default. Override with:
+#   make release VERSION=vX.Y.Z RELEASE_VALIDATION_TIMEOUT=600
 release:
 	@if [ -z "$(VERSION)" ]; then \
 		echo "Error: VERSION required"; \
@@ -211,6 +221,7 @@ release:
 		exit 1; \
 	fi
 	@echo "Creating release $(VERSION)..."
+	@echo "  pre-release validation: fail-closed, bounded at $${RELEASE_VALIDATION_TIMEOUT:-300}s"
 	@bash scripts/release/release.sh $(VERSION)
 
 test-all-local: test-all test-bats
@@ -786,7 +797,8 @@ help:
 	@echo "Release Management:"
 	@echo "  make bump-version VERSION=vX.Y.Z      - Bump marketplace.json version"
 	@echo "  make pre-release-check VERSION=vX.Y.Z - Run pre-release validation checks"
-	@echo "  make release VERSION=vX.Y.Z           - Create and push release (runs pre-release-check)"
+	@echo "  make release VERSION=vX.Y.Z           - Create and push release (fail-closed validation, bounded)"
+	@echo "                                          Override budget: RELEASE_VALIDATION_TIMEOUT=<seconds>"
 	@echo "  make check-release-ready              - Verify latest tag matches marketplace.json"
 	@echo ""
 	@echo "Quality Gates (Grouped):"
