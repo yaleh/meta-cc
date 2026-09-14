@@ -381,6 +381,19 @@ make test-all      # Run all tests
 make test-coverage # With coverage report
 ```
 
+### Scoped Tests During Iteration
+
+`make commit` is the promotion gate, but at ~60s it is a poor inner loop. Use
+the scoped fail-fast target while iterating on one package, then run the full
+gate before promoting:
+
+```bash
+make test-scoped PKGS=./internal/parser/...   # stage 1: seconds
+make commit                                   # stage 2: the gate
+```
+
+See [Testing Guide](testing.md) for the full two-stage acceptance workflow.
+
 ### Integration Tests
 
 ```bash

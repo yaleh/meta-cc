@@ -10,6 +10,7 @@ import (
 
 	"github.com/yaleh/meta-cc/internal/conversation"
 	"github.com/yaleh/meta-cc/internal/locator"
+	"github.com/yaleh/meta-cc/internal/testutil"
 )
 
 // seedProjectDir creates the project-hash transcript directory that mirrors
@@ -292,14 +293,61 @@ func TestListSessionsSkipsZeroMessageStub(t *testing.T) {
 	}
 }
 
+// TestListSessionsReportsEveryExcludedFile is the DIR-094 regression test for
+// the half abc8135 left open: ListSessions had stopped hard-failing on a
+// zero-message stub, but skipped it with a bare `continue`, so a file dropped
+// from the listing was invisible to the caller — the opposite failure mode
+// from the original whole-batch error, and just as much a silent loss of data.
+// It also covers the case abc8135 did NOT reach: an unreadable/malformed file
+// still aborted the entire listing.
+//
+// The checked-in tests/fixtures/malformed-corpus documents all three
+// non-contributing shapes (empty, metadata-only stub, truncated JSON) and is
+// seeded via the same testutil helper every other per-path test uses, so
+// ListSessions, query_sessions, get_timeline and the five analysis tools are
+// all held to identical inputs.
+func TestListSessionsReportsEveryExcludedFile(t *testing.T) {
+	root := t.TempDir()
+	resolvedProject, projectDir := seedProjectDir(t, root)
+	excluded := testutil.SeedMalformedCorpus(t, projectDir, resolvedProject)
+
+	t.Setenv("META_CC_PROJECTS_ROOT", root)
+	p := NewProvider(locator.NewSessionLocator(), resolvedProject)
+
+	sessions, err := p.ListSessions(context.Background())
+	if err != nil {
+		t.Fatalf("a single bad session file must not fail the whole listing: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected exactly the 1 healthy session, got %d: %#v", len(sessions), sessions)
+	}
+	if sessions[0].CWD != resolvedProject {
+		t.Fatalf("healthy session CWD = %q, want %q", sessions[0].CWD, resolvedProject)
+	}
+
+	warnings := p.Warnings()
+	if len(warnings) != len(excluded) {
+		t.Fatalf("expected one warning per excluded file (%d), got %d: %v", len(excluded), len(warnings), warnings)
+	}
+	for _, name := range excluded {
+		if !testutil.WarningsNameFile(warnings, name) {
+			t.Errorf("no warning names the excluded file %q; got %v", name, warnings)
+		}
+	}
+}
+
 // TestSessionFromFileDistinguishesEmptyFromError guards the sentinel contract
-// ListSessions relies on: a readable file with zero message entries returns
-// errNoMessageEntries (benign — safe to skip in a listing), while a genuine
-// I/O failure returns a DIFFERENT error that ListSessions must still treat as
-// fatal. A real mid-read I/O error is not portably simulable in a unit test,
-// so the "real error stays distinct" half is asserted here via a nonexistent
-// file (an os.Open *PathError), which is the same error class any genuine
-// read failure surfaces as.
+// sessionFromFile relies on: a readable file with zero message entries returns
+// errNoMessageEntries (a benign, well-understood state), while a genuine I/O
+// failure returns a DIFFERENT error. DIR-094 kept this distinction because
+// sessionFromFile backs targeted lookups (GetSession/findSessionFile), where
+// there is no rest-of-the-batch to protect and a caller deserves the real
+// error; ListSessions, which IS a corpus enumeration, now skips and reports
+// BOTH classes instead of failing fast — see
+// TestListSessionsReportsEveryExcludedFile. A real mid-read I/O error is not
+// portably simulable in a unit test, so the "real error stays distinct" half
+// is asserted here via a nonexistent file (an os.Open *PathError), which is
+// the same error class any genuine read failure surfaces as.
 func TestSessionFromFileDistinguishesEmptyFromError(t *testing.T) {
 	root := t.TempDir()
 	resolvedProject, projectDir := seedProjectDir(t, root)
