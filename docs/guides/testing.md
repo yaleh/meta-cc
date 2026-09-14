@@ -123,6 +123,7 @@ Two constraints apply:
 ## See Also
 
 - [Build Quality Gates](build-quality-gates.md) - What each check group covers
+- [Corpus Tolerance Gate](../reference/corpus-tolerance-gate.md) - Malformed-session-file regression gate and how to register a new tool
 - [Plugin Development](plugin-development.md) - Plugin-specific test workflow
 - [Design Principles](../core/principles.md) - Testing protocol and failure protocol
 - [Repository Structure](../reference/repository-structure.md) - Where tests live

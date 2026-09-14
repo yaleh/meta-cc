@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	mcquery "github.com/yaleh/meta-cc/internal/mcp/query"
+	querypkg "github.com/yaleh/meta-cc/internal/query"
 )
 
 // handlers.go implements the 10 convenience tools (Layer 1).
@@ -195,21 +196,54 @@ func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}
 	return mcquery.QueryResult{Entries: filtered, Warnings: joined.Warnings}, nil
 }
 
+// rawErrorJQ is the pre-DIR-097 type=errors filter: it hands back the raw
+// user-role JSONL record for every failing tool_result, in whatever irregular
+// shape that record happens to have. It is still reachable via the "raw" flag
+// (see handleQueryToolErrors) for consumers that need the untouched record.
+const rawErrorJQ = `select(.type == "user" and (.message.content | type == "array")) | ` +
+	`select(.message.content[] | select(.type == "tool_result" and .is_error == true))`
+
+// handleQueryToolErrors implements query_session_signals(type="errors").
+//
+// By default every error is projected onto the stable five-field shape
+// documented in docs/guides/mcp-query-tools.md (DIR-097), so a consumer builds
+// its jq against a contract instead of against the raw record variance. The
+// pre-DIR-097 raw records remain available via raw=true.
 func handleQueryToolErrors(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := providerParam(args)
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
-
-	jqFilter := `select(.type == "user" and (.message.content | type == "array")) | ` +
-		`select(.message.content[] | select(.type == "tool_result" and .is_error == true))`
+	raw := GetBoolParam(args, "raw", false)
 
 	sessionID := GetStringParam(args, "session_id", "")
 	tr, err := parseTimeRange(args)
 	if err != nil {
 		return mcquery.QueryResult{}, err
 	}
-	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
+
+	if raw {
+		return e.dispatchProviderQuery(providerName, scope, rawErrorJQ, limit, workingDir, sessionID, tr, includeSubagents)
+	}
+
+	// The projection needs the tool name, which lives on the assistant record
+	// that issued the call — a different record from the failing tool_result.
+	// The jq pipeline runs one record at a time with no cross-record join (see
+	// handleQueryTools' status filtering for the same constraint), so fetch
+	// both record kinds in a single unbounded pass (limit=0) and correlate them
+	// here. The caller's limit is applied after projection below, not before,
+	// so it bounds projected records rather than the joined, unfiltered set.
+	paired, err := e.dispatchProviderQuery(providerName, scope, querypkg.ErrorSignalJoinJQ, 0, workingDir, sessionID, tr, includeSubagents)
+	if err != nil {
+		return mcquery.QueryResult{}, err
+	}
+
+	projected := querypkg.ProjectErrorSignals(paired.Entries)
+	if limit > 0 && len(projected) > limit {
+		projected = projected[:limit]
+	}
+
+	return mcquery.QueryResult{Entries: projected, Warnings: paired.Warnings}, nil
 }
 
 func handleQueryTokenUsage(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {

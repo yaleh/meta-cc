@@ -297,6 +297,80 @@ multi-session, multi-provider results under `provider: "all"` exactly like
 `provider: "claude"` does alone — no separate workaround or warning is
 needed.
 
+**`type: "errors"` returns a projected shape, not the raw record** (DIR-097).
+Every record is projected onto these five fields, all of them always present and
+always strings:
+
+| Field | Meaning |
+|-------|---------|
+| `timestamp` | Record timestamp (RFC3339), or `""` if the source record had none |
+| `session_id` | Session identifier — normalized to this one spelling regardless of the source's `sessionId`/`session_id` |
+| `tool_name` | Name of the tool that failed, recovered from the assistant record that issued the call |
+| `error_text` | The failure message, flattened to a single string |
+| `category` | Error label — the same classifier `analyze_errors` groups by (see below) |
+
+Before DIR-097 this type handed back the raw user-role JSONL record, whose shape
+varies in ways the docs could not pin down: `toolUseResult` is a bare string in
+some records and an object in others, the tool name is absent entirely (it lives
+on a *different*, earlier assistant record), `sessionId` is camelCase, and the
+error text is nested inside `message.content[].content`. That made the natural
+first extraction attempt return nothing, and forced consumers to inspect raw
+JSONL by hand. The projection is the fix: write your jq against the five fields
+above, not against the record.
+
+`category` values are exactly [`analyze_errors`](#analysis-tools)'s labels, so a
+consumer can move between `query_session_signals(type: "errors")` and
+`analyze_errors` without remapping. The full vocabulary is
+`tool_error_no_message`, `command_timeout`, `bash_exit_code`,
+`command_not_found`, `permission_denied`, `file_not_found`, `connection_error`,
+`parse_error`, `content_too_large`, `auth_error`, `resource_not_found`, and the
+`uncategorized` fallback. The label is computed by the same function
+(`analyzer.ClassifyErrorType`) in both paths, so the two cannot drift.
+
+Because the projection is a fixed contract, `error_text` is bounded: a
+`toolUseResult` object is read for its own output fields (`stderr`, `error`,
+`message`, `stdout`, `output`) and an unrecognized object yields `""` rather
+than a serialization of the whole value — otherwise a large payload (an `Edit`
+result carries a whole file body) would leak into every error record.
+
+Pass `raw: true` to get the untouched record back — the pre-DIR-097 shape, for a
+consumer that genuinely needs it:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `raw` | boolean | When `type=errors`: return the untouched source record instead of the projected five-field shape. Default `false`. Ignored by the other types. |
+
+`jq_filter` composes over the projected records, since it post-filters whatever
+the query produced (see [`jq_filter`](#jq_filter-custom-post-filter-dir-041)) —
+so it can select on `.category`, which the raw record never had:
+
+```javascript
+// Only the failures whose category is bash_exit_code
+query_session_signals({
+  type: "errors",
+  provider: "claude",
+  jq_filter: '.[] | select(.category == "bash_exit_code")'
+})
+
+// Category histogram, one {category, count} record per bucket. group_by needs
+// the whole array at once, so there is no leading `.[]`; the trailing `.[]`
+// unpacks the buckets back into individual records.
+query_session_signals({
+  type: "errors",
+  jq_filter: 'group_by(.category) | map({category: .[0].category, count: length}) | .[]'
+})
+
+// Failures mentioning a substring, over the flattened text
+query_session_signals({
+  type: "errors",
+  jq_filter: '.[] | select(.tool_name == "Bash" and (.error_text | test("command not found")))'
+})
+```
+
+The projected records are no longer raw JSONL, so a recipe written against the
+raw shape (`.toolUseResult`, `.message.content[]`) must either be rewritten
+against the five fields above or be run with `raw: true`.
+
 All types support `since` / `until` RFC3339 time range filters.
 
 Examples:
