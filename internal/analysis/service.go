@@ -17,6 +17,7 @@ import (
 
 	"github.com/yaleh/meta-cc/internal/analyzer"
 	"github.com/yaleh/meta-cc/internal/config"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/locator"
 	"github.com/yaleh/meta-cc/internal/parser"
 	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
@@ -292,6 +293,10 @@ func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
+	entries, toolCalls, err = applyTimeWindow(entries, toolCalls, args)
+	if err != nil {
+		return "", err
+	}
 	if boolArg(args, "stats_only") {
 		stats, err := analyzer.AnalyzeBugsStats(entries, toolCalls)
 		if err != nil {
@@ -316,6 +321,10 @@ func (s *Service) AnalyzeErrors(args map[string]interface{}) (string, error) {
 	entries, toolCalls, warnings, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+	entries, toolCalls, err = applyTimeWindow(entries, toolCalls, args)
+	if err != nil {
+		return "", err
 	}
 	if boolArg(args, "stats_only") {
 		stats, err := analyzer.AnalyzeErrorsStats(entries, toolCalls)
@@ -344,6 +353,10 @@ func (s *Service) QualityScan(args map[string]interface{}) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
+	entries, toolCalls, err = applyTimeWindow(entries, toolCalls, args)
+	if err != nil {
+		return "", err
+	}
 	if boolArg(args, "stats_only") {
 		stats, err := analyzer.QualityScanStatsOnly(entries, toolCalls)
 		if err != nil {
@@ -370,6 +383,10 @@ func (s *Service) GetWorkPatterns(args map[string]interface{}) (string, error) {
 	entries, toolCalls, warnings, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+	entries, toolCalls, err = applyTimeWindow(entries, toolCalls, args)
+	if err != nil {
+		return "", err
 	}
 	if boolArg(args, "stats_only") {
 		stats, err := analyzer.GetWorkPatternsStatsOnly(entries, toolCalls)
@@ -402,14 +419,15 @@ func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
 
-	// Apply since/until time-clipping if provided.
 	since := stringArg(args, "since")
 	until := stringArg(args, "until")
-	if since != "" || until != "" {
-		entries, err = filterEntriesByTimeRange(entries, since, until)
-		if err != nil {
-			return "", err
-		}
+
+	// Apply since/until time-clipping if provided. GetTimeline ignored the
+	// toolCalls loadData returned even before DIR-095, so the re-derived slice
+	// applyTimeWindow hands back is discarded here as it always was.
+	entries, _, err = applyTimeWindow(entries, nil, args)
+	if err != nil {
+		return "", err
 	}
 
 	if boolArg(args, "stats_only") {
@@ -440,8 +458,45 @@ func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
 	return marshalResult(result)
 }
 
+// applyTimeWindow narrows a freshly loaded corpus to the optional RFC3339
+// since/until window BEFORE any aggregation runs, so every downstream output
+// -- the full result and the aggregate-only stats_only result alike --
+// describes the window rather than the whole corpus (DIR-095). Semantics match
+// the pre-existing since/until on get_timeline, query_session_content, and
+// query_session_signals: since is inclusive, until is exclusive.
+//
+// A call with neither parameter set returns its input untouched, so the
+// unwindowed path is exactly the pre-DIR-095 behavior.
+func applyTimeWindow(entries []types.SessionEntry, toolCalls []types.ToolCall, args map[string]interface{}) ([]types.SessionEntry, []types.ToolCall, error) {
+	since := stringArg(args, "since")
+	until := stringArg(args, "until")
+	if since == "" && until == "" {
+		return entries, toolCalls, nil
+	}
+
+	filtered, err := filterEntriesByTimeRange(entries, since, until)
+	if err != nil {
+		return nil, nil, err
+	}
+	// toolCalls are re-derived from the filtered entries rather than filtered
+	// independently. A ToolCall's Timestamp is its own tool_use entry's, and
+	// ExtractToolCalls pairs tool_use with tool_result by ID across the slice
+	// it is given, so re-deriving is precisely "extract from a corpus that
+	// contained only the in-window entries". That is what makes a windowed run
+	// over the full corpus equal an unwindowed run over the in-window subset,
+	// and it cannot leave an out-of-window tool call behind.
+	//
+	// The corollary is deliberate: a tool_use inside the window whose
+	// tool_result falls outside it comes back with no observed output/status,
+	// exactly as it would from the subset corpus -- the completion evidence
+	// lies outside the window being asked about.
+	return filtered, types.ExtractToolCalls(filtered), nil
+}
+
 // filterEntriesByTimeRange filters session entries to those within the since/until range.
 // Both since and until are optional ISO 8601 strings. Since is inclusive, until is exclusive.
+// An unparseable bound is reported as mcerrors.ErrInvalidInput (DIR-095) so callers
+// can distinguish a bad parameter from a failure to read the corpus.
 func filterEntriesByTimeRange(entries []types.SessionEntry, since, until string) ([]types.SessionEntry, error) {
 	var sinceTime, untilTime time.Time
 	var hasSince, hasUntil bool
@@ -449,7 +504,7 @@ func filterEntriesByTimeRange(entries []types.SessionEntry, since, until string)
 	if since != "" {
 		t, err := time.Parse(time.RFC3339, since)
 		if err != nil {
-			return nil, fmt.Errorf("invalid since value %q: must be ISO 8601 / RFC3339 (e.g. 2026-01-01T00:00:00Z)", since)
+			return nil, fmt.Errorf("invalid since value %q: must be ISO 8601 / RFC3339 (e.g. 2026-01-01T00:00:00Z): %w", since, mcerrors.ErrInvalidInput)
 		}
 		sinceTime = t
 		hasSince = true
@@ -457,7 +512,7 @@ func filterEntriesByTimeRange(entries []types.SessionEntry, since, until string)
 	if until != "" {
 		t, err := time.Parse(time.RFC3339, until)
 		if err != nil {
-			return nil, fmt.Errorf("invalid until value %q: must be ISO 8601 / RFC3339 (e.g. 2026-06-01T00:00:00Z)", until)
+			return nil, fmt.Errorf("invalid until value %q: must be ISO 8601 / RFC3339 (e.g. 2026-06-01T00:00:00Z): %w", until, mcerrors.ErrInvalidInput)
 		}
 		untilTime = t
 		hasUntil = true
@@ -516,6 +571,11 @@ func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
+	entries, toolCalls, err = applyTimeWindow(entries, toolCalls, args)
+	if err != nil {
+		return "", err
+	}
+
 	result, err := s.analyzers.TechDebt.GetTechDebt(entries, toolCalls)
 	if err != nil {
 		return "", fmt.Errorf("get tech debt failed: %w", err)
