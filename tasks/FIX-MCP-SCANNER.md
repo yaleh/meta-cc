@@ -1,7 +1,8 @@
 ---
 id: FIX-MCP-SCANNER
 title: AC-258 user-scope 驱动取证任务
-status: ready
+status: needs-human
+needs_human_cause: human-adjudication
 labels: []
 parent: null
 children: []
@@ -77,3 +78,10 @@ target's own failure message names the sanctioned replacement:
 
 - [ ] `make commit` green
 - [ ] the change landed on `main`
+
+## Needs-Human
+
+**执行 2026-09-14T15:14:19.135Z — 连续修满重试上限仍不合格（标 needs-human）**
+
+- 阻碍原因：worker-driver 连续 3 次 <60000ms 快速死亡（退避上限）
+- 成因类：human-adjudication
