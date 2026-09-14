@@ -65,14 +65,14 @@ target's own failure message names the sanctioned replacement:
 
 ## Acceptance Criteria
 
-- [ ] `make check-no-scanner` passes **with the `main.go` exemption removed**
+- [x] `make check-no-scanner` passes **with the `main.go` exemption removed**
       from the target, i.e. the target's grep now covers `cmd/mcp-server/main.go`
       and still reports no raw `bufio.NewScanner` there.
-- [ ] A test feeds one JSON-RPC line longer than 64 KiB and asserts the server
+- [x] A test feeds one JSON-RPC line longer than 64 KiB and asserts the server
       stays alive (it does not exit and does not drop into the EOF path).
-- [ ] A line within the bound still produces the same request handling as before
+- [x] A line within the bound still produces the same request handling as before
       (a normal `initialize` frame is answered).
-- [ ] `make commit` passes.
+- [x] `make commit` passes.
 
 ## DoD
 
