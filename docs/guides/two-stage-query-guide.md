@@ -673,6 +673,82 @@ execute_stage2_query({
 })
 ```
 
+### Pattern 4: Error Analysis Over Projected Records (DIR-097)
+
+`query_session_signals({type: "errors"})` returns records already projected onto
+a stable five-field shape — `timestamp`, `session_id`, `tool_name`,
+`error_text`, `category` — rather than raw JSONL. Use it when the question is
+about *errors* rather than about the record layout: the projection has already
+resolved the parts of the raw shape that are awkward to extract (a
+`toolUseResult` that is a string in some records and an object in others, the
+tool name living on a separate assistant record, the text nested inside
+`message.content[].content`).
+
+```javascript
+// 1. Category histogram — .category is a top-level field, so no
+//    extraction gymnastics over nested record shapes
+query_session_signals({
+  type: "errors",
+  scope: "project",
+  jq_filter: 'group_by(.category) | map({category: .[0].category, count: length}) | .[]'
+})
+
+// 2. Just the failures worth acting on
+query_session_signals({
+  type: "errors",
+  scope: "project",
+  jq_filter: '.[] | select(.category == "bash_exit_code")'
+})
+
+// 3. Which tools fail most, as {tool_name, error_text} pairs
+query_session_signals({
+  type: "errors",
+  scope: "project",
+  jq_filter: '.[] | {tool_name, error_text}',
+  limit: 50
+})
+```
+
+`category` uses the same labels `analyze_errors` groups by, so the two tools
+agree and you can move between them without remapping.
+
+**When you need the raw record instead**, pass `raw: true` — that restores the
+pre-DIR-097 shape (the untouched user-role JSONL record, with `toolUseResult`,
+`message.content[]`, and camelCase `sessionId`). A recipe written against the
+raw shape needs one or the other:
+
+```javascript
+// Projected: select on a flattened field
+query_session_signals({
+  type: "errors",
+  jq_filter: '.[] | select(.category == "command_not_found")'
+})
+
+// Raw: the same failures, extracting from the original nesting by hand
+query_session_signals({
+  type: "errors",
+  raw: true,
+  jq_filter: '.[] | select(.message.content[]? | select(.type == "tool_result" and .is_error))'
+})
+```
+
+The equivalent two-stage query is still the right tool when you need *file
+selection control* or a filter the projection does not expose — but note that
+`execute_stage2_query` reads the session JSONL directly, so its records are raw
+and the projected fields are not available there:
+
+```javascript
+// Two-stage: raw records, full filter control
+const dir = await get_session_directory({scope: "project"})
+execute_stage2_query({
+  files: dir.files,
+  filter: 'select(.type == "user") | select(.message.content[]? | select(.type == "tool_result" and .is_error == true))'
+})
+```
+
+Rule of thumb: **projected records for error analysis, two-stage for raw-record
+flexibility.**
+
 ---
 
 ## Migration from Legacy Tools

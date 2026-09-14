@@ -541,6 +541,10 @@ func GetToolDefinitions() []Tool {
 					Type:        "string",
 					Description: "When type=tool_stats: filter by status (error/success)",
 				},
+				"raw": {
+					Type:        "boolean",
+					Description: "When type=errors: return the untouched source record instead of the projected {timestamp, session_id, tool_name, error_text, category} shape. Default false.",
+				},
 				"since": {
 					Type:        "string",
 					Description: `Include only records with timestamp >= this value (RFC3339, e.g. "2026-03-07T00:00:00Z")`,
