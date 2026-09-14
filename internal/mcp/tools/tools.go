@@ -363,9 +363,13 @@ func GetToolDefinitions() []Tool {
 			"session_id": SessionIDProperty(),
 		}),
 		BuildAnalysisTool("analyze_bugs", "Detect error-fix pairs and recurring bug patterns. Default scope: project.", map[string]Property{
+			"max_patterns": {
+				Type:        "number",
+				Description: "Max patterns to return, ranked by recurrence then fix count (default: 20; 0 = unlimited)",
+			},
 			"limit": {
 				Type:        "number",
-				Description: "Max examples per pattern (0 = unlimited)",
+				Description: "Max examples per pattern (default: 3; 0 = unlimited). Each example is an object {session_id, timestamp, error_text, fix_text?, signature}; error_text/fix_text are clipped to 500 bytes and the examples section as a whole is size-bounded, so one oversized error message cannot crowd out the rest of the response.",
 			},
 			"working_dir": {
 				Type:        "string",
