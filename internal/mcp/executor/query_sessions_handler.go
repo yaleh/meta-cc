@@ -167,8 +167,16 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 			} else {
 				sessions, err = p.ListSessions(ctx)
 				if err != nil {
+					// Only a whole-corpus failure (e.g. the project directory
+					// cannot be enumerated at all) reaches here: ListSessions
+					// skips and records per-file problems itself. A single bad
+					// session file must never produce this error (DIR-094).
 					return mcquery.QueryResult{}, fmt.Errorf("provider claude: %w", err)
 				}
+				// DIR-094: fold the listing's per-file skips into the response
+				// warnings, so a session file excluded from the listing is
+				// always named rather than silently missing from the results.
+				warnings = append(warnings, p.Warnings()...)
 			}
 			claudeFilter := filter
 			claudeFilter.SessionID = "" // already resolved via GetSession above
