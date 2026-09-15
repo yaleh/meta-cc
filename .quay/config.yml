@@ -1,10 +1,10 @@
 providers:
   native:
     enabled: true
-    path: /home/yale/.local/opt/quay/0.7.0/lib/node_modules/quay/plugin/vendor/quay-native
+    path: /home/yale/.local/opt/quay/0.7.0-dev/lib/node_modules/quay/plugin/vendor/quay-native
     mcp_entry:
     - node
-    - /home/yale/.local/opt/quay/0.7.0/lib/node_modules/quay/plugin/vendor/quay-native/dist/quay-native.js
+    - /home/yale/.local/opt/quay/0.7.0-dev/lib/node_modules/quay/plugin/vendor/quay-native/dist/quay-native.js
     - mcp
     default_task_status: todo
     env:
