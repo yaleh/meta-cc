@@ -1,7 +1,7 @@
 ---
 id: FIX-AC259-SMALLDEFECT
 title: AC-258 user-scope 驱动取证任务
-status: todo
+status: ready
 labels: []
 parent: null
 children: []
