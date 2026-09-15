@@ -99,7 +99,11 @@ func classifyDocScope(rel string) (docScope, string) {
 }
 
 // currentMarkdownFiles returns the slash-normalized repo-relative paths of every
-// current markdown file under docs/ plus top-level README/CLAUDE (fails if none).
+// current markdown file under docs/ plus every top-level *.md page (fails if none).
+// The top-level part is enumerated from disk, never from a fixed name list: the
+// two-name list this replaced exempted every other root page from all three checks
+// below, so CONTRIBUTING.md carried a below-baseline Go prerequisite while the gate
+// stayed green (see TestCurrentMarkdownFilesCoversTopLevelDocs).
 func currentMarkdownFiles(t *testing.T, root string) []string {
 	t.Helper()
 	var rel []string
@@ -123,11 +127,19 @@ func currentMarkdownFiles(t *testing.T, root string) []string {
 	if walkErr != nil {
 		t.Fatalf("walking docs/: %v", walkErr)
 	}
-	for _, top := range []string{"README.md", "CLAUDE.md"} {
-		if _, statErr := os.Stat(filepath.Join(root, top)); statErr == nil {
-			if s, _ := classifyDocScope(top); s == scopeCurrent {
-				rel = append(rel, top)
-			}
+	// Every top-level page, not a name list: the exemption list this replaces is
+	// what let CONTRIBUTING.md keep a stale Go prerequisite unseen. classifyDocScope
+	// still governs scope (the allowlist/historical machinery is unchanged).
+	tops, dirErr := os.ReadDir(root)
+	if dirErr != nil {
+		t.Fatalf("reading repo root: %v", dirErr)
+	}
+	for _, e := range tops {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+		if s, _ := classifyDocScope(e.Name()); s == scopeCurrent {
+			rel = append(rel, e.Name())
 		}
 	}
 	if len(rel) == 0 {
@@ -608,5 +620,35 @@ func TestBrokenRelativeLinks(t *testing.T) {
 	}
 	if broken[0].line != 3 || broken[1].line != 7 {
 		t.Errorf("broken link lines = %d,%d; want 3,7", broken[0].line, broken[1].line)
+	}
+}
+
+// TestCurrentMarkdownFilesCoversTopLevelDocs is the regression for the DIR-078
+// scope gap: the gate enumerated only README.md and CLAUDE.md at the repo root,
+// so every other top-level current page (CONTRIBUTING.md, AGENTS.md, ...) was
+// exempt from the checks the gate exists to enforce -- including the
+// Go-prerequisite-vs-go.mod baseline check that CONTRIBUTING.md:18 violates.
+func TestCurrentMarkdownFilesCoversTopLevelDocs(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "guide.md"), []byte("# guide\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, top := range []string{"README.md", "CLAUDE.md", "CONTRIBUTING.md"} {
+		if err := os.WriteFile(filepath.Join(root, top), []byte("# "+top+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got := currentMarkdownFiles(t, root)
+	index := make(map[string]bool, len(got))
+	for _, g := range got {
+		index[g] = true
+	}
+	if !index["CONTRIBUTING.md"] {
+		t.Errorf("CONTRIBUTING.md missing from the doc-contract file set %v: "+
+			"the gate exempts the top-level pages that carry its defect class", got)
 	}
 }

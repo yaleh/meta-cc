@@ -15,7 +15,7 @@ You can contribute in several ways:
 ## Development Setup
 
 ### Prerequisites
-- Go 1.21 or later
+- Go 1.24 or later (matches the `go` directive in `go.mod`)
 - `make`
 - `golangci-lint` (for local linting)
 
