@@ -225,7 +225,65 @@ Most query and analysis tools accept:
 | `stats_first` | boolean | Return stats followed by details. Only declared on the 4 tools routed through the response pipeline (see below) — not on the six analysis tools. |
 | `inline_threshold_bytes` | number | Threshold for inline vs file reference output |
 
-RFC3339 `since`/`until` time filters are declared only on `query_session_content`, `query_session_signals`, and `get_timeline` — not on every query tool. `query_sessions` filters session metadata with `created_since`/`created_until` (plus Codex-only `updated_since`/`updated_until`) instead.
+RFC3339 `since`/`until` time filters are declared on `query_session_content`,
+`query_session_signals`, and all six analysis tools — see
+[`since`/`until` time windows](#sinceuntil-time-windows). They are not declared
+on every query tool. `query_sessions` filters session metadata with
+`created_since`/`created_until` (plus Codex-only `updated_since`/`updated_until`)
+instead.
+
+### `since`/`until` time windows
+
+`since` and `until` bound a call to a time range. Both are optional RFC3339
+strings; `since` is inclusive (`timestamp >= since`) and `until` is exclusive
+(`timestamp < until`). Omitting one leaves that side unbounded, so
+`since: "2026-09-01T00:00:00Z"` alone means "from 1 September onward" and
+`until: "2026-09-14T00:00:00Z"` alone means "everything before 14 September".
+
+Declared on `query_session_content`, `query_session_signals`, and all six
+analysis tools (DIR-095):
+
+| Tool | What the window clips |
+|------|-----------------------|
+| `analyze_errors` | `total_errors`, the `by_tool`/`by_type` groups, and `time_range` cover only in-window tool calls |
+| `analyze_bugs` | `total_pairs`, `total_errors`, `unfixed_errors`, and `patterns` are derived only from in-window calls |
+| `quality_scan` | All four dimensions (`error_rate`, `retry_rate`, `tool_diversity`, `completion_rate`) are computed over the in-window calls |
+| `get_work_patterns` | `tool_frequency`, `hourly_activity`, `context_switches`, and `peak_hour` cover only in-window entries |
+| `get_tech_debt` | Session-transcript `markers`, `hotspot_files`, and `open_issues` cover only in-window tool output. The `source_dir` scan reads files on disk and is unaffected by the window |
+| `get_timeline` | Events and the `stats_only` summary are clipped to the window |
+
+Filtering happens **before aggregation**, so a windowed call reports the
+window's numbers rather than the whole corpus': `analyze_errors` with a
+two-day window counts only the errors raised in those two days, and
+`get_work_patterns` reports only the tools used in them. It also means a
+windowed run over the full corpus is equivalent to an unwindowed run over a
+corpus containing only the in-window entries.
+
+The window applies to aggregate output identically, because the filter runs
+before the `stats_only` branch is reached. (`stats_first` is not declared on
+these six tools at all — see
+[DIR-048 scoping](#jq_filter-stats_first-offset-page_size-dir-048-scoped-to-pipeline-routed-tools)
+above — so there is no `stats_first` output for them to reflect a window.)
+
+Tool calls are re-derived from the in-window entries rather than filtered
+separately, so the two never disagree. One consequence is worth knowing: a
+`tool_use` inside the window whose `tool_result` falls outside it is reported
+with no observed output or status, exactly as it would be if the corpus had
+been loaded from the start of the window.
+
+```text
+analyze_errors(scope=project)                              # whole corpus: 412 errors
+analyze_errors(scope=project, since="2026-09-12T00:00:00Z") # the last 2 days: 37 errors
+get_work_patterns(scope=project,
+                  since="2026-09-12T00:00:00Z",
+                  until="2026-09-14T00:00:00Z")             # only that 48h window
+```
+
+A value that is not valid RFC3339 is rejected as invalid input (`invalid
+since value "..."` / `invalid until value "..."`) rather than being ignored —
+a windowed call never silently degrades into a whole-corpus answer. The
+rejection happens before the corpus is read, so a typo'd timestamp does not
+first scan every session file in the project.
 
 ### `jq_filter`, `stats_first`, `offset`, `page_size` (DIR-048: scoped to pipeline-routed tools)
 

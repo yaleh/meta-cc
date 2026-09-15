@@ -25,10 +25,7 @@ func TestInspectFiles_LargeImageLine_NoError(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	result, err := InspectFiles([]string{sessionFile}, false)
-	if err != nil {
-		t.Fatalf("InspectFiles should not error on large image line: %v", err)
-	}
+	result := InspectFiles([]string{sessionFile}, false)
 
 	file := result.Files[0]
 	// Both lines should be counted (image line truncated to valid JSON by StrategyDefault)
@@ -62,10 +59,7 @@ func TestInspectFiles_SingleFile(t *testing.T) {
 	}
 
 	// Execute inspection
-	result, err := InspectFiles([]string{sessionFile}, false)
-	if err != nil {
-		t.Fatalf("InspectFiles failed: %v", err)
-	}
+	result := InspectFiles([]string{sessionFile}, false)
 
 	// Verify results
 	if len(result.Files) != 1 {
@@ -138,10 +132,7 @@ func TestInspectFiles_MultipleFiles(t *testing.T) {
 	}
 
 	// Execute inspection
-	result, err := InspectFiles([]string{file1, file2}, false)
-	if err != nil {
-		t.Fatalf("InspectFiles failed: %v", err)
-	}
+	result := InspectFiles([]string{file1, file2}, false)
 
 	// Verify results
 	if len(result.Files) != 2 {
@@ -188,10 +179,7 @@ func TestInspectFiles_WithSamples(t *testing.T) {
 	}
 
 	// Execute inspection with samples
-	result, err := InspectFiles([]string{sessionFile}, true)
-	if err != nil {
-		t.Fatalf("InspectFiles failed: %v", err)
-	}
+	result := InspectFiles([]string{sessionFile}, true)
 
 	file := result.Files[0]
 
@@ -233,10 +221,7 @@ func TestInspectFiles_EmptyFile(t *testing.T) {
 		t.Fatalf("Failed to create empty file: %v", err)
 	}
 
-	result, err := InspectFiles([]string{emptyFile}, false)
-	if err != nil {
-		t.Fatalf("InspectFiles failed: %v", err)
-	}
+	result := InspectFiles([]string{emptyFile}, false)
 
 	file := result.Files[0]
 	if file.LineCount != 0 {
@@ -244,6 +229,22 @@ func TestInspectFiles_EmptyFile(t *testing.T) {
 	}
 	if len(file.RecordTypes) != 0 {
 		t.Errorf("Expected 0 record types for empty file, got %d", len(file.RecordTypes))
+	}
+
+	// DIR-098: the 8eda8f4e shape (an empty session file) must be *named*, not
+	// merely counted as zero lines. This is the whole point — a zero-line
+	// result was previously indistinguishable from a thin-but-fine session.
+	if !file.Empty {
+		t.Error("expected empty=true for a zero-byte file")
+	}
+	if file.Entries != 0 {
+		t.Errorf("expected 0 entries, got %d", file.Entries)
+	}
+	if len(result.MalformedFiles) != 1 {
+		t.Fatalf("expected the empty file named in malformed_files, got %#v", result.MalformedFiles)
+	}
+	if result.MalformedFiles[0].File != emptyFile || result.MalformedFiles[0].Reason == "" {
+		t.Errorf("expected %s named with a reason, got %#v", emptyFile, result.MalformedFiles[0])
 	}
 }
 
@@ -260,10 +261,7 @@ invalid json line
 		t.Fatalf("Failed to create invalid file: %v", err)
 	}
 
-	result, err := InspectFiles([]string{invalidFile}, false)
-	if err != nil {
-		t.Fatalf("InspectFiles failed: %v", err)
-	}
+	result := InspectFiles([]string{invalidFile}, false)
 
 	file := result.Files[0]
 	// Should process valid lines and skip invalid ones
@@ -279,13 +277,72 @@ invalid json line
 	if totalValidRecords != 2 {
 		t.Errorf("Expected 2 valid records, got %d", totalValidRecords)
 	}
+
+	// DIR-098: the corrupt line is named (not silently skipped), yet the file is
+	// NOT excluded — it yielded message entries, so the corpus keeps it. Naming
+	// the defect and excluding the file are two different judgments.
+	if file.Error == "" {
+		t.Error("expected the unparseable line to be reported in error")
+	}
+	if file.Entries != 2 {
+		t.Errorf("Expected 2 message entries, got %d", file.Entries)
+	}
+	if len(result.MalformedFiles) != 0 {
+		t.Errorf("a file that yielded entries must not be excluded, got %#v", result.MalformedFiles)
+	}
 }
 
-// TestInspectFiles_NonExistentFile tests error handling for missing files
+// TestInspectFiles_NonExistentFile pins the DIR-098 contract: a file that
+// cannot be read is reported as structured per-file data (and named in
+// malformed_files), not raised as a whole-batch error. The earlier version of
+// this test asserted the opposite — that InspectFiles returns an error — which
+// is exactly the fail-fast shape that let one bad file erase the rest.
 func TestInspectFiles_NonExistentFile(t *testing.T) {
-	_, err := InspectFiles([]string{"/nonexistent/file.jsonl"}, false)
-	if err == nil {
-		t.Errorf("Expected error for non-existent file, got nil")
+	result := InspectFiles([]string{"/nonexistent/file.jsonl"}, false)
+
+	if len(result.Files) != 1 {
+		t.Fatalf("expected the unreadable file to still be reported, got %d entries", len(result.Files))
+	}
+	file := result.Files[0]
+	if file.Parseable {
+		t.Error("expected parseable=false for a non-existent file")
+	}
+	if file.Error == "" {
+		t.Error("expected a non-empty error string naming the cause")
+	}
+	if len(result.MalformedFiles) != 1 || result.MalformedFiles[0].File != "/nonexistent/file.jsonl" {
+		t.Errorf("expected the file named in malformed_files, got %#v", result.MalformedFiles)
+	}
+	if result.MalformedFiles[0].Reason == "" {
+		t.Error("expected a non-empty reason for the malformed file")
+	}
+}
+
+// TestInspectFiles_OneBadFileDoesNotEraseTheRest is the batch-tolerance half of
+// the DIR-098 contract: a healthy file alongside an unreadable one is still
+// inspected in full.
+func TestInspectFiles_OneBadFileDoesNotEraseTheRest(t *testing.T) {
+	tmpDir := t.TempDir()
+	healthy := filepath.Join(tmpDir, "healthy.jsonl")
+	content := `{"type":"user","timestamp":"2025-10-26T10:00:00Z"}` + "\n" +
+		`{"type":"assistant","timestamp":"2025-10-26T10:01:00Z"}` + "\n"
+	if err := os.WriteFile(healthy, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create healthy file: %v", err)
+	}
+
+	result := InspectFiles([]string{filepath.Join(tmpDir, "missing.jsonl"), healthy}, false)
+
+	if len(result.Files) != 2 {
+		t.Fatalf("expected both files reported, got %d", len(result.Files))
+	}
+	if !result.Files[1].Parseable || result.Files[1].Entries != 2 {
+		t.Errorf("healthy file should still be inspected: %#v", result.Files[1])
+	}
+	if result.Summary.TotalRecords != 2 {
+		t.Errorf("expected the healthy file's records to survive, got %d", result.Summary.TotalRecords)
+	}
+	if len(result.MalformedFiles) != 1 {
+		t.Errorf("expected exactly the unreadable file named as malformed, got %#v", result.MalformedFiles)
 	}
 }
 

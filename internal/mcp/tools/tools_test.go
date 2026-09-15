@@ -144,6 +144,57 @@ func TestAnalysisTools_SchemaExcludesPostProcessingParams(t *testing.T) {
 	}
 }
 
+// TestAnalyzeBugs_SchemaDeclaresMaxPatterns is the DIR-096 regression at the
+// live schema level: analyze_bugs grew a first-class pattern-count cap
+// (max_patterns), and a caller can only discover a parameter the tool
+// actually reads if the schema says so. Before this fix the only size knob
+// was `limit` (examples per pattern), which could not bound the response --
+// the pattern count itself was unbounded, so a default call returned 56
+// patterns / 70,248 bytes and spilled to file_ref mode.
+func TestAnalyzeBugs_SchemaDeclaresMaxPatterns(t *testing.T) {
+	index := tools.BuildToolSchemaIndex()
+	s, err := tools.GetToolSchemaByName(index, "analyze_bugs")
+	if err != nil {
+		t.Fatalf("unexpected error for analyze_bugs: %v", err)
+	}
+
+	maxPatterns, ok := s.Properties["max_patterns"]
+	if !ok {
+		t.Fatal("analyze_bugs must declare max_patterns (DIR-096)")
+	}
+	if maxPatterns.Type != "number" {
+		t.Errorf("max_patterns must be a number property, got %q", maxPatterns.Type)
+	}
+	if !strings.Contains(maxPatterns.Description, "0 = unlimited") {
+		t.Errorf("max_patterns description must document the 0 = unlimited sentinel, got %q", maxPatterns.Description)
+	}
+
+	// limit keeps its own 0 = unlimited sentinel; its description now also
+	// names the structured example shape consumers receive.
+	limit, ok := s.Properties["limit"]
+	if !ok {
+		t.Fatal("analyze_bugs must keep its per-pattern limit parameter")
+	}
+	if !strings.Contains(limit.Description, "0 = unlimited") {
+		t.Errorf("limit description must document the 0 = unlimited sentinel, got %q", limit.Description)
+	}
+
+	// The cap is analyze_bugs-specific: the other analysis.Service-backed
+	// tools have no pattern list to cap, so they must not advertise it.
+	for _, name := range analysisServiceTools {
+		if name == "analyze_bugs" {
+			continue
+		}
+		s, err := tools.GetToolSchemaByName(index, name)
+		if err != nil {
+			t.Fatalf("unexpected error for %s: %v", name, err)
+		}
+		if _, ok := s.Properties["max_patterns"]; ok {
+			t.Errorf("tool %q must not declare max_patterns (only analyze_bugs reads it)", name)
+		}
+	}
+}
+
 // TestPostProcessingParams_StillPresentOnPipelineRoutedTools guards against
 // an overly broad fix: jq_filter/stats_first/inline_threshold_bytes/offset/
 // page_size must remain on the four tools that actually route through
