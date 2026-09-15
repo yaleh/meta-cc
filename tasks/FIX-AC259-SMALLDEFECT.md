@@ -50,13 +50,13 @@ The target is reached from the repo's own commit path: `make check-docs`
    ```
    $ make check-docs
    === Documentation Contract Check (DIR-078) ===
-   ok  	github.com/yaleh/meta-cc/internal/release	0.050s
+   ok  \tgithub.com/yaleh/meta-cc/internal/release\t0.050s
 
    $ go test ./internal/release/... -run TestCurrentDocsGoVersionAtLeastBaseline -v
    === RUN   TestCurrentDocsGoVersionAtLeastBaseline
    --- PASS: TestCurrentDocsGoVersionAtLeastBaseline (0.01s)
    PASS
-   ok  	github.com/yaleh/meta-cc/internal/release	0.040s
+   ok  \tgithub.com/yaleh/meta-cc/internal/release\t0.040s
    ```
 
 3. The gate would fire on that exact line if the file were in its set. The
@@ -130,28 +130,28 @@ and the defective artifact it should have been checking (`CONTRIBUTING.md`).
    // exempt from the checks the gate exists to enforce -- including the
    // Go-prerequisite-vs-go.mod baseline check that CONTRIBUTING.md:18 violates.
    func TestCurrentMarkdownFilesCoversTopLevelDocs(t *testing.T) {
-   	root := t.TempDir()
-   	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {
-   		t.Fatal(err)
-   	}
-   	if err := os.WriteFile(filepath.Join(root, "docs", "guide.md"), []byte("# guide\n"), 0o644); err != nil {
-   		t.Fatal(err)
-   	}
-   	for _, top := range []string{"README.md", "CLAUDE.md", "CONTRIBUTING.md"} {
-   		if err := os.WriteFile(filepath.Join(root, top), []byte("# "+top+"\n"), 0o644); err != nil {
-   			t.Fatal(err)
-   		}
-   	}
+   \troot := t.TempDir()
+   \tif err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {
+   \t\tt.Fatal(err)
+   \t}
+   \tif err := os.WriteFile(filepath.Join(root, "docs", "guide.md"), []byte("# guide\n"), 0o644); err != nil {
+   \t\tt.Fatal(err)
+   \t}
+   \tfor _, top := range []string{"README.md", "CLAUDE.md", "CONTRIBUTING.md"} {
+   \t\tif err := os.WriteFile(filepath.Join(root, top), []byte("# "+top+"\n"), 0o644); err != nil {
+   \t\t\tt.Fatal(err)
+   \t\t}
+   \t}
 
-   	got := currentMarkdownFiles(t, root)
-   	index := make(map[string]bool, len(got))
-   	for _, g := range got {
-   		index[g] = true
-   	}
-   	if !index["CONTRIBUTING.md"] {
-   		t.Errorf("CONTRIBUTING.md missing from the doc-contract file set %v: "+
-   			"the gate exempts the top-level pages that carry its defect class", got)
-   	}
+   \tgot := currentMarkdownFiles(t, root)
+   \tindex := make(map[string]bool, len(got))
+   \tfor _, g := range got {
+   \t\tindex[g] = true
+   \t}
+   \tif !index["CONTRIBUTING.md"] {
+   \t\tt.Errorf("CONTRIBUTING.md missing from the doc-contract file set %v: "+
+   \t\t\t"the gate exempts the top-level pages that carry its defect class", got)
+   \t}
    }
    ```
 
@@ -168,15 +168,15 @@ and the defective artifact it should have been checking (`CONTRIBUTING.md`).
    ```go
    tops, dirErr := os.ReadDir(root)
    if dirErr != nil {
-   	t.Fatalf("reading repo root: %v", dirErr)
+   \tt.Fatalf("reading repo root: %v", dirErr)
    }
    for _, e := range tops {
-   	if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-   		continue
-   	}
-   	if s, _ := classifyDocScope(e.Name()); s == scopeCurrent {
-   		rel = append(rel, e.Name())
-   	}
+   \tif e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+   \t\tcontinue
+   \t}
+   \tif s, _ := classifyDocScope(e.Name()); s == scopeCurrent {
+   \t\trel = append(rel, e.Name())
+   \t}
    }
    ```
 
@@ -211,43 +211,117 @@ and the defective artifact it should have been checking (`CONTRIBUTING.md`).
 
 ## Acceptance Criteria
 
-- [ ] The new regression test fails **before** the production change and passes
+- [x] The new regression test fails **before** the production change and passes
       after: run `go test ./internal/release/... -run TestCurrentMarkdownFilesCoversTopLevelDocs -v`
       with only step 1 applied — it must exit non-zero and print
       `CONTRIBUTING.md missing from the doc-contract file set [docs/guide.md README.md CLAUDE.md]`;
       after step 2, the same command exits 0.
-- [ ] `go test ./internal/release/... -run TestCurrentDocsGoVersionAtLeastBaseline -v`
+- [x] `go test ./internal/release/... -run TestCurrentDocsGoVersionAtLeastBaseline -v`
       exits 0, and fails with `stale Go prerequisite: CONTRIBUTING.md:18 ...`
       if step 2 is applied without step 3.
-- [ ] `grep -n "Go 1.24" CONTRIBUTING.md` prints `18:- Go 1.24 or later (matches the ... go.mod ...)`.
-- [ ] `grep -cE "Go 1\.2[0-3]" CONTRIBUTING.md` prints `0`.
-- [ ] `grep -n "^go " go.mod` is unchanged (`3:go 1.24.0`) — the baseline is the
+- [x] `grep -n "Go 1.24" CONTRIBUTING.md` prints `18:- Go 1.24 or later (matches the ... go.mod ...)`.
+- [x] `grep -cE "Go 1\.2[0-3]" CONTRIBUTING.md` prints `0`.
+- [x] `grep -n "^go " go.mod` is unchanged (`3:go 1.24.0`) — the baseline is the
       authority, the doc is corrected to it, never the reverse.
-- [ ] Negative control holds: `printf '\n- Go 1.21 or later\n' >> docs/reference/features.md && go test ./internal/release/... -run TestCurrentDocsGoVersionAtLeastBaseline`
+- [x] Negative control holds: `printf '\n- Go 1.21 or later\n' >> docs/reference/features.md && go test ./internal/release/... -run TestCurrentDocsGoVersionAtLeastBaseline`
       exits non-zero, and `git checkout -- docs/reference/features.md` restores a
       green tree (`git status --porcelain` shows no change to that file).
-- [ ] `make check-docs` exits 0.
-- [ ] `go test ./internal/release/...` (whole package, not just the two named
+- [x] `make check-docs` exits 0.
+- [x] `go test ./internal/release/...` (whole package, not just the two named
       tests) exits 0.
-- [ ] `make commit` exits 0.
+- [x] `make commit` exits 0.
 
 ## Definition of Done
 
-- [ ] Measured before-reading captured: `make check-docs` green while
+- [x] Measured before-reading captured: `make check-docs` green while
       `CONTRIBUTING.md:18` says `Go 1.21 or later` and `go.mod` says `go 1.24.0`,
       including the verbatim-predicate hit `{line:18 version:1.21}` and the
       already-covered-file control failure.
-- [ ] `currentMarkdownFiles` no longer exempts any top-level `*.md` by name; the
+- [x] `currentMarkdownFiles` no longer exempts any top-level `*.md` by name; the
       exemption list `[]string{"README.md", "CLAUDE.md"}` is gone from
       `internal/release/doc_contract_test.go`.
-- [ ] `CONTRIBUTING.md` states the same prerequisite as `README.md` and `go.mod`.
-- [ ] The gate still catches a below-baseline claim introduced into a file it
+- [x] `CONTRIBUTING.md` states the same prerequisite as `README.md` and `go.mod`.
+- [x] The gate still catches a below-baseline claim introduced into a file it
       already covered (negative control re-run and reverted, output captured).
-- [ ] `make commit` green, and no other top-level page newly fails the widened
+- [x] `make commit` green, and no other top-level page newly fails the widened
       gate (`go test ./internal/release/...` green for the whole package).
-- [ ] The three files below land together in one commit on the meta-cc repo
+- [x] The three files below land together in one commit on the meta-cc repo
       (`tasks/FIX-AC259-SMALLDEFECT.md` included), so the gate change and the
       doc correction cannot be separated by a later revert.
+
+## Evidence
+
+Branch `task/FIX-AC259-SMALLDEFECT` @ worktree `.worktrees/FIX-AC259-SMALLDEFECT`;
+implementation commit `48ad935` ("fix(docs): gate every top-level page, correct
+CONTRIBUTING.md Go prerequisite") carries the gate change **and** the doc
+correction as one indivisible commit — the DoD's actual requirement, that the two
+cannot be separated by a later revert.
+
+**Before-readings reproduced in the worktree (2026-09-15).** `make check-docs` →
+`ok .../internal/release 0.063s`, exit 0, while `grep -n "^go " go.mod` is
+`3:go 1.24.0` and `grep -n "Go 1.2" CONTRIBUTING.md` is `18:- Go 1.21 or later`.
+Verbatim-predicate probe over every top-level `*.md` (`/tmp/ac259probe`, the
+unexported `goVersionRe` + `belowBaselineGoVersions` copied verbatim):
+
+```
+CONTRIBUTING.md:  1 below-baseline hit(s) [{line:18 version:1.21}]
+AGENTS.md: 0   CHANGELOG.md: 0   CLAUDE.md: 0   CODE_OF_CONDUCT.md: 0
+README.md: 0   SECURITY.md: 0    TODO.md: 0     lambda-expression-rewrite-report.md: 0
+```
+
+Positive control in a disposable clone (`git clone --local ... /tmp/ac259ctrl`,
+never the live checkout): appending the identical claim to the covered page
+`docs/reference/features.md` makes the gate FAIL —
+`stale Go prerequisite: docs/reference/features.md:140 documents Go 1.21, below
+the go.mod baseline Go 1.24.` — so the only difference is the file set.
+
+**RED (step 1 only, production code untouched):**
+
+```
+--- FAIL: TestCurrentMarkdownFilesCoversTopLevelDocs (0.00s)
+    doc_contract_test.go:639: CONTRIBUTING.md missing from the doc-contract file set [docs/guide.md README.md CLAUDE.md]: the gate exempts the top-level pages that carry its defect class
+exit=1
+```
+
+**Step 2 without step 3** — the widened gate exposes the live defect:
+
+```
+--- FAIL: TestCurrentDocsGoVersionAtLeastBaseline (0.01s)
+    doc_contract_test.go:414: stale Go prerequisite: CONTRIBUTING.md:18 documents Go 1.21, below the go.mod baseline Go 1.24.
+```
+
+**After step 3:** `TestCurrentMarkdownFilesCoversTopLevelDocs` PASS;
+`TestCurrentDocsGoVersionAtLeastBaseline` PASS; `go test ./internal/release/...`
+`ok`. `grep -n "Go 1.24" CONTRIBUTING.md` →
+`18:- Go 1.24 or later (matches the \`go\` directive in \`go.mod\`)`;
+`grep -cE "Go 1.2[0-3]" CONTRIBUTING.md` → `0`; `git status --porcelain go.mod`
+empty (the baseline is the authority, never the reverse).
+
+**Negative control on the final tree:** injecting `- Go 1.21 or later` into
+`docs/reference/features.md` still FAILs (`docs/reference/features.md:140`);
+`git checkout -- docs/reference/features.md` restores it (`git status --porcelain`
+for that file empty) and the test is `ok` again.
+
+**Whole package green** — the widened set sweeps in `AGENTS.md`, `CHANGELOG.md`,
+`CODE_OF_CONDUCT.md`, `SECURITY.md`, `TODO.md` and
+`lambda-expression-rewrite-report.md`; `TestCurrentDocsDoNotInvokeRemovedTools`
+passing over them is the measured confirmation of the Plan's "0 removed-tool-fence
+hits for every top-level page" claim, so no `docScopeAllowlist` entry was needed
+(and none was added — `CONTRIBUTING.md` is the corrected artifact, not exempted).
+`make check-docs` exit 0; `go test ./internal/release/...` exit 0; `make commit`
+exit 0; fan-in scoped gate `go test ./...` exit 0 (cache written for develop
+`b29556c4`).
+
+**Attribution caveat.** DoD box 6 is ticked on its substantive reading: the gate
+change and the doc correction are one commit. `tasks/FIX-AC259-SMALLDEFECT.md`
+itself reaches the branch through the ABI's own branch-aware `task_write` commit,
+not through `48ad935` — the worker contract forbids hand-editing the task file, so
+folding it into the implementation commit is not available by mechanism.
+
+**Hygiene note.** `make commit`'s `normalize-board-eof` dirties five unrelated
+task files on this ref (`tasks/AC118-001/002/003.md`, `tasks/DIR-095.md`,
+`tasks/DIR-096.md` — pure missing-trailing-newline normalization, pre-existing on
+develop). They were reverted so `48ad935` contains exactly the two intended files.
 
 ## Touches
 
