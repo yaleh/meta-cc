@@ -21,11 +21,7 @@ meta-cc 的 MCP 查询工具在【显式传入 `session_id`】时，`include_sub
 ⇒ 差异被定位在**传参形态**上，不是「那根针不存在」。
 
 `internal/mcp/query/query.go` 的注释只承诺了两种取值（`scope=session` 与 `scope=project` 配
-`includeSubagents=true` 时的文件展开），**显式 `session_id` 是第三种取值，注释里没有它**——
-这与实测形态一致：该路径很可能没有接上 `GetQueryFiles` 的 subagent 目录展开。
-
-⛔ 上面是**待确认的线索，不是结论**。根因与修法必须在实现时到源码里实际定位（`query.go` /
-`stage.go` / `query_files_test.go` 与 `executor/handlers.go` 的调用链），不得照抄本段的猜测。
+`includeSubagents=true` 时的文件展开），**显式 `session_id` 是第三种取值，注释里没有它**——这与实测形态一致：该路径没有接上 `GetQueryFiles` 的 subagent 目录展开。
 
 ## Plan
 
@@ -34,20 +30,69 @@ meta-cc 的 MCP 查询工具在【显式传入 `session_id`】时，`include_sub
 2. 在 `internal/mcp/query/` 的对应读取路径上把 subagent 目录展开接上（具体落点由第 1 步的定位决定）。
 3. 让第 1 步的测试转 PASS；`go build ./...` 与相关包既有测试保持通过。
 
+## Root Cause（实现时在源码中实际定位，替代 Proposal 的线索）
+
+`internal/mcp/executor/provider_query.go` 的 `dispatchProviderQuery` 以「sessionID 非空」为唯一
+分叉条件：非空即路由到 `ExecuteQueryForSession`。该函数用
+`StreamFilesWithTimeRange(ctx, []string{file}, ...)` 只流式读取**一个**主 transcript 文件——
+它当时**连接收 `includeSubagents` 的形参都没有**，所以参数在分叉处被丢弃，不是「读了但没生效」，
+而是根本没有可落地的接收方。`GetQueryFiles` 也帮不上忙：它按 scope 解析，而 `scope="session"`
+的语义是「最近一个会话」，**不是** `session_id` 指定的那个确定线程，所以精确 ID 路径原本没有任何
+通往 subagent 展开的入口。
+
+## Fix
+
+- `internal/mcp/query/query.go`：新增 `GetSessionQueryFilesWithSubagents(sessionFile, includeSubagents)`，
+  从**已解析好的**会话文件反推 `<projectDir>/<uuid>/subagents/`——因此对「不是最新会话」的
+  session_id 同样正确，且不重扫项目目录。
+- `internal/mcp/executor/provider_query.go`：把 `includeSubagents` 一路穿透到
+  `ExecuteQueryForSession`（variadic，既有直接调用方保持可编译，省略时的零值即文档化默认
+  `true`），并在文件列表构造处使用新 helper。
+
 ## Acceptance Criteria
 
-- [ ] AC1 新增/修改的 Go 测试在【修复前】失败、在【修复后】通过；两条命令与真实输出贴进本任务
+- [x] AC1 新增/修改的 Go 测试在【修复前】失败、在【修复后】通过；两条命令与真实输出贴进本任务
       （修复前的失败证据 = 把修复改动反向应用或 `git stash` 后跑同一条测试命令）。
-- [ ] AC2 该测试的判据是**按位置**的：针只存在于 `<session>/subagents/*.jsonl`，在主会话文件里
+- [x] AC2 该测试的判据是**按位置**的：针只存在于 `<session>/subagents/*.jsonl`，在主会话文件里
       一次都不出现（夹具自己先断言这一点，⛔ 不靠文件名或注释声称）。
-- [ ] AC3 `go build ./...` 通过。
-- [ ] AC4 本次改动涉及的既有测试通过（至少 `go test ./internal/mcp/query/... ./internal/mcp/executor/...`）。
+- [x] AC3 `go build ./...` 通过。
+- [x] AC4 本次改动涉及的既有测试通过（至少 `go test ./internal/mcp/query/... ./internal/mcp/executor/...`）。
+
+## Verification Evidence
+
+修复已落在 `internal/mcp/`（提交 `d776870`）。AC1 的两条真实输出：
+
+修复前（`git stash` 反向应用修复源码、保留测试后跑同一条命令）：
+
+```
+$ go test ./internal/mcp/executor/... -run TestQuerySessionContent_ExplicitSessionID_IncludeSubagents_FindsSubagentOnlyContent
+--- FAIL: TestQuerySessionContent_ExplicitSessionID_IncludeSubagents_FindsSubagentOnlyContent (0.00s)
+    session_id_include_subagents_test.go:110:
+        Error:  "[]" should have 1 item(s), but has 0
+        Messages: explicit session_id + include_subagents=true must reach
+        <session>/subagents/*.jsonl, where the needle is the only occurrence
+FAIL github.com/yaleh/meta-cc/internal/mcp/executor 0.010s
+```
+
+修复后：
+
+```
+--- PASS: TestQuerySessionContent_ExplicitSessionID_IncludeSubagents_FindsSubagentOnlyContent (0.00s)
+--- PASS: TestQuerySessionContent_ExplicitSessionID_ExcludeSubagents_DoesNotExpand (0.00s)
+ok  github.com/yaleh/meta-cc/internal/mcp/executor 0.010s
+```
+
+AC2（按位置，非按声称）：夹具在写盘后把两个文件**读回来**计数——针在主会话文件中出现 0 次、
+在子代理文件中出现恰好 1 次；若回归把针挪进主文件（会让测试因错误的原因变绿），夹具构造阶段即失败。
+
+AC3/AC4：`go build ./...` exit 0；`go test ./internal/mcp/query/... ./internal/mcp/executor/...` 两包均 ok；
+合并 develop 后 `go test ./...` 全绿（scoped gate）。
 
 ## Definition of Done
 
-- [ ] 缺陷在源码层面被修复（不是把测试改成绕过它），修复落在 `internal/mcp/` 的查询路径上，改动可在 git log 中查到。
-- [ ] AC1 要求的「修复前失败 / 修复后通过」两条真实输出已贴进任务记录或提交信息。
-- [ ] 未被改坏的行为：显式传 `include_subagents=false` 时依旧不展开 subagent 目录。
+- [x] 缺陷在源码层面被修复（不是把测试改成绕过它），修复落在 `internal/mcp/` 的查询路径上，改动可在 git log 中查到。
+- [x] AC1 要求的「修复前失败 / 修复后通过」两条真实输出已贴进任务记录或提交信息。
+- [x] 未被改坏的行为：显式传 `include_subagents=false` 时依旧不展开 subagent 目录。
 
 ## Touches
 
