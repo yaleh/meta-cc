@@ -83,7 +83,30 @@ loop:
   # reds with "Could not find '<value>'" and burns a whole worker session.
   # Full contract + a drop-in case block: plugin/skills/init/SKILL.md, section "loop.test_command
   # contract".
-  test_command: go test ./...
+  #
+  # test_command runs the project's quay-suite.sh wrapper rather than bare `go test ./...` for one
+  # reason: it is the only producer of the `quay-suite: pass <N> fail <M> skip <K>` summary line
+  # that `test_output` below parses. It is a plain `go test -v` pass-through — same packages, same
+  # exit code — so the scoped gate (resolveScopedGateCommand → `bash -c "cd <worktree> && <test_command>"`)
+  # keeps working with no arguments, and it deliberately does NOT consume quay's own value-taking
+  # flags because loop.test_command never receives them.
+  test_command: bash scripts/quay-suite.sh
+  # gap-quay-test-output-undeclared-counts-absent: DECLARE the count fields. Without this block
+  # quay falls back to its builtin node:test/TAP parser (TEST_COUNT_RE = /^[#ℹ]\s*(pass|fail|cancelled)\s+(\d+)/),
+  # which `go test` output never matches — so every round landed in .quay/verification-round.jsonl
+  # with pass/fail/cancelled/tests absent and the web test card rendered `pass —/—`.
+  #
+  # Each regex must have EXACTLY ONE capture group: applyDeclaredTestOutput runs
+  # `new RegExp(re, "m").exec(plain)` — no `g` flag, so it takes the FIRST match in the log — and
+  # reads m[1] only; it never sums, which is why quay-suite.sh must print an already-totalled line.
+  # `tests` is deliberately NOT declared: quay computes it as pass+fail+cancelled, so Go's `skip`
+  # is mapped onto `cancelled` and `tests` ends up equal to the real test-function count.
+  # Fail-safe: a field that is declared but never matches does NOT fall back to the builtin parser
+  # — it stays absent. A typo here can only reproduce the old `—/—`, never fabricate a number.
+  test_output:
+    pass: 'quay-suite: pass (\d+) fail \d+ skip \d+'
+    fail: 'quay-suite: pass \d+ fail (\d+) skip \d+'
+    cancelled: 'quay-suite: pass \d+ fail \d+ skip (\d+)'
   tmux_session: null
   worktree_root: /data/home/yale/work/meta-cc/../meta-cc-worktrees
   fork_baseline: develop
