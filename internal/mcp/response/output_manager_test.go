@@ -86,7 +86,15 @@ func TestCleanupOldFilesAndToolResult(t *testing.T) {
 	_, err = os.Stat(newPath)
 	require.NoError(t, err)
 
-	result, err := ExecuteCleanupTool(map[string]interface{}{"max_age_days": float64(-1)})
+	// Exercise the tool end to end while provably removing nothing: the age
+	// filter is resolved against the shared os.TempDir(), so any max_age_days
+	// that can actually match a file (0, a negative "no age limit" sentinel, or
+	// a small day count) lets this test delete fixtures owned by other packages
+	// and by concurrently running test binaries — e.g. cmd/mcp-server's
+	// TestCleanupOldFiles, which stages an 8-day-old file for cleanupOldFiles(7).
+	// The removal path itself is already asserted just above via CleanupOldFiles;
+	// what this call adds is the tool's JSON envelope contract.
+	result, err := ExecuteCleanupTool(map[string]interface{}{"max_age_days": float64(3650)})
 	require.NoError(t, err)
 	var decoded map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(result), &decoded))
