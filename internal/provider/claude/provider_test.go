@@ -44,6 +44,24 @@ func stubSessionJSONL(sessionID string) []byte {
 	return []byte(strings.Join(lines, "\n") + "\n")
 }
 
+// subagentParentSessionID is the parent session uuid the fixtures below file
+// their subagent transcripts under — the directory segment Claude Code names
+// after the spawning session.
+const subagentParentSessionID = "7a5d362c-056b-4553-88c8-47cdaabb02be"
+
+// claudeTranscriptJSONL returns a minimal well-formed Claude transcript: one
+// user turn and one assistant turn carrying sessionID, which is the shape
+// parseClaudeEntries requires (anything that is not a user/assistant message
+// entry is ignored). cwd is echoed into every entry because Session.CWD comes
+// from the entries, not from the path.
+func claudeTranscriptJSONL(sessionID, cwd string) []byte {
+	lines := []string{
+		`{"type":"user","sessionId":"` + sessionID + `","uuid":"u1","timestamp":"2026-09-17T08:00:00Z","cwd":"` + cwd + `","message":{"role":"user","content":"spawn a subagent"}}`,
+		`{"type":"assistant","sessionId":"` + sessionID + `","uuid":"a1","parentUuid":"u1","timestamp":"2026-09-17T08:00:05Z","cwd":"` + cwd + `","message":{"role":"assistant","model":"claude-sonnet-4-5-20250929","content":[{"type":"text","text":"subagent finished"}],"usage":{"input_tokens":10,"output_tokens":2}}}`,
+	}
+	return []byte(strings.Join(lines, "\n") + "\n")
+}
+
 func TestProviderID(t *testing.T) {
 	p := NewProvider(locator.NewSessionLocator(), ".")
 	if got := p.ID(); got != conversation.ProviderClaude {
@@ -370,4 +388,97 @@ func TestSessionFromFileDistinguishesEmptyFromError(t *testing.T) {
 	if _, err := p.sessionFromFile(filepath.Join(projectDir, "does-not-exist.jsonl")); errors.Is(err, errNoMessageEntries) {
 		t.Fatalf("missing file: expected a real I/O error, got errNoMessageEntries")
 	}
+}
+
+// TestSessionFromEntriesSetsIsSubagent covers the Claude-side producer of
+// Session.IsSubagent and Session.ParentThreadID — the half that was never
+// written. The field itself and its emission both already existed
+// (internal/conversation/types.go, internal/mcp/executor/query_sessions_handler.go),
+// but nothing on this path ever set it, so `is_subagent` was unreachable on
+// the Claude path no matter what the corpus contained.
+//
+// Claude Code stores a subagent transcript at
+//
+//	<projectsRoot>/<projectHash>/<parentSessionID>/subagents/agent-<agentID>.jsonl
+//
+// so the transcript's own path is what identifies it as a subagent AND names
+// the session that spawned it — no spawn metadata has to be parsed out of the
+// JSONL. The fixtures below reproduce exactly that layout.
+func TestSessionFromEntriesSetsIsSubagent(t *testing.T) {
+	root := t.TempDir()
+	resolvedProject, projectDir := seedProjectDir(t, root)
+
+	topLevel := filepath.Join(projectDir, subagentParentSessionID+".jsonl")
+	if err := os.WriteFile(topLevel, claudeTranscriptJSONL(subagentParentSessionID, resolvedProject), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	subagentDir := filepath.Join(projectDir, subagentParentSessionID, "subagents")
+	if err := os.MkdirAll(subagentDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A real subagent transcript carries its PARENT's sessionId (verified
+	// against the live corpus on this host), which is why ParentThreadID is
+	// derived from the path rather than from the entries.
+	subagentFile := filepath.Join(subagentDir, "agent-a16670a1c4453c992.jsonl")
+	if err := os.WriteFile(subagentFile, claudeTranscriptJSONL(subagentParentSessionID, resolvedProject), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("transcript under a session uuid's subagents dir is a subagent", func(t *testing.T) {
+		session, err := SessionFromFile(subagentFile)
+		if err != nil {
+			t.Fatalf("SessionFromFile(%s): %v", subagentFile, err)
+		}
+		if !session.IsSubagent {
+			t.Errorf("IsSubagent = false for a transcript under <uuid>/subagents/, want true")
+		}
+		if session.ParentThreadID != subagentParentSessionID {
+			t.Errorf("ParentThreadID = %q, want the fixture's parent session uuid %q",
+				session.ParentThreadID, subagentParentSessionID)
+		}
+		if session.Lineage != conversation.LineageStatusChild {
+			t.Errorf("Lineage = %q, want %q (the path reliably reports the parent edge)",
+				session.Lineage, conversation.LineageStatusChild)
+		}
+	})
+
+	t.Run("top-level transcript is not a subagent and has no parent", func(t *testing.T) {
+		session, err := SessionFromFile(topLevel)
+		if err != nil {
+			t.Fatalf("SessionFromFile(%s): %v", topLevel, err)
+		}
+		if session.IsSubagent {
+			t.Errorf("IsSubagent = true for a top-level transcript, want false")
+		}
+		if session.ParentThreadID != "" {
+			t.Errorf("ParentThreadID = %q for a top-level transcript, want empty", session.ParentThreadID)
+		}
+	})
+
+	t.Run("subagents dir under a non-uuid parent stays top-level", func(t *testing.T) {
+		// The rule is "<session uuid>/subagents/", not "any directory named
+		// subagents": a file whose parent segment is not a session uuid must
+		// not be reclassified, or the field would start claiming attribution
+		// the path does not actually witness.
+		strayDir := filepath.Join(projectDir, "subagents")
+		if err := os.MkdirAll(strayDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		strayFile := filepath.Join(strayDir, "agent-a16670a1c4453c992.jsonl")
+		if err := os.WriteFile(strayFile, claudeTranscriptJSONL(subagentParentSessionID, resolvedProject), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		session, err := SessionFromFile(strayFile)
+		if err != nil {
+			t.Fatalf("SessionFromFile(%s): %v", strayFile, err)
+		}
+		if session.IsSubagent {
+			t.Errorf("IsSubagent = true for <projectHash>/subagents/, whose parent segment is not a session uuid")
+		}
+		if session.ParentThreadID != "" {
+			t.Errorf("ParentThreadID = %q, want empty", session.ParentThreadID)
+		}
+	})
 }

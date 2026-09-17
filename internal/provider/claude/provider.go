@@ -236,6 +236,27 @@ func FilePath(session conversation.Session) (string, error) {
 	return ext.Path, nil
 }
 
+// SessionFromFile projects one Claude transcript path into a Session — the
+// inverse of FilePath, and the entry point for a caller that already holds a
+// transcript path rather than a session id. It applies the same exclusion
+// rule as every other single-file read (locator.ExclusionFor) so a file is
+// never judged healthy here and empty elsewhere: a path that carries no
+// message entries is reported as errNoMessageEntries rather than as a
+// zero-valued Session.
+//
+// This is what makes a subagent transcript ATTRIBUTABLE without going through
+// the session-id lookup: the path is the evidence (see subagentPathInfo), so
+// a caller that already holds a path — e.g. one obtained from the two-stage
+// discovery tools — gets is_subagent/parent_thread_id back instead of an
+// anonymous transcript.
+func SessionFromFile(file string) (conversation.Session, error) {
+	entries, err := parseClaudeEntries(file)
+	if exclusion := locator.ExclusionFor(file, len(entries), err); exclusion != nil {
+		return conversation.Session{}, fmt.Errorf("%w in %s", exclusion.Err, file)
+	}
+	return sessionFromEntries(file, entries), nil
+}
+
 // sessionFromFile is the single-file read used by GetSession and
 // findSessionFile. Unlike ListSessions it is a targeted lookup, not a corpus
 // enumeration: there is no "rest of the batch" to protect, so an unusable
@@ -244,16 +265,74 @@ func FilePath(session conversation.Session) (string, error) {
 // never judged healthy on one path and empty on another — only the response
 // to that verdict differs.
 func (p *Provider) sessionFromFile(file string) (conversation.Session, error) {
-	entries, err := parseClaudeEntries(file)
-	if exclusion := locator.ExclusionFor(file, len(entries), err); exclusion != nil {
-		return conversation.Session{}, fmt.Errorf("%w in %s", exclusion.Err, file)
+	return SessionFromFile(file)
+}
+
+// subagentsDirName is the directory Claude Code files a session's subagent
+// transcripts under, one level below the transcript root's project-hash
+// directory: <projectHash>/<parentSessionId>/subagents/agent-<agentId>.jsonl.
+const subagentsDirName = "subagents"
+
+// subagentPathInfo reports whether a Claude transcript path is a subagent
+// transcript, and if so the parent session id encoded in that path.
+//
+// The path is the whole source of truth here, and deliberately so: a subagent
+// transcript carries its PARENT's sessionId in its own entries (verified
+// against the live corpus), so nothing inside the JSONL distinguishes it from
+// the top-level session it belongs to. Only the directory it sits in does.
+//
+// The parent segment must look like a session uuid: the rule is
+// "<uuid>/subagents/", not "any directory named subagents", so a directory
+// that merely shares the name cannot get a record reclassified as a subagent
+// with a fabricated parent.
+func subagentPathInfo(file string) (isSubagent bool, parentSessionID string) {
+	dir := filepath.Dir(file)
+	if filepath.Base(dir) != subagentsDirName {
+		return false, ""
 	}
-	return sessionFromEntries(file, entries), nil
+	parent := filepath.Base(filepath.Dir(dir))
+	if !looksLikeSessionUUID(parent) {
+		return false, ""
+	}
+	return true, parent
+}
+
+// looksLikeSessionUUID reports whether s has the 8-4-4-4-12 hex shape of a
+// Claude session id (e.g. 7a5d362c-056b-4553-88c8-47cdaabb02be).
+func looksLikeSessionUUID(s string) bool {
+	const uuidLen = 36
+	if len(s) != uuidLen {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if i == 8 || i == 13 || i == 18 || i == 23 {
+			if s[i] != '-' {
+				return false
+			}
+			continue
+		}
+		c := s[i]
+		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // sessionFromEntries projects parsed message entries into a Session. It
 // requires a non-empty slice (its callers have already ruled out the
 // zero-entry case via locator.ExclusionFor).
+//
+// Subagent attribution is derived from the transcript's PATH, not from its
+// entries (see subagentPathInfo). IsSubagent is therefore definite for every
+// record this function returns, never merely "unknown": true for a transcript
+// under <uuid>/subagents/, false for everything else. Lineage is set to
+// LineageStatusChild in the true case, because that same path is a source
+// that reliably reports the parent edge; the false case is left
+// LineageStatusUnspecified rather than being claimed as a confirmed root,
+// since the path rules out "subagent transcript" without positively asserting
+// the absence of any parent.
 func sessionFromEntries(file string, entries []types.SessionEntry) conversation.Session {
 	first := entries[0]
 	last := entries[len(entries)-1]
@@ -263,16 +342,25 @@ func sessionFromEntries(file string, entries []types.SessionEntry) conversation.
 		tokenUsage = extractClaudeUsage(last.Message.Usage)
 	}
 
+	isSubagent, parentSessionID := subagentPathInfo(file)
+	lineage := conversation.LineageStatusUnspecified
+	if isSubagent {
+		lineage = conversation.LineageStatusChild
+	}
+
 	ext, _ := json.Marshal(map[string]string{"path": file})
 	return conversation.Session{
-		ID:         first.SessionID,
-		Provider:   conversation.ProviderClaude,
-		Title:      entryText(&first),
-		CWD:        first.CWD,
-		Model:      messageModel(last.Message),
-		CreatedAt:  createdAt.UTC(),
-		TokenUsage: tokenUsage,
-		Extensions: ext,
+		ID:             first.SessionID,
+		Provider:       conversation.ProviderClaude,
+		Title:          entryText(&first),
+		CWD:            first.CWD,
+		Model:          messageModel(last.Message),
+		ParentThreadID: parentSessionID,
+		Lineage:        lineage,
+		IsSubagent:     isSubagent,
+		CreatedAt:      createdAt.UTC(),
+		TokenUsage:     tokenUsage,
+		Extensions:     ext,
 	}
 }
 

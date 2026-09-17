@@ -23,10 +23,15 @@ type Session struct {
 	// requiring its turns to be loaded — populated on a best-effort basis
 	// per provider/backend (see internal/provider/codex/appserver/map.go
 	// and internal/provider/codex/sqlite.go for Codex; the Claude provider
-	// leaves most of them at their zero value since Claude sessions don't
-	// carry this metadata). Zero values (ModelProvider == "", Archived ==
-	// false, ...) mean "unknown/not applicable", not "filtered out" —
-	// SessionFilter treats an unset filter dimension as "no constraint".
+	// populates ParentThreadID/Lineage/IsSubagent for a subagent transcript
+	// from its path — see internal/provider/claude/provider.go's
+	// subagentPathInfo — and leaves the rest at their zero value since
+	// Claude sessions don't carry this metadata). Zero values (ModelProvider
+	// == "", Archived == false, ...) mean "unknown/not applicable", not
+	// "filtered out" — SessionFilter treats an unset filter dimension as "no
+	// constraint". IsSubagent is the one exception to that reading on the
+	// Claude path: the producer there is total, so a false value positively
+	// means "not a subagent" rather than "unknown".
 	ModelProvider  string `json:"model_provider,omitempty"`
 	SourceKind     string `json:"source_kind,omitempty"`
 	Status         string `json:"status,omitempty"` // "active" or "archived"; derived from Archived

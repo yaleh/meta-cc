@@ -332,6 +332,15 @@ func sessionToEntry(s conversation.Session) map[string]interface{} {
 	if s.Lineage != "" {
 		entry["lineage"] = string(s.Lineage)
 	}
+	// Emitted only when true, on purpose. This shared emitter serves every
+	// provider, and an explicit `false` would launder a genuinely unknown
+	// classification into a positive one (Codex can leave IsSubagent false
+	// because no source kind was recorded — see codex/sqlite.go). Absence is
+	// not ambiguous where it matters: the Claude producer derives IsSubagent
+	// from the transcript path for EVERY record it emits, so on that path an
+	// absent field already means "not a subagent", and a caller never has to
+	// tell false apart from unknown. Inventing a per-provider emit shape for
+	// the same field would be a third convention for it.
 	if s.IsSubagent {
 		entry["is_subagent"] = true
 	}

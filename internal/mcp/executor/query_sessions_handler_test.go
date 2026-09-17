@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/yaleh/meta-cc/internal/locator"
+	claudeprovider "github.com/yaleh/meta-cc/internal/provider/claude"
 	codexprovider "github.com/yaleh/meta-cc/internal/provider/codex"
 	"github.com/yaleh/meta-cc/internal/provider/codex/appserver"
 	"github.com/yaleh/meta-cc/internal/testutil"
@@ -618,6 +619,109 @@ func TestQuerySessions_Claude_ExactSessionID(t *testing.T) {
 	require.Len(t, result.Entries, 1)
 	m := result.Entries[0].(map[string]interface{})
 	require.Equal(t, sessionID, m["session_id"])
+}
+
+// setupClaudeSubagentFixtureProject wires a temporary Claude projects root
+// holding BOTH a top-level session transcript and a subagent transcript filed
+// under that session's uuid — the layout Claude Code actually writes:
+//
+//	<projectsRoot>/<projectHash>/<parentSessionId>.jsonl
+//	<projectsRoot>/<projectHash>/<parentSessionId>/subagents/agent-<id>.jsonl
+//
+// It returns the resolved project path (to pass as working_dir), the parent
+// session id, and the subagent transcript's on-disk path.
+func setupClaudeSubagentFixtureProject(t *testing.T) (projectPath, parentSessionID, subagentFile string) {
+	t.Helper()
+
+	projectsRoot := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", projectsRoot)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex-home"))
+
+	rawProjectPath := t.TempDir()
+	absProject, err := filepath.Abs(rawProjectPath)
+	require.NoError(t, err)
+	resolvedProject, err := filepath.EvalSymlinks(absProject)
+	require.NoError(t, err)
+
+	hash := strings.ReplaceAll(resolvedProject, "\\", "-")
+	hash = strings.ReplaceAll(hash, "/", "-")
+	hash = strings.ReplaceAll(hash, ":", "-")
+	sessionDir := filepath.Join(projectsRoot, hash)
+	require.NoError(t, os.MkdirAll(sessionDir, 0o755))
+
+	parentSessionID = "7a5d362c-056b-4553-88c8-47cdaabb02be"
+	// The subagent transcript carries its PARENT's sessionId (that is what a
+	// real one on disk carries), which is exactly why the parent link has to
+	// come from the path rather than from the entries.
+	transcript := func() []byte {
+		lines := []string{
+			fmt.Sprintf(`{"type":"user","sessionId":%q,"uuid":"u1","timestamp":"2026-09-17T08:00:00Z","cwd":%q,"message":{"role":"user","content":"spawn a subagent"}}`, parentSessionID, resolvedProject),
+			fmt.Sprintf(`{"type":"assistant","sessionId":%q,"uuid":"a1","parentUuid":"u1","timestamp":"2026-09-17T08:00:05Z","cwd":%q,"message":{"role":"assistant","model":"claude-sonnet-4-5-20250929","content":[{"type":"text","text":"subagent finished"}],"usage":{"input_tokens":10,"output_tokens":2}}}`, parentSessionID, resolvedProject),
+		}
+		return []byte(strings.Join(lines, "\n") + "\n")
+	}
+
+	require.NoError(t, os.WriteFile(filepath.Join(sessionDir, parentSessionID+".jsonl"), transcript(), 0o644))
+
+	subagentDir := filepath.Join(sessionDir, parentSessionID, "subagents")
+	require.NoError(t, os.MkdirAll(subagentDir, 0o755))
+	subagentFile = filepath.Join(subagentDir, "agent-a16670a1c4453c992.jsonl")
+	require.NoError(t, os.WriteFile(subagentFile, transcript(), 0o644))
+
+	return resolvedProject, parentSessionID, subagentFile
+}
+
+// TestQuerySessions_Claude_SubagentRecordCarriesIsSubagentAndParentLink is
+// the handler-level half of the Claude-side subagent attribution fix. The
+// producer (Session.IsSubagent / ParentThreadID for a transcript under
+// <uuid>/subagents/) and the emitter (sessionToEntry) are covered together
+// here: the Session handed to the emitter comes from the Claude provider's own
+// projection of the fixture, so a regression in either half fails this test.
+//
+// The top-level half deliberately goes through the real handler: it proves
+// that for a session query_sessions actually lists on the Claude path, the
+// record does not carry is_subagent=true.
+func TestQuerySessions_Claude_SubagentRecordCarriesIsSubagentAndParentLink(t *testing.T) {
+	projectPath, parentSessionID, subagentFile := setupClaudeSubagentFixtureProject(t)
+
+	t.Run("a subagent transcript's record carries is_subagent and a parent link", func(t *testing.T) {
+		session, err := claudeprovider.SessionFromFile(subagentFile)
+		require.NoError(t, err)
+		require.True(t, session.IsSubagent, "the fixture lives under <uuid>/subagents/")
+
+		entry := sessionToEntry(session)
+		require.Equal(t, true, entry["is_subagent"])
+		require.Equal(t, parentSessionID, entry["parent_thread_id"],
+			"the record must let a consumer trace the subagent to the session that spawned it")
+		require.Equal(t, "child", entry["lineage"])
+	})
+
+	t.Run("a listed top-level session does not carry is_subagent as true", func(t *testing.T) {
+		result, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
+			"provider":    "claude",
+			"working_dir": projectPath,
+		})
+		require.NoError(t, err)
+
+		// Locate the record by id rather than by position: which transcripts
+		// the Claude listing enumerates is a separate concern, and this
+		// assertion has to hold whichever set that turns out to be.
+		var topLevel map[string]interface{}
+		for _, e := range result.Entries {
+			m, ok := e.(map[string]interface{})
+			require.True(t, ok, "unexpected entry shape: %#v", e)
+			if m["session_id"] == parentSessionID {
+				topLevel = m
+			}
+		}
+		require.NotNil(t, topLevel, "expected the top-level session %q in the listing", parentSessionID)
+
+		require.NotEqual(t, true, topLevel["is_subagent"])
+		_, present := topLevel["is_subagent"]
+		require.False(t, present,
+			"the Claude producer derives is_subagent from the path for EVERY record it emits, so on this path an absent field already means \"not a subagent\" rather than \"unknown\"")
+	})
 }
 
 // TestQuerySessions_InvalidTimeValueFailsClosed proves an unparseable

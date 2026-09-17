@@ -106,7 +106,7 @@ query_session_signals({
 
 ### `query_sessions` (session discovery)
 
-Lists session/thread **metadata** — id, cwd, title, status, source_kind, model, model_provider, archived, parent_thread_id, is_subagent, created_at, updated_at — **without loading any turn/message content**. Use it to discover which session to target before querying it with `session_id` on another tool (see above). Default scope: project.
+Lists session/thread **metadata** — id, cwd, title, status, source_kind, model, model_provider, archived, parent_thread_id, is_subagent, created_at, updated_at — **without loading any turn/message content**. Which of those fields a given record actually carries depends on the provider that produced it (see *Metadata provenance* below). Use it to discover which session to target before querying it with `session_id` on another tool (see above). Default scope: project.
 
 | Parameter | Type | Notes |
 |-----------|------|-------|
@@ -125,7 +125,17 @@ Lists session/thread **metadata** — id, cwd, title, status, source_kind, model
 | `include_subagents` | boolean | Default `true`; `false` excludes subagent-sourced sessions. |
 | `limit` | number | Max sessions to return. Combine with the standard `offset`/`page_size` parameters for pagination over a large project. |
 
-Codex-only filters (`source_kind`, `model_provider`, `parent_thread_id`, `archived`, `status`, `ancestors_of`) fail with an actionable error if used while `provider` is `"claude"` (the default under Claude Code and standalone installs) — Claude sessions don't carry this metadata, so the filter could never match and a silent empty result would be indistinguishable from "no sessions found".
+Codex-only filters (`source_kind`, `model_provider`, `parent_thread_id`, `archived`, `status`, `ancestors_of`) fail with an actionable error if used while `provider` is `"claude"` (the default under Claude Code and standalone installs) — they are keyed on Codex thread metadata (archive state, source kind, model provider, spawn edges), so a silent empty result would be indistinguishable from "no sessions found".
+
+**Metadata provenance.** A field absent from a record means the provider that produced it has nothing to say about that dimension — not that it was filtered out. The two subagent fields are the ones worth stating precisely, because they are populated by both providers from different evidence:
+
+| Field | Codex | Claude |
+|-------|-------|--------|
+| `model_provider`, `source_kind`, `archived` / `status`, `updated_at` | populated from thread metadata | never (a Claude transcript carries none of these) |
+| `is_subagent` | `true` when the thread's source kind is a subagent one | `true` for a record derived from a transcript filed under `<projectDir>/<uuid>/subagents/`; absent otherwise |
+| `parent_thread_id`, `lineage` | populated from thread spawn metadata | for that same subagent transcript only: both are read from its path, so `parent_thread_id` is the spawning session's id and `lineage` is `"child"` |
+
+`is_subagent` is only ever emitted as `true` — never as `false`. On the Claude path that is not an ambiguity: every Claude record is classified from its transcript path, so an absent `is_subagent` positively means "top-level session". On the Codex path `false` can also mean the source kind simply wasn't recorded, which is why the shared emitter stays positive-only instead of laundering that "unknown" into a definite `false`.
 
 A session file that contributes nothing is **skipped and named**, never silently dropped and never fatal to the listing (DIR-094). This covers all three shapes a Claude transcript can take: an empty/truncated file, a well-formed *metadata-only stub* (the entry Claude Code writes at session start — `mode`/`permission-mode`/`system`, no messages), and an unreadable file. Each one appears in the response `warnings` as `skipped session file <path>: <reason>`, and every other session in the project still returns. The same rule and the same wording are shared by `get_timeline` and all five analysis tools, which read the corpus through the same helper (`internal/locator/sessionfile.go`), so a file excluded from one tool is excluded-and-reported everywhere.
 
