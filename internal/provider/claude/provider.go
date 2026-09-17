@@ -269,7 +269,7 @@ func sessionFromEntries(file string, entries []types.SessionEntry) conversation.
 
 	ext, _ := json.Marshal(map[string]string{"path": file})
 	return conversation.Session{
-		ID:         sessionIDFor(file, entries),
+		ID:         sessionIDFor(file, first),
 		Provider:   conversation.ProviderClaude,
 		Title:      entryText(&first),
 		CWD:        first.CWD,
@@ -290,11 +290,11 @@ func sessionFromEntries(file string, entries []types.SessionEntry) conversation.
 // duplicate ids, and the id it printed could not be handed back to any
 // session_id-taking tool, which is the second half of
 // gap-claude-listsessions-misses-subagents.
-func sessionIDFor(file string, entries []types.SessionEntry) string {
+func sessionIDFor(file string, first types.SessionEntry) string {
 	if agentID := locator.SubagentIDFromPath(file); agentID != "" {
 		return agentID
 	}
-	return entries[0].SessionID
+	return first.SessionID
 }
 
 // NOTE(DIR-038): this hand-rolled bufio.NewReader + ReadBytes('\n') loop
