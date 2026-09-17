@@ -101,5 +101,6 @@ are Codex-side; this one is the Claude-side producer that was never written.
 - `internal/provider/claude/provider.go`
 - `internal/provider/claude/provider_test.go`
 - `internal/mcp/executor/query_sessions_handler.go`
+- `internal/mcp/executor/query_sessions_handler_test.go`
 - `internal/conversation/types.go`
 - `docs/guides/mcp-query-tools.md`
