@@ -72,18 +72,18 @@ are Codex-side; this one is the Claude-side producer that was never written.
 
 ## Acceptance Criteria
 
-- [ ] `go test ./internal/provider/claude/ -run TestSessionFromEntriesSetsIsSubagent`
+- [x] `go test ./internal/provider/claude/ -run TestSessionFromEntriesSetsIsSubagent`
       exits 0, asserting `IsSubagent` is true for a fixture transcript under
       `<uuid>/subagents/` and false for a top-level control.
-- [ ] The same test asserts `ParentThreadID` resolves to the fixture's parent
+- [x] The same test asserts `ParentThreadID` resolves to the fixture's parent
       session uuid.
-- [ ] A handler-level test asserts the emitted record carries
+- [x] A handler-level test asserts the emitted record carries
       `is_subagent: true` for that fixture, and that a top-level session's record
       does not carry it as true.
-- [ ] `docs/guides/mcp-query-tools.md` no longer describes `is_subagent` in a way
+- [x] `docs/guides/mcp-query-tools.md` no longer describes `is_subagent` in a way
       the Claude path cannot produce, verified by reading the sentence at
       line 109 against the shipped behaviour.
-- [ ] `make commit` passes.
+- [x] `make commit` passes.
 
 ## DoD
 
