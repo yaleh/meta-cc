@@ -133,8 +133,8 @@ Codex-only filters (`source_kind`, `model_provider`, `parent_thread_id`, `archiv
 |-------|-------|--------|
 | `model_provider`, `source_kind`, `updated_at` | populated from thread metadata | absent — a Claude transcript carries none of these |
 | `archived` / `status` | populated from thread metadata | always present, always `false` / `""` — a Claude session has no archive state |
-| `is_subagent` | `true` when the thread's source kind is a subagent one | `true` for a record derived from a transcript filed under `<projectDir>/<uuid>/subagents/`; absent otherwise |
-| `parent_thread_id`, `lineage` | populated from thread spawn metadata | for that same subagent transcript only: both are read from its path, so `parent_thread_id` is the spawning session's id and `lineage` is `"child"` |
+| `is_subagent` | `true` when the thread's source kind is a subagent one | `true` for a record derived from a transcript filed directly inside a `subagents/` directory — in practice `<projectDir>/<uuid>/subagents/agent-<agentId>.jsonl`; absent otherwise |
+| `parent_thread_id`, `lineage` | populated from thread spawn metadata | for that same subagent transcript only, and both read from its path: `lineage` is `"child"`, and `parent_thread_id` is the spawning session's uuid — the directory Claude Code files the transcript under — so it is present whenever that path segment is a session uuid |
 
 `is_subagent` is only ever emitted as `true` — never as `false`. On the Claude path that is not an ambiguity: every Claude record is classified from its transcript path, so an absent `is_subagent` positively means "top-level session". On the Codex path `false` can also mean the source kind simply wasn't recorded, which is why the shared emitter stays positive-only instead of laundering that "unknown" into a definite `false`.
 
