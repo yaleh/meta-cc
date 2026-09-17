@@ -174,6 +174,25 @@ func TestQuaySuiteRedPathStaysRed(t *testing.T) {
 		"counts must be 2/3/4 — the subtest under TestPass1 must not be counted as a test of its own")
 }
 
+// TestQuaySuiteKeepsWholeModuleDefaultWithFlagsOnly pins the default package set against the
+// footgun that would silently narrow it: keying "no packages given" on `$# -eq 0` means a
+// flag-only invocation hands `go test` no package argument, and `go test` then falls back to the
+// CURRENT DIRECTORY — testing nothing but the repo root. The fixture module keeps a subpackage
+// with tests precisely so a bare-`.` run is distinguishable: it would report 0 counts, not 9.
+func TestQuaySuiteKeepsWholeModuleDefaultWithFlagsOnly(t *testing.T) {
+	dir := writeQuaySuiteFixture(t)
+	sub := filepath.Join(dir, "sub")
+	require.NoError(t, os.MkdirAll(sub, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(sub, "sub_test.go"),
+		[]byte("package sub\n\nimport \"testing\"\n\nfunc TestSubPackageIsReached(t *testing.T) {}\n"), 0o644))
+
+	// -count=1 only: a flag, no package. The default ./... must still be applied.
+	stdout, _ := runQuaySuite(t, dir, "-count=1")
+
+	require.Equal(t, "quay-suite: pass 3 fail 3 skip 4", lastLine(stdout),
+		"a flag-only invocation must still default to ./... — the fixture's subpackage test is only reached through the recursive pattern")
+}
+
 // TestDeclaredTestOutputBindsToTheSummaryLine asserts AC3: the mechanism is only live if
 // .quay/config.yml both RUNS the summary producer and declares regexes that bind to its output
 // under quay's own semantics — `new RegExp(re, "m").exec(plain)` → m[1] → Number(), then

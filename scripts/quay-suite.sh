@@ -47,8 +47,21 @@
 
 set -uo pipefail
 
-if [ "$#" -eq 0 ]; then
-  set -- ./...
+# Default to the whole module. Keyed on "no argument names a PACKAGE", not on "$# -eq 0": a
+# flag-only invocation (`quay-suite.sh -count=1`) with a bare `$# -eq 0` test would hand `go test`
+# no package argument, and `go test` then silently falls back to the CURRENT DIRECTORY — testing
+# nothing but the repo root and reddening the round with `no Go files in ...`. Appending ./... as
+# soon as every argument is a flag keeps the default intact no matter which flags are in play,
+# which is what the scoped gate (`cd <worktree> && bash scripts/quay-suite.sh`) relies on.
+has_package_arg=0
+for arg in "$@"; do
+  case "${arg}" in
+    -*) ;;
+    *) has_package_arg=1 ;;
+  esac
+done
+if [ "${has_package_arg}" -eq 0 ]; then
+  set -- "$@" ./...
 fi
 
 out="$(mktemp "${TMPDIR:-/tmp}/quay-suite.XXXXXX")" || exit 2
