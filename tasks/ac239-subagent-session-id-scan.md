@@ -88,6 +88,17 @@ AC2（按位置，非按声称）：夹具在写盘后把两个文件**读回来
 AC3/AC4：`go build ./...` exit 0；`go test ./internal/mcp/query/... ./internal/mcp/executor/...` 两包均 ok；
 合并 develop 后 `go test ./...` 全绿（scoped gate）。
 
+### 本轮复核（merge develop 之后重新取证）
+
+`git merge develop` 干净合入（仅 `tasks/DIR-085.md`）。在本 worktree 内重新执行：
+
+- **AC1 反向复核**（`git checkout develop -- internal/mcp/executor/provider_query.go internal/mcp/query/query.go`
+  只回退源码、保留新测试）：`--- FAIL ... "[]" should have 1 item(s), but has 0`，exit 1；
+  还原后同一条命令 `--- PASS`。修复前失败/修复后通过，两侧均为实跑输出。
+- **AC3** `go build ./...` → exit 0。
+- **AC4** `go test ./internal/mcp/query/... ./internal/mcp/executor/...` → ok；
+  `go test ./...`（scoped gate）→ 全绿 exit 0。
+
 ## Definition of Done
 
 - [x] 缺陷在源码层面被修复（不是把测试改成绕过它），修复落在 `internal/mcp/` 的查询路径上，改动可在 git log 中查到。
@@ -97,6 +108,6 @@ AC3/AC4：`go build ./...` exit 0；`go test ./internal/mcp/query/... ./internal
 ## Touches
 
 - internal/mcp/query/query.go
-- internal/mcp/query/stage.go
-- internal/mcp/query/query_files_test.go
+- internal/mcp/executor/provider_query.go
+- internal/mcp/executor/session_id_include_subagents_test.go
 - tasks/ac239-subagent-session-id-scan.md
