@@ -11,8 +11,8 @@ promptSuggestions: false
 
 profiles:
   worker-default:
-    launcher: claude
-    model: null
+    launcher: claude-fjdac
+    model: v4.1flash
     bare: false
     auth: key              # 原生 claude 读 ANTHROPIC_API_KEY
   manager-local:
