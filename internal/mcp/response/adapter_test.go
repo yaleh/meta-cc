@@ -1,6 +1,7 @@
 package response
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,7 +36,13 @@ func TestAdaptResponseInlineAndValidation(t *testing.T) {
 func TestBuildFileRefResponseAndSerialize(t *testing.T) {
 	path := CreateTempFilePath("adapter", "test")
 	require.NoError(t, WriteJSONLFile(path, []interface{}{map[string]interface{}{"id": 1}}))
-	t.Cleanup(func() { _, _, _ = CleanupOldFiles(-1) })
+	// Remove only the file this test created. CleanupOldFiles globs every
+	// meta-cc-mcp-*.jsonl in the shared os.TempDir() and a negative maxAgeDays
+	// makes the age filter match all of them, so using it here would unlink
+	// fixtures owned by other packages (and by concurrently running test
+	// binaries) — see TestBuildResponse_FileRefCarriesSelfDescribingMetadata
+	// in internal/mcp/pipeline, which reads back a file it just spilled.
+	t.Cleanup(func() { _ = os.Remove(path) })
 	pagination := &filter.PaginationMetadata{TotalRecords: 1}
 	got, err := BuildFileRefResponse(path, []interface{}{map[string]interface{}{"id": 1}}, pagination)
 	require.NoError(t, err)

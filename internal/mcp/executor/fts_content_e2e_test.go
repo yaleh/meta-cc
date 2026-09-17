@@ -59,6 +59,26 @@ func splitNonEmptyLines(raw string) []string {
 }
 
 func TestQuerySessionContent_UnicodeCaseFoldingParity(t *testing.T) {
+	// Skipped in -short mode (DIR-083). This is a dual-scan parity test: every
+	// query is executed twice -- once with the FTS index disabled and once
+	// enabled -- and the two full envelopes are deep-compared. That shape is
+	// the expensive one, and its cost tracks whatever the codex fixture has to
+	// do per query: measured 2026-07-30 at 4.3s on this test alone, back when
+	// the fixture still drove a real `codex app-server` child per query (that
+	// cost was removed by cf6efaf pinning META_CC_CODEX_BACKEND=files, leaving
+	// ~0.1s today). The guard is kept because the skip is what bounds the cost
+	// on the hot path if that pin is ever weakened or removed.
+	//
+	// The parity guarantee itself is NOT weakened by this skip, only relocated
+	// off the hot path: `make push` and CI run `go test` WITHOUT -short (see
+	// the Makefile's `test-all` target, reached via `check-push-ready`), so
+	// "the FTS/Unicode fast path agrees with the canonical scan" is still
+	// asserted exactly where it matters. Plain
+	// `go test ./internal/mcp/executor/` (non-short) also still runs it.
+	if testing.Short() {
+		t.Skip("skipping DIR-083 FTS/Unicode dual-scan parity assertion in -short mode; it still runs on the non-short `go test` / `make push` path")
+	}
+
 	project := setupCodexRolloutFixtureProject(t, "rollout-context-turns-sample.jsonl")
 	rollout := filepath.Join(os.Getenv("META_CC_CODEX_ROOT"), "rollout.jsonl")
 	raw, err := os.ReadFile(rollout)
@@ -82,6 +102,26 @@ func TestQuerySessionContent_UnicodeCaseFoldingParity(t *testing.T) {
 }
 
 func TestQuerySessionContent_FTSParityWithCanonicalScan(t *testing.T) {
+	// Skipped in -short mode (DIR-083), for the same reason as the Unicode
+	// case-folding parity test above: this runs 7 sub-cases, each executing the
+	// query twice (FTS index disabled vs enabled) and deep-comparing the two
+	// envelopes, so it is the other half of the dual-scan parity pair -- the
+	// two were measured 2026-07-30 at 5.3s + 4.3s of serial wall time on every
+	// `-short` run. That specific cost was already removed by cf6efaf (the
+	// codex fixture now pins META_CC_CODEX_BACKEND=files instead of spawning an
+	// app-server child per query), leaving ~0.1s today; the skip is kept as the
+	// guard that bounds this cost on the hot path if that pin is weakened.
+	//
+	// The parity guarantee itself is NOT weakened by this skip, only relocated
+	// off the hot path: `make push` and CI run `go test` WITHOUT -short (see
+	// the Makefile's `test-all` target, reached via `check-push-ready`), so
+	// "the FTS fast path agrees with the canonical scan" is still asserted
+	// exactly where it matters. Plain `go test ./internal/mcp/executor/`
+	// (non-short) also still runs all 7 sub-cases.
+	if testing.Short() {
+		t.Skip("skipping DIR-083 FTS dual-scan parity assertion in -short mode; it still runs on the non-short `go test` / `make push` path")
+	}
+
 	project := setupCodexRolloutFixtureProject(t, "rollout-context-turns-sample.jsonl")
 	e := NewToolExecutor()
 	cases := []struct {
