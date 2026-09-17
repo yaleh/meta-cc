@@ -252,9 +252,20 @@ check-session-locator-scope:
 # curated index/guide page carries a broken relative link. Historical/migration
 # docs are allowlisted in internal/release/doc_contract_test.go. CI runs the
 # same internal/release package via `make test`.
+#
+# DIR-089: the `-short` flag here is load-bearing, not cosmetic. `make commit`
+# runs this gate (via check-essential) AND `test` ($(GOTEST) -short ./...), and
+# both cover internal/release. Go's test-result cache keys on the test binary's
+# flag set, so an unflagged run here produced a cache entry that the -short run
+# could never reuse: the package's tests executed twice per commit, cold and
+# warm. With -short the two invocations address one cache entry, so the package
+# executes exactly once per cold `make commit`. internal/release honors no
+# short-mode skip — asserted by TestReleasePackageHasNoShortGatedTests in
+# internal/release/commit_path_test.go — so -short skips nothing and the DIR-078
+# gate is not weakened. Do NOT drop -short from this line.
 check-docs:
 	@echo "=== Documentation Contract Check (DIR-078) ==="
-	@$(GOTEST) ./internal/release/...
+	@$(GOTEST) -short ./internal/release/...
 
 # DIR-035: regression check for the Makefile PATH hardening (see the
 # `export PATH` line near the top of this file). Spawns a nested `make`
@@ -317,6 +328,14 @@ dev: fmt build
 	@echo "  make commit"
 
 # Tier 2: COMMIT - Essential pre-commit validation (<60s)
+#
+# DIR-089: `check-docs` (inside check-essential) and `test` both cover
+# internal/release. They share a single Go test-cache entry because both pass
+# -short, so the package's tests execute exactly once per cold run. Removing
+# -short from check-docs, or dropping check-docs from the chain, breaks a
+# documented invariant — TestCommitPathRunsDocumentationContract and
+# TestDocumentationGateSharesTestCacheEntry in internal/release/commit_path_test.go
+# fail on either edit.
 commit: normalize-board-eof check-essential check-no-scanner test
 	@echo ""
 	@echo "✅ Ready to commit"
@@ -325,6 +344,7 @@ commit: normalize-board-eof check-essential check-no-scanner test
 	@echo "  ✓ Workspace clean (no temp files)"
 	@echo "  ✓ Fixtures verified"
 	@echo "  ✓ Dependencies in sync"
+	@echo "  ✓ Documentation contract verified (DIR-078)"
 	@echo "  ✓ Tests passed (short mode)"
 	@echo ""
 	@echo "Before pushing to remote, run:"
