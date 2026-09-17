@@ -1,7 +1,7 @@
 ---
 id: gap-quay-test-output-undeclared-counts-absent
 title: quay web 测试面板 pass/tests 恒为 —/—：meta-cc 未声明 loop.test_output 且 go test 无总计行
-status: todo
+status: ready
 labels:
   - gap
 parent: null
