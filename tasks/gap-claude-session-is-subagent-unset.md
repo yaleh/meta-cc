@@ -104,3 +104,32 @@ are Codex-side; this one is the Claude-side producer that was never written.
 - `internal/mcp/executor/query_sessions_handler_test.go`
 - `internal/conversation/types.go`
 - `docs/guides/mcp-query-tools.md`
+
+## Evidence
+
+**Real corpus, real output (DoD bullet 1).** The MCP server was built from this
+branch and the actual `query_sessions` tool driven over this host's Claude
+transcripts (`provider: "claude"`, `working_dir: /data/home/yale/work/meta-cc`):
+30 records returned, two of which are the project's real subagent transcripts.
+
+```
+{"session_id":"a16670a1c4453c992","provider":"claude","is_subagent":true,
+ "parent_thread_id":"7a5d362c-056b-4553-88c8-47cdaabb02be","lineage":"child"}
+{"session_id":"ad81c407898530c85","provider":"claude","is_subagent":true,
+ "parent_thread_id":"7a5d362c-056b-4553-88c8-47cdaabb02be","lineage":"child"}
+```
+
+The remaining 28 records do not carry the key at all (`has("is_subagent")`
+false), and no record carries `is_subagent: false` — the emitter's positive-only
+shape, now backed by a producer that classifies every record it emits.
+
+Those two ids are the agent ids taken from the filenames
+(`<projectsRoot>/<projectHash>/7a5d362c-.../subagents/agent-<id>.jsonl`), not the
+parent uuid the transcripts' own entries carry. So the listing half
+(gap-claude-listsessions-misses-subagents) and this attribution half agree, and
+a record's `session_id` and its `is_subagent` flag cannot describe it
+differently: the flag is driven by `locator.IsSubagentTranscript`, the same
+predicate that produces the id.
+
+**Scoped gate.** `go test ./...` exit 0 on the develop-merged branch; `make
+commit` exit 0 ("Ready to commit").
