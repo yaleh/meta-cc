@@ -59,6 +59,15 @@ func splitNonEmptyLines(raw string) []string {
 }
 
 func TestQuerySessionContent_UnicodeCaseFoldingParity(t *testing.T) {
+	// Dual-scan parity (canonical scan vs. the FTS/Unicode fast path) is a
+	// full-path guarantee, so it stays enforced wherever the whole suite runs
+	// in full: `make push` / CI invoke `go test ./...` WITHOUT -short and always
+	// execute this test. `make commit` runs the suite in -short mode on every
+	// gate cycle, where re-proving that the two scans agree buys nothing new —
+	// skip it there so the hot path stays fast.
+	if testing.Short() {
+		t.Skip("dual-scan Unicode parity: covered by the non-short full path (make push / CI)")
+	}
 	project := setupCodexRolloutFixtureProject(t, "rollout-context-turns-sample.jsonl")
 	rollout := filepath.Join(os.Getenv("META_CC_CODEX_ROOT"), "rollout.jsonl")
 	raw, err := os.ReadFile(rollout)
@@ -82,6 +91,15 @@ func TestQuerySessionContent_UnicodeCaseFoldingParity(t *testing.T) {
 }
 
 func TestQuerySessionContent_FTSParityWithCanonicalScan(t *testing.T) {
+	// Dual-scan parity (canonical scan vs. the FTS index) is a full-path
+	// guarantee: `make push` / CI run `go test ./...` WITHOUT -short and always
+	// execute every sub-case below, so the parity contract is still enforced
+	// there. `make commit` runs the suite in -short mode on every gate cycle,
+	// where the comparison is redundant — skip it there to keep the hot path
+	// fast.
+	if testing.Short() {
+		t.Skip("dual-scan FTS parity: covered by the non-short full path (make push / CI)")
+	}
 	project := setupCodexRolloutFixtureProject(t, "rollout-context-turns-sample.jsonl")
 	e := NewToolExecutor()
 	cases := []struct {
