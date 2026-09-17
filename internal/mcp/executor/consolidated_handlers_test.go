@@ -7,6 +7,7 @@ import (
 // Phase B tests: new consolidated handlers are registered and delegate correctly.
 
 func TestConsolidatedHandlersRegistered(t *testing.T) {
+	t.Parallel()
 	newQueryTools := []string{
 		"query_session_content",
 		"query_session_signals",
@@ -20,6 +21,7 @@ func TestConsolidatedHandlersRegistered(t *testing.T) {
 }
 
 func TestHandleQuerySessionContent_InvalidRole(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	_, err := handleQuerySessionContent(e, "project", map[string]interface{}{
 		"role": "invalid_role",
@@ -30,6 +32,7 @@ func TestHandleQuerySessionContent_InvalidRole(t *testing.T) {
 }
 
 func TestHandleQuerySessionSignals_InvalidType(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	_, err := handleQuerySessionSignals(e, "project", map[string]interface{}{
 		"type": "invalid_type",
@@ -40,6 +43,7 @@ func TestHandleQuerySessionSignals_InvalidType(t *testing.T) {
 }
 
 func TestHandleQueryFileActivity_InvalidType(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	_, err := handleQueryFileActivity(e, "project", map[string]interface{}{
 		"type": "invalid_type",
@@ -50,6 +54,7 @@ func TestHandleQueryFileActivity_InvalidType(t *testing.T) {
 }
 
 func TestHandleQuerySessionSignals_Errors_SameAsToolErrors(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	// Both should produce the same result (or same error type — no JSONL files in test env)
 	_, err1 := handleQuerySessionSignals(e, "project", map[string]interface{}{
@@ -64,6 +69,7 @@ func TestHandleQuerySessionSignals_Errors_SameAsToolErrors(t *testing.T) {
 }
 
 func TestHandleQuerySessionSignals_Tokens_SameAsTokenUsage(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	_, err1 := handleQuerySessionSignals(e, "project", map[string]interface{}{
 		"type": "tokens",
@@ -75,6 +81,7 @@ func TestHandleQuerySessionSignals_Tokens_SameAsTokenUsage(t *testing.T) {
 }
 
 func TestHandleQuerySessionSignals_SystemErrors_SameAsSystemErrors(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	_, err1 := handleQuerySessionSignals(e, "project", map[string]interface{}{
 		"type": "system_errors",
@@ -86,6 +93,7 @@ func TestHandleQuerySessionSignals_SystemErrors_SameAsSystemErrors(t *testing.T)
 }
 
 func TestHandleQuerySessionSignals_Timestamps_SameAsTimestamps(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	_, err1 := handleQuerySessionSignals(e, "project", map[string]interface{}{
 		"type": "timestamps",
@@ -97,6 +105,7 @@ func TestHandleQuerySessionSignals_Timestamps_SameAsTimestamps(t *testing.T) {
 }
 
 func TestHandleQuerySessionSignals_ToolStats_SameAsQueryTools(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	_, err1 := handleQuerySessionSignals(e, "project", map[string]interface{}{
 		"type": "tool_stats",
@@ -108,6 +117,7 @@ func TestHandleQuerySessionSignals_ToolStats_SameAsQueryTools(t *testing.T) {
 }
 
 func TestHandleQuerySessionContent_User_SameAsUserMessages(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	_, err1 := handleQuerySessionContent(e, "project", map[string]interface{}{
 		"role":    "user",
@@ -122,6 +132,7 @@ func TestHandleQuerySessionContent_User_SameAsUserMessages(t *testing.T) {
 }
 
 func TestHandleQuerySessionContent_Tool_SameAsToolBlocks(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	_, err1 := handleQuerySessionContent(e, "project", map[string]interface{}{
 		"role": "tool",
@@ -135,6 +146,7 @@ func TestHandleQuerySessionContent_Tool_SameAsToolBlocks(t *testing.T) {
 }
 
 func TestHandleQuerySessionContent_All_SameAsConversationFlow(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	_, err1 := handleQuerySessionContent(e, "project", map[string]interface{}{
 		"role": "all",
@@ -146,6 +158,7 @@ func TestHandleQuerySessionContent_All_SameAsConversationFlow(t *testing.T) {
 }
 
 func TestHandleQueryFileActivity_Snapshots_SameAsFileSnapshots(t *testing.T) {
+	t.Parallel()
 	e := NewToolExecutor()
 	_, err1 := handleQueryFileActivity(e, "project", map[string]interface{}{
 		"type": "snapshots",

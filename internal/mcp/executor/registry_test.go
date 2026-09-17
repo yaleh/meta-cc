@@ -8,6 +8,7 @@ import (
 )
 
 func TestSpecialToolRegistry_AnalysisHandlers(t *testing.T) {
+	t.Parallel()
 	analysisTool := []string{
 		"analyze_bugs",
 		"analyze_errors",
@@ -24,6 +25,7 @@ func TestSpecialToolRegistry_AnalysisHandlers(t *testing.T) {
 }
 
 func TestSpecialToolRegistry_QueryHandlers(t *testing.T) {
+	t.Parallel()
 	queryTools := []string{
 		"cleanup_temp_files",
 		"get_session_directory",
@@ -39,6 +41,7 @@ func TestSpecialToolRegistry_QueryHandlers(t *testing.T) {
 }
 
 func TestSpecialToolRegistry_UnknownTool(t *testing.T) {
+	t.Parallel()
 	_, ok := specialToolRegistry["nonexistent_tool"]
 	if ok {
 		t.Error("expected nonexistent_tool to not be registered")
@@ -73,6 +76,7 @@ func TestRegisterHandler_AddsToRegistry(t *testing.T) {
 // ─── QueryHandlerRegistry ─────────────────────────────────────────────────────
 
 func TestQueryHandlerRegistry_AllConsolidatedTools(t *testing.T) {
+	t.Parallel()
 	consolidatedTools := []string{
 		"query_session_content",
 		"query_session_signals",
@@ -86,6 +90,7 @@ func TestQueryHandlerRegistry_AllConsolidatedTools(t *testing.T) {
 }
 
 func TestQueryHandlerRegistry_OldToolsRemoved(t *testing.T) {
+	t.Parallel()
 	removedTools := []string{
 		"query_user_messages",
 		"query_tools",
@@ -106,6 +111,7 @@ func TestQueryHandlerRegistry_OldToolsRemoved(t *testing.T) {
 }
 
 func TestQueryHandlerRegistry_UnknownTool(t *testing.T) {
+	t.Parallel()
 	_, ok := queryHandlerRegistry["nonexistent_query_tool"]
 	if ok {
 		t.Error("expected nonexistent_query_tool to not be registered")

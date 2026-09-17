@@ -211,6 +211,7 @@ func TestQuerySessions_AncestorsOf_StopsAtProjectBoundary(t *testing.T) {
 // ancestors_of is rejected for the default/claude provider (Claude sessions
 // don't carry lineage metadata), matching every other Codex-only filter.
 func TestQuerySessions_AncestorsOf_ClaudeProviderFailsClosed(t *testing.T) {
+	t.Parallel()
 	_, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
 		"working_dir":  t.TempDir(),
 		"ancestors_of": "some-id",
@@ -495,6 +496,7 @@ func TestQuerySessions_Codex_SourceKindFilter(t *testing.T) {
 // unrecognized source_kind value is an actionable validation error, not a
 // silently-empty result.
 func TestQuerySessions_Codex_InvalidSourceKindFailsClosed(t *testing.T) {
+	t.Parallel()
 	_, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
 		"provider":    "codex",
 		"working_dir": t.TempDir(),
@@ -508,6 +510,7 @@ func TestQuerySessions_Codex_InvalidSourceKindFailsClosed(t *testing.T) {
 // status/archived contradiction is rejected rather than silently resolved
 // one way or the other.
 func TestQuerySessions_ConflictingStatusAndArchivedFailsClosed(t *testing.T) {
+	t.Parallel()
 	_, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
 		"provider":    "codex",
 		"working_dir": t.TempDir(),
@@ -524,6 +527,7 @@ func TestQuerySessions_ConflictingStatusAndArchivedFailsClosed(t *testing.T) {
 // can never match any Claude session — silently returning zero results
 // would look identical to "no sessions matched" and mask the mistake.
 func TestQuerySessions_CodexOnlyFilterWithClaudeProviderFailsClosed(t *testing.T) {
+	t.Parallel()
 	_, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
 		"working_dir": t.TempDir(),
 		"source_kind": []interface{}{"cli"},
@@ -619,6 +623,7 @@ func TestQuerySessions_Claude_ExactSessionID(t *testing.T) {
 // TestQuerySessions_InvalidTimeValueFailsClosed proves an unparseable
 // created_since/updated_since value is a validation error.
 func TestQuerySessions_InvalidTimeValueFailsClosed(t *testing.T) {
+	t.Parallel()
 	_, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
 		"working_dir":   t.TempDir(),
 		"created_since": "not-a-date",
@@ -629,6 +634,7 @@ func TestQuerySessions_InvalidTimeValueFailsClosed(t *testing.T) {
 // TestQuerySessions_InvalidProviderFailsClosed proves an unrecognized
 // provider name is rejected (reusing rawfiles.ParseProviderFilter).
 func TestQuerySessions_InvalidProviderFailsClosed(t *testing.T) {
+	t.Parallel()
 	_, err := handleQuerySessions(NewToolExecutor(), "project", map[string]interface{}{
 		"provider":    "not-a-real-provider",
 		"working_dir": t.TempDir(),

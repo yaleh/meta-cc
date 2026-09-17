@@ -237,6 +237,7 @@ func TestCorpusTolerance_CorruptSiblingsChangeNothing(t *testing.T) {
 // tables above. Adding a tool and not registering it — the way the ListSessions
 // rewrite silently dropped DIR-018's tolerance — fails here instead of shipping.
 func TestCorpusTolerance_EveryRegisteredToolIsClassified(t *testing.T) {
+	t.Parallel()
 	problems := classifyCorpusTools(registeredToolNames())
 	assert.Empty(t, problems, "every registered tool must be registered in corpusToolCases or "+
 		"nonCorpusTools (see docs/reference/corpus-tolerance-gate.md):\n  - %s",
@@ -251,6 +252,7 @@ func TestCorpusTolerance_EveryRegisteredToolIsClassified(t *testing.T) {
 // The synthetic registry is the exact shape a newly added tool produces: a
 // registered name that neither table mentions.
 func TestCorpusTolerance_ClassifierRejectsAnUnclassifiedTool(t *testing.T) {
+	t.Parallel()
 	registered := registeredToolNames()
 	registered["scratch_tool_that_lacks_tolerance"] = true
 

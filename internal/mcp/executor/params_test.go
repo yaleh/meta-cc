@@ -7,6 +7,7 @@ import (
 )
 
 func TestGetStringParam(t *testing.T) {
+	t.Parallel()
 	args := map[string]interface{}{
 		"key": "value",
 	}
@@ -19,6 +20,7 @@ func TestGetStringParam(t *testing.T) {
 }
 
 func TestGetBoolParam(t *testing.T) {
+	t.Parallel()
 	args := map[string]interface{}{
 		"key": true,
 	}
@@ -31,6 +33,7 @@ func TestGetBoolParam(t *testing.T) {
 }
 
 func TestGetIntParam(t *testing.T) {
+	t.Parallel()
 	args := map[string]interface{}{
 		"float_key": float64(42),
 		"int_key":   10,
@@ -47,6 +50,7 @@ func TestGetIntParam(t *testing.T) {
 }
 
 func TestGetFloatParam(t *testing.T) {
+	t.Parallel()
 	args := map[string]interface{}{
 		"key": float64(3.14),
 	}

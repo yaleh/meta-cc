@@ -38,6 +38,7 @@ func (m *mockEditSeqAnalysisSvc) QueryEditSequences(args map[string]interface{})
 }
 
 func TestHandleQueryEditSequences_MissingFiles(t *testing.T) {
+	t.Parallel()
 	svc := &mockEditSeqAnalysisSvc{}
 	exec := &ToolExecutor{AnalysisSvc: svc}
 
@@ -50,6 +51,7 @@ func TestHandleQueryEditSequences_MissingFiles(t *testing.T) {
 }
 
 func TestHandleQueryEditSequences_ValidInput(t *testing.T) {
+	t.Parallel()
 	svc := &mockEditSeqAnalysisSvc{}
 	exec := &ToolExecutor{AnalysisSvc: svc}
 
@@ -70,6 +72,7 @@ func TestHandleQueryEditSequences_ValidInput(t *testing.T) {
 }
 
 func TestGetToolDefinitions_IncludesQueryEditSequences(t *testing.T) {
+	t.Parallel()
 	defs := tools.GetToolDefinitions()
 	found := false
 	for _, tool := range defs {
@@ -95,6 +98,7 @@ func TestGetToolDefinitions_IncludesQueryEditSequences(t *testing.T) {
 }
 
 func TestHandleQueryEditSequences_NoFilesParam(t *testing.T) {
+	t.Parallel()
 	svc := &mockEditSeqAnalysisSvc{}
 	exec := &ToolExecutor{AnalysisSvc: svc}
 

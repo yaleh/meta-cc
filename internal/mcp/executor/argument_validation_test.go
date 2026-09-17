@@ -11,6 +11,7 @@ import (
 )
 
 func TestExecuteTool_AnalysisToolsRejectUndeclaredOutputMode(t *testing.T) {
+	t.Parallel()
 	for _, toolName := range []string{
 		"analyze_bugs",
 		"analyze_errors",
@@ -20,6 +21,7 @@ func TestExecuteTool_AnalysisToolsRejectUndeclaredOutputMode(t *testing.T) {
 		"get_tech_debt",
 	} {
 		t.Run(toolName, func(t *testing.T) {
+			t.Parallel()
 			_, err := NewToolExecutor().ExecuteTool(&config.Config{}, toolName, map[string]interface{}{
 				"output_mode": "inline",
 			})
@@ -30,6 +32,7 @@ func TestExecuteTool_AnalysisToolsRejectUndeclaredOutputMode(t *testing.T) {
 }
 
 func TestExecuteTool_SpecialToolRejectsUndeclaredArgument(t *testing.T) {
+	t.Parallel()
 	_, err := NewToolExecutor().ExecuteTool(&config.Config{}, "cleanup_temp_files", map[string]interface{}{
 		"undeclared": true,
 	})
@@ -95,12 +98,14 @@ func dispatchableTools() map[string]bool {
 // tool to either registry without validation coverage fails deterministically
 // (validation returns before any handler runs, so no fixtures are required).
 func TestDriftGate_ValidationRunsBeforeEveryDispatchPath(t *testing.T) {
+	t.Parallel()
 	exec := NewToolExecutor()
 	dispatchable := dispatchableTools()
 	require.NotEmpty(t, dispatchable, "no tools registered — registries look broken")
 
 	for name := range dispatchable {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			_, err := exec.ExecuteTool(&config.Config{}, name, map[string]interface{}{
 				"__drift_probe_undeclared_param": true,
 			})
@@ -117,6 +122,7 @@ func TestDriftGate_ValidationRunsBeforeEveryDispatchPath(t *testing.T) {
 // can't run) and declared-but-not-executable tools (a schema with no handler,
 // so the tool is advertised but can never run).
 func TestDriftGate_RegistryAndSchemaAgree(t *testing.T) {
+	t.Parallel()
 	defs := tools.GetToolDefinitions()
 	require.NotEmpty(t, defs, "tool registry returned no definitions")
 
@@ -143,6 +149,7 @@ func TestDriftGate_RegistryAndSchemaAgree(t *testing.T) {
 // executable-but-undeclared must now be declared on exactly the tools whose
 // pipeline actually consumes them, so a regression to inert declaration fails.
 func TestDriftGate_SchemaParamsAreDeclaredExecutable(t *testing.T) {
+	t.Parallel()
 	index := tools.BuildToolSchemaIndex()
 
 	// output_mode is consumed only by the four pipeline-backed tools

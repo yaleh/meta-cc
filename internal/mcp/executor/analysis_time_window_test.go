@@ -99,6 +99,7 @@ const (
 // honors them on, or ValidateToolArgs rejects them before dispatch and the
 // window is dead code in production.
 func TestAnalysisTools_DeclareTimeWindowParameters(t *testing.T) {
+	t.Parallel()
 	for _, name := range analysisToolNames {
 		t.Run(name, func(t *testing.T) {
 			require.NoError(t,
@@ -130,6 +131,7 @@ func TestAnalysisTools_DeclareTimeWindowParameters(t *testing.T) {
 // change starts accepting stats_first here, this test fails and whoever made
 // that change must decide what the window should mean for it.
 func TestAnalysisTools_DoNotDeclareStatsFirst(t *testing.T) {
+	t.Parallel()
 	for _, name := range analysisToolNames {
 		t.Run(name, func(t *testing.T) {
 			err := toolspkg.ValidateToolArgs(name, map[string]interface{}{"stats_first": true})

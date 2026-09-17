@@ -12,6 +12,7 @@ import (
 // aggregate_tokens/aggregate_source fields with provenance, and NEVER as
 // input_tokens — so a session-level total cannot be mistaken for input usage.
 func TestSessionToEntrySurfacesAggregateNotInput(t *testing.T) {
+	t.Parallel()
 	s := conversation.Session{
 		ID:       "s1",
 		Provider: conversation.ProviderCodex,
@@ -38,6 +39,7 @@ func TestSessionToEntrySurfacesAggregateNotInput(t *testing.T) {
 // sessions without an aggregate (e.g. every Claude session, or a Codex session
 // whose threads row had no tokens_used) gain no new fields.
 func TestSessionToEntryOmitsAggregateWhenAbsent(t *testing.T) {
+	t.Parallel()
 	s := conversation.Session{ID: "s1", Provider: conversation.ProviderClaude, CWD: "/tmp"}
 	entry := sessionToEntry(s)
 	if _, ok := entry["aggregate_tokens"]; ok {

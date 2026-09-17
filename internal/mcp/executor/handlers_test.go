@@ -61,6 +61,7 @@ func toolResultJQFilter() string {
 // TestHandleQueryToolBlocks_ToolUse_IncludesTimestamp verifies that tool_use results
 // include the timestamp from the outer JSONL record.
 func TestHandleQueryToolBlocks_ToolUse_IncludesTimestamp(t *testing.T) {
+	t.Parallel()
 	record := buildToolUseRecord("sess-123", 1, "Read")
 	results, err := runProviderJQ([]map[string]interface{}{record}, toolUseJQFilter(), 0, mcquery.ParsedTimeRange{})
 	if err != nil {
@@ -84,6 +85,7 @@ func TestHandleQueryToolBlocks_ToolUse_IncludesTimestamp(t *testing.T) {
 // TestHandleQueryToolBlocks_ToolUse_IncludesSessionId verifies that tool_use results
 // include the sessionId from the outer JSONL record.
 func TestHandleQueryToolBlocks_ToolUse_IncludesSessionId(t *testing.T) {
+	t.Parallel()
 	record := buildToolUseRecord("sess-456", 2, "Write")
 	results, err := runProviderJQ([]map[string]interface{}{record}, toolUseJQFilter(), 0, mcquery.ParsedTimeRange{})
 	if err != nil {
@@ -107,6 +109,7 @@ func TestHandleQueryToolBlocks_ToolUse_IncludesSessionId(t *testing.T) {
 // TestHandleQueryToolBlocks_ToolUse_IncludesTurn verifies that tool_use results
 // include the turn from the outer JSONL record.
 func TestHandleQueryToolBlocks_ToolUse_IncludesTurn(t *testing.T) {
+	t.Parallel()
 	record := buildToolUseRecord("sess-789", 5, "Bash")
 	results, err := runProviderJQ([]map[string]interface{}{record}, toolUseJQFilter(), 0, mcquery.ParsedTimeRange{})
 	if err != nil {
@@ -130,6 +133,7 @@ func TestHandleQueryToolBlocks_ToolUse_IncludesTurn(t *testing.T) {
 // TestHandleQueryToolBlocks_ToolResult_IncludesTimestamp verifies that tool_result results
 // include the timestamp from the outer JSONL record.
 func TestHandleQueryToolBlocks_ToolResult_IncludesTimestamp(t *testing.T) {
+	t.Parallel()
 	record := buildToolResultRecord("sess-result-123", 3)
 	results, err := runProviderJQ([]map[string]interface{}{record}, toolResultJQFilter(), 0, mcquery.ParsedTimeRange{})
 	if err != nil {
@@ -160,6 +164,7 @@ func toolUseWithNameJQFilter(toolName string) string {
 // TestHandleQueryToolBlocks_ToolName_FiltersExactMatch verifies that tool_name filters
 // tool_use blocks by exact name match (substring/regex via jq test()).
 func TestHandleQueryToolBlocks_ToolName_FiltersExactMatch(t *testing.T) {
+	t.Parallel()
 	records := []map[string]interface{}{
 		buildToolUseRecord("sess-1", 1, "Read"),
 		buildToolUseRecord("sess-1", 2, "Write"),
@@ -181,6 +186,7 @@ func TestHandleQueryToolBlocks_ToolName_FiltersExactMatch(t *testing.T) {
 // TestHandleQueryToolBlocks_ToolName_FiltersSubstring verifies that tool_name does
 // substring matching (e.g. "Dis" matches "Dispatch").
 func TestHandleQueryToolBlocks_ToolName_FiltersSubstring(t *testing.T) {
+	t.Parallel()
 	records := []map[string]interface{}{
 		buildToolUseRecord("sess-1", 1, "Dispatch"),
 		buildToolUseRecord("sess-1", 2, "DispatchCancel"),
@@ -198,6 +204,7 @@ func TestHandleQueryToolBlocks_ToolName_FiltersSubstring(t *testing.T) {
 // TestHandleQueryToolBlocks_ToolName_FiltersRegex verifies that tool_name supports
 // regex patterns (consistent with pattern parameter behavior).
 func TestHandleQueryToolBlocks_ToolName_FiltersRegex(t *testing.T) {
+	t.Parallel()
 	records := []map[string]interface{}{
 		buildToolUseRecord("sess-1", 1, "Read"),
 		buildToolUseRecord("sess-1", 2, "Write"),
@@ -216,6 +223,7 @@ func TestHandleQueryToolBlocks_ToolName_FiltersRegex(t *testing.T) {
 // TestHandleQueryToolBlocks_ToolName_EmptyReturnsAll verifies that omitting tool_name
 // returns all tool_use blocks (no filtering applied).
 func TestHandleQueryToolBlocks_ToolName_EmptyReturnsAll(t *testing.T) {
+	t.Parallel()
 	records := []map[string]interface{}{
 		buildToolUseRecord("sess-1", 1, "Read"),
 		buildToolUseRecord("sess-1", 2, "Write"),
@@ -233,6 +241,7 @@ func TestHandleQueryToolBlocks_ToolName_EmptyReturnsAll(t *testing.T) {
 // TestHandleQueryToolBlocks_ToolUse_PreservesToolFields verifies that the original
 // tool block fields (type, id, name, input) are still present in results and not overwritten.
 func TestHandleQueryToolBlocks_ToolUse_PreservesToolFields(t *testing.T) {
+	t.Parallel()
 	record := buildToolUseRecord("sess-preserve", 7, "Edit")
 	// Override the id in the record to match what we test below
 	record["message"].(map[string]interface{})["content"].([]interface{})[0].(map[string]interface{})["id"] = "toolu_preserve"
@@ -303,6 +312,7 @@ func buildStringUserRecord(sessionID, content string, extra map[string]interface
 // produced by handleQueryUserMessages with exclude_compact_summaries=true (default)
 // excludes records where isCompactSummary=true, while keeping plain user records.
 func TestHandleQueryUserMessages_ExcludeCompactSummaries(t *testing.T) {
+	t.Parallel()
 	plainRecord := buildStringUserRecord("sess-1", "hello world", nil)
 	compactRecord := buildStringUserRecord("sess-1", "compact content", map[string]interface{}{
 		"isCompactSummary": true,
@@ -352,6 +362,7 @@ func TestHandleQueryUserMessages_ExcludeCompactSummaries(t *testing.T) {
 // TestHandleQueryUserMessages_ExcludeCompactSummaries_FalseRestores verifies that
 // with exclude_compact_summaries=false, isCompactSummary=true records ARE returned.
 func TestHandleQueryUserMessages_ExcludeCompactSummaries_FalseRestores(t *testing.T) {
+	t.Parallel()
 	compactRecord := buildStringUserRecord("sess-2", "compact content", map[string]interface{}{
 		"isCompactSummary": true,
 	})
@@ -388,6 +399,7 @@ func TestHandleQueryUserMessages_ExcludeCompactSummaries_FalseRestores(t *testin
 // produced by handleQueryConversationFlow with exclude_compact_summaries=true (default)
 // excludes isCompactSummary=true records from conversation flow (role=all).
 func TestHandleQueryConversationFlow_ExcludeCompactSummaries(t *testing.T) {
+	t.Parallel()
 	userRecord := map[string]interface{}{
 		"type":      "user",
 		"timestamp": "2024-01-01T00:00:00Z",
@@ -443,6 +455,7 @@ func TestHandleQueryConversationFlow_ExcludeCompactSummaries(t *testing.T) {
 // TestHandleQueryUserMessages_IncludeSubagents_Default verifies that include_subagents
 // defaults to true when not specified (via GetBoolParam default).
 func TestHandleQueryUserMessages_IncludeSubagents_Default(t *testing.T) {
+	t.Parallel()
 	// Verify GetBoolParam returns true when include_subagents is absent (default=true)
 	args := map[string]interface{}{
 		"pattern": "test",
@@ -456,6 +469,7 @@ func TestHandleQueryUserMessages_IncludeSubagents_Default(t *testing.T) {
 // TestHandleQueryToolBlocks_IncludeSubagents_False verifies that include_subagents=false
 // is correctly extracted and would suppress subagent files.
 func TestHandleQueryToolBlocks_IncludeSubagents_False(t *testing.T) {
+	t.Parallel()
 	// Verify GetBoolParam returns false when include_subagents=false is explicitly set
 	args := map[string]interface{}{
 		"include_subagents": false,
