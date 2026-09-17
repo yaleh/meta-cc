@@ -2,7 +2,7 @@
 id: gap-claude-session-is-subagent-unset
 title: Claude provider never sets Session.IsSubagent, so query_sessions can
   never emit is_subagent on that path
-status: todo
+status: ready
 labels:
   - gap
   - defect
