@@ -426,7 +426,11 @@ func (e *QueryExecutor) RunQueryWithTimeRange(ctx context.Context, files []strin
 //   - scope=project, includeSubagents=true  → top-level + all */subagents/*.jsonl
 //
 // Subagent scanning is fixed at two levels deep (<projectDir>/<uuid>/subagents/) to avoid
-// picking up tool-results/ or other subdirectories.
+// picking up tool-results/ or other subdirectories. That rule has exactly one
+// implementation — locator.SubagentTranscripts / locator.SubagentTranscriptsUnder
+// — which this function and the Claude provider's session listing both call, so
+// the query corpus and the listed corpus cannot drift apart
+// (gap-claude-listsessions-misses-subagents).
 func GetQueryFiles(scope, workingDir string, includeSubagents bool) ([]string, error) {
 	projectPath := workingDir
 	if projectPath == "" {
@@ -450,11 +454,8 @@ func GetQueryFiles(scope, workingDir string, includeSubagents bool) ([]string, e
 			// sessionFile is <projectDir>/<uuid>.jsonl
 			sessionDir := filepath.Dir(sessionFile)
 			uuid := strings.TrimSuffix(filepath.Base(sessionFile), ".jsonl")
-			subagentDir := filepath.Join(sessionDir, uuid, "subagents")
-			subFiles, err := getSubagentJSONLFiles(subagentDir)
-			if err == nil {
-				files = append(files, subFiles...)
-			}
+			subagentDir := filepath.Join(sessionDir, uuid, locator.SubagentDirName)
+			files = append(files, locator.SubagentTranscripts(subagentDir)...)
 		}
 		return files, nil
 	}
@@ -474,50 +475,10 @@ func GetQueryFiles(scope, workingDir string, includeSubagents bool) ([]string, e
 		return topLevel, nil
 	}
 
-	// Scan <baseDir>/<entry>/subagents/*.jsonl for each directory entry
 	all := make([]string, len(topLevel))
 	copy(all, topLevel)
 
-	entries, err := os.ReadDir(baseDir)
-	if err != nil {
-		return all, nil
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		subagentDir := filepath.Join(baseDir, entry.Name(), "subagents")
-		subFiles, err := getSubagentJSONLFiles(subagentDir)
-		if err != nil {
-			continue
-		}
-		all = append(all, subFiles...)
-	}
-
-	return all, nil
-}
-
-// getSubagentJSONLFiles returns all .jsonl files in the given subagents directory.
-// Returns nil without error if the directory does not exist.
-func getSubagentJSONLFiles(subagentDir string) ([]string, error) {
-	if _, err := os.Stat(subagentDir); os.IsNotExist(err) {
-		return nil, nil
-	}
-	entries, err := os.ReadDir(subagentDir)
-	if err != nil {
-		return nil, err
-	}
-	var files []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		if filepath.Ext(entry.Name()) == ".jsonl" {
-			files = append(files, filepath.Join(subagentDir, entry.Name()))
-		}
-	}
-	return files, nil
+	return append(all, locator.SubagentTranscriptsUnder(baseDir)...), nil
 }
 
 // GetQueryBaseDir returns the base directory for the given scope.

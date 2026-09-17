@@ -103,7 +103,7 @@ func (p *Provider) ListSessions(ctx context.Context) ([]conversation.Session, er
 		projectPath = cwd
 	}
 
-	files, err := p.locator.AllSessionsFromProject(projectPath)
+	files, err := p.locator.AllTranscriptsFromProject(projectPath)
 	if err != nil {
 		return nil, err
 	}
@@ -190,9 +190,13 @@ func (p *Provider) LoadTurns(ctx context.Context, sessionID string) ([]conversat
 // PathToHash-based check ExecuteQueryForSession and analysis/service.go's
 // loadData also use) so it isn't reimplemented ad hoc here. A match is
 // only accepted when it passes that boundary; otherwise this falls
-// through to the already-scoped AllSessionsFromProject search, which
+// through to the already-scoped AllTranscriptsFromProject search, which
 // naturally reports "not found" for a session belonging to a different
 // project.
+//
+// The fallback walks the FULL corpus (top-level + subagent transcripts), not
+// just top-level sessions: an id this listing produced must be resolvable by
+// the same code path, and a subagent id is one of those ids.
 func (p *Provider) findSessionFile(sessionID string) (string, error) {
 	if file, err := p.locator.FromSessionIDScoped(sessionID, p.workingDir); err == nil {
 		return file, nil
@@ -206,7 +210,7 @@ func (p *Provider) findSessionFile(sessionID string) (string, error) {
 		}
 		projectPath = cwd
 	}
-	files, listErr := p.locator.AllSessionsFromProject(projectPath)
+	files, listErr := p.locator.AllTranscriptsFromProject(projectPath)
 	if listErr != nil {
 		return "", fmt.Errorf("session %q not found: %w", sessionID, listErr)
 	}
@@ -265,7 +269,7 @@ func sessionFromEntries(file string, entries []types.SessionEntry) conversation.
 
 	ext, _ := json.Marshal(map[string]string{"path": file})
 	return conversation.Session{
-		ID:         first.SessionID,
+		ID:         sessionIDFor(file, entries),
 		Provider:   conversation.ProviderClaude,
 		Title:      entryText(&first),
 		CWD:        first.CWD,
@@ -274,6 +278,23 @@ func sessionFromEntries(file string, entries []types.SessionEntry) conversation.
 		TokenUsage: tokenUsage,
 		Extensions: ext,
 	}
+}
+
+// sessionIDFor returns the id a transcript is addressed by.
+//
+// For an ordinary session that is the sessionId its entries carry. For a
+// subagent transcript it is NOT: Claude Code writes the PARENT session's uuid
+// into a subagent transcript's sessionId field and the subagent's own identity
+// into the filename (agent-<agentId>.jsonl). Taking that field at face value
+// would list every subagent under its parent's id — the listing would show
+// duplicate ids, and the id it printed could not be handed back to any
+// session_id-taking tool, which is the second half of
+// gap-claude-listsessions-misses-subagents.
+func sessionIDFor(file string, entries []types.SessionEntry) string {
+	if agentID := locator.SubagentIDFromPath(file); agentID != "" {
+		return agentID
+	}
+	return entries[0].SessionID
 }
 
 // NOTE(DIR-038): this hand-rolled bufio.NewReader + ReadBytes('\n') loop

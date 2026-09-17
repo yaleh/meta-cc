@@ -371,3 +371,120 @@ func TestSessionFromFileDistinguishesEmptyFromError(t *testing.T) {
 		t.Fatalf("missing file: expected a real I/O error, got errNoMessageEntries")
 	}
 }
+
+// sessionJSONL returns the on-disk shape of a transcript carrying one
+// user/assistant exchange. For a subagent transcript the entry's sessionId is
+// the PARENT session's uuid and the subagent's identity lives only in the
+// filename — the layout the two real subagent transcripts on this host
+// (agent-a16670a1c4453c992.jsonl, agent-ad81c407898530c85.jsonl) actually have.
+func sessionJSONL(sessionID, cwd string) []byte {
+	lines := []string{
+		`{"type":"user","sessionId":"` + sessionID + `","cwd":"` + cwd + `","timestamp":"2026-09-17T08:00:00Z","uuid":"u1","message":{"role":"user","content":"do the thing"}}`,
+		`{"type":"assistant","sessionId":"` + sessionID + `","cwd":"` + cwd + `","timestamp":"2026-09-17T08:00:01Z","uuid":"a1","parentUuid":"u1","message":{"role":"assistant","model":"claude-sonnet-5","content":[{"type":"text","text":"done"}],"usage":{"input_tokens":5,"output_tokens":7}}}`,
+	}
+	return []byte(strings.Join(lines, "\n") + "\n")
+}
+
+// TestListSessionsIncludesSubagents is the AC for
+// gap-claude-listsessions-misses-subagents: a project's listing must enumerate
+// the subagent transcripts sitting beside its sessions, address each by the
+// agent id a caller can hand back to another tool, and still ignore the
+// non-session siblings (tool-results/) that live at the same depth.
+//
+// Both halves are asserted here because either alone is useless: a listing that
+// omitted the subagent leaves it undiscoverable, and a listing that included it
+// under its PARENT's sessionId (which is what the transcript's own entries
+// carry) would print an id that no session_id-taking tool can resolve.
+func TestListSessionsIncludesSubagents(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("META_CC_PROJECTS_ROOT", root)
+
+	resolvedProject, projectDir := seedProjectDir(t, root)
+
+	const (
+		parentSessionID = "7a5d362c-056b-4553-88c8-47cdaabb02be"
+		agentID         = "a16670a1c4453c992"
+	)
+
+	parentFile := filepath.Join(projectDir, parentSessionID+".jsonl")
+	if err := os.WriteFile(parentFile, sessionJSONL(parentSessionID, resolvedProject), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	subagentsDir := filepath.Join(projectDir, parentSessionID, locator.SubagentDirName)
+	if err := os.MkdirAll(subagentsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	subagentFile := filepath.Join(subagentsDir, "agent-"+agentID+".jsonl")
+	if err := os.WriteFile(subagentFile, sessionJSONL(parentSessionID, resolvedProject), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// A same-depth sibling that is NOT a session transcript.
+	toolResultsDir := filepath.Join(projectDir, parentSessionID, "tool-results")
+	if err := os.MkdirAll(toolResultsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(toolResultsDir, "result.jsonl"),
+		sessionJSONL("tool-result-not-a-session", resolvedProject), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	p := NewProvider(locator.NewSessionLocator(), resolvedProject)
+
+	sessions, err := p.ListSessions(context.Background())
+	if err != nil {
+		t.Fatalf("ListSessions: %v", err)
+	}
+	if len(sessions) != 2 {
+		ids := make([]string, 0, len(sessions))
+		for _, s := range sessions {
+			ids = append(ids, s.ID)
+		}
+		t.Fatalf("expected the parent session + the subagent transcript, got %d: %v", len(sessions), ids)
+	}
+
+	byID := make(map[string]conversation.Session, len(sessions))
+	for _, s := range sessions {
+		byID[s.ID] = s
+	}
+	if _, ok := byID[parentSessionID]; !ok {
+		t.Errorf("parent session %s missing from listing: %v", parentSessionID, byID)
+	}
+	subagent, ok := byID[agentID]
+	if !ok {
+		t.Fatalf("subagent %s missing from listing (ids present: %v)", agentID, byID)
+	}
+	if subagent.ID == parentSessionID {
+		t.Errorf("subagent listed under its parent's sessionId %s — the id it prints must be resolvable", parentSessionID)
+	}
+
+	// The id the listing just printed must be usable: GetSession and LoadTurns
+	// are the exact-lookup entry points every session_id-taking tool shares.
+	got, err := p.GetSession(context.Background(), agentID)
+	if err != nil {
+		t.Fatalf("GetSession(%s) after listing it: %v", agentID, err)
+	}
+	if got.ID != agentID {
+		t.Errorf("GetSession(%s).ID = %s", agentID, got.ID)
+	}
+	if path, err := FilePath(got); err != nil || path != subagentFile {
+		t.Errorf("GetSession(%s) resolved to %q (err %v), want %s", agentID, path, err, subagentFile)
+	}
+	turns, err := p.LoadTurns(context.Background(), agentID)
+	if err != nil {
+		t.Fatalf("LoadTurns(%s) after listing it: %v", agentID, err)
+	}
+	if len(turns) == 0 {
+		t.Errorf("LoadTurns(%s) returned no turns", agentID)
+	}
+
+	// The parent must still resolve to its own transcript, not the subagent's.
+	parent, err := p.GetSession(context.Background(), parentSessionID)
+	if err != nil {
+		t.Fatalf("GetSession(%s): %v", parentSessionID, err)
+	}
+	if path, _ := FilePath(parent); path != parentFile {
+		t.Errorf("GetSession(%s) resolved to %q, want %s", parentSessionID, path, parentFile)
+	}
+}
