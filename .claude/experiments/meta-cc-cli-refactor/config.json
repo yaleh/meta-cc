@@ -1,6 +1,0 @@
-{
-  "metrics_targets": [
-    "metrics-cli",
-    "metrics-mcp"
-  ]
-}
