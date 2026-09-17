@@ -1,7 +1,7 @@
 ---
 id: ac239-subagent-session-id-scan
 title: 修复 include_subagents 在显式 session_id 上传参时静默失效
-status: ready
+status: done
 labels: []
 parent: null
 children: []
