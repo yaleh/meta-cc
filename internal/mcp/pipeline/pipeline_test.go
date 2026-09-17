@@ -78,6 +78,56 @@ func TestInjectWarnings_NonJSONPassthrough(t *testing.T) {
 	}
 }
 
+// ─── InjectWarningsAndSkippedFiles (DIR-094) ──────────────────────────────────
+
+// TestInjectWarningsAndSkippedFiles_AddsPathList is the AC3 wire-format test:
+// a response whose corpus had files excluded must carry BOTH the human-readable
+// warning and the machine-readable skipped_files path list.
+func TestInjectWarningsAndSkippedFiles_AddsPathList(t *testing.T) {
+	input := `{"mode":"inline","data":[]}`
+	out, err := pipeline.InjectWarningsAndSkippedFiles(input,
+		[]string{"skipped session file /p/8eda8f4e.jsonl: no message entries (zero-message session stub)"},
+		[]string{"/p/8eda8f4e.jsonl"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	skipped, ok := parsed["skipped_files"].([]interface{})
+	if !ok {
+		t.Fatalf("expected a skipped_files array, got %T", parsed["skipped_files"])
+	}
+	if len(skipped) != 1 || skipped[0] != "/p/8eda8f4e.jsonl" {
+		t.Fatalf("skipped_files = %v", skipped)
+	}
+	if _, ok := parsed["warnings"].([]interface{}); !ok {
+		t.Fatalf("expected a warnings array, got %T", parsed["warnings"])
+	}
+}
+
+// TestInjectWarningsAndSkippedFiles_OmitsEmptyPathList pins the other half:
+// with nothing skipped the key is absent entirely, so a clean-corpus response
+// keeps its pre-DIR-094 shape (warnings stays, as it always has).
+func TestInjectWarningsAndSkippedFiles_OmitsEmptyPathList(t *testing.T) {
+	input := `{"mode":"inline","data":[]}`
+	out, err := pipeline.InjectWarningsAndSkippedFiles(input, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if _, present := parsed["skipped_files"]; present {
+		t.Fatalf("skipped_files must be omitted when nothing was skipped; got %s", out)
+	}
+	if _, present := parsed["warnings"]; !present {
+		t.Fatalf("warnings must always be present; got %s", out)
+	}
+}
+
 // ─── DataToJSONL ──────────────────────────────────────────────────────────────
 
 func TestDataToJSONL_Empty(t *testing.T) {

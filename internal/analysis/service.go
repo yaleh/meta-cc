@@ -87,12 +87,19 @@ func NewWithAnalyzers(a Analyzers) *Service {
 // It supports "project" (default) and "session" scopes, and an optional
 // working_dir override extracted from args.
 //
-// The returned warnings slice carries one entry per session file that could
-// not be parsed (DIR-018): previously such files were skipped with a bare
-// `continue`, so analysis results silently excluded data. Each skipped file
-// is also logged at WARN level. Callers must surface the warnings in their
-// marshaled results so MCP responses never hide data exclusion.
-func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, []types.ToolCall, []string, error) {
+// The returned SkipReport carries one entry per corpus file that was excluded
+// (DIR-018, unified across every enumerating path by DIR-094): previously such
+// files were skipped with a bare `continue`, so analysis results silently
+// excluded data. Each skipped file is also logged at WARN level. Callers must
+// surface the report in their marshaled results so MCP responses never hide
+// data exclusion — see marshalResult, which attaches both the human-readable
+// `warnings` and the machine-readable `skipped_files`.
+//
+// DIR-094 closed the second half of this gap on the Claude path: a file that
+// parses cleanly but yields zero message entries (the 0-byte / metadata-only
+// session stub) used to pass through silently, because ParseEntries returns no
+// error for it. Such a file is now reported exactly like a parse failure.
+func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, []types.ToolCall, *locator.SkipReport, error) {
 	scope := "project"
 	if v, ok := args["scope"].(string); ok && v != "" {
 		scope = v
@@ -122,8 +129,7 @@ func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, [
 	sessionID := stringArg(args, "session_id")
 
 	if providerName != "claude" {
-		entries, toolCalls, err := s.loadProviderData(scope, workingDir, providerName, sessionID)
-		return entries, toolCalls, nil, err
+		return s.loadProviderData(scope, workingDir, providerName, sessionID)
 	}
 
 	loc := locator.NewSessionLocator()
@@ -162,53 +168,76 @@ func (s *Service) loadData(args map[string]interface{}) ([]types.SessionEntry, [
 		}
 	}
 
+	skips := &locator.SkipReport{}
 	var allEntries []types.SessionEntry
-	var warnings []string
 	for _, f := range files {
 		p := parser.NewSessionParser(f)
 		entries, err := p.ParseEntries()
 		if err != nil {
 			// DIR-018: never silently exclude data — record a warning naming
 			// the file and log at WARN level instead of a bare `continue`.
-			warning := fmt.Sprintf("skipped session file %s: %v", f, err)
 			slog.Warn("skipping unparseable session file", "file", f, "error", err)
-			warnings = append(warnings, warning)
+			skips.Skip(f, err)
+			continue
+		}
+		if len(entries) == 0 {
+			// DIR-094: a 0-byte file or a metadata-only session stub parses
+			// cleanly and yields nothing. Tolerating that silently is the
+			// same data exclusion DIR-018 made visible for parse errors, so
+			// it is reported through the same channel — and uses the same
+			// "no message entries" vocabulary the Claude provider's
+			// errNoMessageEntries sentinel uses on the ListSessions path.
+			const reason = "no message entries (zero-message session stub)"
+			slog.Warn("skipping session file with no message entries", "file", f)
+			skips.SkipReason(f, reason)
 			continue
 		}
 		allEntries = append(allEntries, entries...)
 	}
 
 	toolCalls := types.ExtractToolCalls(allEntries)
-	return allEntries, toolCalls, warnings, nil
+	return allEntries, toolCalls, skips, nil
 }
 
-func (s *Service) loadProviderData(scope, workingDir, providerName, sessionID string) ([]types.SessionEntry, []types.ToolCall, error) {
+func (s *Service) loadProviderData(scope, workingDir, providerName, sessionID string) ([]types.SessionEntry, []types.ToolCall, *locator.SkipReport, error) {
 	projectPath, err := filepath.Abs(workingDir)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to resolve project path: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to resolve project path: %w", err)
 	}
 	filters, err := rawfiles.ParseProviderFilter(providerName)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	registry := rawfiles.NewRegistry(projectPath)
 
-	var records []map[string]interface{}
+	skips := &locator.SkipReport{}
+	var (
+		records          []map[string]interface{}
+		providerWarnings []string
+	)
 	if sessionID != "" {
 		// DIR-030 exact-session fast path: GetSession/LoadTurns for this
 		// one ID only, never ListSessions across the whole project.
-		records, _, err = providerrecords.BuildForSession(context.Background(), registry, filters, sessionID, projectPath)
+		records, providerWarnings, err = providerrecords.BuildForSession(context.Background(), registry, filters, sessionID, projectPath)
 	} else {
-		records, _, err = providerrecords.Build(context.Background(), registry, filters, scope, projectPath)
+		records, providerWarnings, err = providerrecords.Build(context.Background(), registry, filters, scope, projectPath)
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
+	}
+	// DIR-094: providerrecords.Build already implements DIR-030's per-session
+	// skip-and-report contract, but this caller discarded its warnings — so
+	// on every non-Claude provider the exclusion was computed and then thrown
+	// away one frame later. Adopt them verbatim (they name a session ID, not a
+	// corpus file path, so they contribute to `warnings` only).
+	for _, warning := range providerWarnings {
+		skips.AdoptWarning(warning)
 	}
 	entries, err := entriesFromRecords(records)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return entries, types.ExtractToolCalls(entries), nil
+	return entries, types.ExtractToolCalls(entries), skips, nil
 }
 
 func entriesFromRecords(records []map[string]interface{}) ([]types.SessionEntry, error) {
@@ -250,12 +279,37 @@ func boolArg(args map[string]interface{}, key string) bool {
 	return false
 }
 
-func marshalResult(v interface{}) (string, error) {
+// marshalResult serializes an analysis result and attaches the corpus-exclusion
+// metadata DIR-094 requires. The human-readable channel is the `warnings` field
+// the analyzer result structs already carry (DIR-018); this adds the
+// machine-readable counterpart, `skipped_files`, naming each excluded corpus
+// file so a response never tolerates a bad file silently.
+//
+// A clean corpus (skips.Empty()) adds nothing, and a value that does not
+// marshal to a JSON object — e.g. a bare array or scalar — is returned exactly
+// as serialized rather than losing the whole result to a cosmetic metadata
+// attach.
+func marshalResult(v interface{}, skips *locator.SkipReport) (string, error) {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal result: %w", err)
 	}
-	return string(data), nil
+	skippedPaths := skips.Paths()
+	if len(skippedPaths) == 0 {
+		return string(data), nil
+	}
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return string(data), nil
+	}
+	parsed["skipped_files"] = skippedPaths
+
+	withSkips, err := json.Marshal(parsed)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal result with skipped_files: %w", err)
+	}
+	return string(withSkips), nil
 }
 
 // AnalyzeBugs implements the analyze_bugs MCP tool.
@@ -263,7 +317,7 @@ func marshalResult(v interface{}) (string, error) {
 // summary (analyzer.AnalyzeBugsStats) with no per-pattern Examples text,
 // mirroring GetTimeline's own stats_only short-circuit (DIR-042).
 func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
-	entries, toolCalls, warnings, err := s.loadData(args)
+	entries, toolCalls, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -272,15 +326,15 @@ func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("analyze bugs failed: %w", err)
 		}
-		stats.Warnings = warnings
-		return marshalResult(stats)
+		stats.Warnings = skips.Warnings()
+		return marshalResult(stats, skips)
 	}
 	result, err := s.analyzers.BugAnalyzer.AnalyzeBugs(entries, toolCalls, intArg(args, "limit"))
 	if err != nil {
 		return "", fmt.Errorf("analyze bugs failed: %w", err)
 	}
-	result.Warnings = warnings
-	return marshalResult(result)
+	result.Warnings = skips.Warnings()
+	return marshalResult(result, skips)
 }
 
 // AnalyzeErrors implements the analyze_errors MCP tool.
@@ -288,7 +342,7 @@ func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
 // per-type count summary (analyzer.AnalyzeErrorsStats) with no examples
 // text, mirroring GetTimeline's own stats_only short-circuit (DIR-042).
 func (s *Service) AnalyzeErrors(args map[string]interface{}) (string, error) {
-	entries, toolCalls, warnings, err := s.loadData(args)
+	entries, toolCalls, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -297,15 +351,15 @@ func (s *Service) AnalyzeErrors(args map[string]interface{}) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to analyze errors: %w", err)
 		}
-		stats.Warnings = warnings
-		return marshalResult(stats)
+		stats.Warnings = skips.Warnings()
+		return marshalResult(stats, skips)
 	}
 	result, err := s.analyzers.ErrorAnalyzer.AnalyzeErrors(entries, toolCalls, intArg(args, "limit"))
 	if err != nil {
 		return "", fmt.Errorf("failed to analyze errors: %w", err)
 	}
-	result.Warnings = warnings
-	return marshalResult(result)
+	result.Warnings = skips.Warnings()
+	return marshalResult(result, skips)
 }
 
 // QualityScan implements the quality_scan MCP tool.
@@ -315,7 +369,7 @@ func (s *Service) AnalyzeErrors(args map[string]interface{}) (string, error) {
 // documented stats_only contract explicitly rather than silently ignoring it
 // (DIR-042).
 func (s *Service) QualityScan(args map[string]interface{}) (string, error) {
-	entries, toolCalls, warnings, err := s.loadData(args)
+	entries, toolCalls, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -324,15 +378,15 @@ func (s *Service) QualityScan(args map[string]interface{}) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("quality scan failed: %w", err)
 		}
-		stats.Warnings = warnings
-		return marshalResult(stats)
+		stats.Warnings = skips.Warnings()
+		return marshalResult(stats, skips)
 	}
 	result, err := s.analyzers.QualityScanner.QualityScan(entries, toolCalls)
 	if err != nil {
 		return "", fmt.Errorf("quality scan failed: %w", err)
 	}
-	result.Warnings = warnings
-	return marshalResult(result)
+	result.Warnings = skips.Warnings()
+	return marshalResult(result, skips)
 }
 
 // GetWorkPatterns implements the get_work_patterns MCP tool.
@@ -342,7 +396,7 @@ func (s *Service) QualityScan(args map[string]interface{}) (string, error) {
 // exists so this method still honors the documented stats_only contract
 // explicitly rather than silently ignoring it (DIR-042).
 func (s *Service) GetWorkPatterns(args map[string]interface{}) (string, error) {
-	entries, toolCalls, warnings, err := s.loadData(args)
+	entries, toolCalls, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -351,15 +405,15 @@ func (s *Service) GetWorkPatterns(args map[string]interface{}) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("get work patterns failed: %w", err)
 		}
-		stats.Warnings = warnings
-		return marshalResult(stats)
+		stats.Warnings = skips.Warnings()
+		return marshalResult(stats, skips)
 	}
 	result, err := s.analyzers.WorkPatterns.GetWorkPatterns(entries, toolCalls)
 	if err != nil {
 		return "", fmt.Errorf("get work patterns failed: %w", err)
 	}
-	result.Warnings = warnings
-	return marshalResult(result)
+	result.Warnings = skips.Warnings()
+	return marshalResult(result, skips)
 }
 
 // timelineAutoStatsThreshold is the entry count above which get_timeline switches to
@@ -372,7 +426,7 @@ const timelineAutoStatsThreshold = 1000
 // When no since/until is set and entry count exceeds timelineAutoStatsThreshold,
 // defaults to stats summary mode to prevent context overflow.
 func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
-	entries, _, warnings, err := s.loadData(args)
+	entries, _, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -389,16 +443,16 @@ func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
 
 	if boolArg(args, "stats_only") {
 		stats := analyzer.GetTimelineStats(entries)
-		stats.Warnings = warnings
-		return marshalResult(stats)
+		stats.Warnings = skips.Warnings()
+		return marshalResult(stats, skips)
 	}
 
 	// When no time clipping and entry count exceeds threshold, default to stats mode
 	// to prevent the 737K+ character context truncation observed in large projects.
 	if since == "" && until == "" && len(entries) > timelineAutoStatsThreshold {
 		stats := analyzer.GetTimelineStats(entries)
-		stats.Warnings = warnings
-		return marshalResult(stats)
+		stats.Warnings = skips.Warnings()
+		return marshalResult(stats, skips)
 	}
 
 	limit := intArg(args, "limit")
@@ -411,8 +465,8 @@ func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("get timeline failed: %w", err)
 	}
-	result.Warnings = warnings
-	return marshalResult(result)
+	result.Warnings = skips.Warnings()
+	return marshalResult(result, skips)
 }
 
 // filterEntriesByTimeRange filters session entries to those within the since/until range.
@@ -487,7 +541,7 @@ func parseEntryTimestamp(ts string) (time.Time, error) {
 // so stats_only reflects the same combined result the full response would
 // (DIR-042).
 func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
-	entries, toolCalls, warnings, err := s.loadData(args)
+	entries, toolCalls, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
@@ -509,16 +563,16 @@ func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
 
 	// Set before the stats_only conversion so TechDebtResultStats carries the
 	// warnings through to the aggregate response (DIR-018).
-	result.Warnings = warnings
+	result.Warnings = skips.Warnings()
 	if scanWarning != "" {
 		result.Warnings = append(result.Warnings, scanWarning)
 	}
 
 	if boolArg(args, "stats_only") {
-		return marshalResult(analyzer.TechDebtResultStats(result))
+		return marshalResult(analyzer.TechDebtResultStats(result), skips)
 	}
 
-	return marshalResult(result)
+	return marshalResult(result, skips)
 }
 
 // resolveFilePaths converts any relative paths in the slice to absolute paths
@@ -576,21 +630,21 @@ func (s *Service) QueryEditSequences(args map[string]interface{}) (string, error
 	includeContent := boolArg(args, "include_content")
 	limitPerFile := intArg(args, "limit_per_file")
 
-	entries, _, warnings, err := s.loadData(args)
+	entries, _, skips, err := s.loadData(args)
 	if err != nil {
 		// When no session files are found, return an empty result immediately
 		// rather than propagating the error. This prevents hangs in git worktrees,
 		// CI environments, and new clones that have no Claude session data.
 		if strings.Contains(err.Error(), "failed to locate project sessions") {
 			result := analyzer.BuildEditSequences(nil, files, includeContent, limitPerFile)
-			return marshalResult(result)
+			return marshalResult(result, skips)
 		}
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
 
 	result := analyzer.BuildEditSequences(entries, files, includeContent, limitPerFile)
-	result.Warnings = warnings
-	return marshalResult(result)
+	result.Warnings = skips.Warnings()
+	return marshalResult(result, skips)
 }
 
 // AnalysisService is the interface implemented by *Service.

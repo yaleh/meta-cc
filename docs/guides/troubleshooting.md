@@ -137,6 +137,59 @@ head ~/.claude/projects/<hash>/<session-id>.jsonl
 # Verify MCP server status in Claude Code (Settings → MCP)
 ```
 
+### Malformed session file tolerated but no warning appears
+
+**Symptoms**:
+
+One session file in the project is unusable — 0 bytes, or only
+`file-history-snapshot` / `mode` / `permission-mode` / `system` lines, or
+truncated/invalid JSON — and one of these happens:
+
+- the tool still fails the whole call with an error naming that file, or
+- the tool returns results but the response has no `skipped_files` field and no
+  warning naming the file (the exclusion is silent).
+
+**Cause**: a stale installed plugin binary.
+
+meta-cc's tolerance for an unusable session file (DIR-018/DIR-094: skip the
+file, keep every other result, and report what was excluded) lives in the MCP
+server binary. `make install-local` / `make install-user` copy that binary at
+`stage`/build time, so a running MCP server keeps serving whatever binary was
+installed when it started. When the fix is present in the source tree but not
+in the installed binary, the behavior looks unchanged no matter how correct the
+source is.
+
+**Solution**:
+
+```bash
+make stage          # build the MCP server into plugin-src/bin/
+make install-user   # stage + copy to ~/.local/share/meta-cc + register with Claude Code
+# project scope only:  make install-local
+```
+
+Then restart Claude Code (or, for Codex, also run `make install-user-codex` —
+Codex has a separate registration that `make install-user` does not touch). See
+[plugin-development.md](plugin-development.md) for what each target does and
+why `make stage` does not disturb a running server.
+
+**How to confirm the fix is in effect**: a response whose corpus contained an
+unusable file now carries both channels — `"warnings"` (one human-readable line
+per skipped file, naming its path and reason) and `"skipped_files"` (the
+machine-readable path list). A corpus with nothing excluded omits
+`"skipped_files"` entirely and returns `"warnings": []`, so an empty
+`skipped_files` is never the way "no problem" is spelled.
+
+Every corpus-enumerating tool reports both fields — `query_sessions`,
+`get_timeline`, and the five analysis tools (`analyze_errors`, `analyze_bugs`,
+`quality_scan`, `get_work_patterns`, `get_tech_debt`):
+
+```json
+{
+  "warnings": ["skipped session file /home/me/.claude/projects/-home-me-app/8eda8f4e-….jsonl: no message entries (zero-message session stub)"],
+  "skipped_files": ["/home/me/.claude/projects/-home-me-app/8eda8f4e-….jsonl"]
+}
+```
+
 ## Performance Issues
 
 ### Slow MCP queries

@@ -673,6 +673,43 @@ execute_stage2_query({
 })
 ```
 
+### Pattern 4: Composing jq_filter Over a Convenience Tool's Output
+
+`jq_filter` is not only for the two-stage tools: every consolidated query tool
+applies it as a post-filter over the records it already selected (DIR-041).
+That makes it the cheap way to get a projection the tool does not offer
+natively — no file selection, no `execute_stage2_query`.
+
+The catch is that `jq_filter` runs against the **whole result array** as one
+value, so expressions are written as `jq` over an array, exactly as with a
+plain `jq` invocation: `.[] | <per-record expression>` to iterate, or an
+array-level expression like `group_by(...) | map(...)` to aggregate. A bare
+`select(...)` without the `.[] |` prefix fails with "expected an object but got:
+array".
+
+```javascript
+// `query_session_signals(type="errors")` already projects each record to
+// {timestamp, session_id, tool_name, error_text, category} (DIR-097) — so
+// jq_filter composes over those names, not over the raw JSONL fields.
+query_session_signals({
+  type: "errors",
+  provider: "claude",
+  jq_filter: '.[] | select(.category == "file_not_found") | {timestamp, tool_name, error_text}'
+})
+
+// Aggregate instead of iterate: one record per tool
+query_session_signals({
+  type: "errors",
+  jq_filter: 'group_by(.tool_name) | map({tool_name: .[0].tool_name, count: length})'
+})
+```
+
+Rule of thumb: if the tool documents a projected shape, compose `jq_filter`
+against *that* shape. Filtering on a raw-JSONL path (`.message.content[]`,
+`.toolUseResult`) silently matches nothing once a tool projects its output —
+use the tool's `raw` escape hatch (where one exists) when you really need the
+underlying record.
+
 ---
 
 ## Migration from Legacy Tools
