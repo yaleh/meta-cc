@@ -376,7 +376,8 @@ export META_CC_CAPABILITY_SOURCES="capabilities/commands"
 ### Unit Tests
 
 ```bash
-make test          # Run unit tests
+make test          # Run unit tests (short mode, whole module)
+make test-scoped   # Run scoped fail-fast tests + compile (see below)
 make test-all      # Run all tests
 make test-coverage # With coverage report
 ```
@@ -386,6 +387,69 @@ make test-coverage # With coverage report
 ```bash
 make test-integration
 ```
+
+## Two-Stage Acceptance Workflow
+
+Acceptance in this repo is two-stage: a **scoped, fail-fast** check while you
+iterate, and the **full** `make commit` gate before the work is promoted. Running
+the full gate on every edit is what makes an implementation round slow — it runs
+the entire module plus the workspace checks on each fix-compile-rerun cycle.
+
+### Stage 1 — `make test-scoped` (iteration)
+
+```bash
+make test-scoped PKGS=./internal/parser/...
+```
+
+`test-scoped` runs `go test -short` over the package pattern in `PKGS` and then
+compiles the whole tree with `go build ./...`, aborting on the first failure. A
+single package against a warm Go test cache costs a few seconds rather than the
+~60s a cold `make commit` takes. `PKGS` accepts any `go test` package pattern and
+defaults to `./...` when unset:
+
+```bash
+make test-scoped PKGS=./internal/parser/...                     # one package tree
+make test-scoped PKGS="./internal/release/... ./internal/version/..."
+make test-scoped                                                # default: ./...
+```
+
+It deliberately skips the workspace gates (temp files, fixtures, dependency
+integrity, the DIR-078 documentation contract, DIR-035 PATH independence), so a
+green `test-scoped` is **not** acceptance — it is the fast feedback loop.
+
+### Stage 2 — `make commit` (promotion)
+
+Run the full gate before promoting a task to ready/done, and before any commit
+you intend to keep:
+
+```bash
+make commit
+```
+
+`make commit` remains the promotion gate. `test-scoped` never replaces it; it
+only removes the wait from the cycles in between.
+
+### As a per-task acceptance command
+
+A task's `extra.acceptance` may use the scoped form as its own gate when the work
+is confined to one package — e.g. `make test-scoped PKGS="./internal/parser/..."` —
+with `make commit` retained as the promotion gate. Prefer the full `make commit`
+when the task touches the workspace gates themselves (Makefile checks, docs
+contract, fixtures).
+
+### Why: the DIR-005/006/007 precedent
+
+This is not a new idea. Early tasks DIR-005, DIR-006 and DIR-007 wrote scoped
+acceptance commands by hand — `go test ./internal/mcp/executor/... && go build .`
+— and ran in under 10s each, targeted at exactly the package being changed. The
+fleet later standardized on the full `make commit`, which lost the fast inner
+loop. The gate-events numbers through 2026-07-30 show the cost: 79 acceptance
+runs since 2026-07-28 (~82 minutes of accrued wait), with heavy retries — DIR-056
+ran acceptance 9 times, DIR-053 5 times and DIR-058 4 times — and most of those
+retries were fix-compile-rerun cycles a scoped check would have caught in
+seconds. Over the same window `make commit` was the acceptance gate for 33 of the
+last 36 tasks at ~62s per run. `test-scoped` restores the DIR-005/006/007 shape as
+a repeatable target instead of a hand-typed command.
 
 ## Build and Release
 
