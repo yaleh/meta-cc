@@ -34,6 +34,13 @@ var errNoMessageEntries = errors.New("no message entries")
 type Provider struct {
 	locator    *locator.SessionLocator
 	workingDir string
+
+	// skips accumulates the corpus files the most recent ListSessions pass
+	// excluded, so the exclusion is reportable rather than silent (DIR-094).
+	// It is reset at the top of every pass; ListSessions is not safe for
+	// concurrent use on one Provider handle, matching the Codex provider's
+	// identical warnings field.
+	skips locator.SkipReport
 }
 
 func NewProvider(loc *locator.SessionLocator, workingDir string) *Provider {
@@ -76,23 +83,49 @@ func (p *Provider) ListSessions(ctx context.Context) ([]conversation.Session, er
 		return nil, err
 	}
 
+	// Reset per pass so a reused Provider handle never reports a previous
+	// listing's exclusions as if they belonged to this one.
+	p.skips = locator.SkipReport{}
+
 	sessions := make([]conversation.Session, 0, len(files))
 	for _, file := range files {
 		session, err := p.sessionFromFile(file)
 		if err != nil {
-			// A zero-message stub carries nothing queryable, so excluding it
-			// from a listing is correct, not data loss — skip it and keep
-			// going rather than letting one empty session poison the whole
-			// project listing (see errNoMessageEntries). Any OTHER error is a
-			// genuine failure and still aborts.
+			// DIR-030/DIR-094: one unusable session file must not erase the
+			// results derived from every other file — including the
+			// unreadable case, which is the "corrupt/unreadable" wording
+			// DIR-030 established. The exclusion is recorded (never silently
+			// dropped), so callers can carry it into their response
+			// metadata; see Warnings/SkippedFiles.
+			//
+			// A zero-message stub gets its own reason text rather than the
+			// sentinel's "no message entries in <path>", which would repeat
+			// the path SkipReason already prefixes.
 			if errors.Is(err, errNoMessageEntries) {
-				continue
+				p.skips.SkipReason(file, "no message entries (zero-message session stub)")
+			} else {
+				p.skips.Skip(file, err)
 			}
-			return nil, err
+			continue
 		}
 		sessions = append(sessions, session)
 	}
 	return sessions, nil
+}
+
+// Warnings returns the human-readable exclusions recorded by the most recent
+// ListSessions pass, or nil when every enumerated file was usable. It mirrors
+// the Codex provider's Warnings() so every provider-driven corpus listing
+// reports skipped files through the same channel (DIR-039/DIR-094).
+func (p *Provider) Warnings() []string {
+	return p.skips.Warnings()
+}
+
+// SkippedFiles returns the on-disk paths of the session files the most recent
+// ListSessions pass excluded, or nil when none were. This is the
+// machine-readable counterpart to Warnings.
+func (p *Provider) SkippedFiles() []string {
+	return p.skips.Paths()
 }
 
 func (p *Provider) GetSession(ctx context.Context, sessionID string) (conversation.Session, error) {

@@ -65,9 +65,10 @@ type QueryResponse struct {
 
 // QueryResult represents query results with optional warnings about skipped files
 type QueryResult struct {
-	Entries     []interface{}
-	Warnings    []string
-	BypassStats bool // skip StatsOnly/StatsFirst processing; used by handlers that inject synthetic diagnostic entries
+	Entries      []interface{}
+	Warnings     []string
+	SkippedFiles []string // DIR-094: corpus files excluded from Entries, the machine-readable counterpart to Warnings
+	BypassStats  bool     // skip StatsOnly/StatsFirst processing; used by handlers that inject synthetic diagnostic entries
 }
 
 // ExpressionCache provides LRU caching for compiled jq expressions
