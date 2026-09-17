@@ -266,9 +266,26 @@ func stringArg(args map[string]interface{}, key string) string {
 	return ""
 }
 
+// intArg reads an integer parameter from MCP tool arguments.
+//
+// MCP delivers JSON numbers as float64, but a direct Go caller (or a test) may
+// hand over an int or json.Number. Accepting all three matters because the zero
+// value is meaningful for the cap parameters wired in DIR-096: a numeric
+// max_patterns/limit that failed this type switch would be read as 0, i.e.
+// "unlimited", so a cap the caller believes is in force would silently return an
+// unbounded response.
 func intArg(args map[string]interface{}, key string) int {
-	if v, ok := args[key].(float64); ok {
+	switch v := args[key].(type) {
+	case float64:
 		return int(v)
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case json.Number:
+		if n, err := v.Int64(); err == nil {
+			return int(n)
+		}
 	}
 	return 0
 }
@@ -278,6 +295,44 @@ func boolArg(args map[string]interface{}, key string) bool {
 		return v
 	}
 	return false
+}
+
+// defaultExampleLimit is the per-pattern example count analyze_bugs applies
+// when the caller omits `limit`.
+//
+// DIR-096 caps the *pattern* count via max_patterns, but that alone leaves the
+// response unbounded: a single frequently-recurring signature accumulates one
+// example per occurrence, so the top pattern's example list grows with every
+// session ever recorded against it. Measured on this project's corpus, an
+// uncapped example list left the default call at 29KB against a 32KB inline
+// threshold — passing, but only by 10%, and shrinking as the corpus grows. The
+// default limit is what makes "a default call stays inline" a property of the
+// design rather than a snapshot of the corpus. Callers who want every example
+// pass limit:0 (unlimited) explicitly.
+const defaultExampleLimit = 3
+
+// maxPatternsArg resolves analyze_bugs' max_patterns parameter.
+//
+// DIR-096: an omitted max_patterns means analyzer.DefaultMaxPatterns, while an
+// explicit 0 means unlimited. The distinction matters at this boundary only —
+// the analyzer primitive treats 0 as unlimited, so "absent" cannot be left to
+// fall through intArg's zero value without the default silently becoming
+// "return every pattern", which is exactly the unbounded behaviour that made a
+// default call spill to file_ref mode.
+func maxPatternsArg(args map[string]interface{}) int {
+	if _, ok := args["max_patterns"]; !ok {
+		return analyzer.DefaultMaxPatterns
+	}
+	return intArg(args, "max_patterns")
+}
+
+// exampleLimitArg resolves analyze_bugs' limit parameter with the same
+// absent-vs-explicit-0 distinction maxPatternsArg applies to max_patterns.
+func exampleLimitArg(args map[string]interface{}) int {
+	if _, ok := args["limit"]; !ok {
+		return defaultExampleLimit
+	}
+	return intArg(args, "limit")
 }
 
 // marshalResult serializes an analysis result and attaches the corpus-exclusion
@@ -335,7 +390,7 @@ func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
 		stats.Warnings = skips.Warnings()
 		return marshalResult(stats, skips)
 	}
-	result, err := s.analyzers.BugAnalyzer.AnalyzeBugs(entries, toolCalls, intArg(args, "limit"))
+	result, err := s.analyzers.BugAnalyzer.AnalyzeBugs(entries, toolCalls, exampleLimitArg(args), maxPatternsArg(args))
 	if err != nil {
 		return "", fmt.Errorf("analyze bugs failed: %w", err)
 	}

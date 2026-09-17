@@ -258,7 +258,7 @@ func TestAnalyzeBugs_SurfacesEstimatedCausalPairing(t *testing.T) {
 		{ToolName: "Bash", Status: "error", Error: "failed"},
 		{ToolName: "Bash", Status: "success"},
 	}
-	full, err := AnalyzeBugs(nil, toolCalls, 1)
+	full, err := AnalyzeBugs(nil, toolCalls, 1, 0)
 	if err != nil {
 		t.Fatalf("AnalyzeBugs: %v", err)
 	}
@@ -382,7 +382,7 @@ func serializedPathExists(value interface{}, path []string) bool {
 func TestEstimatedFieldsPathsExistInRuntimeJSON(t *testing.T) {
 	calls := []types.ToolCall{{ToolName: "Read", Status: "error", Error: "not found"}, {ToolName: "Read", Status: "success"}}
 	quality, _ := QualityScan(nil, calls)
-	bugs, _ := AnalyzeBugs(nil, calls, 1)
+	bugs, _ := AnalyzeBugs(nil, calls, 1, 0)
 	bugStats, _ := AnalyzeBugsStats(nil, calls)
 	errors, _ := AnalyzeErrors(nil, calls, 1)
 	errorStats, _ := AnalyzeErrorsStats(nil, calls)

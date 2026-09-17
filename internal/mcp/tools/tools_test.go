@@ -526,3 +526,49 @@ func TestOldToolsRemovedFromDefinitions(t *testing.T) {
 		}
 	}
 }
+
+// DIR-096: analyze_bugs gained a first-class max_patterns cap. The parameter
+// must be discoverable through the tool schema, otherwise a caller has no way
+// to learn that the pattern count is capped at 20 by default nor that 0 lifts
+// the cap (DIR-044's precedent for scoping a schema parameter to the tool that
+// actually honors it).
+func TestAnalyzeBugsSchema_DeclaresMaxPatterns(t *testing.T) {
+	schema, err := tools.GetToolSchemaByName(tools.BuildToolSchemaIndex(), "analyze_bugs")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	prop, ok := schema.Properties["max_patterns"]
+	if !ok {
+		t.Fatal("analyze_bugs schema must declare max_patterns")
+	}
+	if prop.Type != "number" {
+		t.Errorf("max_patterns must be a number, got %q", prop.Type)
+	}
+	if !strings.Contains(prop.Description, "20") {
+		t.Errorf("max_patterns description must state the default, got %q", prop.Description)
+	}
+	if !strings.Contains(prop.Description, "0 = unlimited") {
+		t.Errorf("max_patterns description must state that 0 lifts the cap, got %q", prop.Description)
+	}
+
+	// limit keeps its key but must now document its default too, since an
+	// omitted limit is no longer "unlimited".
+	limit, ok := schema.Properties["limit"]
+	if !ok {
+		t.Fatal("analyze_bugs schema must still declare limit")
+	}
+	if !strings.Contains(limit.Description, "default 3") {
+		t.Errorf("limit description must state its default, got %q", limit.Description)
+	}
+
+	// The cap is analyze_bugs-specific; analyze_errors bounds only its own
+	// example list and must not advertise a parameter it ignores.
+	errorsSchema, err := tools.GetToolSchemaByName(tools.BuildToolSchemaIndex(), "analyze_errors")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := errorsSchema.Properties["max_patterns"]; ok {
+		t.Error("max_patterns must not be advertised on analyze_errors")
+	}
+}

@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -14,7 +15,7 @@ func TestAnalyzeBugs_FixPair(t *testing.T) {
 		{UUID: "uuid-2", ToolName: "Bash", Status: "success"},
 	}
 
-	result, err := AnalyzeBugs([]types.SessionEntry{}, toolCalls, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, toolCalls, 0, 0)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -37,7 +38,7 @@ func TestAnalyzeBugs_Recurrence(t *testing.T) {
 		{UUID: "uuid-6", ToolName: "Bash", Status: "success"},
 	}
 
-	result, err := AnalyzeBugs([]types.SessionEntry{}, toolCalls, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, toolCalls, 0, 0)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -72,7 +73,7 @@ func TestAnalyzeBugs_SortedByRecurrence(t *testing.T) {
 		{UUID: "uuid-12", ToolName: "Grep", Status: "success"},
 	}
 
-	result, err := AnalyzeBugs([]types.SessionEntry{}, toolCalls, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, toolCalls, 0, 0)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -92,7 +93,7 @@ func TestAnalyzeBugs_SortedByRecurrence(t *testing.T) {
 }
 
 func TestAnalyzeBugs_EmptySession(t *testing.T) {
-	result, err := AnalyzeBugs([]types.SessionEntry{}, []types.ToolCall{}, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, []types.ToolCall{}, 0, 0)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -105,7 +106,7 @@ func TestAnalyzeBugs_EmptySession(t *testing.T) {
 }
 
 func TestAnalyzeBugs_DataSource(t *testing.T) {
-	result, err := AnalyzeBugs([]types.SessionEntry{}, []types.ToolCall{}, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, []types.ToolCall{}, 0, 0)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -182,7 +183,7 @@ func TestAnalyzeBugs_UnfixedErrorsCounted(t *testing.T) {
 	tc := fixTestData()
 
 	t.Run("full", func(t *testing.T) {
-		result, err := AnalyzeBugs([]types.SessionEntry{}, tc, 0)
+		result, err := AnalyzeBugs([]types.SessionEntry{}, tc, 0, 0)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -226,7 +227,7 @@ func TestAnalyzeBugs_FixNotDoubleCounted(t *testing.T) {
 		{UUID: "2", ToolName: "Bash", Status: "error", Error: "boom"},
 		{UUID: "3", ToolName: "Bash", Status: "success"},
 	}
-	result, err := AnalyzeBugs([]types.SessionEntry{}, tc, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, tc, 0, 0)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -250,7 +251,7 @@ func TestAnalyzeBugs_UnfixedOnlyPatternVisible(t *testing.T) {
 		{UUID: "1", ToolName: "Bash", Status: "error", Error: "never fixed"},
 		{UUID: "2", ToolName: "Bash", Status: "error", Error: "never fixed"},
 	}
-	result, err := AnalyzeBugs([]types.SessionEntry{}, tc, 0)
+	result, err := AnalyzeBugs([]types.SessionEntry{}, tc, 0, 0)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -276,5 +277,238 @@ func TestAnalyzeBugsStats_Empty(t *testing.T) {
 	}
 	if len(stats.Patterns) != 0 {
 		t.Errorf("Expected 0 patterns, got %d", len(stats.Patterns))
+	}
+}
+
+// --- DIR-096: structured examples and the max_patterns cap ---
+
+// exampleEntries builds one SessionEntry per tool call, matching UUIDs so the
+// session-id lookup in AnalyzeBugs resolves. SessionID is deliberately carried
+// only on the entries (not on ToolCall) to mirror the real types.
+func exampleEntries(sessionID string, toolCalls []types.ToolCall) []types.SessionEntry {
+	entries := make([]types.SessionEntry, 0, len(toolCalls))
+	for _, tc := range toolCalls {
+		entries = append(entries, types.SessionEntry{
+			Type:      "assistant",
+			UUID:      tc.UUID,
+			SessionID: sessionID,
+			Timestamp: tc.Timestamp,
+		})
+	}
+	return entries
+}
+
+// TestAnalyzeBugs_ExamplesAreStructuredObjects pins AC #2: examples are objects
+// addressing each occurrence by session/time/error rather than bare strings,
+// and carry the paired fix excerpt plus the signature when available.
+func TestAnalyzeBugs_ExamplesAreStructuredObjects(t *testing.T) {
+	toolCalls := []types.ToolCall{
+		{UUID: "u1", ToolName: "Bash", Status: "error", Error: "command not found", Timestamp: "2026-01-01T00:00:00Z"},
+		{UUID: "u2", ToolName: "Bash", Status: "success", Output: "ok", Timestamp: "2026-01-01T00:00:01Z"},
+		// A second occurrence of the same signature that is never fixed.
+		{UUID: "u3", ToolName: "Bash", Status: "error", Error: "command not found", Timestamp: "2026-01-01T00:00:02Z"},
+	}
+	result, err := AnalyzeBugs(exampleEntries("sess-abc", toolCalls), toolCalls, 0, 0)
+	if err != nil {
+		t.Fatalf("AnalyzeBugs: %v", err)
+	}
+	if len(result.Patterns) != 1 {
+		t.Fatalf("want 1 pattern, got %d", len(result.Patterns))
+	}
+	examples := result.Patterns[0].Examples
+	if len(examples) != 2 {
+		t.Fatalf("want 2 examples, got %d", len(examples))
+	}
+
+	// JSON-level assertion too: the consumer that hit an AttributeError was
+	// parsing this as JSON, so pin the wire shape, not just the Go struct.
+	data, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var wire struct {
+		Patterns []struct {
+			Examples []map[string]interface{} `json:"examples"`
+		} `json:"patterns"`
+	}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(wire.Patterns) != 1 || len(wire.Patterns[0].Examples) != 2 {
+		t.Fatalf("wire shape: want 1 pattern with 2 examples, got %s", data)
+	}
+
+	fixed := examples[0]
+	if fixed.SessionID != "sess-abc" {
+		t.Errorf("want session_id sess-abc, got %q", fixed.SessionID)
+	}
+	if fixed.Timestamp != "2026-01-01T00:00:00Z" {
+		t.Errorf("unexpected timestamp %q", fixed.Timestamp)
+	}
+	if fixed.ErrorText != "command not found" {
+		t.Errorf("unexpected error_text %q", fixed.ErrorText)
+	}
+	if fixed.FixText != "ok" {
+		t.Errorf("want fix_text \"ok\" on the paired example, got %q", fixed.FixText)
+	}
+	if fixed.Signature == "" {
+		t.Error("want non-empty signature")
+	}
+	if fixed.Signature != result.Patterns[0].ErrorSignature {
+		t.Errorf("example signature %q must match pattern signature %q",
+			fixed.Signature, result.Patterns[0].ErrorSignature)
+	}
+
+	unfixed := examples[1]
+	if unfixed.FixText != "" {
+		t.Errorf("unfixed occurrence must omit fix_text, got %q", unfixed.FixText)
+	}
+	if unfixed.Timestamp != "2026-01-01T00:00:02Z" {
+		t.Errorf("unexpected timestamp for unfixed example: %q", unfixed.Timestamp)
+	}
+	if unfixed.SessionID != "sess-abc" {
+		t.Errorf("want session_id on unfixed example too, got %q", unfixed.SessionID)
+	}
+}
+
+// TestAnalyzeBugs_MaxPatternsCapsAndRanks pins AC #1 and the ranking rule:
+// the cap keeps the most recurrent patterns, and the pre-cap count stays
+// visible as total_patterns so truncation is never silent.
+func TestAnalyzeBugs_MaxPatternsCapsAndRanks(t *testing.T) {
+	// 8 distinct signatures with descending recurrence (8,7,...,1).
+	var toolCalls []types.ToolCall
+	for p := 0; p < 8; p++ {
+		for r := 0; r < 8-p; r++ {
+			toolCalls = append(toolCalls, types.ToolCall{
+				UUID:     fmt.Sprintf("u-%d-%d", p, r),
+				ToolName: "Bash",
+				Status:   "error",
+				Error:    fmt.Sprintf("distinct error %d", p),
+			})
+		}
+	}
+
+	uncapped, err := AnalyzeBugs(nil, toolCalls, 0, 0)
+	if err != nil {
+		t.Fatalf("AnalyzeBugs: %v", err)
+	}
+	if len(uncapped.Patterns) != 8 {
+		t.Fatalf("want 8 patterns uncapped, got %d", len(uncapped.Patterns))
+	}
+
+	capped, err := AnalyzeBugs(nil, toolCalls, 0, 5)
+	if err != nil {
+		t.Fatalf("AnalyzeBugs: %v", err)
+	}
+	if len(capped.Patterns) > 5 {
+		t.Errorf("AC #1: max_patterns=5 returned %d patterns", len(capped.Patterns))
+	}
+	if len(capped.Patterns) != 5 {
+		t.Errorf("want 5 patterns, got %d", len(capped.Patterns))
+	}
+	if capped.TotalPatterns != 8 {
+		t.Errorf("want total_patterns=8 (pre-cap), got %d", capped.TotalPatterns)
+	}
+	// The cap must select the same top-N the uncapped ranking produced.
+	for i := range capped.Patterns {
+		if capped.Patterns[i].ErrorSignature != uncapped.Patterns[i].ErrorSignature {
+			t.Errorf("pattern %d: capped %q != uncapped %q",
+				i, capped.Patterns[i].ErrorSignature, uncapped.Patterns[i].ErrorSignature)
+		}
+	}
+	// Aggregate totals describe the whole corpus, not the returned slice.
+	if capped.TotalErrors != uncapped.TotalErrors {
+		t.Errorf("total_errors must be corpus-wide: %d != %d", capped.TotalErrors, uncapped.TotalErrors)
+	}
+
+	// A cap larger than the corpus is a no-op, and a corpus smaller than the
+	// cap returns everything (AC #1 is "at most", not "exactly").
+	small, err := AnalyzeBugs(nil, toolCalls, 0, 100)
+	if err != nil {
+		t.Fatalf("AnalyzeBugs: %v", err)
+	}
+	if len(small.Patterns) != 8 {
+		t.Errorf("cap above corpus size must be a no-op, got %d patterns", len(small.Patterns))
+	}
+}
+
+// TestAnalyzeBugs_MaxPatternsIsDeterministic guards the ranking's total order:
+// patterns are gathered by ranging over a map, so without the signature
+// tiebreak a cap would return a different subset on each call.
+func TestAnalyzeBugs_MaxPatternsIsDeterministic(t *testing.T) {
+	// Every pattern has identical recurrence, forcing the tiebreak.
+	var toolCalls []types.ToolCall
+	for p := 0; p < 12; p++ {
+		toolCalls = append(toolCalls, types.ToolCall{
+			UUID:     fmt.Sprintf("u-%d", p),
+			ToolName: "Bash",
+			Status:   "error",
+			Error:    fmt.Sprintf("tied error %d", p),
+		})
+	}
+
+	var first []string
+	for i := 0; i < 25; i++ {
+		result, err := AnalyzeBugs(nil, toolCalls, 0, 4)
+		if err != nil {
+			t.Fatalf("AnalyzeBugs: %v", err)
+		}
+		got := make([]string, len(result.Patterns))
+		for j, p := range result.Patterns {
+			got[j] = p.ErrorSignature
+		}
+		if i == 0 {
+			first = got
+			continue
+		}
+		if strings.Join(got, ",") != strings.Join(first, ",") {
+			t.Fatalf("iteration %d returned %v, first returned %v", i, got, first)
+		}
+	}
+}
+
+// TestAnalyzeBugs_FixTextIsBounded verifies one oversized success output cannot
+// dominate the payload — the fix excerpt is capped regardless of output size.
+func TestAnalyzeBugs_FixTextIsBounded(t *testing.T) {
+	huge := strings.Repeat("y", 50_000)
+	toolCalls := []types.ToolCall{
+		{UUID: "u1", ToolName: "Bash", Status: "error", Error: "boom"},
+		{UUID: "u2", ToolName: "Bash", Status: "success", Output: huge},
+	}
+	result, err := AnalyzeBugs(nil, toolCalls, 0, 0)
+	if err != nil {
+		t.Fatalf("AnalyzeBugs: %v", err)
+	}
+	got := result.Patterns[0].Examples[0].FixText
+	if len(got) > maxExampleFixTextBytes {
+		t.Errorf("fix_text must be capped at %d bytes, got %d", maxExampleFixTextBytes, len(got))
+	}
+	if got == "" {
+		t.Error("fix_text must be present when a fix was paired")
+	}
+}
+
+// TestAnalyzeBugs_FixTextNotAttachedWhenExampleBudgetFull verifies the fix is
+// still counted when the per-pattern example budget is exhausted.
+func TestAnalyzeBugs_FixTextNotAttachedWhenExampleBudgetFull(t *testing.T) {
+	toolCalls := []types.ToolCall{
+		{UUID: "u1", ToolName: "Bash", Status: "error", Error: "boom"},
+		{UUID: "u2", ToolName: "Bash", Status: "success", Output: "first fix"},
+		{UUID: "u3", ToolName: "Bash", Status: "error", Error: "boom"},
+		{UUID: "u4", ToolName: "Bash", Status: "success", Output: "second fix"},
+	}
+	result, err := AnalyzeBugs(nil, toolCalls, 1, 0) // limit 1 example per pattern
+	if err != nil {
+		t.Fatalf("AnalyzeBugs: %v", err)
+	}
+	p := result.Patterns[0]
+	if len(p.Examples) != 1 {
+		t.Fatalf("want 1 example, got %d", len(p.Examples))
+	}
+	if p.FixCount != 2 {
+		t.Errorf("both fixes must still be counted, got %d", p.FixCount)
+	}
+	if p.Examples[0].FixText != "first fix" {
+		t.Errorf("want the first fix attached, got %q", p.Examples[0].FixText)
 	}
 }

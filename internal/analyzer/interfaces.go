@@ -3,8 +3,10 @@ package analyzer
 import "github.com/yaleh/meta-cc/internal/types"
 
 // BugAnalyzer analyzes session entries for bugs.
+// limit caps examples per pattern and maxPatterns caps returned patterns
+// (0 = unlimited for either); see AnalyzeBugs.
 type BugAnalyzer interface {
-	AnalyzeBugs(entries []types.SessionEntry, toolCalls []types.ToolCall, limit int) (*BugAnalysisResult, error)
+	AnalyzeBugs(entries []types.SessionEntry, toolCalls []types.ToolCall, limit, maxPatterns int) (*BugAnalysisResult, error)
 }
 
 // ErrorAnalyzer analyzes session entries for errors.
@@ -45,8 +47,8 @@ var _ TimelineAnalyzer = (*DefaultAnalyzer)(nil)
 var _ TechDebtAnalyzer = (*DefaultAnalyzer)(nil)
 
 // AnalyzeBugs delegates to the package-level AnalyzeBugs function.
-func (d *DefaultAnalyzer) AnalyzeBugs(entries []types.SessionEntry, toolCalls []types.ToolCall, limit int) (*BugAnalysisResult, error) {
-	return AnalyzeBugs(entries, toolCalls, limit)
+func (d *DefaultAnalyzer) AnalyzeBugs(entries []types.SessionEntry, toolCalls []types.ToolCall, limit, maxPatterns int) (*BugAnalysisResult, error) {
+	return AnalyzeBugs(entries, toolCalls, limit, maxPatterns)
 }
 
 // AnalyzeErrors delegates to the package-level AnalyzeErrors function.

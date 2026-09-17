@@ -120,7 +120,7 @@ func TestAnalyzers_DeterministicAcrossRepeatedCalls(t *testing.T) {
 			t.Fatalf("iter %d: expected 12 tool calls, got %d", iter, len(toolCalls))
 		}
 
-		bugs, err := AnalyzeBugs(entries, toolCalls, 0)
+		bugs, err := AnalyzeBugs(entries, toolCalls, 0, 0)
 		if err != nil {
 			t.Fatalf("iter %d: AnalyzeBugs: %v", iter, err)
 		}

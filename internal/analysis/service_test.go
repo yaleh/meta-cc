@@ -42,7 +42,7 @@ type stubBugAnalyzer struct {
 	err    error
 }
 
-func (s *stubBugAnalyzer) AnalyzeBugs(_ []types.SessionEntry, _ []types.ToolCall, _ int) (*analyzer.BugAnalysisResult, error) {
+func (s *stubBugAnalyzer) AnalyzeBugs(_ []types.SessionEntry, _ []types.ToolCall, _, _ int) (*analyzer.BugAnalysisResult, error) {
 	return s.result, s.err
 }
 
@@ -165,7 +165,9 @@ func TestService_AnalyzeBugs(t *testing.T) {
 	expected := &analyzer.BugAnalysisResult{
 		TotalPairs: 2,
 		Patterns: []analyzer.BugPattern{
-			{ErrorSignature: "Read:file not found", FixCount: 2, Recurrences: 1, Examples: []string{"example"}},
+			{ErrorSignature: "Read:file not found", FixCount: 2, Recurrences: 1, Examples: []analyzer.BugExample{
+				{SessionID: "sess-1", Timestamp: "2026-01-01T00:00:00Z", ErrorText: "example", Signature: "abc123"},
+			}},
 		},
 	}
 

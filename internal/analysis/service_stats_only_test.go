@@ -175,7 +175,7 @@ type capturingBugAnalyzer struct {
 	result *analyzer.BugAnalysisResult
 }
 
-func (c *capturingBugAnalyzer) AnalyzeBugs(_ []types.SessionEntry, _ []types.ToolCall, _ int) (*analyzer.BugAnalysisResult, error) {
+func (c *capturingBugAnalyzer) AnalyzeBugs(_ []types.SessionEntry, _ []types.ToolCall, _, _ int) (*analyzer.BugAnalysisResult, error) {
 	c.called = true
 	return c.result, nil
 }

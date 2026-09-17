@@ -397,7 +397,12 @@ func GetToolDefinitions() []Tool {
 		BuildAnalysisTool("analyze_bugs", "Detect error-fix pairs and recurring bug patterns. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"limit": {
 				Type:        "number",
-				Description: "Max examples per pattern (0 = unlimited)",
+				Description: "Max examples per pattern (default 3; 0 = unlimited)",
+			},
+			"max_patterns": {
+				Type: "number",
+				Description: "Max bug patterns returned, ranked by recurrence then fix_count (default 20; 0 = unlimited). " +
+					"Together with limit this bounds the response so a default call stays inline instead of spilling to file_ref mode; the pre-cap pattern count is always reported as total_patterns.",
 			},
 			"working_dir": {
 				Type:        "string",
