@@ -204,14 +204,37 @@ bump-version:
 	@echo "Bumping version to $(VERSION)..."
 	@bash scripts/release/bump-version.sh $(VERSION)
 
+# DIR-100: release validation is FAIL-CLOSED and BOUNDED.
+#
+#   Fail-closed — scripts/release/release.sh resolves the validator at its real
+#   path (scripts/release/pre-release-check.sh, relative to the script itself,
+#   not $PWD) and REFUSES to release when it is missing. The old warn-and-skip
+#   fallback (which printed "pre-release-check.sh not found (skipping
+#   validation)" and then ran an unbounded `make all`) is gone; the only bypass
+#   is the explicit --skip-checks flag.
+#
+#   Bounded — the validator runs in short mode (`go test -short ./...`) and is
+#   wrapped in an explicit timeout, default 300s, overridable via the
+#   RELEASE_VALIDATION_TIMEOUT environment variable:
+#
+#       make release VERSION=v2.0.3
+#       make release VERSION=v2.0.3 RELEASE_VALIDATION_TIMEOUT=600
+#
+#   That keeps a full release well under the loop driver's 10-minute (600s)
+#   watchdog instead of being killed half-finished by it.
+#
+#   DRY_RUN=1 forwards --dry-run to the release script so the real validator can
+#   be exercised end-to-end without touching version files, tags or the remote:
+#
+#       make release VERSION=v2.0.3 DRY_RUN=1
 release:
 	@if [ -z "$(VERSION)" ]; then \
 		echo "Error: VERSION required"; \
-		echo "Usage: make release VERSION=v2.0.3"; \
+		echo "Usage: make release VERSION=v2.0.3 [DRY_RUN=1] [RELEASE_VALIDATION_TIMEOUT=<seconds>]"; \
 		exit 1; \
 	fi
 	@echo "Creating release $(VERSION)..."
-	@bash scripts/release/release.sh $(VERSION)
+	@bash scripts/release/release.sh $(VERSION) $(if $(filter 1,$(DRY_RUN)),--dry-run,)
 
 test-all-local: test-all test-bats
 	@echo "✅ All tests passed (including Bats)"
