@@ -12,6 +12,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 ### Development Workflow
 - **Current plan**: [docs/core/plan.md](docs/core/plan.md) - Phase roadmap and status
 - **Build and test**: Run `make dev` (quick) → `make commit` (validate) → `make push` (full check)
+- **Two-stage acceptance**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md#two-stage-acceptance-workflow) - `make test-scoped` while iterating, `make commit` to promote
 - **Plugin development**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md) - Complete workflow
 
 ### MCP Server Usage
@@ -19,7 +20,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 - **Quick test**: Use MCP tool `get_session_stats`
 
 ### Common Tasks
-- **Fix test failures**: `make dev` → Review errors → Fix → `make commit`
+- **Fix test failures**: `make dev` → `make test-scoped PKGS=./internal/<pkg>/...` → Fix → `make commit`
 - **Query session data**: Use MCP tools (see [MCP Guide](docs/guides/mcp.md))
 - **Update plugin**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md)
 - **Manage prompts**: `/prompt-list` (browse) | `/prompt-find <keywords>` (search) | `/prompt-show <id>` (view)
@@ -29,7 +30,10 @@ This file provides guidance to Claude Code when working with code in this reposi
 ## FAQ
 
 **Q: Tests failed after my changes - what should I do?**
-A: Run `make dev` for quick iteration, then `make commit` to validate. Fix issues iteratively. If tests fail after multiple attempts, HALT development and document blockers.
+A: Run `make dev` for quick iteration, then `make test-scoped PKGS=./internal/<pkg>/...` to exercise just the package you touched (fail-fast, seconds on a warm cache), fix, and re-run. Use `make commit` to validate the whole workspace before promoting. If tests fail after multiple attempts, HALT development and document blockers.
+
+**Q: What is the fast iteration loop / two-stage acceptance workflow?**
+A: Stage 1 is `make test-scoped PKGS=./internal/<pkg>/...` — scoped `go test -short` plus a full `go build ./...`, aborting on the first failure. Stage 2 is the full `make commit` gate before the work is promoted. `test-scoped` is not acceptance; it exists so fix-compile-rerun cycles take seconds instead of a full-gate run. See [Two-Stage Acceptance Workflow](docs/guides/plugin-development.md#two-stage-acceptance-workflow).
 
 **Q: How much code can I write in one phase?**
 A: Maximum 500 lines of code modifications per phase, 200 lines per stage. See [docs/core/principles.md](docs/core/principles.md).
