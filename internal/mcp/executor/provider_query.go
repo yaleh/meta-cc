@@ -69,9 +69,21 @@ func (e *ToolExecutor) ExecuteQueryWithTimeRangeForProvider(providerName, scope,
 // locator.FromSessionID for the claude-resolved path (a direct file lookup,
 // no directory scan), or providerrecords.BuildForSession for codex/all
 // (GetSession + LoadTurns for that one ID, never ListSessions).
-func (e *ToolExecutor) ExecuteQueryForSession(providerName, sessionID, jqFilter string, limit int, workingDir string, tr mcquery.ParsedTimeRange) (mcquery.QueryResult, error) {
+//
+// includeSubagents (default true) extends the claude-resolved read from the
+// one session file to that session's <uuid>/subagents/*.jsonl as well. It is
+// variadic so existing direct callers keep compiling; the omitted zero value
+// is the documented default rather than "false".
+func (e *ToolExecutor) ExecuteQueryForSession(providerName, sessionID, jqFilter string, limit int, workingDir string, tr mcquery.ParsedTimeRange, includeSubagents ...bool) (mcquery.QueryResult, error) {
 	if sessionID == "" {
 		return mcquery.QueryResult{}, fmt.Errorf("session_id must not be empty")
+	}
+
+	// Variadic on this parameter so the many existing direct callers keep
+	// compiling; the zero value matches the documented default (include).
+	incSub := true
+	if len(includeSubagents) > 0 {
+		incSub = includeSubagents[0]
 	}
 
 	providerName = resolveProviderDefault(providerName)
@@ -109,7 +121,11 @@ func (e *ToolExecutor) ExecuteQueryForSession(providerName, sessionID, jqFilter 
 		if err != nil {
 			return mcquery.QueryResult{}, fmt.Errorf("invalid jq expression: %w", err)
 		}
-		return executor.StreamFilesWithTimeRange(context.Background(), []string{file}, code, limit, tr), nil
+		// The exact-session_id thread is <session>.jsonl PLUS its own
+		// subagents/*.jsonl — the same expansion scope="session" gets, but
+		// anchored on the requested ID rather than on "most recent".
+		files := mcquery.GetSessionQueryFilesWithSubagents(file, incSub)
+		return executor.StreamFilesWithTimeRange(context.Background(), files, code, limit, tr), nil
 	}
 
 	projectPath := workingDir
@@ -189,7 +205,7 @@ func (e *ToolExecutor) dispatchIndexedContent(providerName, scope, literal, jqFi
 // an exact ID — see docs/guides/mcp-query-tools.md for that distinction).
 func (e *ToolExecutor) dispatchProviderQuery(providerName, scope, jqFilter string, limit int, workingDir, sessionID string, tr mcquery.ParsedTimeRange, includeSubagents bool) (mcquery.QueryResult, error) {
 	if sessionID != "" {
-		return e.ExecuteQueryForSession(providerName, sessionID, jqFilter, limit, workingDir, tr)
+		return e.ExecuteQueryForSession(providerName, sessionID, jqFilter, limit, workingDir, tr, includeSubagents)
 	}
 	return e.ExecuteQueryWithTimeRangeForProvider(providerName, scope, jqFilter, limit, workingDir, tr, includeSubagents)
 }

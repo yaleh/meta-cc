@@ -499,6 +499,36 @@ func GetQueryFiles(scope, workingDir string, includeSubagents bool) ([]string, e
 	return all, nil
 }
 
+// GetSessionQueryFilesWithSubagents returns the JSONL files to scan for an
+// ALREADY-RESOLVED session file: the file itself, plus that session's
+// <projectDir>/<uuid>/subagents/*.jsonl when includeSubagents is true.
+//
+// This is the third GetQueryFiles shape the package's scope-based resolver
+// cannot express. GetQueryFiles keys off a scope, and scope="session" means
+// "the most recent session" — NOT the exact thread an explicit session_id
+// names. The exact-session_id path (executor.ExecuteQueryForSession) resolves
+// its file through the locator instead, so it had no way to reach the
+// subagent expansion and silently read only the main transcript, making
+// include_subagents=true and include_subagents=false indistinguishable
+// whenever a session_id was supplied.
+//
+// sessionFile is <projectDir>/<uuid>.jsonl, so the subagent directory is
+// <projectDir>/<uuid>/subagents/ — derived from the file, never rescanned,
+// which keeps this correct for a session_id that is not the newest session.
+func GetSessionQueryFilesWithSubagents(sessionFile string, includeSubagents bool) []string {
+	files := []string{sessionFile}
+	if !includeSubagents {
+		return files
+	}
+	sessionDir := filepath.Dir(sessionFile)
+	uuid := strings.TrimSuffix(filepath.Base(sessionFile), ".jsonl")
+	subFiles, err := getSubagentJSONLFiles(filepath.Join(sessionDir, uuid, "subagents"))
+	if err != nil {
+		return files
+	}
+	return append(files, subFiles...)
+}
+
 // getSubagentJSONLFiles returns all .jsonl files in the given subagents directory.
 // Returns nil without error if the directory does not exist.
 func getSubagentJSONLFiles(subagentDir string) ([]string, error) {

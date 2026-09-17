@@ -42,6 +42,27 @@ import (
 // validate-artifacts.sh) and kept shipping dead LDFLAGS even after the
 // Makefile itself was fixed.
 func TestLDFLAGSCommitAndBuildTimeAreWired(t *testing.T) {
+	// DIR-085: the assertion below is a `go build -ldflags` subprocess -- a
+	// whole compiler invocation, plus running the resulting binary, for one
+	// startup-log assertion. Measured 2026-07-30 it made internal/version cost
+	// 4.6s under -short: a single package contributing ~10% of the suite's
+	// wall time, on the fast path. The short path is not a lesser path in this
+	// repo -- `make commit` *is* `go test -short ./...` and it feeds the
+	// acceptance gate every task pays for.
+	//
+	// So the subprocess runs on the full path only. This is a skip, not a
+	// weakening: the assertion is unchanged, and `make push` / CI run
+	// `test-all`, which deliberately omits -short (see the Makefile's DIR-086
+	// note), so DIR-049's coverage promise -- the guarantee that the Makefile's
+	// -X targets resolve to real symbols and commit/build-time actually reach
+	// the binary -- still executes there.
+	//
+	// Verify the full path still exercises it with:
+	//   go test -run TestLDFLAGSCommitAndBuildTimeAreWired ./internal/version/
+	if testing.Short() {
+		t.Skip("DIR-085: skipping the `go build -ldflags` subprocess assertion under -short; it still runs under `make push` / test-all (non-short), where DIR-049's coverage lives")
+	}
+
 	repoRoot := findRepoRoot(t)
 
 	// Per `go help test`: "Tests that open files within the package's
