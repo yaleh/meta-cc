@@ -281,6 +281,7 @@ See [Role-Based Documentation Architecture](methodology/role-based-documentation
 | **docs/guides/integration.md** | Integration decisions | Advanced users | Stable |
 | **docs/guides/release-process.md** | Release workflow | Maintainers | Rarely (stable) |
 | **docs/guides/git-hooks.md** | Git hooks usage | Developers | Rarely (stable) |
+| **docs/guides/corpus-tolerance-gate.md** | Registering a tool in the malformed-file tolerance gate | MCP tool developers | When tools are added |
 | **docs/tutorials/examples.md** | Step-by-step tutorials | New users | When features added |
 | **docs/reference/jsonl.md** | Output format and jq patterns | Advanced users | Rarely (stable) |
 | **docs/reference/jsonl-schema.md** | JSONL session file schema specification | Developers & Analysts | When schema changes |
