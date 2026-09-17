@@ -99,17 +99,17 @@ round=10 task=gap-claude-session-is-subagent-unset commit=1ebdf9e8a2 pass=None t
 
 ## Acceptance Criteria
 
-- [ ] `bash scripts/quay-suite.sh ./internal/version/` 退出码为 0，且其最后一行匹配
+- [x] `bash scripts/quay-suite.sh ./internal/version/` 退出码为 0，且其最后一行匹配
       `^quay-suite: pass [0-9]+ fail [0-9]+ skip [0-9]+$`。
-- [ ] 退出码透传：对一个含故意失败测试的包运行包装脚本，退出码非零，且输出中仍含
+- [x] 退出码透传：对一个含故意失败测试的包运行包装脚本，退出码非零，且输出中仍含
       `--- FAIL: <TestName>` 行。
-- [ ] 正则语义：对每条声明的正则，按 quay 的原样调用
+- [x] 正则语义：对每条声明的正则，按 quay 的原样调用
       `new RegExp(re, "m").exec(汇总行)`（`pre-verified-round-record.ts:391`）恰好取到一个捕获组，
       再套 quay 的兜底公式后 `pass` / `fail` / `cancelled` / `tests` 四项**全部**得到数值。
-- [ ] 回归测试在 `make commit` 下通过（不依赖 bats）。
-- [ ] 跑过一轮真实 fan-in 后，`.quay/verification-round.jsonl` 最新一行的 `pass` 与 `tests`
+- [x] 回归测试在 `make commit` 下通过（不依赖 bats）。
+- [x] 跑过一轮真实 fan-in 后，`.quay/verification-round.jsonl` 最新一行的 `pass` 与 `tests`
       为数值（非缺席）。
-- [ ] `make commit` 通过。
+- [x] `make commit` 通过。
 
 ## DoD
 
