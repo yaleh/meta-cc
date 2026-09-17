@@ -17,6 +17,7 @@ import (
 
 	"github.com/yaleh/meta-cc/internal/analyzer"
 	"github.com/yaleh/meta-cc/internal/config"
+	mcerrors "github.com/yaleh/meta-cc/internal/errors"
 	"github.com/yaleh/meta-cc/internal/locator"
 	"github.com/yaleh/meta-cc/internal/parser"
 	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
@@ -313,6 +314,8 @@ func marshalResult(v interface{}, skips *locator.SkipReport) (string, error) {
 }
 
 // AnalyzeBugs implements the analyze_bugs MCP tool.
+// Honors the optional since/until window (DIR-095) ahead of both the full and
+// the stats_only path.
 // When stats_only is set, short-circuits to an aggregate-only pattern-count
 // summary (analyzer.AnalyzeBugsStats) with no per-pattern Examples text,
 // mirroring GetTimeline's own stats_only short-circuit (DIR-042).
@@ -320,6 +323,9 @@ func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
 	entries, toolCalls, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+	if entries, toolCalls, err = applyTimeWindow(entries, toolCalls, args); err != nil {
+		return "", err
 	}
 	if boolArg(args, "stats_only") {
 		stats, err := analyzer.AnalyzeBugsStats(entries, toolCalls)
@@ -338,6 +344,8 @@ func (s *Service) AnalyzeBugs(args map[string]interface{}) (string, error) {
 }
 
 // AnalyzeErrors implements the analyze_errors MCP tool.
+// Honors the optional since/until window (DIR-095) ahead of both the full and
+// the stats_only path.
 // When stats_only is set, short-circuits to an aggregate-only per-tool/
 // per-type count summary (analyzer.AnalyzeErrorsStats) with no examples
 // text, mirroring GetTimeline's own stats_only short-circuit (DIR-042).
@@ -345,6 +353,9 @@ func (s *Service) AnalyzeErrors(args map[string]interface{}) (string, error) {
 	entries, toolCalls, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+	if entries, toolCalls, err = applyTimeWindow(entries, toolCalls, args); err != nil {
+		return "", err
 	}
 	if boolArg(args, "stats_only") {
 		stats, err := analyzer.AnalyzeErrorsStats(entries, toolCalls)
@@ -363,6 +374,8 @@ func (s *Service) AnalyzeErrors(args map[string]interface{}) (string, error) {
 }
 
 // QualityScan implements the quality_scan MCP tool.
+// Honors the optional since/until window (DIR-095) ahead of both the full and
+// the stats_only path.
 // QualityScan's result is already aggregate-only (four scored dimensions,
 // no per-item example text); the stats_only short-circuit
 // (analyzer.QualityScanStatsOnly) exists so this method still honors the
@@ -372,6 +385,9 @@ func (s *Service) QualityScan(args map[string]interface{}) (string, error) {
 	entries, toolCalls, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+	if entries, toolCalls, err = applyTimeWindow(entries, toolCalls, args); err != nil {
+		return "", err
 	}
 	if boolArg(args, "stats_only") {
 		stats, err := analyzer.QualityScanStatsOnly(entries, toolCalls)
@@ -390,6 +406,8 @@ func (s *Service) QualityScan(args map[string]interface{}) (string, error) {
 }
 
 // GetWorkPatterns implements the get_work_patterns MCP tool.
+// Honors the optional since/until window (DIR-095) ahead of both the full and
+// the stats_only path.
 // GetWorkPatterns's result is already aggregate-only (tool counts, a fixed
 // 24-slot hourly histogram, and two scalar counters, no per-item example
 // text); the stats_only short-circuit (analyzer.GetWorkPatternsStatsOnly)
@@ -399,6 +417,9 @@ func (s *Service) GetWorkPatterns(args map[string]interface{}) (string, error) {
 	entries, toolCalls, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+	if entries, toolCalls, err = applyTimeWindow(entries, toolCalls, args); err != nil {
+		return "", err
 	}
 	if boolArg(args, "stats_only") {
 		stats, err := analyzer.GetWorkPatternsStatsOnly(entries, toolCalls)
@@ -426,20 +447,19 @@ const timelineAutoStatsThreshold = 1000
 // When no since/until is set and entry count exceeds timelineAutoStatsThreshold,
 // defaults to stats summary mode to prevent context overflow.
 func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
-	entries, _, skips, err := s.loadData(args)
+	entries, toolCalls, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
 	}
 
-	// Apply since/until time-clipping if provided.
+	// Apply since/until time-clipping if provided (shared with the five
+	// analysis tools since DIR-095; extraction is skipped entirely when no
+	// window is set).
+	if entries, _, err = applyTimeWindow(entries, toolCalls, args); err != nil {
+		return "", err
+	}
 	since := stringArg(args, "since")
 	until := stringArg(args, "until")
-	if since != "" || until != "" {
-		entries, err = filterEntriesByTimeRange(entries, since, until)
-		if err != nil {
-			return "", err
-		}
-	}
 
 	if boolArg(args, "stats_only") {
 		stats := analyzer.GetTimelineStats(entries)
@@ -469,8 +489,46 @@ func (s *Service) GetTimeline(args map[string]interface{}) (string, error) {
 	return marshalResult(result, skips)
 }
 
+// applyTimeWindow narrows an already-loaded corpus to the optional RFC3339
+// since/until window carried in args, before any aggregation runs.
+//
+// DIR-095: the five analysis tools (analyze_errors, analyze_bugs,
+// quality_scan, get_work_patterns, get_tech_debt) previously accepted no
+// time bounds at all, so a "last 2 days" question silently produced
+// whole-corpus (5-day) statistics. Filtering here — ahead of every analyzer
+// call — is what makes a windowed run equal a run over a corpus that
+// genuinely contains only the in-window records, and it covers the
+// stats_only/stats_first short-circuits for free because they read the same
+// returned slices.
+//
+// toolCalls are re-derived from the windowed entries rather than filtered in
+// parallel: types.ExtractToolCalls carries each entry's timestamp onto the
+// ToolCall it emits, and re-running it keeps the two slices consistent (a
+// tool_use whose paired tool_result fell outside the window still pairs
+// correctly, because pairing is rebuilt from the same windowed set).
+//
+// An empty since/until leaves the corpus untouched, so the no-window path
+// costs nothing. An unparseable bound is reported as mcerrors.ErrInvalidInput
+// rather than a crash.
+func applyTimeWindow(entries []types.SessionEntry, toolCalls []types.ToolCall, args map[string]interface{}) ([]types.SessionEntry, []types.ToolCall, error) {
+	since := stringArg(args, "since")
+	until := stringArg(args, "until")
+	if since == "" && until == "" {
+		return entries, toolCalls, nil
+	}
+	windowed, err := filterEntriesByTimeRange(entries, since, until)
+	if err != nil {
+		return nil, nil, err
+	}
+	return windowed, types.ExtractToolCalls(windowed), nil
+}
+
 // filterEntriesByTimeRange filters session entries to those within the since/until range.
 // Both since and until are optional ISO 8601 strings. Since is inclusive, until is exclusive.
+//
+// An unparseable bound wraps mcerrors.ErrInvalidInput so callers (and MCP
+// clients) can distinguish bad caller input from a corpus/analysis failure
+// via errors.Is, instead of matching on message text.
 func filterEntriesByTimeRange(entries []types.SessionEntry, since, until string) ([]types.SessionEntry, error) {
 	var sinceTime, untilTime time.Time
 	var hasSince, hasUntil bool
@@ -478,7 +536,7 @@ func filterEntriesByTimeRange(entries []types.SessionEntry, since, until string)
 	if since != "" {
 		t, err := time.Parse(time.RFC3339, since)
 		if err != nil {
-			return nil, fmt.Errorf("invalid since value %q: must be ISO 8601 / RFC3339 (e.g. 2026-01-01T00:00:00Z)", since)
+			return nil, fmt.Errorf("invalid since value %q: must be ISO 8601 / RFC3339 (e.g. 2026-01-01T00:00:00Z): %w", since, mcerrors.ErrInvalidInput)
 		}
 		sinceTime = t
 		hasSince = true
@@ -486,7 +544,7 @@ func filterEntriesByTimeRange(entries []types.SessionEntry, since, until string)
 	if until != "" {
 		t, err := time.Parse(time.RFC3339, until)
 		if err != nil {
-			return nil, fmt.Errorf("invalid until value %q: must be ISO 8601 / RFC3339 (e.g. 2026-06-01T00:00:00Z)", until)
+			return nil, fmt.Errorf("invalid until value %q: must be ISO 8601 / RFC3339 (e.g. 2026-06-01T00:00:00Z): %w", until, mcerrors.ErrInvalidInput)
 		}
 		untilTime = t
 		hasUntil = true
@@ -533,6 +591,7 @@ func parseEntryTimestamp(ts string) (time.Time, error) {
 }
 
 // GetTechDebt implements the get_tech_debt MCP tool.
+// Honors the optional since/until window (DIR-095) over the session transcript.
 // When stats_only is set, short-circuits to an aggregate-only summary
 // (analyzer.TechDebtResultStats): marker counts (bounded to the four known
 // marker labels) plus a hotspot *file count* in place of the full
@@ -544,6 +603,12 @@ func (s *Service) GetTechDebt(args map[string]interface{}) (string, error) {
 	entries, toolCalls, skips, err := s.loadData(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to load session data: %w", err)
+	}
+	// The window narrows the session-transcript half only; source_dir is a live
+	// filesystem scan with no timestamps to compare against, so it is merged in
+	// below exactly as before (DIR-095).
+	if entries, toolCalls, err = applyTimeWindow(entries, toolCalls, args); err != nil {
+		return "", err
 	}
 	result, err := s.analyzers.TechDebt.GetTechDebt(entries, toolCalls)
 	if err != nil {

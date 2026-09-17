@@ -160,6 +160,38 @@ func SessionIDProperty() Property {
 	}
 }
 
+// TimeWindowProperties returns the optional RFC3339 "since"/"until" window now
+// declared on the five analysis tools DIR-095 wired up (analyze_errors,
+// analyze_bugs, quality_scan, get_work_patterns, get_tech_debt).
+//
+// Semantics match the bounds query_session_content, query_session_signals, and
+// get_timeline already declare: since is inclusive, until is exclusive, and an
+// unparseable value is rejected with mcerrors.ErrInvalidInput. Filtering
+// happens before aggregation (internal/analysis.applyTimeWindow), so byte
+// counts, per-group tallies, and the stats_only/stats_first summaries all
+// describe the window rather than the whole corpus.
+//
+// Before DIR-095 these five tools declared no time bounds at all, so a
+// "last 2 days" question silently answered from the full multi-day corpus;
+// ValidateArgKeys made it worse by rejecting the parameters outright, so there
+// was no way to ask the narrower question either.
+//
+// get_timeline keeps its own copy of these two properties: it had them before
+// this task and carries one extra sentence about the large-project auto-stats
+// threshold (see Service.GetTimeline), which is not true of the other five.
+func TimeWindowProperties() map[string]Property {
+	return map[string]Property{
+		"since": {
+			Type:        "string",
+			Description: `Include only records with timestamp >= this value (ISO 8601 / RFC3339, e.g. "2026-01-01T00:00:00Z"). Inclusive. Applied before aggregation, so every count and any stats_only/stats_first summary covers only the window.`,
+		},
+		"until": {
+			Type:        "string",
+			Description: `Include only records with timestamp < this value (ISO 8601 / RFC3339, e.g. "2026-06-01T00:00:00Z"). Exclusive. Applied before aggregation.`,
+		},
+	}
+}
+
 // OutputFormatProperty is the "output_format" property shared by the four
 // consolidated query tools (query_sessions, query_session_content,
 // query_session_signals, query_file_activity) whose results are produced via
@@ -351,7 +383,7 @@ func GetToolDefinitions() []Tool {
 				Required: []string{"files", "filter"},
 			},
 		},
-		BuildAnalysisTool("analyze_errors", "Aggregate tool errors by tool name and error type. Default scope: project.", map[string]Property{
+		BuildAnalysisTool("analyze_errors", "Aggregate tool errors by tool name and error type. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"limit": {
 				Type:        "number",
 				Description: "Max examples per group (0 = unlimited)",
@@ -361,8 +393,8 @@ func GetToolDefinitions() []Tool {
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 			"session_id": SessionIDProperty(),
-		}),
-		BuildAnalysisTool("analyze_bugs", "Detect error-fix pairs and recurring bug patterns. Default scope: project.", map[string]Property{
+		})),
+		BuildAnalysisTool("analyze_bugs", "Detect error-fix pairs and recurring bug patterns. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"limit": {
 				Type:        "number",
 				Description: "Max examples per pattern (0 = unlimited)",
@@ -372,21 +404,21 @@ func GetToolDefinitions() []Tool {
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 			"session_id": SessionIDProperty(),
-		}),
-		BuildAnalysisTool("quality_scan", "Compute quality dimensions: error rate, retry rate, diversity, completion. Default scope: project.", map[string]Property{
+		})),
+		BuildAnalysisTool("quality_scan", "Compute quality dimensions: error rate, retry rate, diversity, completion. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 			"session_id": SessionIDProperty(),
-		}),
-		BuildAnalysisTool("get_work_patterns", "Get tool frequency, hourly activity, and context switches. Default scope: project.", map[string]Property{
+		})),
+		BuildAnalysisTool("get_work_patterns", "Get tool frequency, hourly activity, and context switches. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 			"session_id": SessionIDProperty(),
-		}),
+		})),
 		BuildTool("get_session_metadata", "Get session metadata including JSONL schema, file info, and query templates. Default scope: project.", map[string]Property{
 			"scope": {
 				Type:        "string",
@@ -424,17 +456,17 @@ func GetToolDefinitions() []Tool {
 			},
 			"session_id": SessionIDProperty(),
 		}),
-		BuildAnalysisTool("get_tech_debt", "Detect TODO/FIXME/HACK/XXX markers and unresolved errors as tech debt. Default scope: project.", map[string]Property{
+		BuildAnalysisTool("get_tech_debt", "Detect TODO/FIXME/HACK/XXX markers and unresolved errors as tech debt. Default scope: project.", mergeParametersWithBase(TimeWindowProperties(), map[string]Property{
 			"working_dir": {
 				Type:        "string",
 				Description: "Override working directory for session lookup. Defaults to MCP server CWD.",
 			},
 			"source_dir": {
 				Type:        "string",
-				Description: "Optional path to source code directory to scan for TODO/FIXME/HACK/XXX markers on disk. Only code files are scanned (docs/data like .md/.json are excluded) and markers count only in comment context, not inside string or regex literals. Results merged with session-transcript markers (per-file counts take the max across buckets; hotspot entries carry provenance session/source/both).",
+				Description: "Optional path to source code directory to scan for TODO/FIXME/HACK/XXX markers on disk. Only code files are scanned (docs/data like .md/.json are excluded) and markers count only in comment context, not inside string or regex literals. Results merged with session-transcript markers (per-file counts take the max across buckets; hotspot entries carry provenance session/source/both). Not affected by since/until: source_dir is a live filesystem scan with no timestamps, so the window narrows only the session-transcript half.",
 			},
 			"session_id": SessionIDProperty(),
-		}),
+		})),
 		// ─── New consolidated query tools (replacing the 10 legacy query_* tools) ───
 
 		BuildTool("query_session_content",

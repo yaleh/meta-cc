@@ -161,6 +161,12 @@ query_session_signals({
 All six analysis tools include a `data_source` field in their response (see
 [Data Source Provenance](#data-source-provenance-baime-layer-7) below).
 
+All six also accept the RFC3339 `since`/`until` window, applied before
+aggregation so the reported statistics cover a bounded time range rather than
+the whole corpus — see [`since`/`until` time windows](#sinceuntil-time-windows).
+`analyze_errors`, `analyze_bugs`, `quality_scan`, `get_work_patterns`, and
+`get_tech_debt` gained it in DIR-095; `get_timeline` had it already.
+
 | Tool | `data_source` value | Notes on mixed provenance |
 |------|---------------------|---------------------------|
 | `analyze_errors` | `measured` | TotalErrors/ByTool are direct counts; `by_type` uses normalized signature and label classification heuristics |
@@ -224,8 +230,31 @@ Most query and analysis tools accept:
 | `stats_only` | boolean | Return aggregate statistics only |
 | `stats_first` | boolean | Return stats followed by details. Only declared on the 4 tools routed through the response pipeline (see below) — not on the six analysis tools. |
 | `inline_threshold_bytes` | number | Threshold for inline vs file reference output |
+| `since` | string | RFC3339 lower bound, **inclusive**. See [`since`/`until` time windows](#sinceuntil-time-windows). |
+| `until` | string | RFC3339 upper bound, **exclusive**. See [`since`/`until` time windows](#sinceuntil-time-windows). |
 
-RFC3339 `since`/`until` time filters are declared only on `query_session_content`, `query_session_signals`, and `get_timeline` — not on every query tool. `query_sessions` filters session metadata with `created_since`/`created_until` (plus Codex-only `updated_since`/`updated_until`) instead.
+RFC3339 `since`/`until` time filters are declared on `query_session_content`, `query_session_signals`, `get_timeline`, and — since DIR-095 — the five remaining analysis tools (`analyze_errors`, `analyze_bugs`, `quality_scan`, `get_work_patterns`, `get_tech_debt`). They are not on every query tool: `query_sessions` filters session metadata with `created_since`/`created_until` (plus Codex-only `updated_since`/`updated_until`) instead.
+
+### `since`/`until` time windows
+
+All three of these are the same window, applied to whichever corpus the tool reads:
+
+- `since` is **inclusive** (`timestamp >= since`), `until` is **exclusive** (`timestamp < until`). Either may be omitted for an unbounded side; both omitted (or empty) means the whole corpus.
+- Values are RFC3339 (`2026-06-01T00:00:00Z`). A malformed value is rejected with the `invalid input` sentinel error naming the offending parameter — the analysis tools check the bounds before reading any session data, so a typo is reported even when the project has no sessions at all.
+- Empty vs. absent makes no difference: `since: ""` is unbounded, not a zero-width window.
+
+For the six analysis tools the bounds are applied **before aggregation**, so every count, score, `by_tool`/`by_type` group, hotspot list, and `stats_only` summary describes only the window:
+
+```text
+analyze_errors({scope: "project", since: "2026-08-01T00:00:00Z", until: "2026-08-03T00:00:00Z"})
+```
+
+answers a "last 2 days" question from those two days instead of quietly reporting the whole multi-day corpus.
+
+Two boundaries worth knowing:
+
+- **`get_tech_debt` with `source_dir`**: the window narrows only the session-transcript half. `source_dir` is a live filesystem scan with no timestamps, so its markers are merged in regardless of the window.
+- **`stats_first` is not available on the analysis tools**, and never was (see [`jq_filter`, `stats_first`, `offset`, `page_size`](#jq_filter-stats_first-offset-page_size-dir-048-scoped-to-pipeline-routed-tools)). `stats_only` is the stats mode these tools honor, and it *does* reflect the window. Passing `stats_first` to one of them is rejected as an unknown parameter rather than silently ignored.
 
 ### `jq_filter`, `stats_first`, `offset`, `page_size` (DIR-048: scoped to pipeline-routed tools)
 
@@ -300,6 +329,17 @@ Use this as a **scout step** before deciding how to query:
 
 When `limit` truncates the result, the response includes `truncated: true` and
 `total_events: N` so you know more data exists.
+
+The same `since`/`until` bounds are accepted by the other five analysis tools,
+so the follow-up aggregation can be asked about the same slice the scout step
+revealed:
+
+```text
+get_timeline(scope=project, stats_only=true)
+  → time_range: 2026-08-10 .. 2026-08-15        # whole corpus spans 5 days
+get_work_patterns(scope=project, since="2026-08-13T00:00:00Z", until="2026-08-15T00:00:00Z")
+  → hourly histogram and tool counts for just the last 2 of those days
+```
 
 ## Output Modes
 
