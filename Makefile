@@ -31,6 +31,11 @@ LDFLAGS := -ldflags "$(LDFLAGS_VALUE)"
 print-ldflags-value:
 	@echo $(LDFLAGS_VALUE)
 
+# DIR-090: the package set `test-scoped` runs. Defaults to the whole module so a
+# bare `make test-scoped` is still a valid (if slower) gate; the inner loop passes
+# just the package it is editing, e.g. `make test-scoped PKGS=./internal/parser/...`.
+PKGS ?= ./...
+
 GOCMD := go
 GOBUILD := $(GOCMD) build
 GOTEST := $(GOCMD) test
@@ -44,7 +49,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # Default target when running 'make' without arguments
 .DEFAULT_GOAL := all
 
-.PHONY: all build stage test test-verbose test-all test-coverage clean install install-local install-user install-user-codex uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-docs normalize-board-eof check-path-independence _path-independence-probe print-ldflags-value
+.PHONY: all build stage test test-scoped test-verbose test-all test-coverage clean install install-local install-user install-user-codex uninstall-local uninstall-user uninstall-legacy cross-compile bundle-release lint lint-errors fmt vet help sync-plugin-files dev check-workspace check-temp-files check-fixtures check-deps check-imports check-scripts check-debug check-go-quality pre-commit ci metrics-mcp check-test-quality check-formatting fix-formatting check-plugin-sync check-mod-tidy test-bats check-release-ready test-all-local pre-commit-full check-essential check-code-quality check-build-quality check-comprehensive check-commit-ready check-push-ready check-no-scanner test-e2e-mcp test-e2e-codex check-session-locator-scope check-docs normalize-board-eof check-path-independence _path-independence-probe print-ldflags-value
 
 # ==============================================================================
 # Build Quality Gates (BAIME Experiment - Iteration 1)
@@ -275,9 +280,20 @@ check-session-locator-scope:
 # curated index/guide page carries a broken relative link. Historical/migration
 # docs are allowlisted in internal/release/doc_contract_test.go. CI runs the
 # same internal/release package via `make test`.
+#
+# DIR-089: the `-short` flag here is load-bearing, not cosmetic. `make commit`
+# runs this gate (via check-essential) AND `test` ($(GOTEST) -short ./...), and
+# both cover internal/release. Go's test-result cache keys on the test binary's
+# flag set, so an unflagged run here produced a cache entry that the -short run
+# could never reuse: the package's tests executed twice per commit, cold and
+# warm. With -short the two invocations address one cache entry, so the package
+# executes exactly once per cold `make commit`. internal/release honors no
+# short-mode skip — asserted by TestReleasePackageHasNoShortGatedTests in
+# internal/release/commit_path_test.go — so -short skips nothing and the DIR-078
+# gate is not weakened. Do NOT drop -short from this line.
 check-docs:
 	@echo "=== Documentation Contract Check (DIR-078) ==="
-	@$(GOTEST) ./internal/release/...
+	@$(GOTEST) -short ./internal/release/...
 
 # DIR-035: regression check for the Makefile PATH hardening (see the
 # `export PATH` line near the top of this file). Spawns a nested `make`
@@ -340,6 +356,14 @@ dev: fmt build
 	@echo "  make commit"
 
 # Tier 2: COMMIT - Essential pre-commit validation (<60s)
+#
+# DIR-089: `check-docs` (inside check-essential) and `test` both cover
+# internal/release. They share a single Go test-cache entry because both pass
+# -short, so the package's tests execute exactly once per cold run. Removing
+# -short from check-docs, or dropping check-docs from the chain, breaks a
+# documented invariant — TestCommitPathRunsDocumentationContract and
+# TestDocumentationGateSharesTestCacheEntry in internal/release/commit_path_test.go
+# fail on either edit.
 commit: normalize-board-eof check-essential check-no-scanner test
 	@echo ""
 	@echo "✅ Ready to commit"
@@ -348,6 +372,7 @@ commit: normalize-board-eof check-essential check-no-scanner test
 	@echo "  ✓ Workspace clean (no temp files)"
 	@echo "  ✓ Fixtures verified"
 	@echo "  ✓ Dependencies in sync"
+	@echo "  ✓ Documentation contract verified (DIR-078)"
 	@echo "  ✓ Tests passed (short mode)"
 	@echo ""
 	@echo "Before pushing to remote, run:"
@@ -552,6 +577,32 @@ test:
 test-verbose:
 	@echo "Running tests (short mode, verbose output)..."
 	$(GOTEST) -short -v ./...
+
+# DIR-090: stage 1 of the two-stage acceptance workflow — the fail-fast inner loop.
+#
+# `make commit` stays the promotion gate, but it runs the entire module (~60s
+# cold), which is the wrong tool for the fix-compile-rerun cycle that dominates
+# an implementation round. test-scoped runs only the package set in PKGS (short
+# mode, same as `test`) and then compiles the whole tree, so a package broken by
+# the edit fails in seconds while a compile break elsewhere is still caught. The
+# recipe aborts on the first failing command, which is what makes it fail-fast.
+#
+# Precedent: DIR-005/006/007 used exactly this shape as their acceptance command
+# (`go test ./internal/mcp/executor/... && go build .`, <10s). The fleet later
+# standardized on full `make commit` and lost the fast loop; this target restores
+# it without weakening the promotion gate. See docs/guides/plugin-development.md
+# §"Two-Stage Acceptance Workflow".
+#
+# It is NOT a substitute for `make commit`: it skips the workspace gates
+# (temp-files, fixtures, deps, DIR-078 docs, DIR-035 PATH independence). Use it
+# while iterating; promote with `make commit`.
+test-scoped:
+	@echo "=== Scoped fail-fast check (DIR-090) ==="
+	@echo "Packages: $(PKGS)"
+	$(GOTEST) -short $(PKGS)
+	@echo "Compiling all packages (go build ./...)..."
+	$(GOBUILD) ./...
+	@echo "✅ Scoped check passed: $(PKGS)"
 
 test-e2e-mcp: build
 	@echo "Running MCP E2E tests..."
@@ -796,6 +847,7 @@ help:
 	@echo "  make build                   - Build meta-cc-mcp MCP server"
 	@echo "  make stage                   - Build + copy binary to plugin-src/bin/ for local install"
 	@echo "  make test                    - Run tests (short mode, compact output)"
+	@echo "  make test-scoped PKGS=<pkgs> - Fail-fast scoped tests + full compile (DIR-090); stage 1 of acceptance"
 	@echo "  make test-verbose            - Run tests (short mode, verbose per-test output)"
 	@echo "  make test-all                - Run full test suite + coverage profile (single pass)"
 	@echo "  make test-e2e-codex          - Run Codex install/session E2E tests"

@@ -195,11 +195,22 @@ func handleQueryTools(e *ToolExecutor, scope string, args map[string]interface{}
 	return mcquery.QueryResult{Entries: filtered, Warnings: joined.Warnings}, nil
 }
 
+// handleQueryToolErrors implements query_session_signals(type="errors").
+//
+// Selecting the records is unchanged (user-role entries carrying an
+// `is_error: true` tool_result block); what DIR-097 adds is the *projection*:
+// every returned record is normalized to
+// {timestamp, session_id, tool_name, error_text, category} so a consumer
+// never has to cope with the raw record's toolUseResult string/object
+// variance or with the error text nested in message.content[].content. See
+// error_projection.go for the shape and its rationale. `raw=true` opts out
+// and returns the original records.
 func handleQueryToolErrors(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {
 	providerName := providerParam(args)
 	limit := GetIntParam(args, "limit", 0)
 	workingDir := GetStringParam(args, "working_dir", "")
 	includeSubagents := GetBoolParam(args, "include_subagents", true)
+	raw := GetBoolParam(args, "raw", false)
 
 	jqFilter := `select(.type == "user" and (.message.content | type == "array")) | ` +
 		`select(.message.content[] | select(.type == "tool_result" and .is_error == true))`
@@ -209,7 +220,32 @@ func handleQueryToolErrors(e *ToolExecutor, scope string, args map[string]interf
 	if err != nil {
 		return mcquery.QueryResult{}, err
 	}
-	return e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
+	result, err := e.dispatchProviderQuery(providerName, scope, jqFilter, limit, workingDir, sessionID, tr, includeSubagents)
+	if err != nil {
+		return mcquery.QueryResult{}, err
+	}
+	if raw || len(result.Entries) == 0 {
+		return result, nil
+	}
+
+	// tool_name is not on the error record: it lives on the assistant record
+	// that issued the call. The jq pipeline runs one record at a time with no
+	// cross-record join (the same constraint handleQueryTools' status filter
+	// documents), so fetch the assistant tool_use records in a second pass and
+	// correlate by tool_use_id here. A failed or empty join degrades to an
+	// empty tool_name (+ warning) rather than failing the whole query — the
+	// projection still returns all five fields.
+	toolNames := map[string]string{}
+	joined, err := e.dispatchProviderQuery(providerName, scope, toolUseJoinFilter, 0, workingDir, sessionID, tr, includeSubagents)
+	if err != nil {
+		result.Warnings = append(result.Warnings,
+			fmt.Sprintf("type=errors: tool_name could not be resolved (%v); projecting with an empty tool_name", err))
+	} else {
+		toolNames = collectToolNames(joined.Entries)
+		result.Warnings = append(result.Warnings, joined.Warnings...)
+	}
+	result.Entries = projectErrorEntries(result.Entries, toolNames)
+	return result, nil
 }
 
 func handleQueryTokenUsage(e *ToolExecutor, scope string, args map[string]interface{}) (mcquery.QueryResult, error) {

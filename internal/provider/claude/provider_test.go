@@ -293,13 +293,18 @@ func TestListSessionsSkipsZeroMessageStub(t *testing.T) {
 }
 
 // TestSessionFromFileDistinguishesEmptyFromError guards the sentinel contract
-// ListSessions relies on: a readable file with zero message entries returns
-// errNoMessageEntries (benign — safe to skip in a listing), while a genuine
-// I/O failure returns a DIFFERENT error that ListSessions must still treat as
-// fatal. A real mid-read I/O error is not portably simulable in a unit test,
-// so the "real error stays distinct" half is asserted here via a nonexistent
-// file (an os.Open *PathError), which is the same error class any genuine
-// read failure surfaces as.
+// ListSessions relies on to label an exclusion correctly: a readable file with
+// zero message entries returns errNoMessageEntries (benign — it names the
+// zero-message-stub reason), while a genuine I/O failure returns a DIFFERENT
+// error, which ListSessions reports with that error's own text. A real mid-read
+// I/O error is not portably simulable in a unit test, so the "real error stays
+// distinct" half is asserted here via a nonexistent file (an os.Open
+// *PathError), which is the same error class any genuine read failure surfaces
+// as.
+//
+// Note the DIR-094 contract change: neither class aborts the listing any more.
+// Both are skipped AND reported (see TestListSessionsToleratesAndReportsUnreadableFile);
+// the sentinel only decides which reason text the warning carries.
 func TestSessionFromFileDistinguishesEmptyFromError(t *testing.T) {
 	root := t.TempDir()
 	resolvedProject, projectDir := seedProjectDir(t, root)

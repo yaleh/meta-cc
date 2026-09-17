@@ -109,6 +109,12 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 	var (
 		merged   []conversation.Session
 		warnings []string
+		// DIR-094: the Claude provider skips an unusable session file rather
+		// than failing the whole listing (abc8135), but the skip used to be
+		// invisible to this handler — query_sessions returned a shorter list
+		// with no evidence of what had been excluded. Collect the skipped
+		// paths alongside the warnings so the response metadata names them.
+		skippedFiles []string
 	)
 
 	limit := GetIntParam(args, "limit", 0)
@@ -169,6 +175,12 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 				if err != nil {
 					return mcquery.QueryResult{}, fmt.Errorf("provider claude: %w", err)
 				}
+				// A per-file exclusion is a warning, not a failure: the
+				// listing above still succeeded and still carries every
+				// other session. Surface it exactly like the Codex branch's
+				// p.Warnings() so both providers report the same way.
+				warnings = append(warnings, p.Warnings()...)
+				skippedFiles = append(skippedFiles, p.SkippedFiles()...)
 			}
 			claudeFilter := filter
 			claudeFilter.SessionID = "" // already resolved via GetSession above
@@ -189,7 +201,7 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 		entries = append(entries, sessionToEntry(s))
 	}
 
-	return mcquery.QueryResult{Entries: entries, Warnings: warnings}, nil
+	return mcquery.QueryResult{Entries: entries, Warnings: warnings, SkippedFiles: skippedFiles}, nil
 }
 
 // reduceForScope applies scope=="session" (most recent) via the same

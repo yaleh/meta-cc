@@ -84,7 +84,7 @@ func BuildResponse(cfg *config.Config, result mcquerypkg.QueryResult, args map[s
 		if err != nil {
 			return "", err
 		}
-		return InjectWarnings(output, result.Warnings)
+		return InjectWarningsAndSkippedFiles(output, result.Warnings, result.SkippedFiles)
 	}
 
 	parsedData := rawData
@@ -159,7 +159,7 @@ func BuildResponse(cfg *config.Config, result mcquerypkg.QueryResult, args map[s
 		return "", err
 	}
 
-	return InjectWarnings(output, result.Warnings)
+	return InjectWarningsAndSkippedFiles(output, result.Warnings, result.SkippedFiles)
 }
 
 // expandProviderContext is the DIR-036 provider-neutral context-expansion
@@ -241,6 +241,19 @@ var TimestampStatsTools = map[string]bool{
 // InjectWarnings adds a "warnings" field to a JSON response string.
 // If the output is valid JSON object, it adds the field. Otherwise returns as-is.
 func InjectWarnings(output string, warnings []string) (string, error) {
+	return InjectWarningsAndSkippedFiles(output, warnings, nil)
+}
+
+// InjectWarningsAndSkippedFiles is InjectWarnings plus the DIR-094
+// machine-readable counterpart: a "skipped_files" array naming every corpus
+// file excluded from the results. Warnings alone are prose; a caller
+// reconciling a result set against the corpus on disk needs the paths.
+//
+// "warnings" is always present (an empty array when there is nothing to
+// report) to preserve the existing wire contract; "skipped_files" is added
+// only when something was actually skipped, so a clean corpus response is
+// byte-identical to before.
+func InjectWarningsAndSkippedFiles(output string, warnings, skippedFiles []string) (string, error) {
 	if warnings == nil {
 		warnings = []string{}
 	}
@@ -253,6 +266,9 @@ func InjectWarnings(output string, warnings []string) (string, error) {
 	}
 
 	parsed["warnings"] = warnings
+	if len(skippedFiles) > 0 {
+		parsed["skipped_files"] = skippedFiles
+	}
 
 	result, err := json.Marshal(parsed)
 	if err != nil {
