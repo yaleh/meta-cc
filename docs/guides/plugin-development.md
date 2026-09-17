@@ -665,6 +665,112 @@ cd /tmp/meta-cc-worktrees/<id2>
 time go build -x ./... 2>&1 | grep -c 'cached'
 ```
 
+## Subagent Dispatch Prompt Gate
+
+This repository dispatches subagents from several places — the `Agent` tool,
+quay loop-driver worktree workers (`execution: dispatched` in
+`.quay/config.yml`), `stage-executor`, and the BAIME executors. Every dispatch
+prompt must carry the gate block below. It is a gate, not advice: an agent that
+violates it burns a round-trip (a tool error plus a retry) instead of producing
+work, and the three classes it covers are the ones that measurably recur in
+this corpus.
+
+### Gate block (paste verbatim into the dispatch prompt)
+
+```text
+TOOL-USE GATE — three hard rules, each a recurring failure in this corpus.
+
+1. READ BEFORE EDIT (inherited from DIR-010).
+   ALWAYS Read a file before Editing it. The code in this prompt may be stale.
+   BAD:  the prompt embeds `return nil`; the agent calls Edit with that snippet
+         as old_string without reading first, and the call fails with
+         "String to replace not found" or an ambiguous-match error.
+   GOOD: Read the file, then Edit against the text actually on disk.
+
+2. VERIFY A PATH BEFORE YOU READ IT.
+   Read only a path known to exist — one the dispatch prompt states it created
+   or copied, or one you just confirmed with Glob/Grep/ls.
+   BAD:  Read({file_path: "<worktree>/scripts/test.sh"}) on a worktree that was
+         never provisioned -> the Read fails with
+         "File does not exist. Note: your current working directory is <cwd>."
+   GOOD: Glob("**/test.sh") (or ls <worktree>/scripts/) first, then Read the
+         path it returned.
+
+3. NEVER PASS AN EMPTY VALUE TO AN OPTIONAL PARAMETER — OMIT IT.
+   Optional means "may be absent", not "may be blank". An empty string, empty
+   array, or empty object is a malformed value, not an unset one, and the tool
+   rejects the call before doing any work.
+   BAD:  Read({file_path: "docs/plan.pdf", pages: ""}) -> rejected: `pages`
+         takes a range such as "1-5", and "" is not one. The document is never
+         read, so the round-trip is wasted.
+   GOOD: Read({file_path: "docs/plan.pdf"}) — omit `pages`; pass it only when
+         you actually want a page range, e.g. pages: "1-5".
+```
+
+### Baseline: the three classes and why they are in the gate
+
+Counts are the finding's measurement window (2026-07-25..07-30, via
+`meta-cc analyze_errors`); `signature` is the analyzer's normalized error
+signature for the class, quoted so a later run can be correlated with it:
+
+| # | Misuse class | Signature | Recurrences | Gate clause |
+|---|--------------|-----------|-------------|-------------|
+| 1 | Read of a nonexistent file | `c10431437d701636` | 6 | 2 (new coverage) |
+| 2 | Edit/Write before Read | `fa9c208b72b8ee6c` | 3 | 1 (DIR-010 rule, preserved) |
+| 3 | Empty optional parameter (`Read.pages`) | `85c85a050441de2f` | 4 | 3 (new coverage) |
+
+That is ~13 wasted round-trips in five days. Clause 1 is DIR-010's
+read-before-edit rule, kept as written and **extended in place**: the two new
+clauses were added to the same gate rather than forked into a second one, so
+there is exactly one gate block to paste into a dispatch prompt.
+
+DIR-010's own artifact did not land in this repository. DIR-010 was closed
+out-of-scope because the template it targeted (the quay loop-driver `SKILL.md`
+subagent prompt) belongs to the quay repository, and the Quay Workspace
+Boundary permits this repository to write only to itself. The rule text is
+carried here instead, where this repository's own dispatch prompts are written;
+the quay-side template is a separate repository and is referenced, not
+modified.
+
+### Follow-up measurement (trailing 7 days, expect zero recurrences)
+
+One week after the gate is in the dispatch prompts, re-measure and require
+zero:
+
+1. Take the windowed sample. `query_session_signals` is the surface that
+   accepts a time window — `analyze_errors` does not, so it cannot define the
+   window itself:
+   `query_session_signals({type: "errors", since: "<UTC now - 7d>", until: "<UTC now>"})`.
+2. Classify every returned error by **shape**, not by a frozen signature. The
+   signature hashes the error text, and a failed Read embeds the working
+   directory in that text, so the same failure under a different worktree
+   hashes differently:
+
+   | Class | Match on |
+   |-------|----------|
+   | nonexistent Read | tool `Read`, error text contains `File does not exist.` |
+   | edit-before-Read | tool `Edit`/`Write`, error text contains `File has not been read yet.` |
+   | empty optional parameter | tool `Read`, error text names `pages` (the call is rejected before the file is read) |
+
+3. Corroborate with `analyze_errors({scope: "project", limit: 0})`: read
+   `by_type[].signature` and `.count`, and confirm `time_range` falls inside
+   the same trailing week.
+4. **Pass condition**: 0 errors in each of the three shapes. A recurrence means
+   that class's clause is not reaching some dispatch site — find the dispatch
+   path whose prompt omits the gate block and add it there, rather than
+   widening this document's prose.
+
+Sanity check recorded 2026-09-17, so this procedure is known-executable rather
+than merely asserted: `analyze_errors({scope: "project", stats_only: true})`
+reported the nonexistent-Read class 13 times inside a single 47-minute window
+of that day's corpus, with example text `File does not exist. Note: your
+current working directory is <repo root>.` — under signature
+`3eeddbc4990affad`, not the table's `c10431437d701636`, which is the same shape
+hashed under a different working directory. The baseline table's 6/3/4 counts
+are the finding's 07-25..07-30 window and are not comparable to a 47-minute
+window; the run is quoted only as evidence that the class is still live and
+that these commands work.
+
 ## See Also
 
 - [Release Process](release-process.md) - Complete release workflow
