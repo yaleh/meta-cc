@@ -13,6 +13,7 @@ import (
 	"github.com/yaleh/meta-cc/internal/config"
 	"github.com/yaleh/meta-cc/internal/conversation"
 	"github.com/yaleh/meta-cc/internal/locator"
+	"github.com/yaleh/meta-cc/internal/provider"
 	"github.com/yaleh/meta-cc/internal/provider/rawfiles"
 	"github.com/yaleh/meta-cc/internal/query/catalog"
 	"github.com/yaleh/meta-cc/internal/query/engine"
@@ -97,7 +98,25 @@ func buildClaudeDirectoryResult(scope, workingDir string) (map[string]interface{
 		"oldest_file":         metadata.OldestFile,
 		"newest_file":         metadata.NewestFile,
 		"subagent_file_count": subagentFileCount,
+		// DIR-098: corpus health as data, in the same call that lists the
+		// corpus. Before this, an empty/truncated transcript sat in the
+		// directory unreported until a query hard-crashed on it (the
+		// 2026-07-30 dogfooding failure); a caller had no way to ask "is this
+		// corpus safe to query?" without querying it. Every enumerated file —
+		// subagents included, since they are enumerated here too — is probed
+		// once, and the unusable ones are named with a reason. The key is
+		// ALWAYS present and empty for a healthy corpus, so "nothing is
+		// malformed" and "this tool does not report health" cannot be confused
+		// (a dropped key reads as healthy; an empty list reads as checked).
+		"malformed_files": malformedFilesFor(allFiles),
 	}, nil
+}
+
+// malformedFilesFor probes every enumerated file and returns the {file, reason}
+// list to report. The result is never nil: a healthy corpus yields an empty
+// list rather than a `null` a caller would have to special-case.
+func malformedFilesFor(files []string) []provider.MalformedFile {
+	return provider.MalformedFiles(provider.ProbeFilesHealth(files))
 }
 
 // buildCodexDirectoryResult resolves raw Codex rollout files for the given
@@ -143,6 +162,12 @@ func buildCodexDirectoryResult(ctx context.Context, scope, workingDir string) (m
 		"file_count":       len(paths),
 		"total_size_bytes": totalSize,
 		"directory":        commonDirectory(paths),
+		// DIR-098: the same corpus-health channel as the Claude branch. Codex
+		// rollouts are JSONL records too, so an empty or truncated rollout is
+		// exactly as discoverable — and, if only one branch reported health, a
+		// caller reading provider="all" would have to know which provider's
+		// silence means "healthy" and which means "not reported".
+		"malformed_files": malformedFilesFor(paths),
 	}
 	if !oldest.IsZero() {
 		result["oldest_file"] = oldest.Format(time.RFC3339)
@@ -350,12 +375,63 @@ func HandleInspectSessionFiles(ctx context.Context, args map[string]interface{})
 		}
 	}
 
-	result, err := queryfiles.InspectFiles(files, includeSamples)
-	if err != nil {
-		return nil, fmt.Errorf("failed to inspect files: %w", err)
+	return inspectSessionFiles(files, includeSamples)
+}
+
+// InspectResponse is the inspect_session_files response: the per-file metadata
+// a caller already got, plus the file-health channel DIR-098 added.
+//
+// InspectionResult is embedded (rather than copied field by field) so the
+// pre-existing `files` / `summary` shape is produced by the same code as
+// before: a healthy corpus response differs only by the two new keys.
+type InspectResponse struct {
+	*queryfiles.InspectionResult
+	// MalformedFiles names every requested file that is unusable, with the
+	// reason. Always present, empty when every file is usable.
+	MalformedFiles []provider.MalformedFile `json:"malformed_files"`
+	// FileHealth is the per-file probe detail — `entries`, `parseable`, and,
+	// when non-zero, `parse_errors` — so a caller can act on the layer that
+	// failed (records vs. filesystem) without re-reading anything.
+	FileHealth []provider.FileHealth `json:"file_health"`
+}
+
+// inspectSessionFiles probes every requested path, then inspects the ones that
+// can be read.
+//
+// DIR-098: a bad file is DATA here, not an exception. Previously one unreadable
+// path in the list failed the whole call, which is the DIR-018/DIR-094 defect in
+// a different tool: the caller lost the metadata for every GOOD file because a
+// sibling was bad, and learned nothing about which one it was. Now the usable
+// files are inspected as before and every unusable path is named with its
+// reason in `malformed_files` / `file_health`.
+func inspectSessionFiles(files []string, includeSamples bool) (interface{}, error) {
+	health := provider.ProbeFilesHealth(files)
+
+	readable := make([]string, 0, len(files))
+	for _, file := range health {
+		if file.Error == "" {
+			readable = append(readable, file.Path)
+		}
 	}
 
-	return result, nil
+	inspection, err := queryfiles.InspectFiles(readable, includeSamples)
+	if err != nil {
+		// The probe read every one of these files to the end, so a failure here
+		// is not a corrupted corpus but a genuine inspection bug.
+		return nil, fmt.Errorf("failed to inspect files: %w", err)
+	}
+	// `summary.total_files` counts the paths the caller ASKED about, not just
+	// the ones that produced metadata, so the summary and the health channel
+	// never disagree about how big the request was: `files` describes every
+	// readable path, `malformed_files` accounts for the rest. For a healthy
+	// corpus this is the unchanged count.
+	inspection.Summary.TotalFiles = len(files)
+
+	return &InspectResponse{
+		InspectionResult: inspection,
+		MalformedFiles:   provider.MalformedFiles(health),
+		FileHealth:       health,
+	}, nil
 }
 
 // HandleExecuteStage2Query implements execute_stage2_query tool

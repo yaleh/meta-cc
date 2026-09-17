@@ -191,9 +191,11 @@ func corpusToolGates() []corpusToolGate {
 			name:    "get_session_directory",
 			kind:    kindSchemaSpecific,
 			argsFor: enumeratingArgs(map[string]interface{}{"scope": "project"}),
-			// The response is directory-level aggregates, so there is no
-			// per-file path to name; "nothing was dropped" is asserted as
-			// file_count accounting for every file in the corpus.
+			// DIR-098 gave the inventory a malformed_files channel, so the
+			// unusable files are now nameable by path here too — the reporting
+			// half of the contract, which this tool previously could not meet
+			// because its response carried only directory-level aggregates.
+			mustName:       allCorruptShapes(),
 			assertSurvives: assertDirectoryAccountsForEveryFile,
 		},
 		{
@@ -210,7 +212,8 @@ func corpusToolGates() []corpusToolGate {
 			argsFor:        fileArgs(),
 			mustName:       allCorruptShapes(),
 			assertSurvives: assertInspectReportsControlIntact,
-			note:           "pointed at explicit paths; echoes a per-file entry for every path it was given",
+			note: "pointed at explicit paths; echoes a per-file entry for every path it was given, and " +
+				"(DIR-098) names every unusable one in malformed_files with a reason",
 		},
 		{
 			name:    "execute_stage2_query",
@@ -622,7 +625,9 @@ func stripExclusionMetadata(output string) (string, error) {
 // ── schema-specific survival checks ──────────────────────────────────────────
 
 // assertDirectoryAccountsForEveryFile checks that the inventory still counts
-// the control session once unusable siblings are present.
+// the control session once unusable siblings are present, and (DIR-098) that it
+// reports their health rather than leaving the caller to discover it at query
+// time.
 func assertDirectoryAccountsForEveryFile(t *testing.T, clean, dirty gateCorpus, cleanOut, dirtyOut string) {
 	t.Helper()
 	assert.Equal(t, 1, jsonIntField(t, cleanOut, "file_count"),
@@ -631,6 +636,41 @@ func assertDirectoryAccountsForEveryFile(t *testing.T, clean, dirty gateCorpus, 
 		"the inventory must account for the control session AND every unusable file, not drop them")
 	assert.Greater(t, jsonIntField(t, dirtyOut, "total_size_bytes"), jsonIntField(t, cleanOut, "total_size_bytes"),
 		"the control session's bytes must still be counted")
+
+	// DIR-098: the inventory reports corpus health in the same call. A healthy
+	// corpus must yield an empty list — not a missing key, which a caller
+	// cannot tell from "this tool does not report health".
+	cleanMalformed := malformedFileEntries(t, cleanOut)
+	assert.Empty(t, cleanMalformed,
+		"a healthy corpus must report no malformed files; got %v", cleanMalformed)
+
+	// And every unusable file is named WITH a reason, so the caller learns why
+	// before a query touches the corpus.
+	dirtyMalformed := malformedFileEntries(t, dirtyOut)
+	for _, name := range dirty.corruptNames() {
+		assert.True(t, anyStringContains(dirtyMalformed, name),
+			"the inventory must name the unusable file %s in malformed_files; got %v", name, dirtyMalformed)
+	}
+}
+
+// malformedFileEntries flattens a response's malformed_files list into
+// "file: reason" strings and requires every entry to carry a reason.
+func malformedFileEntries(t *testing.T, output string) []interface{} {
+	t.Helper()
+	entries, ok := decodeField[[]interface{}](t, output, "malformed_files")
+	require.True(t, ok, "the response must carry malformed_files; got: %s", output)
+
+	flattened := make([]interface{}, 0, len(entries))
+	for _, raw := range entries {
+		entry, ok := raw.(map[string]interface{})
+		require.True(t, ok, "each malformed_files entry must be an object; got %v", raw)
+		file, _ := entry["file"].(string)
+		reason, _ := entry["reason"].(string)
+		require.NotEmpty(t, file, "a malformed_files entry must name its file; got %v", entry)
+		require.NotEmpty(t, reason, "%s must be reported WITH a reason, not just flagged", file)
+		flattened = append(flattened, file+": "+reason)
+	}
+	return flattened
 }
 
 // assertMetadataListsEveryFile checks that the per-file listing still carries
@@ -660,6 +700,18 @@ func assertInspectReportsControlIntact(t *testing.T, clean, dirty gateCorpus, cl
 	for _, name := range dirty.corruptNames() {
 		assert.True(t, anyStringContains(pathsInFilesField(t, dirtyOut), dirty.path(name)),
 			"an unusable file must be reported, not skipped silently")
+	}
+
+	// DIR-098: a per-file entry alone says the file was READ; the health
+	// channel is what says whether it was usable. An empty transcript is the
+	// case that reads perfectly and yields nothing, so "was it inspected" and
+	// "was it usable" have to be answerable separately.
+	assert.Empty(t, malformedFileEntries(t, cleanOut),
+		"a healthy corpus must report no malformed files")
+	dirtyMalformed := malformedFileEntries(t, dirtyOut)
+	for _, name := range dirty.corruptNames() {
+		assert.True(t, anyStringContains(dirtyMalformed, name),
+			"inspect_session_files must name the unusable file %s with a reason; got %v", name, dirtyMalformed)
 	}
 }
 

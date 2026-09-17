@@ -41,9 +41,17 @@ func TestHandleInspectSessionFilesSuccessAndInspectionError(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, got)
 
-	_, err = HandleInspectSessionFiles(context.Background(), map[string]interface{}{"files": []interface{}{filepath.Join(t.TempDir(), "missing.jsonl")}})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to inspect files")
+	// DIR-098 changed the contract this assertion used to pin: an unreadable
+	// path used to fail the WHOLE call, which took the metadata for every good
+	// file down with it and named nothing. It is now a per-file health
+	// outcome — see TestHandleInspectSessionFiles_UnreadablePathIsReported for
+	// the replacement assertion.
+	missing := filepath.Join(t.TempDir(), "missing.jsonl")
+	got, err = HandleInspectSessionFiles(context.Background(), map[string]interface{}{
+		"files": []interface{}{path, missing},
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, got)
 }
 
 func TestHandleExecuteStage2QueryValidation(t *testing.T) {
