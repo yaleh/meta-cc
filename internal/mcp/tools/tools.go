@@ -533,6 +533,10 @@ func GetToolDefinitions() []Tool {
 					Type:        "string",
 					Description: "Signal type: 'errors' (tool execution errors), 'tokens' (assistant token usage: message.usage carries input_tokens, output_tokens, cache_tokens, and reasoning_output_tokens when the source reports it — Codex reasoning tokens; see docs/reference/jsonl-schema.md 'Token Usage Model'), 'system_errors' (API errors), 'timestamps' (all timestamped entries), or 'tool_stats' (assistant tool calls)",
 				},
+				"raw": {
+					Type:        "boolean",
+					Description: "When type=errors: return the original JSONL records instead of the stable projection. By default every error record is projected to {timestamp, session_id, tool_name, error_text, category}; pass raw=true only when you need a field the projection drops.",
+				},
 				"tool": {
 					Type:        "string",
 					Description: "When type=tool_stats: filter by tool name",

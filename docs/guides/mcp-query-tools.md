@@ -278,6 +278,71 @@ Additional parameters when `type=tool_stats`:
   `tool_stats` total. Any value other than `error`/`success` is a validation
   error, not a silently-ignored filter.
 
+Additional parameters when `type=errors`:
+- `raw` — return the original JSONL records instead of the stable projection
+  described below. Default `false`. Use it only when you need a field the
+  projection drops (e.g. `cwd`, `uuid`, or the raw `toolUseResult` object).
+
+**Projected shape for `type=errors`** (DIR-097). Every returned record is
+projected to the same five fields — the raw JSONL record's shape is *not*
+what you get:
+
+| Field | Type | Source |
+|-------|------|--------|
+| `timestamp` | string | the record's `timestamp` |
+| `session_id` | string | the record's `sessionId` (or `session_id`) |
+| `tool_name` | string | the tool that produced the error, resolved from the assistant `tool_use` block with the matching `tool_use_id` |
+| `error_text` | string | the error text, extracted from the `tool_result` block's `content` (string, or array of text blocks joined with `\n`) |
+| `category` | string | the error label, from the same classifier `analyze_errors` uses (see below) |
+
+All five keys are always present; a field that cannot be resolved is `""`
+rather than absent, so a `jq` extraction never has to guard for a missing
+key. `category` is one of `analyze_errors`' labels — `command_timeout`,
+`bash_exit_code`, `command_not_found`, `permission_denied`, `file_not_found`,
+`connection_error`, `parse_error`, `content_too_large`, `auth_error`,
+`resource_not_found`, `tool_error_no_message`, or `uncategorized` — computed
+by the same `ClassifyErrorType` function, over the same
+(`tool_name`, `error_text`) pair, so the two tools' labels agree by
+construction on the same corpus.
+
+Why the projection exists: the underlying records are irregular. The
+`toolUseResult` field is a string in some records and an object
+(`stdout`/`stderr`, `filePath`/`structuredPatch`, ...) in others, the error
+text is nested inside `message.content[].content`, and the tool name is not on
+the record at all. A consumer that built an extraction from the raw shape got
+nothing back and had to inspect JSONL by hand.
+
+```javascript
+// Only the errors whose label is command_not_found
+query_session_signals({
+  type: "errors",
+  provider: "claude",
+  jq_filter: '.[] | select(.category == "command_not_found")'
+})
+
+// One line per error, in the projected shape
+query_session_signals({
+  type: "errors",
+  provider: "claude",
+  jq_filter: '.[] | {timestamp, tool_name, error_text}'
+})
+
+// Per-tool counts (the projection is what makes group_by possible here)
+query_session_signals({
+  type: "errors",
+  provider: "claude",
+  jq_filter: 'group_by(.tool_name) | map({tool_name: .[0].tool_name, count: length})'
+})
+
+// Escape hatch: the original records, unchanged
+query_session_signals({type: "errors", raw: true, limit: 5})
+```
+
+Remember `jq_filter` runs against the whole result array, so per-record
+expressions need the `.[] | ` prefix — `select(.category == "...")` without it
+errors with "expected an object but got: array". (`stats_only` on this type
+buckets by hour, not by tool; use `jq_filter` for per-tool counts.)
+
 **`provider: "all"` and outcome filtering (`status`, and `type: "errors"`)**
 (DIR-046): `provider: "all"` (and `provider: "codex"`) route Claude session
 data through a normalized, cross-provider record shape rather than raw
