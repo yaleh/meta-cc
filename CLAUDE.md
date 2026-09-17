@@ -180,7 +180,7 @@ A: Currently project-local. A future update may add global library in `~/.meta-c
 See [docs/reference/repository-structure.md](docs/reference/repository-structure.md) for complete directory guide.
 
 **Key directories**:
-- `.claude/` - Plugin entry point (slash commands)
+- `plugin-src/` - Plugin entry point (slash commands, skills), published via `.claude-plugin/marketplace.json`
 - `cmd/mcp-server/` - MCP server implementation
 - `internal/` - Core logic (parser, analyzer, query)
 - `docs/` - Technical documentation
@@ -241,9 +241,9 @@ See [docs/guides/testing.md](docs/guides/testing.md) for the two-stage acceptanc
 **Local development setup**:
 ```bash
 # 1. Edit source files
-vim .claude/commands/prompt-find.md   # Slash command
-vim .claude/commands/prompt-list.md   # Slash command
-vim .claude/commands/prompt-show.md   # Slash command
+vim plugin-src/commands/prompt-find.md   # Slash command
+vim plugin-src/commands/prompt-list.md   # Slash command
+vim plugin-src/commands/prompt-show.md   # Slash command
 
 # 2. Test in Claude Code (no build needed)
 
@@ -257,11 +257,19 @@ make commit
 
 **Three methods**:
 
-1. **Git Hook (automatic)**:
+1. **Git Hook (automatic)** — ⚠️ currently INOPERATIVE, for two independent reasons:
    ```bash
    ./scripts/install/install-hooks.sh  # One-time setup
-   # Then: git commit auto-bumps version on .claude/ changes
+   # Then: git commit auto-bumps version on plugin-src/ changes
    ```
+   - `.pre-commit-config.yaml:97` still matches `^\.claude/(commands|agents)/.*\.md$`.
+     That layout was replaced by `plugin-src/` in 2026-03 (commit `2540243`), so the
+     `plugin-version-bump` hook can never fire.
+   - `scripts/install/install-hooks.sh:13` exits 1 because the `.githooks/` directory
+     it copies from does not exist.
+
+   Until the pattern is repointed at `plugin-src/` and the installer path is fixed,
+   use method 2.
 
 2. **Manual script**:
    ```bash
@@ -337,10 +345,11 @@ execute_stage2_query({
 
 **Edit slash command**:
 ```bash
-vim .claude/commands/prompt-find.md
+vim plugin-src/commands/prompt-find.md
 # Test in Claude Code immediately (no build needed)
 git commit -m "feat: improve prompt-find matching"
-# Git hook auto-bumps version
+# Version bump is manual: scripts/release/bump-plugin-version.sh
+# (the git-hook path is currently inoperative — see "Version Management" above)
 ```
 
 **See**: [docs/guides/plugin-development.md](docs/guides/plugin-development.md) for complete workflow.
