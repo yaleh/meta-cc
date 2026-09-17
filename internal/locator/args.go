@@ -8,9 +8,27 @@ import (
 	"strings"
 )
 
+// SubagentDirName is the directory Claude Code writes a session's subagent
+// transcripts into: <projectDir>/<session-uuid>/subagents/. It is named here
+// rather than spelled out at each call site because "is this file a subagent
+// transcript?" (IsSubagentTranscript), "what is this transcript's id?"
+// (SubagentIDFromPath) and "where do a project's subagents live?"
+// (SubagentTranscriptsUnder) must all agree on the spelling — the
+// gap-claude-listsessions-misses-subagents defect was exactly a disagreement
+// about what the corpus is.
+const SubagentDirName = "subagents"
+
 // FromSessionID 通过会话 ID 查找会话文件
 // 遍历支持的 transcript roots，查找匹配的 {session-id}.jsonl
 // 如果找到多个（跨项目同名会话），返回最新的
+//
+// A subagent transcript is addressed by its AGENT id, which Claude Code
+// encodes in the filename (agent-<agentId>.jsonl) rather than in the file's
+// sessionId field — that field carries the PARENT session's uuid, so looking
+// up an id the listing just produced would miss without the second search
+// below. It reuses SubagentTranscriptsUnder/SubagentIDFromPath, the same pair
+// the listing uses, so "which files are subagent transcripts, and what ids do
+// they answer to" has exactly one definition.
 func (l *SessionLocator) FromSessionID(sessionID string) (string, error) {
 	var candidates []string
 	sessionFilename := sessionID + ".jsonl"
@@ -32,9 +50,16 @@ func (l *SessionLocator) FromSessionID(sessionID string) (string, error) {
 					continue
 				}
 
-				sessionPath := filepath.Join(root.Path, projectDir.Name(), sessionFilename)
+				projectDirPath := filepath.Join(root.Path, projectDir.Name())
+				sessionPath := filepath.Join(projectDirPath, sessionFilename)
 				if _, err := os.Stat(sessionPath); err == nil {
 					candidates = append(candidates, sessionPath)
+				}
+
+				for _, subagentFile := range SubagentTranscriptsUnder(projectDirPath) {
+					if SubagentIDFromPath(subagentFile) == sessionID {
+						candidates = append(candidates, subagentFile)
+					}
 				}
 			}
 			continue
@@ -100,13 +125,32 @@ func (l *SessionLocator) FromSessionIDScoped(sessionID, workingDir string) (stri
 		boundaryDir = abs
 	}
 	if expectedHash := PathToHash(boundaryDir); expectedHash != "" {
-		actualHash := filepath.Base(filepath.Dir(file))
+		actualHash := projectHashDirName(file)
 		if actualHash != expectedHash {
 			return "", fmt.Errorf("session_id %q not found for project %q", sessionID, boundaryDir)
 		}
 	}
 
 	return file, nil
+}
+
+// projectHashDirName returns the name of the project-hash directory a resolved
+// transcript file lives in. For a top-level session that is the file's own
+// parent; for a subagent transcript (<hash>/<uuid>/subagents/agent-*.jsonl) it
+// is three levels up.
+//
+// DIR-033's boundary check compares this against PathToHash(workingDir). The
+// subagent depth has to be handled here rather than left to the caller: a
+// directory literally named "subagents" never equals a project hash, so the
+// naive parent-only comparison would reject exactly the subagent transcripts
+// FromSessionID had just resolved — the boundary check would silently undo the
+// enumeration fix for every session_id-taking tool.
+func projectHashDirName(file string) string {
+	dir := filepath.Dir(file)
+	if filepath.Base(dir) == SubagentDirName {
+		dir = filepath.Dir(filepath.Dir(dir))
+	}
+	return filepath.Base(dir)
 }
 
 // FromProjectPath 通过项目路径查找最新会话
@@ -179,6 +223,128 @@ func (l *SessionLocator) sessionsFromProject(projectPath, projectHash string) ([
 	}
 
 	return nil, fmt.Errorf("checked transcript roots: %s", strings.Join(checked, ", "))
+}
+
+// AllTranscriptsFromProject returns a project's whole transcript corpus: the
+// top-level {session-id}.jsonl files (what AllSessionsFromProject returns)
+// PLUS every <uuid>/subagents/agent-*.jsonl subagent transcript beside them.
+//
+// This — not AllSessionsFromProject — is the corpus a session LISTING must
+// enumerate. Subagent transcripts ARE sessions from every consumer's point of
+// view: a real project on this host held 22 top-level transcripts and 2
+// subagent ones, and a listing built on AllSessionsFromProject reported 22,
+// making a subagent's own history unreachable through the documented
+// "list, then query by session_id" route (gap-claude-listsessions-misses-subagents).
+//
+// AllSessionsFromProject deliberately keeps its narrower top-level-only meaning
+// because callers use it to derive the project's session DIRECTORY
+// (GetQueryBaseDir, stage.go) by taking filepath.Dir of the first result: a
+// subagent file's directory is <uuid>/subagents, so widening that function
+// would silently relocate those callers' base directory.
+func (l *SessionLocator) AllTranscriptsFromProject(projectPath string) ([]string, error) {
+	absPath, err := filepath.Abs(projectPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve project path: %w", err)
+	}
+
+	projectHash := PathToHash(absPath)
+
+	// sessionsFromProject returns either a non-empty slice or an error, so the
+	// pair below cannot both be empty with a nil error.
+	topLevel, topErr := l.sessionsFromProject(absPath, projectHash)
+	subagents := l.subagentTranscriptsForProject(projectHash)
+	if len(topLevel)+len(subagents) == 0 {
+		if topErr != nil {
+			return nil, topErr
+		}
+		return nil, fmt.Errorf("no transcripts found for project %q (hash: %s)", projectPath, projectHash)
+	}
+
+	return append(topLevel, subagents...), nil
+}
+
+// subagentTranscriptsForProject collects the subagent transcripts of every
+// project-hashed transcript root, for the project identified by projectHash.
+func (l *SessionLocator) subagentTranscriptsForProject(projectHash string) []string {
+	var subagents []string
+	for _, root := range l.TranscriptRoots() {
+		if !root.ProjectHashed {
+			continue
+		}
+		if _, err := os.Stat(root.Path); os.IsNotExist(err) {
+			continue
+		}
+		subagents = append(subagents,
+			SubagentTranscriptsUnder(filepath.Join(root.Path, projectHash))...)
+	}
+	return subagents
+}
+
+// SubagentTranscriptsUnder returns every subagent transcript belonging to any
+// session in the transcript directory baseDir (a project's hash directory):
+// <baseDir>/<entry>/subagents/*.jsonl for each directory entry of baseDir.
+//
+// The walk is fixed at exactly that shape — one directory level, then a
+// directory literally named "subagents" — which is what keeps sibling
+// directories such as tool-results/ out of the corpus: a path is only ever
+// accepted by descending through that exact name. This is the single
+// definition of "where a project's subagent transcripts are"; the session
+// listing and the query-file resolution both call it rather than each
+// re-deriving the rule (two copies of "what is the corpus" is the defect class
+// this task was filed against).
+func SubagentTranscriptsUnder(baseDir string) []string {
+	entries, err := os.ReadDir(baseDir)
+	if err != nil {
+		return nil
+	}
+
+	var files []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		files = append(files,
+			SubagentTranscripts(filepath.Join(baseDir, entry.Name(), SubagentDirName))...)
+	}
+	return files
+}
+
+// SubagentTranscripts returns the .jsonl transcripts in one subagents/
+// directory. A directory that does not exist is not an error: most sessions
+// never spawn a subagent.
+func SubagentTranscripts(subagentsDir string) []string {
+	entries, err := os.ReadDir(subagentsDir)
+	if err != nil {
+		return nil
+	}
+
+	var files []string
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".jsonl" {
+			continue
+		}
+		files = append(files, filepath.Join(subagentsDir, entry.Name()))
+	}
+	return files
+}
+
+// IsSubagentTranscript reports whether path is a subagent transcript, i.e.
+// whether it sits directly inside a subagents/ directory.
+func IsSubagentTranscript(path string) bool {
+	return filepath.Base(filepath.Dir(path)) == SubagentDirName
+}
+
+// SubagentIDFromPath returns the id a subagent transcript is addressed by —
+// Claude Code names those files agent-<agentId>.jsonl, and that agent id (not
+// the parent session uuid the file's entries carry in sessionId) is what
+// distinguishes one subagent from another and what a caller can pass back as a
+// session_id. Returns "" for a path that is not a subagent transcript.
+func SubagentIDFromPath(path string) string {
+	if !IsSubagentTranscript(path) {
+		return ""
+	}
+	name := strings.TrimSuffix(filepath.Base(path), ".jsonl")
+	return strings.TrimPrefix(name, "agent-")
 }
 
 func findSessionFilesRecursive(rootPath, filename string) ([]string, error) {

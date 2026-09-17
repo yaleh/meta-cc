@@ -632,3 +632,184 @@ func TestAllSessionsFromProject_RelativePath(t *testing.T) {
 		t.Errorf("Expected 2 sessions, got %d", len(sessionsFromRelative))
 	}
 }
+
+// seedSubagentProject builds the on-disk layout a project with subagents has:
+//
+//	<hash>/{top-1,top-2}.jsonl        top-level sessions
+//	<hash>/<uuid>/subagents/agent-<id>.jsonl   a subagent transcript
+//	<hash>/<uuid>/tool-results/result.jsonl    a NON-session sibling directory
+//
+// and returns (projectPath, sessionDir, subagentFile, toolResultsFile).
+//
+// tool-results/ is seeded deliberately: it sits at the same depth as
+// subagents/ and is the exact directory the two-levels-deep walk exists to
+// avoid, so a rule that merely "scans one level deeper" would list it.
+func seedSubagentProject(t *testing.T, projectsRoot string) (projectPath, sessionDir, subagentFile, toolResultsFile string) {
+	t.Helper()
+
+	projectPath, err := os.MkdirTemp("", "testproject-subagents")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(projectPath) })
+
+	resolved, err := filepath.EvalSymlinks(projectPath)
+	if err != nil {
+		resolved = projectPath
+	}
+
+	sessionDir = filepath.Join(projectsRoot, PathToHash(resolved))
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		t.Fatalf("failed to create session dir: %v", err)
+	}
+
+	for _, name := range []string{"top-1.jsonl", "top-2.jsonl"} {
+		if err := os.WriteFile(filepath.Join(sessionDir, name), []byte("{}"), 0644); err != nil {
+			t.Fatalf("failed to write %s: %v", name, err)
+		}
+	}
+
+	const parentUUID = "11111111-2222-3333-4444-555555555555"
+
+	subagentsDir := filepath.Join(sessionDir, parentUUID, SubagentDirName)
+	if err := os.MkdirAll(subagentsDir, 0755); err != nil {
+		t.Fatalf("failed to create subagents dir: %v", err)
+	}
+	subagentFile = filepath.Join(subagentsDir, "agent-abc123def456.jsonl")
+	if err := os.WriteFile(subagentFile, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write subagent file: %v", err)
+	}
+
+	toolResultsDir := filepath.Join(sessionDir, parentUUID, "tool-results")
+	if err := os.MkdirAll(toolResultsDir, 0755); err != nil {
+		t.Fatalf("failed to create tool-results dir: %v", err)
+	}
+	toolResultsFile = filepath.Join(toolResultsDir, "result.jsonl")
+	if err := os.WriteFile(toolResultsFile, []byte("{}"), 0644); err != nil {
+		t.Fatalf("failed to write tool-results file: %v", err)
+	}
+
+	return projectPath, sessionDir, subagentFile, toolResultsFile
+}
+
+// TestAllTranscriptsFromProject_IncludesSubagentsExcludesToolResults is the
+// enumeration half of gap-claude-listsessions-misses-subagents: the session
+// LISTING's corpus must contain subagent transcripts (<hash>/<uuid>/subagents/
+// agent-*.jsonl) and must NOT start listing the non-session siblings that sit
+// beside them (tool-results/result.jsonl).
+//
+// It asserts the narrower meaning of AllSessionsFromProject at the same time,
+// because that function's top-level-only result is what GetQueryBaseDir and
+// stage.go use to derive the project's session directory via filepath.Dir of
+// the first entry — widening it in place would silently relocate them into
+// <uuid>/subagents.
+func TestAllTranscriptsFromProject_IncludesSubagentsExcludesToolResults(t *testing.T) {
+	projectsRoot := setupProjectsRoot(t)
+	projectPath, sessionDir, subagentFile, toolResultsFile := seedSubagentProject(t, projectsRoot)
+
+	loc := NewSessionLocator()
+
+	topLevel, err := loc.AllSessionsFromProject(projectPath)
+	if err != nil {
+		t.Fatalf("AllSessionsFromProject: %v", err)
+	}
+	if len(topLevel) != 2 {
+		t.Errorf("AllSessionsFromProject should stay top-level-only: expected 2 files, got %d (%v)",
+			len(topLevel), topLevel)
+	}
+	for _, f := range topLevel {
+		if f == subagentFile || f == toolResultsFile {
+			t.Errorf("AllSessionsFromProject must not return %s", f)
+		}
+		if filepath.Dir(f) != sessionDir {
+			t.Errorf("AllSessionsFromProject returned %s, which is not directly in %s", f, sessionDir)
+		}
+	}
+
+	all, err := loc.AllTranscriptsFromProject(projectPath)
+	if err != nil {
+		t.Fatalf("AllTranscriptsFromProject: %v", err)
+	}
+	if len(all) != 3 {
+		t.Errorf("expected 2 top-level + 1 subagent transcript, got %d (%v)", len(all), all)
+	}
+
+	found := make(map[string]bool, len(all))
+	for _, f := range all {
+		found[f] = true
+	}
+	if !found[subagentFile] {
+		t.Errorf("subagent transcript %s missing from AllTranscriptsFromProject", subagentFile)
+	}
+	if found[toolResultsFile] {
+		t.Errorf("tool-results file %s must NOT be enumerated as a transcript", toolResultsFile)
+	}
+	if !found[filepath.Join(sessionDir, "top-1.jsonl")] || !found[filepath.Join(sessionDir, "top-2.jsonl")] {
+		t.Errorf("top-level sessions missing from AllTranscriptsFromProject: %v", all)
+	}
+}
+
+// TestSubagentIDFromPath pins the single rule that maps a subagent transcript
+// to the id callers address it by. Claude Code encodes the agent id in the
+// filename and writes the PARENT session's uuid into the entries' sessionId
+// field, so this is the only place the two can be told apart.
+func TestSubagentIDFromPath(t *testing.T) {
+	cases := []struct {
+		path string
+		want string
+	}{
+		{filepath.Join("/p", "-hash", "uuid", "subagents", "agent-abc123.jsonl"), "abc123"},
+		{filepath.Join("/p", "-hash", "top-level.jsonl"), ""},
+		{filepath.Join("/p", "-hash", "uuid", "tool-results", "agent-abc123.jsonl"), ""},
+	}
+	for _, tc := range cases {
+		if got := SubagentIDFromPath(tc.path); got != tc.want {
+			t.Errorf("SubagentIDFromPath(%s) = %q, want %q", tc.path, got, tc.want)
+		}
+	}
+}
+
+// TestFromSessionID_ResolvesSubagentTranscript is the id-resolution half of
+// gap-claude-listsessions-misses-subagents: an id the listing produced for a
+// subagent must be resolvable by the same lookup every session_id-taking tool
+// uses, both unscoped and through DIR-033's project boundary check.
+//
+// The boundary half matters independently: a subagent transcript's parent
+// directory is literally "subagents", which never equals a project hash, so a
+// parent-only boundary comparison would reject every subagent FromSessionID
+// had just resolved.
+func TestFromSessionID_ResolvesSubagentTranscript(t *testing.T) {
+	projectsRoot := setupProjectsRoot(t)
+	projectPath, _, subagentFile, _ := seedSubagentProject(t, projectsRoot)
+
+	loc := NewSessionLocator()
+
+	got, err := loc.FromSessionID("abc123def456")
+	if err != nil {
+		t.Fatalf("FromSessionID did not resolve the subagent id: %v", err)
+	}
+	if got != subagentFile {
+		t.Errorf("FromSessionID = %s, want %s", got, subagentFile)
+	}
+
+	scoped, err := loc.FromSessionIDScoped("abc123def456", projectPath)
+	if err != nil {
+		t.Fatalf("FromSessionIDScoped rejected a subagent in the caller's own project: %v", err)
+	}
+	if scoped != subagentFile {
+		t.Errorf("FromSessionIDScoped = %s, want %s", scoped, subagentFile)
+	}
+
+	// The boundary check must still reject a subagent that belongs to a
+	// DIFFERENT project: the subagent depth is a reason to look three levels
+	// up for the hash, not a reason to skip the comparison.
+	otherProject, err := os.MkdirTemp("", "testproject-subagents-other")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(otherProject) })
+
+	if _, err := loc.FromSessionIDScoped("abc123def456", otherProject); err == nil {
+		t.Error("expected FromSessionIDScoped to reject a subagent belonging to another project")
+	}
+}

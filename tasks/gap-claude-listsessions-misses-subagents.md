@@ -2,7 +2,7 @@
 id: gap-claude-listsessions-misses-subagents
 title: Claude provider ListSessions never enumerates subagent transcripts
   (query_sessions omits them; session_id cannot address them)
-status: ready
+status: done
 labels:
   - gap
   - defect

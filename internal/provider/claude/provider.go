@@ -103,7 +103,7 @@ func (p *Provider) ListSessions(ctx context.Context) ([]conversation.Session, er
 		projectPath = cwd
 	}
 
-	files, err := p.locator.AllSessionsFromProject(projectPath)
+	files, err := p.locator.AllTranscriptsFromProject(projectPath)
 	if err != nil {
 		return nil, err
 	}
@@ -190,9 +190,13 @@ func (p *Provider) LoadTurns(ctx context.Context, sessionID string) ([]conversat
 // PathToHash-based check ExecuteQueryForSession and analysis/service.go's
 // loadData also use) so it isn't reimplemented ad hoc here. A match is
 // only accepted when it passes that boundary; otherwise this falls
-// through to the already-scoped AllSessionsFromProject search, which
+// through to the already-scoped AllTranscriptsFromProject search, which
 // naturally reports "not found" for a session belonging to a different
 // project.
+//
+// The fallback walks the FULL corpus (top-level + subagent transcripts), not
+// just top-level sessions: an id this listing produced must be resolvable by
+// the same code path, and a subagent id is one of those ids.
 func (p *Provider) findSessionFile(sessionID string) (string, error) {
 	if file, err := p.locator.FromSessionIDScoped(sessionID, p.workingDir); err == nil {
 		return file, nil
@@ -206,7 +210,7 @@ func (p *Provider) findSessionFile(sessionID string) (string, error) {
 		}
 		projectPath = cwd
 	}
-	files, listErr := p.locator.AllSessionsFromProject(projectPath)
+	files, listErr := p.locator.AllTranscriptsFromProject(projectPath)
 	if listErr != nil {
 		return "", fmt.Errorf("session %q not found: %w", sessionID, listErr)
 	}
@@ -268,31 +272,31 @@ func (p *Provider) sessionFromFile(file string) (conversation.Session, error) {
 	return SessionFromFile(file)
 }
 
-// subagentsDirName is the directory Claude Code files a session's subagent
-// transcripts under, one level below the transcript root's project-hash
-// directory: <projectHash>/<parentSessionId>/subagents/agent-<agentId>.jsonl.
-const subagentsDirName = "subagents"
-
 // subagentPathInfo reports whether a Claude transcript path is a subagent
-// transcript, and if so the parent session id encoded in that path.
+// transcript, and — when the path names one — the parent session id it
+// encodes.
 //
 // The path is the whole source of truth here, and deliberately so: a subagent
 // transcript carries its PARENT's sessionId in its own entries (verified
 // against the live corpus), so nothing inside the JSONL distinguishes it from
 // the top-level session it belongs to. Only the directory it sits in does.
 //
-// The parent segment must look like a session uuid: the rule is
-// "<uuid>/subagents/", not "any directory named subagents", so a directory
-// that merely shares the name cannot get a record reclassified as a subagent
-// with a fabricated parent.
+// The two answers are derived by two rules, and the asymmetry is the point.
+// "Is this a subagent transcript?" is locator.IsSubagentTranscript — the same
+// predicate sessionIDFor addresses the record by (through SubagentIDFromPath),
+// so the id a record is listed under and the flag it carries can never
+// disagree about whether it is one. "Which session spawned it?" additionally
+// requires the parent segment to look like a session uuid: ParentThreadID is a
+// positive claim about which session this belongs to, and a directory that
+// merely happens to be named subagents witnesses no parent, so the link is
+// left empty rather than fabricated.
 func subagentPathInfo(file string) (isSubagent bool, parentSessionID string) {
-	dir := filepath.Dir(file)
-	if filepath.Base(dir) != subagentsDirName {
+	if !locator.IsSubagentTranscript(file) {
 		return false, ""
 	}
-	parent := filepath.Base(filepath.Dir(dir))
+	parent := filepath.Base(filepath.Dir(filepath.Dir(file)))
 	if !looksLikeSessionUUID(parent) {
-		return false, ""
+		return true, ""
 	}
 	return true, parent
 }
@@ -327,12 +331,12 @@ func looksLikeSessionUUID(s string) bool {
 // Subagent attribution is derived from the transcript's PATH, not from its
 // entries (see subagentPathInfo). IsSubagent is therefore definite for every
 // record this function returns, never merely "unknown": true for a transcript
-// under <uuid>/subagents/, false for everything else. Lineage is set to
-// LineageStatusChild in the true case, because that same path is a source
-// that reliably reports the parent edge; the false case is left
-// LineageStatusUnspecified rather than being claimed as a confirmed root,
-// since the path rules out "subagent transcript" without positively asserting
-// the absence of any parent.
+// filed directly inside a subagents/ directory, false for everything else.
+// Lineage is set to LineageStatusChild in that same case, because the
+// directory witnesses a parent edge; ParentThreadID names that parent when the
+// path encodes it. The false case is left LineageStatusUnspecified rather than
+// being claimed as a confirmed root, since the path rules out "subagent
+// transcript" without positively asserting the absence of any parent.
 func sessionFromEntries(file string, entries []types.SessionEntry) conversation.Session {
 	first := entries[0]
 	last := entries[len(entries)-1]
@@ -350,7 +354,13 @@ func sessionFromEntries(file string, entries []types.SessionEntry) conversation.
 
 	ext, _ := json.Marshal(map[string]string{"path": file})
 	return conversation.Session{
-		ID:             first.SessionID,
+		// ID and the attribution fields below answer two different questions
+		// about the same subagent transcript, and a consumer needs both: ID
+		// is what the record is ADDRESSED by (the agent id, not the parent
+		// uuid its entries carry — see sessionIDFor), while IsSubagent /
+		// ParentThreadID are what say it CAME FROM a subagent and which
+		// session spawned it.
+		ID:             sessionIDFor(file, first),
 		Provider:       conversation.ProviderClaude,
 		Title:          entryText(&first),
 		CWD:            first.CWD,
@@ -362,6 +372,23 @@ func sessionFromEntries(file string, entries []types.SessionEntry) conversation.
 		TokenUsage:     tokenUsage,
 		Extensions:     ext,
 	}
+}
+
+// sessionIDFor returns the id a transcript is addressed by.
+//
+// For an ordinary session that is the sessionId its entries carry. For a
+// subagent transcript it is NOT: Claude Code writes the PARENT session's uuid
+// into a subagent transcript's sessionId field and the subagent's own identity
+// into the filename (agent-<agentId>.jsonl). Taking that field at face value
+// would list every subagent under its parent's id — the listing would show
+// duplicate ids, and the id it printed could not be handed back to any
+// session_id-taking tool, which is the second half of
+// gap-claude-listsessions-misses-subagents.
+func sessionIDFor(file string, first types.SessionEntry) string {
+	if agentID := locator.SubagentIDFromPath(file); agentID != "" {
+		return agentID
+	}
+	return first.SessionID
 }
 
 // NOTE(DIR-038): this hand-rolled bufio.NewReader + ReadBytes('\n') loop
