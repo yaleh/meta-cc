@@ -737,14 +737,21 @@ modified.
 One week after the gate is in the dispatch prompts, re-measure and require
 zero:
 
-1. Take the windowed sample. `query_session_signals` is the surface that
-   accepts a time window — `analyze_errors` does not, so it cannot define the
-   window itself:
+1. Run the baseline's own instrument — `analyze_errors({scope: "project",
+   limit: 0})` — and read `by_type[].signature` / `.count` alongside
+   `time_range`, comparing the three signatures above against the 6 / 3 / 4
+   baseline. `analyze_errors` takes no `since`/`until`: it analyzes the whole
+   corpus of the requested scope, so **`time_range` plus the windowed sample in
+   step 2 are what bind the result to the trailing 7 days** — a whole-corpus
+   count is not a trailing-week count, and reading it as one is the way this
+   check would silently pass.
+2. Take the windowed sample from the surface that does accept a window:
    `query_session_signals({type: "errors", since: "<UTC now - 7d>", until: "<UTC now>"})`.
-2. Classify every returned error by **shape**, not by a frozen signature. The
+3. Classify every returned error by **shape**, not by a frozen signature. The
    signature hashes the error text, and a failed Read embeds the working
    directory in that text, so the same failure under a different worktree
-   hashes differently:
+   hashes differently — a signature that differs from the table is not by
+   itself a pass or a failure:
 
    | Class | Match on |
    |-------|----------|
@@ -752,13 +759,12 @@ zero:
    | edit-before-Read | tool `Edit`/`Write`, error text contains `File has not been read yet.` |
    | empty optional parameter | tool `Read`, error text names `pages` (the call is rejected before the file is read) |
 
-3. Corroborate with `analyze_errors({scope: "project", limit: 0})`: read
-   `by_type[].signature` and `.count`, and confirm `time_range` falls inside
-   the same trailing week.
-4. **Pass condition**: 0 errors in each of the three shapes. A recurrence means
-   that class's clause is not reaching some dispatch site — find the dispatch
-   path whose prompt omits the gate block and add it there, rather than
-   widening this document's prose.
+4. **Pass condition**: 0 errors in each of the three shapes over the trailing 7
+   days, and 0 in the matching `analyze_errors` signature counts whose
+   `time_range` falls inside that window. A recurrence means that class's
+   clause is not reaching some dispatch site — find the dispatch path whose
+   prompt omits the gate block and add it there, rather than widening this
+   document's prose.
 
 Sanity check recorded 2026-09-17, so this procedure is known-executable rather
 than merely asserted: `analyze_errors({scope: "project", stats_only: true})`
