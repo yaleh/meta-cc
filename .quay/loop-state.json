@@ -1,6 +1,0 @@
-{
-  "iteration": 21,
-  "lastCompleted": "DIR-080",
-  "current": null,
-  "note": "Iter 19-20 idle (board empty of ready; 20 todo tasks need quay:author promotion). Routines: history-mining(iter18) filed DIR-100/101; self-validation(iter20) report-only — 3 verified quay-repo findings relayed to user (per workspace boundary: quay-owned fixes report-only, no local tasks). Iter 21: history-mining every(3) due (21%3=0)."
-}
