@@ -131,7 +131,8 @@ Codex-only filters (`source_kind`, `model_provider`, `parent_thread_id`, `archiv
 
 | Field | Codex | Claude |
 |-------|-------|--------|
-| `model_provider`, `source_kind`, `archived` / `status`, `updated_at` | populated from thread metadata | never (a Claude transcript carries none of these) |
+| `model_provider`, `source_kind`, `updated_at` | populated from thread metadata | absent — a Claude transcript carries none of these |
+| `archived` / `status` | populated from thread metadata | always present, always `false` / `""` — a Claude session has no archive state |
 | `is_subagent` | `true` when the thread's source kind is a subagent one | `true` for a record derived from a transcript filed under `<projectDir>/<uuid>/subagents/`; absent otherwise |
 | `parent_thread_id`, `lineage` | populated from thread spawn metadata | for that same subagent transcript only: both are read from its path, so `parent_thread_id` is the spawning session's id and `lineage` is `"child"` |
 
