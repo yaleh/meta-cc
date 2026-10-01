@@ -2,7 +2,7 @@
 id: gap-include-subagents-dropped-on-session-id-path
 title: "include_subagents is unreachable when session_id is given: subagent
   transcripts are never searched"
-status: todo
+status: ready
 labels:
   - gap
   - defect
