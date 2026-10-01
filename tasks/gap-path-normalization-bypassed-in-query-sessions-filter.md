@@ -69,17 +69,26 @@ Entry points checked behaviourally for alias/physical equivalence (all identical
     analyze_errors                           -> total_errors 52, by_tool / by_type identical
     get_session_directory (provider=claude)  -> 35 files, same resolved directory
 
-## Open item (NOT evidenced — do not treat as a defect)
+## Codex open item — ADJUDICATED: same defect (fixed)
 
-`internal/mcp/query/stage.go:217` (`resolveProjectPath`, `Abs`) reaches
-`rawfiles.NewRegistry(projectPath)` + `rawfiles.SelectCodexFiles` through its only
-two callers (`stage.go:115 buildCodexDirectoryResult`, `stage.go:589
-buildCodexMetadataResult`), both Codex-only. Codex rollouts are not stored under
-the Claude `<hash>` layout, so the `PathToHash` funnel may not exist on that
-path. The behavioural probe was inconclusive: no codex sessions exist for this
-project, and `get_session_directory{provider:"codex"}` returns the same loud
-"no codex sessions found for project" for both forms. Adjudicating it needs a
-project that actually has codex sessions.
+The filing left this unproven: `internal/mcp/query/stage.go:217`
+(`resolveProjectPath`, `Abs`) reaches `rawfiles.NewRegistry(projectPath)` +
+`rawfiles.SelectCodexFiles` through its only two callers (`stage.go:115
+buildCodexDirectoryResult`, `stage.go:589 buildCodexMetadataResult`), both
+Codex-only. Codex rollouts are not stored under the Claude `<hash>` layout, so
+the `PathToHash` funnel does not exist on that path.
+
+Verdict: **it IS the same defect.** `SelectCodexFiles` matches sessions with a
+RAW cwd comparison (`providerrecords.FilterSessionsForScope`, `records.go:109`),
+not through `PathToHash`, so a symlinked alias `working_dir` filtered every
+Codex session out and surfaced the loud `no codex sessions found for project
+<alias>` while the physical path returned the corpus. Behaviourally proven
+against a hermetic Codex fixture (a thread whose recorded cwd is the resolved
+project): both `get_session_directory` and `get_session_metadata` fail for the
+alias form and match the physical form after the fix — see
+`TestCodexPathTakingEntryPoints_AliasEqualsPhysical` in
+`internal/mcp/executor/query_sessions_path_alias_test.go` (red before the fix,
+green after).
 
 ## Plan
 
@@ -90,16 +99,33 @@ project that actually has codex sessions.
 3. Adjudicate the Codex open item with a project that has codex sessions and
    record the verdict either way.
 
+## Resolution
+
+- `internal/mcp/executor/query_sessions_handler.go`: new `physicalProjectPath`
+  helper (`filepath.Abs` + `filepath.EvalSymlinks`, falling back to the Abs'd
+  path on resolution failure — matching `PathToHash`'s own fallback, so a
+  nonexistent path keeps its loud, named miss). Applied to BOTH the default
+  `working_dir` arm and the explicit `cwd` arm.
+- `internal/mcp/query/stage.go`: `resolveProjectPath` now also resolves
+  symlinks, closing the Codex discovery path adjudicated above.
+- Regression is a property, not two symptoms:
+  `TestPathTakingEntryPoints_AliasEqualsPhysical` asserts alias == physical for
+  every path-taking entry point (query_sessions default + explicit-cwd,
+  query_session_content, analyze_errors, get_session_directory);
+  `TestQuerySessions_SymlinkedAliasMatchesPhysical` is the focused two-arm
+  regression; `TestCodexPathTakingEntryPoints_AliasEqualsPhysical` is the Codex
+  adjudication. All three were red before the fix and green after.
+
 ## Acceptance Criteria
 
-- [ ] `query_sessions` with a symlinked alias `working_dir` returns the same
+- [x] `query_sessions` with a symlinked alias `working_dir` returns the same
       result as the physical path (default arm).
-- [ ] Same with an explicit `cwd` set to the alias (explicit-parameter arm).
-- [ ] The regression is written as a property, not as two symptoms: for every
+- [x] Same with an explicit `cwd` set to the alias (explicit-parameter arm).
+- [x] The regression is written as a property, not as two symptoms: for every
       path-taking entry point, alias and physical forms must return the same
       result. Expectation table at the time of filing: 12 sites route through
       `PathToHash`; 1 (`query_sessions_handler.go:101`) does not.
-- [ ] The Codex open item above is adjudicated and its verdict recorded in this task.
+- [x] The Codex open item above is adjudicated and its verdict recorded in this task.
 
 ## DoD
 
