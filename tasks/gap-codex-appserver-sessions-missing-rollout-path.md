@@ -2,7 +2,7 @@
 id: gap-codex-appserver-sessions-missing-rollout-path
 title: get_session_directory{provider:codex} hard-fails with missing
   rollout_path on physical paths (app-server backend never populates it)
-status: ready
+status: done
 labels:
   - gap
   - defect
