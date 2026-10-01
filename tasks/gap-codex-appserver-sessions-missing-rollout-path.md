@@ -133,16 +133,16 @@ backend's capabilities are known:
 
 ## Acceptance Criteria
 
-- [ ] On a project that has Codex sessions, `get_session_directory{provider:"codex"}`
+- [x] On a project that has Codex sessions, `get_session_directory{provider:"codex"}`
       returns a file list rather than an error.
-- [ ] The failure is not reachable while the session's rollout file exists on
+- [x] The failure is not reachable while the session's rollout file exists on
       disk and the DB column is populated — i.e. the fix does not depend on
       re-deriving data that is already present.
-- [ ] The contract is asserted per backend (app-server, files/sqlite,
+- [x] The contract is asserted per backend (app-server, files/sqlite,
       files/rollout-fallback), so a backend that fails to populate
       `rollout_path` fails a test rather than silently degrading at the
       consumer.
-- [ ] Regression test uses a project fixture with Codex data, not this host's
+- [x] Regression test uses a project fixture with Codex data, not this host's
       `~/.codex` (which may be absent or shaped differently elsewhere).
 
 ## DoD
