@@ -5,6 +5,314 @@ All notable changes to the meta-cc project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.0] - 2026-10-01
+
+
+### Added
+
+- emit a totalled suite line so the web test card has counts
+- pin worker launcher/model to claude-fjdac + v4.1flash
+- add since/until time windows to the five analysis tools
+- cap analyze_bugs patterns and structure its examples
+- surface malformed-file health in the Stage 1 discovery tools
+- project query_session_signals(type=errors) onto a stable shape (DIR-097)
+- add make test-scoped target for fail-fast iteration gates
+
+### Changed
+
+- Maintenance: bump plugin version to 3.9.0
+- Maintenance: untrack .quay/ entirely — runtime state and config alike
+- Tests: pin the summary-line + declared-regex contract
+- Documentation: match the provenance table to the shipped subagent rule
+- Maintenance: drop trailing-newline-only churn on unrelated task files
+- Documentation: split the archived/status provenance row
+- Refactoring: sessionIDFor takes the first entry, not the whole slice
+- Tests: stop blanket-deleting shared temp files in cleanup tests (DIR-083)
+- Tests: skip FTS/Unicode parity tests in -short mode (DIR-083)
+- Tests: add t.Parallel() to the tests with no process-global state
+- Maintenance: drop the .claude/hooks/pre-commit.sh plugin version-consistency hook
+- Maintenance: drop the meta-cc-cli-refactor BAIME experiment record
+- Documentation: correct stale plugin paths and build commands in CLAUDE.md and AGENTS.md
+- Maintenance: remove retired-mechanism residue and stale .gitignore rules
+- Maintenance: initialize quay project files (plugin v0.7.0-dev)
+- Tests: gate malformed-session-file tolerance across every corpus tool (DIR-099)
+- Tests: share Codex rollout fixture construction; pin files backend once (DIR-084)
+- Documentation: document the projected type=errors shape and its jq recipes (DIR-097)
+- Maintenance: drop unrelated AC118 whitespace churn swept into 1704cb6
+- Tests: make the DIR-094 corpus assertions prove results, not just warnings
+- Tests: skip DIR-049 ldflags build assertion in -short mode
+
+### Fixed
+
+- point pre-release dir checks at plugin-src/
+- uphold the rollout-path contract on the app-server backend
+- resolve symlinks on query_sessions/Codex project paths
+- honor include_subagents on the exact session_id path
+- keep the ./... default when only flags are passed
+- set Session.IsSubagent and parent link for subagent transcripts
+- enumerate subagent transcripts in the session listing
+- restore gate/loop schema lost to a config-less quay-init run
+- gate every top-level page, correct CONTRIBUTING.md Go prerequisite
+- unify malformed-session-file tolerance across corpus paths (DIR-094)
+- resolve validator at its real path, fail closed, bound the run
+- stop raw bufio.Scanner from killing the server on one big frame
+
+### Improved
+
+- Performance: dedupe the internal/release double run via test-cache alignment
+
+### Other
+
+- tasks: 翻 gap-codex-appserver-sessions-missing-rollout-path done（driver 机械 fan-in）
+- Merge branch 'develop' into task/gap-codex-appserver-sessions-missing-rollout-path
+- tasks: gap-codex-appserver-sessions-missing-rollout-path task_write by cli:3154772
+- tasks: gap-codex-appserver-sessions-missing-rollout-path task_write by cli:3154772
+- tasks: gap-codex-appserver-sessions-missing-rollout-path todo→ready（promotion-driver 机械晋升）
+- tasks: gap-codex-appserver-sessions-missing-rollout-path task_write by fix-worker
+- tasks: gap-codex-appserver-sessions-missing-rollout-path task_write by cli:1597141
+- tasks: gap-codex-appserver-sessions-missing-rollout-path task_write by cli:1549907
+- tasks: 翻 gap-path-normalization-bypassed-in-query-sessions-filter done（driver 机械 fan-in）
+- Merge branch 'develop' into task/gap-path-normalization-bypassed-in-query-sessions-filter
+- tasks: gap-path-normalization-bypassed-in-query-sessions-filter task_write by cli:1920981
+- tasks: gap-path-normalization-bypassed-in-query-sessions-filter task_write by cli:1920981
+- tasks: 翻 gap-include-subagents-dropped-on-session-id-path done（driver 机械 fan-in）
+- Merge branch 'develop' into task/gap-include-subagents-dropped-on-session-id-path
+- tasks: gap-include-subagents-dropped-on-session-id-path task_write by cli:1910483
+- tasks: gap-path-normalization-bypassed-in-query-sessions-filter todo→ready（promotion-driver 机械晋升）
+- tasks: gap-path-normalization-bypassed-in-query-sessions-filter task_write by fix-worker
+- tasks: gap-include-subagents-dropped-on-session-id-path todo→ready（promotion-driver 机械晋升）
+- tasks: gap-include-subagents-dropped-on-session-id-path task_write by cli:1496346
+- tasks: gap-path-normalization-bypassed-in-query-sessions-filter task_write by cli:1304130
+- tasks: gap-include-subagents-dropped-on-session-id-path task_write by cli:1303988
+- tasks: gap-path-normalization-bypassed-in-query-sessions-filter task_write by cli:1282281
+- tasks: gap-include-subagents-dropped-on-session-id-path task_write by cli:1278034
+- tasks: 翻 gap-quay-test-output-undeclared-counts-absent done（driver 机械 fan-in）
+- tasks: reset gap-quay-test-output-undeclared-counts-absent done→ready（fan-in 收敛「done 未落地」中间态）
+- tasks: 翻 gap-quay-test-output-undeclared-counts-absent done（driver 机械 fan-in）
+- Merge branch 'develop' into task/gap-quay-test-output-undeclared-counts-absent
+- tasks: gap-quay-test-output-undeclared-counts-absent task_write by cli:919385
+- tasks: gap-quay-test-output-undeclared-counts-absent task_write by cli:919385
+- tasks: gap-quay-test-output-undeclared-counts-absent todo→ready（promotion-driver 机械晋升）
+- tasks: gap-quay-test-output-undeclared-counts-absent task_write by cli:917043
+- tasks: 翻 gap-claude-session-is-subagent-unset done（driver 机械 fan-in）
+- tasks: reset gap-claude-session-is-subagent-unset done→ready（fan-in 收敛「done 未落地」中间态）
+- tasks: 翻 gap-claude-session-is-subagent-unset done（driver 机械 fan-in）
+- Merge branch 'develop' into task/gap-claude-session-is-subagent-unset
+- tasks: gap-claude-session-is-subagent-unset task_write by cli:457891
+- tasks: gap-claude-session-is-subagent-unset task_write by cli:457891
+- Merge branch 'develop' into task/gap-claude-session-is-subagent-unset
+- tasks: gap-claude-session-is-subagent-unset task_write by cli:430263
+- tasks: gap-claude-session-is-subagent-unset task_write by cli:430263
+- tasks: 翻 gap-claude-listsessions-misses-subagents done（driver 机械 fan-in）
+- tasks: reset gap-claude-listsessions-misses-subagents done→ready（fan-in 收敛「done 未落地」中间态）
+- Merge branch 'develop' into task/gap-claude-listsessions-misses-subagents
+- Merge branch 'develop' into task/gap-claude-session-is-subagent-unset
+- tasks: gap-claude-session-is-subagent-unset task_write by cli:3813433
+- tasks: gap-claude-session-is-subagent-unset task_write by cli:3813433
+- tasks: 翻 gap-claude-listsessions-misses-subagents done（driver 机械 fan-in）
+- Merge branch 'develop' into task/gap-claude-listsessions-misses-subagents
+- tasks: gap-claude-listsessions-misses-subagents task_write by cli:3384117
+- tasks: 翻 DIR-083 done（driver 机械 fan-in）
+- tasks: reset DIR-083 done→ready（fan-in 收敛「done 未落地」中间态）
+- tasks: 翻 DIR-083 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-083
+- tasks: DIR-083 task_write by cli:3363260
+- tasks: DIR-083 task_write by cli:3363260
+- tasks: gap-claude-session-is-subagent-unset todo→ready（promotion-driver 机械晋升）
+- tasks: gap-claude-listsessions-misses-subagents todo→ready（promotion-driver 机械晋升）
+- Merge branch 'develop' into task/DIR-083
+- tasks: gap-claude-session-is-subagent-unset task_write by cli:3324873
+- tasks: gap-claude-listsessions-misses-subagents task_write by cli:3324176
+- tasks: 翻 DIR-082 done（driver 机械 fan-in）
+- tasks: reset DIR-082 done→ready（fan-in 收敛「done 未落地」中间态）
+- Merge branch 'develop' into task/DIR-082
+- Merge branch 'develop' into task/DIR-083
+- tasks: DIR-083 task_write by cli:2979458
+- tasks: DIR-083 task_write by cli:2979458
+- tasks: 翻 DIR-082 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-082
+- tasks: DIR-082 bring provider task state (DoD annotation + evidence) onto task branch
+- tasks: DIR-082 task_write by cli:2935593
+- tasks: DIR-093 task_write by cli:2933600
+- tasks: DIR-093 task_write by cli:2933549
+- tasks: DIR-082 task_write by cli:2885626
+- Merge branch 'develop' into task/DIR-082
+- tasks: DIR-082 task_write by cli:2638391
+- tasks: DIR-082 task_write by cli:2638391
+- tasks: DIR-082 task_write by cli:2638391
+- tasks: DIR-082 task_write by cli:2638391
+- tasks: DIR-093 task_write by cli:2695811
+- tasks: DIR-093 task_write by cli:2672572
+- tasks: DIR-093 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-083 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-082 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-093 task_write by cli:2630283
+- tasks: DIR-083 task_write by cli:2630233
+- tasks: DIR-082 task_write by cli:2630181
+- tasks: DIR-093 task_write by cli:2628837
+- tasks: DIR-083 task_write by cli:2628794
+- tasks: DIR-082 task_write by cli:2628749
+- tasks: 翻 FIX-AC259-SMALLDEFECT done（driver 机械 fan-in）
+- Merge branch 'develop' into task/FIX-AC259-SMALLDEFECT
+- tasks: FIX-AC259-SMALLDEFECT task_write by cli:3444792
+- tasks: FIX-AC259-SMALLDEFECT todo→ready（promotion-driver 机械晋升）
+- Merge branch 'develop'
+- tasks: FIX-AC259-SMALLDEFECT task_write by cli:3433467
+- tasks: 翻 DIR-096 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-096
+- tasks: 翻 DIR-098 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-098
+- tasks: 翻 DIR-097 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-097
+- tasks: 翻 DIR-099 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-099
+- Merge branch 'main' into develop
+- tasks: DIR-097 task_write by cli:823227
+- tasks: DIR-097 task_write by cli:823227
+- Merge branch 'develop' into task/DIR-097
+- tasks: 翻 DIR-095 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-095
+- Merge branch 'main' into develop
+- Merge branch 'develop' into task/DIR-098
+- tasks: DIR-099 task_write by cli:803941
+- tasks: DIR-099 task_write by cli:803941
+- tasks: DIR-099 task_write by cli:803941
+- tasks: DIR-099 task_write by cli:803941
+- tasks: DIR-099 task_write by cli:803941
+- tasks: DIR-095 record AC ticks and Evidence on the task branch
+- tasks: DIR-095 task_write by cli:794521
+- tasks: DIR-096 AC/DoD tick from task_write (cli:784691)
+- tasks: DIR-096 task_write by cli:784691
+- tasks: 翻 DIR-084 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-084
+- Merge branch 'develop'
+- Merge branch 'develop' into task/DIR-084
+- tasks: DIR-083 ready→needs-human（重试上限机械翻转）
+- tasks: DIR-084 task_write by cli:744603
+- tasks: DIR-084 task_write by cli:744603
+- tasks: DIR-084 task_write by cli:744603
+- tasks: DIR-083 task_write by cli:772546
+- tasks: DIR-084 task_write by cli:744603
+- tasks: DIR-083 task_write by cli:753920
+- tasks: 翻 DIR-090 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-090
+- tasks: DIR-090 task_write by cli:748321
+- Merge branch 'develop' into task/DIR-090
+- tasks: DIR-090 task_write by cli:739064
+- Merge branch 'develop'
+- tasks: DIR-082 ready→needs-human（重试上限机械翻转）
+- tasks: DIR-082 task_write by cli:730802
+- Merge commit '6299c084be7c537a8877b55fa9ce3cc32be63e08' into task/DIR-098
+- tasks: 翻 DIR-089 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-098
+- Merge branch 'develop' into task/DIR-089
+- Merge branch 'develop'
+- tasks: DIR-093 ready→needs-human（重试上限机械翻转）
+- tasks: DIR-098 carry the ABI-recorded AC/DoD state onto the task branch
+- tasks: DIR-098 task_write by cli:646176
+- tasks: DIR-082 task_write by cli:681584
+- tasks: DIR-083 task_write by cli:536734
+- tasks: DIR-089 carry the task_write-authored AC ticks onto the task branch
+- tasks: DIR-089 task_write by cli:531147
+- tasks: DIR-093 task_write by cli:548073
+- Merge branch 'develop' into task/DIR-089
+- tasks: 翻 DIR-094 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-094
+- Merge commit '74b9f786a1d02ea21be52ecce861253f9bf7cc4d' into task/DIR-097
+- tasks: DIR-094 task_write by cli:380302
+- Merge branch 'develop'
+- Merge branch 'develop' into task/DIR-097
+- Merge branch 'develop' into task/DIR-094
+- tasks: DIR-082 task_write by cli:382926
+- Merge branch 'develop' into task/DIR-085
+- tasks: 翻 DIR-085 done（driver 机械 fan-in）
+- tasks: DIR-097 task_write by cli:388950
+- Merge branch 'develop' into task/DIR-090
+- Merge branch 'develop' into task/DIR-097
+- Merge branch 'develop' into task/DIR-085
+- Merge branch 'develop' into task/DIR-090
+- tasks: DIR-090 task_write by cli:451806
+- tasks: DIR-085 task_write by cli:461285
+- Merge branch 'develop' into task/DIR-085
+- tasks: DIR-085 task_write by cli:390417
+- Merge branch 'develop'
+- tasks: DIR-085 task_write by cli:390417
+- tasks: 翻 DIR-100 done（driver 机械 fan-in）
+- Merge branch 'develop' into task/DIR-100
+- Merge branch 'develop' into task/DIR-085
+- tasks: DIR-100 task_write by cli:381618
+- tasks: DIR-100 task_write by cli:381618
+- Merge branch 'develop' into task/DIR-100
+- tasks: DIR-090 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-090 task_write by cli:382215
+- tasks: DIR-089 todo→ready（promotion-driver 机械晋升）
+- Merge branch 'develop'
+- tasks: DIR-100 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-099 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-098 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-097 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-096 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-095 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-094 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-093 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-085 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-084 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-083 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-082 todo→ready（promotion-driver 机械晋升）
+- tasks: DIR-100 fix ## Touches to narrow paths + self-touch entry (promotion gate)
+- tasks: DIR-099 fix ## Touches to narrow paths + self-touch entry (promotion gate)
+- tasks: DIR-098 fix ## Touches to narrow paths + self-touch entry (promotion gate)
+- tasks: DIR-097 fix ## Touches to narrow paths + self-touch entry (promotion gate)
+- tasks: DIR-096 fix ## Touches to narrow paths + self-touch entry (promotion gate)
+- tasks: DIR-095 fix ## Touches to narrow paths + self-touch entry (promotion gate)
+- tasks: DIR-094 fix ## Touches to narrow paths + self-touch entry (promotion gate)
+- tasks: DIR-093 fix DoD artifact length + self-touch entry (promotion gate)
+- tasks: DIR-089 task_write by cli:305053
+- tasks: 翻 FIX-MCP-SCANNER done（driver 机械 fan-in）
+- Merge branch 'develop' into task/FIX-MCP-SCANNER
+- tasks: FIX-MCP-SCANNER task_write by cli:276771
+- tasks: DIR-085 task_write by cli:299743
+- Merge branch 'develop' into task/FIX-MCP-SCANNER
+- tasks: DIR-084 task_write by cli:292488
+- tasks: FIX-MCP-SCANNER task_write by cli:276771
+- tasks: DIR-084 task_write by cli:292488
+- Merge branch 'develop' into task/FIX-MCP-SCANNER
+- tasks: DIR-083 task_write by cli:287438
+- tasks: DIR-082 task_write by cli:275675
+- tasks: FIX-MCP-SCANNER todo→ready（promotion-driver 机械晋升）
+- tasks: FIX-MCP-SCANNER task_write by cli:204779
+- tasks: DIR-100 task_write by cli:204712
+- tasks: DIR-099 task_write by cli:204664
+- tasks: DIR-098 task_write by cli:204607
+- tasks: DIR-097 task_write by cli:204544
+- tasks: DIR-096 task_write by cli:204496
+- tasks: DIR-095 task_write by cli:204439
+- tasks: DIR-094 task_write by cli:204376
+- tasks: DIR-093 task_write by cli:204328
+- tasks: DIR-090 task_write by cli:204198
+- tasks: DIR-089 task_write by cli:204132
+- tasks: DIR-085 task_write by cli:204072
+- tasks: DIR-084 task_write by cli:204016
+- tasks: DIR-083 task_write by cli:203952
+- tasks: DIR-082 task_write by cli:203904
+- tasks: DIR-100 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-099 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-098 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-097 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-096 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-095 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-094 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-093 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-090 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-089 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-085 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-084 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-083 todo→needs-human（重试上限机械翻转）
+- tasks: DIR-082 todo→needs-human（重试上限机械翻转）
+- tasks: FIX-MCP-SCANNER ready→needs-human（重试上限机械翻转）
+- tasks: FIX-MCP-SCANNER todo→ready（promotion-driver 机械晋升）
+- tasks: FIX-MCP-SCANNER task_write by cli:182418
+
 ## [3.8.4] - 2026-08-21
 
 
