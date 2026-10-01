@@ -2,7 +2,7 @@
 id: gap-path-normalization-bypassed-in-query-sessions-filter
 title: "query_sessions returns silently empty for a symlinked alias path:
   filter.CWD bypasses PathToHash"
-status: ready
+status: done
 labels:
   - gap
   - defect
