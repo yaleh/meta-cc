@@ -250,7 +250,7 @@ echo "Check 6: Plugin Structure"
 echo "-------------------------"
 
 # Check 6.1: Required directories exist
-REQUIRED_DIRS=(".claude" ".claude/commands" ".claude/agents" ".claude/skills" "lib")
+REQUIRED_DIRS=("plugin-src" "plugin-src/commands" "plugin-src/skills" "lib")
 for dir in "${REQUIRED_DIRS[@]}"; do
     if [ -d "$dir" ]; then
         check_result "Directory exists: $dir" "pass"
@@ -260,7 +260,7 @@ for dir in "${REQUIRED_DIRS[@]}"; do
 done
 
 # Check 6.2: Skills structure
-SKILL_COUNT=$(find .claude/skills -name "SKILL.md" 2>/dev/null | wc -l)
+SKILL_COUNT=$(find plugin-src/skills -name "SKILL.md" 2>/dev/null | wc -l)
 EXPECTED_SKILLS=$(jq -r '.plugins[0].skills | length' .claude-plugin/marketplace.json 2>/dev/null || echo 0)
 if [ "$SKILL_COUNT" -eq "$EXPECTED_SKILLS" ]; then
     check_result "Skills count matches marketplace.json ($EXPECTED_SKILLS)" "pass"
@@ -269,7 +269,7 @@ else
 fi
 
 # Check 6.3: Agents structure
-AGENT_COUNT=$(find .claude/agents -name "*.md" 2>/dev/null | wc -l)
+AGENT_COUNT=$(find plugin-src/agents -name "*.md" 2>/dev/null | wc -l)
 EXPECTED_AGENTS=$(jq -r '.plugins[0].agents | length' .claude-plugin/marketplace.json 2>/dev/null || echo 0)
 if [ "$AGENT_COUNT" -eq "$EXPECTED_AGENTS" ]; then
     check_result "Agents count matches marketplace.json ($EXPECTED_AGENTS)" "pass"
@@ -297,9 +297,9 @@ if [ -f "scripts/smoke-tests.sh" ]; then
         cp build/meta-cc-mcp-linux-amd64 build/test-package/meta-cc-plugin-linux-amd64/bin/meta-cc-mcp
         chmod +x build/test-package/meta-cc-plugin-linux-amd64/bin/meta-cc-mcp
         cp -r .claude-plugin/* build/test-package/meta-cc-plugin-linux-amd64/.claude-plugin/
-        cp -r .claude/commands/*.md build/test-package/meta-cc-plugin-linux-amd64/commands/ 2>/dev/null || true
-        cp -r .claude/agents/*.md build/test-package/meta-cc-plugin-linux-amd64/agents/ 2>/dev/null || true
-        cp -r .claude/skills/* build/test-package/meta-cc-plugin-linux-amd64/skills/ 2>/dev/null || true
+        cp -r plugin-src/commands/*.md build/test-package/meta-cc-plugin-linux-amd64/commands/ 2>/dev/null || true
+        cp -r plugin-src/agents/*.md build/test-package/meta-cc-plugin-linux-amd64/agents/ 2>/dev/null || true
+        cp -r plugin-src/skills/* build/test-package/meta-cc-plugin-linux-amd64/skills/ 2>/dev/null || true
         cp -r lib/* build/test-package/meta-cc-plugin-linux-amd64/lib/ 2>/dev/null || true
         cp scripts/install.sh build/test-package/meta-cc-plugin-linux-amd64/
         cp scripts/uninstall.sh build/test-package/meta-cc-plugin-linux-amd64/ 2>/dev/null || true
