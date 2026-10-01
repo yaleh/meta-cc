@@ -14,6 +14,7 @@ extra:
   schema: execution
   scope:
     owner_repo: meta-cc
+  acceptance: make commit
 ---
 ## Proposal
 
