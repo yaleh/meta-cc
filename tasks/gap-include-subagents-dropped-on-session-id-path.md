@@ -94,6 +94,7 @@ identical-zero result.
 
 ## Touches
 
+- tasks/gap-include-subagents-dropped-on-session-id-path.md
 - internal/mcp/executor/provider_query.go
 - internal/mcp/query/query.go (only if the subagent derivation is shared)
-- internal/mcp/executor/ (new fixture-based regression test)
+- internal/mcp/executor/*_test.go (new fixture-based regression test)
