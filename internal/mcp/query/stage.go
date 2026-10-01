@@ -205,6 +205,15 @@ func buildAllDirectoryResult(ctx context.Context, scope, workingDir string) (map
 // resolveProjectPath resolves the effective project path for provider-aware
 // discovery: an explicit working_dir argument, absolutized, or the server's
 // current working directory when none was supplied.
+//
+// It also resolves symlinks, because the Codex discovery path does NOT funnel
+// this value through locator.PathToHash: rawfiles.SelectCodexFiles matches
+// sessions with a RAW cwd comparison (providerrecords.FilterSessionsForScope).
+// A symlinked alias working_dir would therefore filter every Codex session out
+// and surface "no codex sessions found for project <alias>" while the physical
+// path returns the corpus. Resolving to the physical form makes the two forms
+// equivalent; on resolution failure the Abs'd path is kept, so a genuinely
+// nonexistent path stays the existing loud, named miss.
 func resolveProjectPath(workingDir string) (string, error) {
 	projectPath := workingDir
 	if projectPath == "" {
@@ -215,7 +224,10 @@ func resolveProjectPath(workingDir string) (string, error) {
 		projectPath = cwd
 	}
 	if abs, err := filepath.Abs(projectPath); err == nil {
-		return abs, nil
+		projectPath = abs
+	}
+	if resolved, err := filepath.EvalSymlinks(projectPath); err == nil {
+		return resolved, nil
 	}
 	return projectPath, nil
 }

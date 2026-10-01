@@ -87,15 +87,18 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 		}
 		projectPath = cwd
 	}
-	if abs, err := filepath.Abs(projectPath); err == nil {
-		projectPath = abs
-	}
+	projectPath = physicalProjectPath(projectPath)
 	// The project/cwd boundary: an explicit "cwd" filter narrows further,
 	// but scope always stays bounded to projectPath — query_sessions never
 	// lists sessions across every project on disk (matching every other
 	// query/analysis tool's default project scope).
 	boundaryCWD := projectPath
 	if filter.CWD != "" {
+		// An explicit cwd is a comparison input too, so it gets the SAME
+		// physical-path normalization as projectPath: without it, a symlinked
+		// alias cwd (the explicit-parameter arm of this defect) would match no
+		// session's physical CWD and return a silently empty listing.
+		filter.CWD = physicalProjectPath(filter.CWD)
 		boundaryCWD = filter.CWD
 	} else {
 		filter.CWD = projectPath
@@ -198,6 +201,29 @@ func handleQuerySessions(_ *ToolExecutor, scope string, args map[string]interfac
 	}
 
 	return mcquery.QueryResult{Entries: entries, Warnings: warnings}, nil
+}
+
+// physicalProjectPath normalizes a user-supplied project path into the
+// physical form the session corpus is keyed by: filepath.Abs (Clean) followed
+// by filepath.EvalSymlinks. locator.PathToHash — which every
+// corpus-enumerating lookup funnels through — resolves symlinks, so a symlinked
+// alias of a project directory (e.g. /home/yale -> /data/home/yale, this host's
+// own case) enumerates the SAME sessions as the physical path. A comparison
+// input that only Abs'd (Clean, no symlink resolution) therefore matches none
+// of those sessions and returns a silently empty listing — the defect this
+// helper closes.
+//
+// Falls back to the Abs'd (or original) path when resolution fails, matching
+// locator.PathToHash's own fallback: a genuinely nonexistent path must remain
+// the existing loud, named miss, never be masked into a silent empty result.
+func physicalProjectPath(path string) string {
+	if abs, err := filepath.Abs(path); err == nil {
+		path = abs
+	}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved
+	}
+	return path
 }
 
 // reduceForScope applies scope=="session" (most recent) via the same
