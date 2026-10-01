@@ -87,6 +87,18 @@ them. `~/.codex/session_index.jsonl` (17 entries, fields
 `{id, thread_name, updated_at}`) is a **different, unrelated artifact** and is
 not the sqlite source — do not use it as evidence either way.
 
+Re-run with python3's stdlib `sqlite3` module. This host has **no `sqlite3`
+CLI**, so a `sqlite3 ...` shell command will not run here:
+
+```python
+import sqlite3
+con = sqlite3.connect("file:" + __import__("os").path.expanduser("~/.codex/state_5.sqlite") + "?mode=ro", uri=True)
+cols = [r[1] for r in con.execute("PRAGMA table_info(threads)")]
+rows = con.execute("SELECT id, rollout_path FROM threads").fetchall()
+print("rollout_path is column #%d" % (cols.index("rollout_path") + 1))
+print("rows=%d empty=%d" % (len(rows), sum(1 for r in rows if not r[1])))
+```
+
 Behavioural reproduction, physical paths:
 
 ```
