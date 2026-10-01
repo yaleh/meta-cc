@@ -2,15 +2,19 @@ package codex
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/yaleh/meta-cc/internal/conversation"
+	"github.com/yaleh/meta-cc/internal/locator"
 	"github.com/yaleh/meta-cc/internal/parser"
 )
 
@@ -29,21 +33,173 @@ func loadTurnsFromSession(session conversation.Session, maxLines int) ([]convers
 	return loadTurnsFromRollout(path, maxLines)
 }
 
+// ErrRolloutPathUnavailable reports that a session carries no on-disk
+// rollout path, so the raw rollout file backing it cannot be named. It is
+// the *defined degradation* of the rollout-path contract (see
+// attachRolloutPaths): a single session whose file genuinely cannot be
+// located is reported as unavailable to the caller that asked for that one
+// session, rather than as an untyped error indistinguishable from a real
+// failure. Callers that enumerate many sessions should treat it per
+// session (skip/report) instead of aborting the whole listing.
+var ErrRolloutPathUnavailable = errors.New("rollout path unavailable")
+
 // RolloutPath extracts the on-disk rollout file path recorded for a Codex
-// session (stored in session.Extensions by the SQLite scan). Callers that
-// need the raw file backing a Codex session — e.g. Stage 1 discovery tools —
-// should use this instead of re-deriving the path themselves.
+// session (stored in session.Extensions by whichever backend produced the
+// session). Callers that need the raw file backing a Codex session — e.g.
+// Stage 1 discovery tools — should use this instead of re-deriving the path
+// themselves.
+//
+// The rollout-path contract is: every session the Codex provider lists
+// carries this field, whichever backend answered (see attachRolloutPaths for
+// the backend that cannot supply it natively). This accessor therefore
+// reports a missing value as ErrRolloutPathUnavailable rather than assuming
+// it and failing the caller.
 func RolloutPath(session conversation.Session) (string, error) {
+	path := rolloutPathOf(session)
+	if path == "" {
+		return "", fmt.Errorf("%w: missing rollout_path for session %s", ErrRolloutPathUnavailable, session.ID)
+	}
+	return path, nil
+}
+
+// rolloutPathOf reads the rollout_path extension field, returning "" when it
+// is absent, empty, or the extension blob is unparseable — the same
+// "unknown metadata" convention the SQLite scanner uses.
+func rolloutPathOf(session conversation.Session) string {
+	if len(session.Extensions) == 0 {
+		return ""
+	}
 	var ext struct {
 		RolloutPath string `json:"rollout_path"`
 	}
 	if err := json.Unmarshal(session.Extensions, &ext); err != nil {
-		return "", err
+		return ""
 	}
-	if ext.RolloutPath == "" {
-		return "", fmt.Errorf("missing rollout_path for session %s", session.ID)
+	return ext.RolloutPath
+}
+
+// setRolloutPath records path as the session's rollout_path extension,
+// merging it into whatever extension fields the producing backend already
+// set (the app-server backend's backend/session_id/source record) so nothing
+// a backend reported is lost. Values are carried through as raw JSON, so an
+// existing nested/null field survives the round-trip unchanged.
+func setRolloutPath(session *conversation.Session, path string) error {
+	ext := map[string]json.RawMessage{}
+	if len(session.Extensions) > 0 {
+		if err := json.Unmarshal(session.Extensions, &ext); err != nil {
+			ext = map[string]json.RawMessage{}
+		}
 	}
-	return ext.RolloutPath, nil
+	encoded, err := json.Marshal(path)
+	if err != nil {
+		return err
+	}
+	ext["rollout_path"] = encoded
+	merged, err := json.Marshal(ext)
+	if err != nil {
+		return err
+	}
+	session.Extensions = merged
+	return nil
+}
+
+// indexRolloutPaths maps every Codex session ID known to the local Codex
+// state to the rollout file that backs it. It reads the two sources the
+// files backends already use, in the order they are authoritative:
+//
+//  1. the highest-compatible state_N.sqlite threads table, whose
+//     rollout_path column records the file for every indexed thread;
+//  2. the rollout trees themselves, as a fallback for installs with no
+//     usable database (the same cwd-enforced enumeration
+//     discoverRolloutSessions performs).
+//
+// It exists so a backend that cannot name files natively (app-server) can
+// still honour the rollout-path contract without re-deriving anything the
+// local state already records. A nil locator, or one pointing at no Codex
+// state, yields an empty index rather than an error: resolution is
+// best-effort and its absence is reported per session by RolloutPath.
+func indexRolloutPaths(ctx context.Context, loc *locator.CodexLocator) map[string]string {
+	byID := make(map[string]string)
+	if loc == nil {
+		return byID
+	}
+	for _, dbPath := range loc.SQLiteDBCandidates() {
+		sessions, _, err := listSessionsFromDBFiltered(ctx, dbPath, conversation.SessionFilter{})
+		if err != nil {
+			continue
+		}
+		recordRolloutPaths(byID, sessions)
+		break
+	}
+	sessions, _, _ := discoverRolloutSessions([]rolloutRoot{
+		{path: loc.SessionsRoot()},
+		{path: loc.ArchivedSessionsRoot(), archived: true},
+	}, conversation.SessionFilter{})
+	recordRolloutPaths(byID, sessions)
+	return byID
+}
+
+// resolveRolloutPath looks up ONE session's rollout file in the local Codex
+// state: the single-session counterpart of indexRolloutPaths, for callers
+// (GetSession, and therefore LoadTurns) that would otherwise pay a
+// whole-corpus scan per call for a single lookup.
+//
+// It consults the same two sources, in the same order, but touches only what
+// the one lookup needs: an indexed threads-table row, then a filename match
+// against the rollout trees (a rollout file is named
+// rollout-<timestamp>-<session-id>.jsonl, so the ID identifies it without
+// opening anything). Returns "" when the session cannot be located; the
+// caller keeps the session and lets RolloutPath report it as unavailable.
+func resolveRolloutPath(ctx context.Context, loc *locator.CodexLocator, sessionID string) string {
+	if loc == nil || sessionID == "" {
+		return ""
+	}
+	for _, dbPath := range loc.SQLiteDBCandidates() {
+		session, err := getSessionFromDB(ctx, dbPath, sessionID)
+		if err != nil {
+			continue
+		}
+		if path := rolloutPathOf(session); path != "" {
+			return path
+		}
+		break
+	}
+	for _, root := range []string{loc.SessionsRoot(), loc.ArchivedSessionsRoot()} {
+		if path := findRolloutFile(root, sessionID); path != "" {
+			return path
+		}
+	}
+	return ""
+}
+
+// findRolloutFile returns the rollout file under root whose name embeds
+// sessionID, or "" if there is none. Only the entry name is inspected — the
+// file is never opened — and the walk stops at the first match.
+func findRolloutFile(root, sessionID string) string {
+	suffix := "-" + sessionID + ".jsonl"
+	found := ""
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || !strings.HasSuffix(entry.Name(), suffix) {
+			return nil
+		}
+		found = path
+		return filepath.SkipAll
+	})
+	return found
+}
+
+// recordRolloutPaths adds each session's rollout path to dst, never
+// overwriting an entry already present: the SQLite lookup runs first, so its
+// recorded path wins over the rollout-tree fallback for the same session.
+func recordRolloutPaths(dst map[string]string, sessions []conversation.Session) {
+	for _, session := range sessions {
+		if session.ID == "" || dst[session.ID] != "" {
+			continue
+		}
+		if path := rolloutPathOf(session); path != "" {
+			dst[session.ID] = path
+		}
+	}
 }
 
 func loadTurnsFromRollout(path string, maxLines int) ([]conversation.Turn, conversation.TokenUsage, error) {

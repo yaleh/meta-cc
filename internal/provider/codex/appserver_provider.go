@@ -145,12 +145,72 @@ var KnownSourceKinds = []string{
 type appServerBackend struct {
 	connect connectFunc
 
+	// locator points at the same Codex state the files backend reads. It is
+	// used only to honour the rollout-path contract (see
+	// attachRolloutPaths) — the app-server protocol itself has no notion of
+	// an on-disk rollout file. A nil locator degrades to "no path
+	// resolution", which keeps the backend's protocol behavior testable
+	// without any Codex state on disk.
+	locator *locator.CodexLocator
+
 	mu       sync.Mutex
 	warnings []string
 }
 
 func newAppServerBackend(loc *locator.CodexLocator) *appServerBackend {
-	return &appServerBackend{connect: connectProcess(loc)}
+	return &appServerBackend{connect: connectProcess(loc), locator: loc}
+}
+
+// attachRolloutPaths upholds the rollout-path contract for app-server-sourced
+// sessions: every Codex session the provider lists must carry the on-disk
+// rollout file that backs it, because Stage 1 discovery
+// (rawfiles.SelectCodexFiles) and FTS indexing consume that field directly
+// and have no way to obtain it themselves.
+//
+// thread/list and thread/read cannot supply it — the app-server protocol has
+// no rollout-path field at all (see docs/reference/codex-app-server.md) — so
+// for the sessions that arrive without one the path is resolved from the
+// same local Codex state the files backends read (indexRolloutPaths), rather
+// than re-derived from scratch. Sessions already carrying a path are left
+// untouched, and the index is only built when at least one session actually
+// lacks one, so the files-backed paths pay nothing.
+//
+// A session whose file genuinely cannot be located keeps an empty
+// rollout_path: RolloutPath then reports that one session as
+// ErrRolloutPathUnavailable, instead of the discovery call hard-failing for
+// the whole corpus.
+func (b *appServerBackend) attachRolloutPaths(ctx context.Context, sessions []conversation.Session) {
+	if b.locator == nil {
+		return
+	}
+	missing := false
+	for _, session := range sessions {
+		if rolloutPathOf(session) == "" {
+			missing = true
+			break
+		}
+	}
+	if !missing {
+		return
+	}
+	if len(sessions) == 1 {
+		// One lookup cannot amortize the corpus scan indexRolloutPaths
+		// performs (and this is the LoadTurns/GetSession hot path), so a
+		// single session is resolved directly.
+		if path := resolveRolloutPath(ctx, b.locator, sessions[0].ID); path != "" {
+			_ = setRolloutPath(&sessions[0], path)
+		}
+		return
+	}
+	byID := indexRolloutPaths(ctx, b.locator)
+	for i := range sessions {
+		if rolloutPathOf(sessions[i]) != "" {
+			continue
+		}
+		if path := byID[sessions[i].ID]; path != "" {
+			_ = setRolloutPath(&sessions[i], path)
+		}
+	}
 }
 
 // recordWarning appends a bounded diagnostic (e.g. a per-page thread/list
@@ -202,7 +262,11 @@ func (b *appServerBackend) listSessionsFiltered(ctx context.Context, filter conv
 	}
 	defer closer.Close()
 
-	ctx, cancel := context.WithTimeout(ctx, callTimeout)
+	// callCtx bounds the thread/list exchanges; ctx (unbounded by
+	// callTimeout) is what attachRolloutPaths resolves paths under, since
+	// reading the local Codex state is a separate, locally-bounded
+	// operation that must not be charged against the server's call budget.
+	callCtx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 
 	base := buildThreadListParams(filter)
@@ -224,7 +288,7 @@ func (b *appServerBackend) listSessionsFiltered(ctx context.Context, filter conv
 		// warning (drained by the caller via drainWarnings) instead of
 		// discarding them, so a genuine mid-pagination blip degrades
 		// gracefully rather than causing whole-corpus loss.
-		threads, err := b.listAll(ctx, src, base, archived)
+		threads, err := b.listAll(callCtx, src, base, archived)
 		if err != nil {
 			return nil, err
 		}
@@ -239,6 +303,7 @@ func (b *appServerBackend) listSessionsFiltered(ctx context.Context, filter conv
 			sessions = append(sessions, session)
 		}
 	}
+	b.attachRolloutPaths(ctx, sessions)
 	return sessions, nil
 }
 
@@ -315,7 +380,7 @@ func (b *appServerBackend) listSessionsPage(ctx context.Context, filter conversa
 	}
 	defer closer.Close()
 
-	ctx, cancel := context.WithTimeout(ctx, callTimeout)
+	callCtx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 
 	archived := false
@@ -327,7 +392,7 @@ func (b *appServerBackend) listSessionsPage(ctx context.Context, filter conversa
 	params.Cursor = cursor
 	params.Archived = &archived
 
-	result, err := src.ThreadList(ctx, params)
+	result, err := src.ThreadList(callCtx, params)
 	if err != nil {
 		return nil, "", fmt.Errorf("thread/list: %w", err)
 	}
@@ -341,6 +406,7 @@ func (b *appServerBackend) listSessionsPage(ctx context.Context, filter conversa
 		}
 		sessions = append(sessions, session)
 	}
+	b.attachRolloutPaths(ctx, sessions)
 	if result.NextCursor != nil {
 		nextCursor = *result.NextCursor
 	}
@@ -354,14 +420,18 @@ func (b *appServerBackend) getSession(ctx context.Context, sessionID string) (co
 	}
 	defer closer.Close()
 
-	ctx, cancel := context.WithTimeout(ctx, callTimeout)
+	callCtx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 
-	result, err := src.ThreadRead(ctx, appserver.ThreadReadParams{ThreadID: sessionID, IncludeTurns: true})
+	result, err := src.ThreadRead(callCtx, appserver.ThreadReadParams{ThreadID: sessionID, IncludeTurns: true})
 	if err != nil {
 		return conversation.Session{}, fmt.Errorf("thread/read: %w", err)
 	}
-	return appserver.MapThread(result.Thread), nil
+	// attachRolloutPaths rewrites slice ELEMENTS, so the result is read back
+	// out of the slice rather than off the pre-flight local.
+	sessions := []conversation.Session{appserver.MapThread(result.Thread)}
+	b.attachRolloutPaths(ctx, sessions)
+	return sessions[0], nil
 }
 
 func (b *appServerBackend) loadTurns(ctx context.Context, sessionID string) ([]conversation.Turn, error) {
