@@ -448,16 +448,7 @@ func GetQueryFiles(scope, workingDir string, includeSubagents bool) ([]string, e
 		if err != nil {
 			return nil, fmt.Errorf("failed to locate current session: %w", err)
 		}
-		files := []string{sessionFile}
-		if includeSubagents {
-			// Derive the subagents directory: <projectDir>/<uuid>/subagents/
-			// sessionFile is <projectDir>/<uuid>.jsonl
-			sessionDir := filepath.Dir(sessionFile)
-			uuid := strings.TrimSuffix(filepath.Base(sessionFile), ".jsonl")
-			subagentDir := filepath.Join(sessionDir, uuid, locator.SubagentDirName)
-			files = append(files, locator.SubagentTranscripts(subagentDir)...)
-		}
-		return files, nil
+		return SessionQueryFiles(sessionFile, includeSubagents), nil
 	}
 
 	// project scope
@@ -479,6 +470,32 @@ func GetQueryFiles(scope, workingDir string, includeSubagents bool) ([]string, e
 	copy(all, topLevel)
 
 	return append(all, locator.SubagentTranscriptsUnder(baseDir)...), nil
+}
+
+// SessionQueryFiles returns the .jsonl files making up ONE session's query
+// corpus, given the already-resolved path to its parent transcript
+// (<projectDir>/<uuid>.jsonl, as returned by the locator):
+//
+//   - includeSubagents=false → [<projectDir>/<uuid>.jsonl]
+//   - includeSubagents=true  → that file + <projectDir>/<uuid>/subagents/*.jsonl
+//
+// It is the single derivation of "a session's subagent transcripts" for
+// callers that address a session by an already-resolved parent file rather
+// than by scope. GetQueryFiles' scope="session" branch and the DIR-030
+// exact-session_id fast path (executor.ExecuteQueryForSession) both call it, so
+// the corpus those two paths search cannot drift apart
+// (gap-include-subagents-dropped-on-session-id-path).
+func SessionQueryFiles(sessionFile string, includeSubagents bool) []string {
+	files := []string{sessionFile}
+	if !includeSubagents {
+		return files
+	}
+	// Derive the subagents directory: <projectDir>/<uuid>/subagents/ from
+	// sessionFile <projectDir>/<uuid>.jsonl.
+	sessionDir := filepath.Dir(sessionFile)
+	uuid := strings.TrimSuffix(filepath.Base(sessionFile), ".jsonl")
+	subagentDir := filepath.Join(sessionDir, uuid, locator.SubagentDirName)
+	return append(files, locator.SubagentTranscripts(subagentDir)...)
 }
 
 // GetQueryBaseDir returns the base directory for the given scope.

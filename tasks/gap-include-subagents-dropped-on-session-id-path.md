@@ -2,7 +2,7 @@
 id: gap-include-subagents-dropped-on-session-id-path
 title: "include_subagents is unreachable when session_id is given: subagent
   transcripts are never searched"
-status: ready
+status: done
 labels:
   - gap
   - defect
@@ -73,17 +73,17 @@ identical-zero result.
 
 ## Acceptance Criteria
 
-- [ ] A **generated fixture** (never a real session needle) proves the flag can
+- [x] A **generated fixture** (never a real session needle) proves the flag can
       take false: create `<tmp-project-hash>/<sid>.jsonl` containing an assistant
       text `FIXTURE-MAIN-<nonce>` and `<sid>/subagents/agent-fix.jsonl` containing
       `FIXTURE-SUB-<nonce>` (with `sessionId=<sid>`, `isSidechain:true`), then
       assert `query_session_content{role:"all", contains:"FIXTURE-SUB-<nonce>",
       session_id:"<sid>", include_subagents:true}` returns `total_records >= 1`.
-- [ ] The same query with `include_subagents:false` returns `total_records == 0`;
+- [x] The same query with `include_subagents:false` returns `total_records == 0`;
       the two arms are no longer byte-identical.
-- [ ] The fixture is rebuilt per run with a fresh nonce, so a leftover from a
+- [x] The fixture is rebuilt per run with a fresh nonce, so a leftover from a
       previous run cannot satisfy the assertion.
-- [ ] The fixture test passes a physical `working_dir`, not a symlink alias
+- [x] The fixture test passes a physical `working_dir`, not a symlink alias
       (an alias would trip gap-path-normalization-bypassed-in-query-sessions-filter first).
 
 ## DoD
