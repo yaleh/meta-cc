@@ -109,6 +109,7 @@ project that actually has codex sessions.
 
 ## Touches
 
+- tasks/gap-path-normalization-bypassed-in-query-sessions-filter.md
 - internal/mcp/executor/query_sessions_handler.go
 - internal/mcp/query/stage.go (only if the Codex open item resolves to a defect)
-- internal/mcp/executor/ (new alias/physical equivalence regression test)
+- internal/mcp/executor/query_sessions_path_alias_test.go (new)
