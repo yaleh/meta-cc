@@ -153,6 +153,7 @@ backend's capabilities are known:
 
 ## Touches
 
+- tasks/gap-codex-appserver-sessions-missing-rollout-path.md
 - internal/provider/codex/appserver_provider.go
 - internal/provider/codex/rollout.go
-- internal/provider/codex/ (regression test for the per-backend contract)
+- internal/provider/codex/rollout_contract_test.go (new per-backend contract test)
